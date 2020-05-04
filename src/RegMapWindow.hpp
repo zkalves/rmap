@@ -13,7 +13,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
     Q_OBJECT
 
 public:
-    explicit RegMapWindow(QWidget *parent = nullptr);
+    explicit RegMapWindow(QString &regmap_file, QWidget *parent = nullptr);
 };
 
 #endif
