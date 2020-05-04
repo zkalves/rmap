@@ -1,0 +1,25 @@
+<RCC>
+  <qresource prefix="toolbar">
+    <file>config-512.png</file>
+    <file>about.png</file>
+    <file>exit.png</file>
+    <file>folder_new.png</file>
+    <file>folder_save.png</file>
+    <file>checkmark-512.png</file>
+    <file>export.png</file>
+    <file>folder_open.png</file>
+    <file>uvm_map.png</file>
+    <file>uvm_mem.png</file>
+    <file>uvm_reg_block.png</file>
+    <file>uvm_reg_field.png</file>
+    <file>uvm_reg.png</file>
+    <file>delete-2-xxl.png</file>
+  </qresource>
+  <qresource prefix="icons">
+    <file>uvm_map_small.png</file>
+    <file>uvm_mem_small.png</file>
+    <file>uvm_reg_block_small.png</file>
+    <file>uvm_reg_field_small.png</file>
+    <file>uvm_reg_small.png</file>
+  </qresource>
+</RCC>

@@ -1,0 +1,4 @@
+#!/bin/bash
+pyside2-uic -x ../ui/rmap.ui -o ../src/rmap_ui.py
+pyside2-uic -x ../ui/config.ui -o ../src/config_ui.py
+pyside2-rcc ../ui/resources.qrc -o ../src/resources_rc.py
