@@ -1,0 +1,188 @@
+&id003 !root
+childItems:
+- &id002 !blk
+  childItems:
+  - &id001 !reg
+    childItems:
+    - !fld
+      childItems: []
+      icon: :/icons/uvm_reg_field_small.png
+      itemData:
+      - fld
+      - ''
+      - ''
+      - ''
+      - ''
+      kind: fld
+      parentItem: *id001
+      possible_children: []
+    - !fld
+      childItems: []
+      icon: :/icons/uvm_reg_field_small.png
+      itemData:
+      - fld
+      - ''
+      - ''
+      - ''
+      - ''
+      kind: fld
+      parentItem: *id001
+      possible_children: []
+    - !fld
+      childItems: []
+      icon: :/icons/uvm_reg_field_small.png
+      itemData:
+      - fld
+      - ''
+      - ''
+      - ''
+      - ''
+      kind: fld
+      parentItem: *id001
+      possible_children: []
+    - !fld
+      childItems: []
+      icon: :/icons/uvm_reg_field_small.png
+      itemData:
+      - fld
+      - ''
+      - ''
+      - ''
+      - ''
+      kind: fld
+      parentItem: *id001
+      possible_children: []
+    - !fld
+      childItems: []
+      icon: :/icons/uvm_reg_field_small.png
+      itemData:
+      - fld
+      - ''
+      - ''
+      - ''
+      - ''
+      kind: fld
+      parentItem: *id001
+      possible_children: []
+    icon: :/icons/uvm_reg_small.png
+    itemData:
+    - reg
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: reg
+    parentItem: *id002
+    possible_children:
+    - RegMapFieldItem
+  - !reg
+    childItems: []
+    icon: :/icons/uvm_reg_small.png
+    itemData:
+    - reg
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: reg
+    parentItem: *id002
+    possible_children:
+    - RegMapFieldItem
+  - !reg
+    childItems: []
+    icon: :/icons/uvm_reg_small.png
+    itemData:
+    - reg
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: reg
+    parentItem: *id002
+    possible_children:
+    - RegMapFieldItem
+  - !mem
+    childItems: []
+    icon: :/icons/uvm_mem_small.png
+    itemData:
+    - mem
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: mem
+    parentItem: *id002
+    possible_children: []
+  - !mem
+    childItems: []
+    icon: :/icons/uvm_mem_small.png
+    itemData:
+    - mem
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: mem
+    parentItem: *id002
+    possible_children: []
+  - !mem
+    childItems: []
+    icon: :/icons/uvm_mem_small.png
+    itemData:
+    - mem
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: mem
+    parentItem: *id002
+    possible_children: []
+  - !map
+    childItems: []
+    icon: :/icons/uvm_map_small.png
+    itemData:
+    - map
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: map
+    parentItem: *id002
+    possible_children: []
+  - !map
+    childItems: []
+    icon: :/icons/uvm_map_small.png
+    itemData:
+    - map
+    - ''
+    - ''
+    - ''
+    - ''
+    kind: map
+    parentItem: *id002
+    possible_children: []
+  icon: :/icons/uvm_reg_block_small.png
+  itemData:
+  - blk
+  - ''
+  - ''
+  - ''
+  - ''
+  kind: blk
+  parentItem: *id003
+  possible_children:
+  - RegMapMemItem
+  - RegMapMapItem
+  - RegMapRegItem
+  - RegMapBlockItem
+icon: ''
+itemData:
+- Type
+- Offset
+- Size
+- Name
+- Description
+kind: root
+parentItem: null
+possible_children:
+- RegMapBlockItem
