@@ -1,3 +1,6 @@
-class RegMapWindow: QMainWindow, Ui_rmap;
-void parse(int argc, char* argv[]);
+#include <QApplication>
+#include <QCommandLineParser>
+#include <QCommandLineOption>
+
+#include "RegMapWindow.hpp"
 

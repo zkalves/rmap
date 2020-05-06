@@ -1,8 +1,4 @@
-#include <QApplication>
-#include <QCommandLineParser>
-#include <QCommandLineOption>
-
-#include "RegMapWindow.hpp"
+#include "rmap.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +15,7 @@ int main(int argc, char *argv[])
     parser.process(app);
     QString regmap_file = parser.value("file");
 
-    RegMapWindow mainWin(regmap_file);
-    mainWin.show();
+    RegMapWindow * mainWin = new RegMapWindow(regmap_file);
+    mainWin->show();
     return app.exec();
 }
