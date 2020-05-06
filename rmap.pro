@@ -23,10 +23,11 @@ QT += gui widgets
 FORMS += ui/config.ui ui/rmap.ui
 HEADERS += src/RegMapTreeView.hpp \
            src/RegMapWindow.hpp \
+           src/RegConfigWindow.hpp \
            src/rmap.hpp
 INCLUDEPATH += src
 SOURCES += src/rmap.cpp \
-           src/argparser.cpp \
            src/RegMapWindow.cpp \
-           src/RegMapTreeView.cpp
+           src/RegMapTreeView.cpp \
+           src/RegConfigWindow.cpp
 RESOURCES += ui/resources.qrc
