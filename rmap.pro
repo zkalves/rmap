@@ -6,15 +6,9 @@ TEMPLATE = app
 TARGET = rmap
 INCLUDEPATH += .
 
-# The following define makes your compiler warn you if you use any
-# feature of Qt which has been marked as deprecated (the exact warnings
-# depend on your compiler). Please consult the documentation of the
-# deprecated API in order to know how to port your code away from it.
-DEFINES += QT_DEPRECATED_WARNINGS
+;CONFIG=release
 
-# You can also make your code fail to compile if you use deprecated APIs.
-# In order to do so, uncomment the following line.
-# You can also select to disable deprecated APIs only up to a certain version of Qt.
+DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 QT += gui widgets
@@ -31,3 +25,21 @@ SOURCES += src/rmap.cpp \
            src/RegMapTreeView.cpp \
            src/RegConfigWindow.cpp
 RESOURCES += ui/resources.qrc
+
+CONFIG(debug, debug|release) {
+    DESTDIR = build/debug
+} else {
+    DESTDIR = build/release
+}
+
+release:DESTDIR = release
+release:OBJECTS_DIR = release/.obj
+release:MOC_DIR = release/.moc
+release:RCC_DIR = release/.rcc
+release:UI_DIR = release/.ui
+
+debug:DESTDIR = debug
+debug:OBJECTS_DIR = debug/.obj
+debug:MOC_DIR = debug/.moc
+debug:RCC_DIR = debug/.rcc
+debug:UI_DIR = debug/.ui
