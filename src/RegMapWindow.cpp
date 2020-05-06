@@ -5,6 +5,11 @@ RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
 {
     setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
+    m_active_folder = ".";
+    m_is_regmap_modified = false;
+    m_rmap_filename = rmap_filename;
+    m_default_filename = "rmap.yaml";
+    m_default_window_title = windowTitle();
 
     m_config_window = new RegConfigWindow(this);
     connect(actionConfig, &QAction::triggered, this, &RegMapWindow::btnConfig);
