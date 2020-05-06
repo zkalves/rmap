@@ -22,6 +22,11 @@ public:
 private:
     void btnConfig(void);
     RegConfigWindow * m_config_window;
+    QString           m_rmap_filename;
+    QString           m_default_filename;
+    QString           m_active_folder;
+    QString           m_default_window_title;
+    bool              m_is_regmap_modified;
 };
 
 #endif
