@@ -30,7 +30,7 @@ RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
 //        self.actionAddReg.triggered.connect(self.btnAddReg)
 //        self.actionCheck.triggered.connect(self.btnCheck)
 //        self.actionExport.triggered.connect(self.btnExport)
-//        self.actionQuit.triggered.connect(self.btnQuitButton)
+    connect(actionQuit,   &QAction::triggered, this, &RegMapWindow::btnQuitButton);
     connect(actionAbout,  &QAction::triggered, this, &RegMapWindow::btnAbout);
     connect(actionConfig, &QAction::triggered, this, &RegMapWindow::btnConfig);
 
@@ -63,8 +63,10 @@ void RegMapWindow::btnAbout(void)
                              QMessageBox::Ok);
 }
 
-//    def btnQuitButton(self):
-//        self.close()
+void RegMapWindow::btnQuitButton(void)
+{
+        this->close();
+}
 
 //    def btnFileNew(self):
 //        if self.is_regmap_modified:
