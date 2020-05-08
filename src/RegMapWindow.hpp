@@ -21,6 +21,7 @@ public:
 
 private:
     void btnConfig(void);
+    void btnAbout(void);
     RegConfigWindow * m_config_window;
     QString           m_rmap_filename;
     QString           m_default_filename;
