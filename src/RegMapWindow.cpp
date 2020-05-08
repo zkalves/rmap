@@ -10,27 +10,6 @@ RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
     m_rmap_filename = rmap_filename;
     m_default_filename = "rmap.yaml";
     m_default_window_title = windowTitle();
-
-    m_config_window = new RegConfigWindow(this);
-    connect(actionConfig, &QAction::triggered, this, &RegMapWindow::btnConfig);
-}
-void RegMapWindow::btnConfig(void)
-{
-        m_config_window->show();
-}
-//class RegMapWindow(QMainWindow, Ui_rmap):
-//    def __init__(self,rmap_filename):
-//        super(RegMapWindow, self).__init__()
-//        self.setupUi(self)
-//        # Solves issue on close
-//        self.setAttribute(Qt.WA_DeleteOnClose)
-//        # custom variables
-//        self.active_folder = '.'
-//        self.is_regmap_modified = False
-//        self.rmap_filename = rmap_filename
-//        self.default_filename = "rmap.yaml"
-//        self.default_window_title = self.windowTitle()
-
 //        # Set table model and attributes
 //        self.__model    = RegMapModel()
 //        self.__model.dataChanged.connect(self.regmap_modified)
@@ -52,10 +31,10 @@ void RegMapWindow::btnConfig(void)
 //        self.actionCheck.triggered.connect(self.btnCheck)
 //        self.actionExport.triggered.connect(self.btnExport)
 //        self.actionQuit.triggered.connect(self.btnQuitButton)
-//        self.actionAbout.triggered.connect(self.btnAbout)
-//        self.actionConfig.triggered.connect(self.btnConfig)
+    connect(actionAbout,  &QAction::triggered, this, &RegMapWindow::btnAbout);
+    connect(actionConfig, &QAction::triggered, this, &RegMapWindow::btnConfig);
 
-//        self.config_window = ConfigWindow(self)
+    m_config_window = new RegConfigWindow(this);
 
 //        # if not self.rmap_filename:
 //        #     self.rmap_filename = self.default_filename
@@ -69,14 +48,20 @@ void RegMapWindow::btnConfig(void)
 //        self.treeView.setItemDelegateForColumn(3,self.__strDelegate)
 //        self.treeView.setItemDelegateForColumn(4,self.__allDelegate)
 
-//    def btnConfig(self):
-//        self.config_window.show()
+}
+void RegMapWindow::btnConfig(void)
+{
+    m_config_window->show();
+}
 
-//    def btnAbout(self):
-//        QMessageBox.information(self, "About",
-//                                      "".join(["Version: ", "0.1.0", "\n",
-//                                               "Author: Ezequiel Alves \n"]),
-//                                      QMessageBox.Ok)
+void RegMapWindow::btnAbout(void)
+{
+    QMessageBox::information(this,
+                             tr("About"),
+                             tr("Version: 0.1.0\n"
+                                "Author: Ezequiel Alves \n"),
+                             QMessageBox::Ok);
+}
 
 //    def btnQuitButton(self):
 //        self.close()
