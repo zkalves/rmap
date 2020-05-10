@@ -15,17 +15,21 @@ QT += gui widgets
 
 # Input
 FORMS += ui/config.ui ui/rmap.ui
-HEADERS += src/RegMapTreeView.hpp \
+HEADERS += src/RegMapTreeItem.hpp \
+           src/RegMapTreeModel.hpp \
+           src/RegMapTreeView.hpp \
            src/RegMapWindow.hpp \
            src/RegMapDelegate.hpp \
            src/RegConfigWindow.hpp \
            src/rmap.hpp
 INCLUDEPATH += src
-SOURCES += src/rmap.cpp \
+SOURCES += src/RegMapTreeItem.cpp \
+           src/RegMapTreeModel.cpp \
+           src/RegMapTreeView.cpp \
            src/RegMapWindow.cpp \
            src/RegMapDelegate.cpp \
-           src/RegMapTreeView.cpp \
-           src/RegConfigWindow.cpp
+           src/RegConfigWindow.cpp \
+           src/rmap.cpp
 RESOURCES += ui/resources.qrc
 
 CONFIG(debug, debug|release) {

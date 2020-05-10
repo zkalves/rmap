@@ -3,50 +3,48 @@
 RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
     QMainWindow(parent)
 {
-    setupUi(this);
-    setAttribute(Qt::WA_DeleteOnClose);
+    this->setupUi(this);
+    this->setAttribute(Qt::WA_DeleteOnClose);
     m_active_folder = ".";
     m_is_regmap_modified = false;
     m_rmap_filename = rmap_filename;
     m_default_filename = "rmap.yaml";
     m_default_window_title = windowTitle();
-//        # Set table model and attributes
-//        self.__model    = RegMapModel()
-//        self.__model.dataChanged.connect(self.regmap_modified)
-
-//        self.treeView.setSelectionBehavior(QAbstractItemView.SelectRows)
-//        self.treeView.setModel(self.__model)
-//        self.treeView.setAlternatingRowColors(True)
-//        self.actionFileNew.triggered.connect(self.btnFileNew)
-//        self.actionFileOpen.triggered.connect(self.btnFileOpen)
-//        self.actionFileSave.triggered.connect(self.btnFileSave)
-//        self.actionFileSaveAs.triggered.connect(self.btnFileSaveAs)
-//        self.actionFileReload.triggered.connect(self.btnFileReload)
-//        self.actionAddMem.triggered.connect(self.btnAddMem)
-//        self.actionAddRegBlock.triggered.connect(self.btnAddRegBlock)
-//        self.actionAddRegField.triggered.connect(self.btnAddRegField)
-//        self.actionDeleteItem.triggered.connect(self.btnDeleteItem)
-//        self.actionAddRegMap.triggered.connect(self.btnAddRegMap)
-//        self.actionAddReg.triggered.connect(self.btnAddReg)
-//        self.actionCheck.triggered.connect(self.btnCheck)
-//        self.actionExport.triggered.connect(self.btnExport)
-    connect(actionQuit,   &QAction::triggered, this, &RegMapWindow::btnQuitButton);
-    connect(actionAbout,  &QAction::triggered, this, &RegMapWindow::btnAbout);
-    connect(actionConfig, &QAction::triggered, this, &RegMapWindow::btnConfig);
+    // Set table model and attributes
+    m_model = new RegMapTreeModel();
+    connect(m_model,   &RegMapTreeModel::dataChanged, this, &RegMapWindow::regmap_modified);
+    this->treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    this->treeView->setModel(m_model);
+    this->treeView->setAlternatingRowColors(true);
+    connect(actionFileNew,      &QAction::triggered, this, &RegMapWindow::btnFileNew);
+    connect(actionFileOpen,     &QAction::triggered, this, &RegMapWindow::btnFileOpen);
+    connect(actionFileSave,     &QAction::triggered, this, &RegMapWindow::btnFileSave);
+    connect(actionFileSaveAs,   &QAction::triggered, this, &RegMapWindow::btnFileSaveAs);
+    connect(actionFileReload,   &QAction::triggered, this, &RegMapWindow::btnFileReload);
+    connect(actionAddMem,       &QAction::triggered, this, &RegMapWindow::btnAddMem);
+    connect(actionAddRegBlock,  &QAction::triggered, this, &RegMapWindow::btnAddRegBlock);
+    connect(actionAddRegField,  &QAction::triggered, this, &RegMapWindow::btnAddRegField);
+    connect(actionDeleteItem,   &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
+    connect(actionAddRegMap,    &QAction::triggered, this, &RegMapWindow::btnAddRegMap);
+    connect(actionAddReg,       &QAction::triggered, this, &RegMapWindow::btnAddReg);
+    connect(actionCheck,        &QAction::triggered, this, &RegMapWindow::btnCheck);
+    connect(actionExport,       &QAction::triggered, this, &RegMapWindow::btnExport);
+    connect(actionQuit,         &QAction::triggered, this, &RegMapWindow::btnQuitButton);
+    connect(actionAbout,        &QAction::triggered, this, &RegMapWindow::btnAbout);
+    connect(actionConfig,       &QAction::triggered, this, &RegMapWindow::btnConfig);
 
     m_config_window = new RegConfigWindow(this);
 
 //        # if not self.rmap_filename:
 //        #     self.rmap_filename = self.default_filename
-//        if self.rmap_filename:
-//            self.fileOpen(self.rmap_filename)
-//        self.__hexDelegate = RegHexDecBinDelegate()
-//        self.__strDelegate = RegStrDelegate()
-//        self.__allDelegate = RegMapDelegate()
-//        self.treeView.setItemDelegateForColumn(1,self.__hexDelegate)
-//        self.treeView.setItemDelegateForColumn(2,self.__hexDelegate)
-//        self.treeView.setItemDelegateForColumn(3,self.__strDelegate)
-//        self.treeView.setItemDelegateForColumn(4,self.__allDelegate)
+    if(!m_rmap_filename.isNull())
+    {
+        fileOpen(rmap_filename);
+    }
+    this->treeView->setItemDelegateForColumn(1,new RegHexDecBinDelegate);
+    this->treeView->setItemDelegateForColumn(2,new RegHexDecBinDelegate);
+    this->treeView->setItemDelegateForColumn(3,new RegStrDelegate);
+    this->treeView->setItemDelegateForColumn(4,new RegMapDelegate);
 
 }
 void RegMapWindow::btnConfig(void)
@@ -68,107 +66,170 @@ void RegMapWindow::btnQuitButton(void)
         this->close();
 }
 
-//    def btnFileNew(self):
-//        if self.is_regmap_modified:
-//            flags  = QMessageBox.Ok
-//            flags |= QMessageBox.Save
-//            flags |= QMessageBox.Cancel
+void RegMapWindow::btnFileNew(void)
+{
+    QMessageBox::StandardButton result;
+    bool save_status = false;
+    if (m_is_regmap_modified)
+    {
+        result = QMessageBox::warning(this, "New file",
+                                           "This action will remove all unsaved data, do you wish to continue?",
+                                           QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
+        if (result == QMessageBox::Save)
+        {
+            save_status = btnFileSave();
+        }
+    }
+    if (!m_is_regmap_modified || result == QMessageBox::Ok || (result == QMessageBox::Save && save_status))
+    {
+        fileNew();
+    }
+}
 
-//            result = QMessageBox.warning(self, "New file",
-//                                                "This action will remove all unsaved data, do you wish to continue?",
-//                                                flags)
+bool RegMapWindow::btnFileSave(void)
+{
+    bool save_status = false;
+    if (!m_is_regmap_modified)
+    {
+        save_status = btnFileSaveAs();
+    }
+    else
+    {
+        save_status = fileSave();
+    }
+    return(save_status);
+}
 
-//            if result == QMessageBox.Save:
-//                save_status = self.btnFileSave()
+bool RegMapWindow::btnFileSaveAs(void)
+{
+    QString fname;
+    bool save_status = false;
+    QFileDialog dialog(this);
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setNameFilter("rmap files (*.yaml)");
+    dialog.setViewMode(QFileDialog::Detail);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    if(!m_rmap_filename.isNull())
+    {
+        fname = m_default_filename;
+    }
+    else
+    {
+        fname = m_rmap_filename;
+        if (!fname.endsWith(".yaml"))
+        {
+                //fname  = fname.strip(".")
+                fname.append(".yaml");
+        }
+    }
+    dialog.selectFile(fname);
+    if(dialog.exec())
+    {
+        QStringList selectedFiles = dialog.selectedFiles();
+        if (!selectedFiles.isEmpty())
+        {
+            QString filename;
+            fname = selectedFiles.at(0);
+            save_status = fileSave(fname);
+            if(save_status)
+            {
+                m_rmap_filename = fname;
+            }
+            filename = m_default_window_title;
+            filename.append(" - ");
+            filename.append(fname);
+            this->setWindowTitle(filename);
+        }
+    }
+    return(save_status);
+}
 
-//        if not self.is_regmap_modified or result == QMessageBox.Ok or (result == QMessageBox.Save and save_status):
-//            self.fileNew()
 
-//    def btnFileSave(self):
-//        save_status = False
-//        if not self.rmap_filename:
-//            save_status = self.btnFileSaveAs()
-//        else:
-//            save_status = self.fileSave()
-//        return save_status
+void RegMapWindow::btnFileOpen(void)
+{
+    QMessageBox::StandardButton result;
+    if (m_is_regmap_modified)
+    {
+        result = QMessageBox::warning(this, "Open file",
+                                           "This action will remove all unsaved data, do you wish to continue?",
+                                           QMessageBox::Ok | QMessageBox::Cancel);
+    }
+    if(!m_is_regmap_modified || result == QMessageBox::Ok)
+    {
+            QString filename;
+            QString fname = QFileDialog::getOpenFileName( this,
+                                                         "Open file",
+                                                         m_active_folder,
+                                                         "rmap files (*.yaml)");
+            fileOpen(fname);
+            filename = m_default_window_title;
+            filename.append(" - ");
+            filename.append(fname);
+            this->setWindowTitle(filename);
+    }
+}
 
-//    def btnFileSaveAs(self):
-//        save_status = False
-//        dialog = QFileDialog(self)
-//        dialog.setFileMode(QFileDialog.AnyFile)
-//        dialog.setNameFilter("rmap files (*.yaml)");
-//        dialog.setViewMode(QFileDialog.Detail)
-//        dialog.setAcceptMode(QFileDialog.AcceptSave)
-//        if not self.rmap_filename:
-//            fname = self.default_filename
-//        else:
-//            fname = self.rmap_filename
-//            if not fname.endswith(".yaml"):
-//                fname  = fname.strip(".")
-//                fname += ".yaml"
-//        dialog.selectFile(fname)
-//        if dialog.exec_():
-//            fname = dialog.selectedFiles()
-//            fname = fname[0]
-//            save_status = self.fileSave(fname)
-//            if save_status:
-//                self.rmap_filename = fname
-//            self.setWindowTitle(self.default_window_title + " - " + fname)
-//        return save_status
+void RegMapWindow::btnFileReload(void)
+{
+    QMessageBox::StandardButton result;
+    if (m_is_regmap_modified)
+    {
+        result = QMessageBox::warning(this, "Reload file",
+                                           "This action will remove all unsaved data, do you wish to continue?",
+                                           QMessageBox::Ok | QMessageBox::Cancel);
+    }
+    if(!m_is_regmap_modified || result == QMessageBox::Ok)
+    {
+        QString filename;
+        QString fname;
+        fname = m_rmap_filename;
+        fileOpen(fname);
+        filename = m_default_window_title;
+        filename.append(" - ");
+        filename.append(fname);
+        this->setWindowTitle(filename);
+    }
+}
 
-
-//    def btnFileOpen(self):
-//        if self.is_regmap_modified:
-//            flags  = QMessageBox.Ok
-//            flags |= QMessageBox.Cancel
-
-//            result = QMessageBox.warning(self, "Open file",
-//                                                "This action will remove all unsaved data, do you wish to continue?",
-//                                                flags)
-//        if not self.is_regmap_modified or result   == QMessageBox.Ok:
-//            fname, _ = QFileDialog.getOpenFileName( self,
-//                                                    'Open file',
-//                                                    self.active_folder,
-//                                                    "rmap files (*.yaml)")
-//            self.fileOpen(fname)
-//            self.setWindowTitle(self.default_window_title + " - " + fname)
-
-//    def btnFileReload(self):
-//        if self.is_regmap_modified:
-//            flags  = QMessageBox.Ok
-//            flags |= QMessageBox.Cancel
-
-//            result = QMessageBox.warning(self, "Reload file",
-//                                                "This action will remove all unsaved data, do you wish to continue?",
-//                                                flags)
-//        if not self.is_regmap_modified or result   == QMessageBox.Ok:
-//            fname = self.rmap_filename
-//            self.fileOpen(fname)
-//            self.setWindowTitle(self.default_window_title + " - " + fname)
-
-//    def btnCheck(self):
+void RegMapWindow::btnCheck(void)
+{
 //        model = self.treeView.model()
 //        model.checkData()
+}
 
-//    def btnExport(self):
+void RegMapWindow::btnExport(void)
+{
 //        print("export")
+}
 
-//    def btnAddMem(self):
+void RegMapWindow::btnAddMem(void)
+{
 //        self.insertChild(RegMapMemItem)
+}
 
-//    def btnAddRegBlock(self):
+void RegMapWindow::btnAddRegBlock(void)
+{
 //        self.insertChild(RegMapBlockItem)
+}
 
-//    def btnAddRegField(self):
+
+void RegMapWindow::btnAddRegField(void)
+{
 //        self.insertChild(RegMapFieldItem)
+}
 
-//    def btnAddRegMap(self):
+void RegMapWindow::btnAddRegMap(void)
+{
 //        self.insertChild(RegMapMapItem)
+}
 
-//    def btnAddReg(self):
+void RegMapWindow::btnAddReg(void)
+{
 //        self.insertChild(RegMapRegItem)
+}
 
-//    def btnDeleteItem(self):
+void RegMapWindow::btnDeleteItem(void)
+{
 //        if len(self.treeView.selectedIndexes()) > 0:
 //            index = self.treeView.selectedIndexes()[0]
 //        else:
@@ -177,8 +238,10 @@ void RegMapWindow::btnQuitButton(void)
 //        if index.row() >= 0:
 //            model = self.treeView.model()
 //            model.removeRows(index.row(), 1, index.parent())
+}
 
-//    def fileNew(self):
+void RegMapWindow::fileNew(void)
+{
 //        self.recursive_delete(self.__model.rootItem)
 //        del(self.__model)
 //        gc.collect()
@@ -187,8 +250,10 @@ void RegMapWindow::btnQuitButton(void)
 //        self.treeView.setModel(self.__model)
 //        self.regmap_notModified()
 //        self.rmap_filename = ''
+}
 
-//    def fileOpen(self,fname):
+void RegMapWindow::fileOpen(QString fname)
+{
 //        if os.path.exists(fname):
 //            self.fileNew()
 //            try:
@@ -202,8 +267,10 @@ void RegMapWindow::btnQuitButton(void)
 //                    self.treeView.resizeColumnToContents(col)
 //            except Exception as E:
 //                print("[ERROR] Could not open file", e)
+}
 
-//    def fileSave(self, fname=None):
+bool RegMapWindow::fileSave(QString fname)
+{
 //        save_status = False
 //        if not fname:
 //            fname = self.rmap_filename
@@ -219,22 +286,35 @@ void RegMapWindow::btnQuitButton(void)
 //        except Exception as e:
 //            print("[ERROR] Could not save file", e)
 //        return save_status
+}
 
-//    def regmap_modified(self):
-//        if not self.is_regmap_modified:
-//            self.is_regmap_modified = True
-//            win_title = self.windowTitle()
-//            if not win_title.endswith('*'):
-//                win_title += '*'
-//            self.setWindowTitle(win_title)
+void RegMapWindow::regmap_modified(void)
+{
+    if(!m_is_regmap_modified)
+    {
+        m_is_regmap_modified = true;
+        QString win_title = this->windowTitle();
+        if (win_title.endsWith('*'))
+        {
+            win_title.append('*');
+        }
+        this->setWindowTitle(win_title);
+    }
+}
 
-//    def regmap_notModified(self):
-//        if self.is_regmap_modified:
-//            self.is_regmap_modified = False
-//            win_title = self.windowTitle()
-//            if win_title.endswith('*'):
-//                win_title = win_title.strip('*')
-//            self.setWindowTitle(win_title)
+void RegMapWindow::regmap_notModified(void)
+{
+    if(!m_is_regmap_modified)
+    {
+        m_is_regmap_modified = false;
+        QString win_title = this->windowTitle();
+        if (win_title.endsWith('*'))
+        {
+            win_title.remove(win_title.size()-1,1);
+        }
+        this->setWindowTitle(win_title);
+    }
+}
 
 //    def recursive_delete(self,obj):
 //        for child in obj.childItems:

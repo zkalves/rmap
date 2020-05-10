@@ -2,9 +2,11 @@
 #define REGMAPWINDOW_HPP
 #include <QMainWindow>
 #include <QtWidgets>
-#include <iostream>
+#include <QDebug>
 #include "RegConfigWindow.hpp"
+#include "RegMapDelegate.hpp"
 #include "RegMapTreeView.hpp"
+#include "RegMapTreeModel.hpp"
 #include "ui_rmap.h"
 
 
@@ -20,11 +22,30 @@ public:
     explicit RegMapWindow(QString &rmap_filename, QWidget *parent = nullptr);
 
 private:
+    void fileNew(void);
+    void fileOpen(QString fname);
+    bool fileSave(QString fname = nullptr);
+    void regmap_modified(void);
+    void regmap_notModified(void);
+    void btnFileNew(void);
+    void btnFileOpen(void);
+    bool btnFileSave(void);
+    bool btnFileSaveAs(void);
+    void btnFileReload(void);
+    void btnAddMem(void);
+    void btnAddRegBlock(void);
+    void btnAddRegField(void);
+    void btnDeleteItem(void);
+    void btnAddRegMap(void);
+    void btnAddReg(void);
+    void btnCheck(void);
+    void btnExport(void);
+    void btnQuitButton(void);
     void btnConfig(void);
     void btnAbout(void);
-    void btnQuitButton(void);
 
     RegConfigWindow * m_config_window;
+    RegMapTreeModel * m_model;
     QString           m_rmap_filename;
     QString           m_default_filename;
     QString           m_active_folder;
