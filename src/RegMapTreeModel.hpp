@@ -30,6 +30,5 @@ private:
 
     RegMapTreeItem *m_rootItem;
 };
-//! [0]
 
 #endif // REGMAPTREEMODEL_HPP

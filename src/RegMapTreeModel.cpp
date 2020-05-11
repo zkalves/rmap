@@ -26,12 +26,24 @@ QVariant RegMapTreeModel::data(const QModelIndex &index, int role) const
     if (!index.isValid())
         return QVariant();
 
-    if (role != Qt::DisplayRole)
-        return QVariant();
-
     RegMapTreeItem *item = static_cast<RegMapTreeItem*>(index.internalPointer());
 
+    //item = this->getItem(index);
+
+    if(role == Qt::DecorationRole)
+    {
+        if(index.column() == 0)
+        {
+            //return QPixmap(item->get_icon()).scaled(QSize(20,20),  Qt::KeepAspectRatio);
+        }
+    }
+
+    if (role != Qt::DisplayRole && role != Qt::EditRole)
+        return QVariant();
+
+
     return item->data(index.column());
+
 }
 
 Qt::ItemFlags RegMapTreeModel::flags(const QModelIndex &index) const
@@ -146,32 +158,6 @@ void RegMapTreeModel::setupModelData(const QStringList &lines, RegMapTreeItem *p
     }
 }
 
-//class RegMapModel(QAbstractItemModel):
-//    def __init__(self, parent=None):
-//        super(RegMapModel, self).__init__(parent)
-
-//        self.headers      = ["Type", "Offset", "Size", "Name", "Description"]
-//        self.rootItem = RegMapRootItem(self.headers)
-
-//    def columnCount(self, parent=QModelIndex()):
-//        return self.rootItem.columnCount()
-
-//    def data(self, index, role):
-//        if not index.isValid():
-//            return None
-
-//        item = self.getItem(index)
-
-//        if role == Qt.DecorationRole:
-//            if index.column() == 0:
-//                return QPixmap(item.get_icon()).scaled(QSize(20,20),  Qt.KeepAspectRatio)
-//        # if role == Qt.BackgroundColorRole:
-//        #     return (QBrush(Qt.blue))
-
-//        if role != Qt.DisplayRole and role != Qt.EditRole:
-//            return None
-
-//        return item.data(index.column())
 
 //    def print_hier(self,start, dlm = ""):
 //        dlm = dlm + " "

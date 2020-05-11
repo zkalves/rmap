@@ -64,60 +64,114 @@ int RegMapTreeItem::row() const
 }
 
 
-//    def insertChildren(self, position, count, columns, kind):
-//        if position < 0 or position > len(self.childItems) or kind.__name__ not in self.get_possible_children():
-//            insert_status = False
-//        else:
-//            for row in range(count):
-//                data = ["NA" for v in range(columns)]
-//                item = kind(data, self)
-//                self.childItems.insert(position, item)
-//            insert_status = True
+bool RegMapTreeItem::insertChildren(int position, int count, int columns, e_rmitKind kind)
+{
+    bool insert_status;
+    //if((position < 0) || (position > this->m_childItems.size()) || kind != get_possible_children())
+    if((position < 0) || (position > this->m_childItems.size()))
+    {
+        insert_status = false;
+    }
+    else
+    {
+        for(int row=0 ; row < count ; row++)
+        {
+            QVector<QVariant> data;
+            data.reserve(columns);
+            for(int i=0;i<columns;i++)
+            {
+                data.append("NA");
+            }
+            RegMapTreeItem item = RegMapTreeItem(data, this);
+            this->m_childItems.insert(position, &item);
+        }
+        insert_status = true;
+    }
 
-//        return insert_status
+    return(insert_status);
+}
 
-//    def insertColumns(self, position, columns):
-//        if position < 0 or position > len(self.itemData):
-//            insert_status = False
-//        else:
-//            for column in range(columns):
-//                self.itemData.insert(position, None)
+bool RegMapTreeItem::insertColumns(int position, int columns)
+{
+    bool insert_status;
+    if(position < 0 || position > m_itemData.size())
+    {
+        insert_status = false;
+    }
+    else
+    {
+        for(int column=0 ; column<columns ; column++)
+        {
+            m_itemData.insert(position, QString());
+        }
+        Q_FOREACH (RegMapTreeItem* child, m_childItems)
+        {
+            child->insertColumns(position, columns);
+        }
+        insert_status = true;
+    }
+    return(insert_status);
+}
 
-//            for child in self.childItems:
-//                child.insertColumns(position, columns)
-//            insert_status = True
+bool RegMapTreeItem::removeChildren(int position, int count)
+{
+    bool status = false;
+    if (position < 0 || (position + count) > m_childItems.size())
+    {
+            status = false;
+    }
+    else
+    {
+        for (int row=0 ; row < count ; row++)
+        {
+            m_childItems.remove(position);
+        }
 
-//        return insert_status
+        status = true;
+    }
+    return(status);
+}
 
-//    def removeChildren(self, position, count):
-//        if position < 0 or position + count > len(self.childItems):
-//            return False
+bool RegMapTreeItem::removeColumns(int position, int columns)
+{
+    bool status = false;
+    if (position < 0 || (position + columns) > m_itemData.size())
+    {
+        status = false;
+    }
+    else
+    {
 
-//        for row in range(count):
-//            self.childItems.pop(position)
+        for (int column=0 ; column < columns ; column++)
+        {
+            m_itemData.remove(position);
+        }
 
-//        return True
+        Q_FOREACH (RegMapTreeItem* child, m_childItems)
+        {
+            child->removeColumns(position, columns);
+        }
+        status = true;
+    }
 
-//    def removeColumns(self, position, columns):
-//        if position < 0 or position + columns > len(self.itemData):
-//            return False
+    return status;
+}
 
-//        for column in range(columns):
-//            self.itemData.pop(position)
+bool RegMapTreeItem::setData(int column, QVariant value)
+{
+    bool set_status;
+    if (column < 0 || column >= m_itemData.size())
+    {
+        set_status = false;
+    }
+    else
+    {
+        m_itemData[column] = value;
+        set_status = true;
+    }
 
-//        for child in self.childItems:
-//            child.removeColumns(position, columns)
-
-//        return True
-
-//    def setData(self, column, value):
-//        if column < 0 or column >= len(self.itemData):
-//            set_status = False
-//        else:
-//            self.itemData[column] = value
-//            set_status = True
-
-//        return set_status
+    return(set_status);
+}
 
 //class RegMapRootItem(RegMapItem):
 //    yaml_loader = yaml.SafeLoader

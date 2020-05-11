@@ -5,3 +5,15 @@ RegConfigWindow::RegConfigWindow(QWidget *parent) :
 {
     setupUi(this);
 }
+
+void RegConfigWindow::accept(void)
+{
+    qDebug()<<"Accept button";
+    done(Accepted);
+}
+void RegConfigWindow::reject(void)
+{
+    qDebug()<<"Reject button";
+    done(Rejected);
+}
+
