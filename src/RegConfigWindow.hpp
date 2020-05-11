@@ -1,5 +1,6 @@
 #ifndef REGCONFIGWINDOW_HPP
 #define REGCONFIGWINDOW_HPP
+#include <QDebug>
 #include <QWidget>
 #include "ui_config.h"
 
@@ -13,9 +14,9 @@ class RegConfigWindow : public QDialog, private Ui::config
 
 public:
     explicit RegConfigWindow(QWidget *parent = nullptr);
-//private:
-//    void accept(void);
-//    void reject(void);
+private:
+    void accept(void);
+    void reject(void);
 };
 
 #endif

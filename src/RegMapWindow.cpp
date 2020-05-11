@@ -109,7 +109,7 @@ bool RegMapWindow::btnFileSaveAs(void)
     dialog.setNameFilter("rmap files (*.yaml)");
     dialog.setViewMode(QFileDialog::Detail);
     dialog.setAcceptMode(QFileDialog::AcceptSave);
-    if(!m_rmap_filename.isNull())
+    if(m_rmap_filename.isNull() || m_rmap_filename.isEmpty())
     {
         fname = m_default_filename;
     }
@@ -118,8 +118,9 @@ bool RegMapWindow::btnFileSaveAs(void)
         fname = m_rmap_filename;
         if (!fname.endsWith(".yaml"))
         {
-                //fname  = fname.strip(".")
-                fname.append(".yaml");
+            QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
+            croped_fname.append(".yaml");
+            fname=croped_fname;
         }
     }
     dialog.selectFile(fname);
@@ -199,7 +200,7 @@ void RegMapWindow::btnCheck(void)
 
 void RegMapWindow::btnExport(void)
 {
-//        print("export")
+        qDebug() << "export";
 }
 
 void RegMapWindow::btnAddMem(void)
