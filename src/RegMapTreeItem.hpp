@@ -7,10 +7,8 @@
 class RegMapTreeItem
 {
 public:
-    explicit RegMapTreeItem(QVector<QVariant> &data, RegMapTreeItem *parentItem = nullptr);
-    ~RegMapTreeItem();
 
-    void appendChild(RegMapTreeItem *child);
+    enum class e_rmitKind { root, mem, map, blk, reg, fld};
 
     RegMapTreeItem *child(int row);
     int childCount() const;
@@ -20,6 +18,14 @@ public:
     int row() const;
     RegMapTreeItem *parentItem();
 
+    explicit RegMapTreeItem(QVector<QVariant> &data, RegMapTreeItem *parentItem = nullptr);
+    ~RegMapTreeItem();
+    void appendChild(RegMapTreeItem *child);
+    bool insertChildren(int position, int count, int columns, e_rmitKind kind);
+    bool insertColumns(int position, int columns);
+    bool removeChildren(int position, int count);
+    bool removeColumns(int position, int columns);
+    bool setData(int column, QVariant value);
 private:
     QVector<RegMapTreeItem*> m_childItems;
     QVector<QVariant> m_itemData;
