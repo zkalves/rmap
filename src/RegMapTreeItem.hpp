@@ -21,20 +21,21 @@ public:
     int row() const;
     RegMapTreeItem *parentItem();
 
-    explicit RegMapTreeItem(QVector<QVariant> &data, RegMapTreeItem *parentItem = nullptr);
+    explicit RegMapTreeItem(e_rmmKind kind, QVector<QVariant> &data, RegMapTreeItem *parentItem = nullptr);
     ~RegMapTreeItem();
     void appendChild(RegMapTreeItem *child);
-    bool insertChildren(int position, int count, int columns);
+    bool insertChildren(e_rmmKind kind, int position, int count, int columns);
     bool insertColumns(int position, int columns);
     bool removeChildren(int position, int count);
     bool removeColumns(int position, int columns);
     bool setData(int column, QVariant value);
     QVector<e_rmmKind> get_possible_children(void);
+    const QString get_icon(void);
+    const QString getKindString(void);
 private:
     QVector<RegMapTreeItem*> m_childItems;
     QVector<QVariant> m_itemData;
     RegMapTreeItem *m_parentItem;
 };
-
 #endif // REGMAPTREEITEM_HPP
 
