@@ -16,6 +16,11 @@ RegMapTreeItem *RegMapTreeItem::child(int row)
     return m_childItems.at(row);
 }
 
+QVector<RegMapTreeItem*> RegMapTreeItem::getChildItems(void)
+{
+    return m_childItems;
+}
+
 int RegMapTreeItem::childCount() const
 {
     return m_childItems.count();
@@ -64,7 +69,7 @@ int RegMapTreeItem::row() const
 }
 
 
-bool RegMapTreeItem::insertChildren(int position, int count, int columns, e_rmitKind kind)
+bool RegMapTreeItem::insertChildren(int position, int count, int columns)
 {
     bool insert_status;
     //if((position < 0) || (position > this->m_childItems.size()) || kind != get_possible_children())
@@ -171,6 +176,20 @@ bool RegMapTreeItem::setData(int column, QVariant value)
     }
 
     return(set_status);
+}
+//    def get_icon(self):
+//        return("")
+QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::get_possible_children(void)
+{
+    QVector<RegMapTreeItem::e_rmmKind> possible_children;
+    switch(m_kind)
+    {
+        case RegMapTreeItem::e_rmmKind::root: possible_children << RegMapTreeItem::e_rmmKind::blk; break;
+        case RegMapTreeItem::e_rmmKind::blk : possible_children << RegMapTreeItem::e_rmmKind::mem << RegMapTreeItem::e_rmmKind::map << RegMapTreeItem::e_rmmKind::reg << RegMapTreeItem::e_rmmKind::blk; break;
+        case RegMapTreeItem::e_rmmKind::reg : possible_children << RegMapTreeItem::e_rmmKind::fld; break;
+        default: break;
+    }
+    return (possible_children);
 }
 
 //class RegMapRootItem(RegMapItem):

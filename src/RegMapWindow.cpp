@@ -194,8 +194,7 @@ void RegMapWindow::btnFileReload(void)
 
 void RegMapWindow::btnCheck(void)
 {
-//        model = self.treeView.model()
-//        model.checkData()
+    //m_model->checkData();
 }
 
 void RegMapWindow::btnExport(void)
@@ -205,28 +204,28 @@ void RegMapWindow::btnExport(void)
 
 void RegMapWindow::btnAddMem(void)
 {
-//        self.insertChild(RegMapMemItem)
+    insertChild(RegMapTreeItem::e_rmmKind::mem);
 }
 
 void RegMapWindow::btnAddRegBlock(void)
 {
-//        self.insertChild(RegMapBlockItem)
+    insertChild(RegMapTreeItem::e_rmmKind::blk);
 }
 
 
 void RegMapWindow::btnAddRegField(void)
 {
-//        self.insertChild(RegMapFieldItem)
+    insertChild(RegMapTreeItem::e_rmmKind::fld);
 }
 
 void RegMapWindow::btnAddRegMap(void)
 {
-//        self.insertChild(RegMapMapItem)
+    insertChild(RegMapTreeItem::e_rmmKind::map);
 }
 
 void RegMapWindow::btnAddReg(void)
 {
-//        self.insertChild(RegMapRegItem)
+    insertChild(RegMapTreeItem::e_rmmKind::reg);
 }
 
 void RegMapWindow::btnDeleteItem(void)
@@ -243,20 +242,21 @@ void RegMapWindow::btnDeleteItem(void)
 
 void RegMapWindow::fileNew(void)
 {
-//        self.recursive_delete(self.__model.rootItem)
-//        del(self.__model)
+    recursive_delete(m_model->getRootItem());
+    delete m_model;
 //        gc.collect()
-//        self.__model = RegMapModel()
-//        self.__model.dataChanged.connect(self.regmap_modified)
-//        self.treeView.setModel(self.__model)
-//        self.regmap_notModified()
-//        self.rmap_filename = ''
+    m_model = new RegMapTreeModel();
+    connect(m_model,   &RegMapTreeModel::dataChanged, this, &RegMapWindow::regmap_modified);
+    this->treeView->setModel(m_model);
+    this->regmap_notModified();
+    this->m_rmap_filename = QString();
 }
 
 void RegMapWindow::fileOpen(QString fname)
 {
-//        if os.path.exists(fname):
-//            self.fileNew()
+    QFileInfo check_file(fname);
+    if (check_file.exists() && check_file.isFile()) {
+        fileNew();
 //            try:
 //                fh = open(fname,"r")
 //                self.__model.rootItem = yaml.safe_load(fh)
@@ -268,16 +268,21 @@ void RegMapWindow::fileOpen(QString fname)
 //                    self.treeView.resizeColumnToContents(col)
 //            except Exception as E:
 //                print("[ERROR] Could not open file", e)
+    }
 }
 
 bool RegMapWindow::fileSave(QString fname)
 {
-//        save_status = False
-//        if not fname:
-//            fname = self.rmap_filename
-//        if not fname.endswith(".yaml"):
-//            fname  = fname.strip(".")
-//            fname += ".yaml"
+    bool save_status = false;
+    if(m_rmap_filename.isNull() || m_rmap_filename.isEmpty())
+    {
+        fname = m_rmap_filename;
+        if (!fname.endsWith(".yaml"))
+        {
+            QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
+            croped_fname.append(".yaml");
+            fname=croped_fname;
+        }
 //        try:
 //            fh = open(fname,"w")
 //            yaml.safe_dump(self.__model.rootItem, fh)
@@ -286,7 +291,8 @@ bool RegMapWindow::fileSave(QString fname)
 //            save_status = True
 //        except Exception as e:
 //            print("[ERROR] Could not save file", e)
-//        return save_status
+    }
+    return(save_status);
 }
 
 void RegMapWindow::regmap_modified(void)
@@ -317,25 +323,41 @@ void RegMapWindow::regmap_notModified(void)
     }
 }
 
-//    def recursive_delete(self,obj):
-//        for child in obj.childItems:
-//            self.recursive_delete(child)
-//            del(child)
+void RegMapWindow::recursive_delete(RegMapTreeItem* obj)
+{
+    Q_FOREACH (RegMapTreeItem* child, (QVector<RegMapTreeItem*>)obj->getChildItems())
+    {
+        recursive_delete(child);
+        delete child;
+    }
+}
 
-//    def insertChild(self, kind):
-//        # The issue is when:
-//        # 1. Create item.
-//        # 2. Click on the second column
-//        # 3. Create second item
-//        # Works OK if only click on first column when creating items
 
-//        if len(self.treeView.selectedIndexes()) > 0:
-//            index = self.treeView.selectedIndexes()[0]
-//        else:
-//            index = self.treeView.selectionModel().currentIndex()
-//        model = self.treeView.model()
-//        if model.insertRows(0, 1, kind, index):
-//            self.treeView.setExpanded(index, True)
-//            for col in range(model.columnCount()):
-//                self.treeView.resizeColumnToContents(col)
+void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind)
+{
+//        The issue is when:
+//        1. Create item.
+//        2. Click on the second column
+//        3. Create second item
+//        Works OK if only click on first column when creating items
 
+    QModelIndexList indexes = this->treeView->selectionModel()->selectedIndexes();
+    QModelIndex index;
+    if (indexes.size() > 0)
+    {
+        index = indexes.at(0);
+    }
+    else
+    {
+        index = this->treeView->selectionModel()->currentIndex();
+    }
+    //model = self.treeView.model()
+    if (m_model->insertRows(0, 1, kind, index))
+    {
+        this->treeView->setExpanded(index, true);
+        for(int col=0 ; col<m_model->columnCount() ; col++)
+        {
+            this->treeView->resizeColumnToContents(col);
+        }
+    }
+}
