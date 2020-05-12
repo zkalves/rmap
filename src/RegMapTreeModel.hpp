@@ -3,7 +3,11 @@
 
 #include <QAbstractItemModel>
 #include <QModelIndex>
+#include <QDebug>
+#include <QPixmap>
 #include <QVariant>
+#include <iostream>
+#include <string>
 #include "RegMapTreeItem.hpp"
 
 
@@ -24,6 +28,7 @@ public:
     QModelIndex index(int row, int column,
                       const QModelIndex &parent = QModelIndex()) const override;
     QModelIndex parent(const QModelIndex &index) const override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole);
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     bool insertRows(int position, int rows, RegMapTreeItem::e_rmmKind kind, QModelIndex parent=QModelIndex());
@@ -31,7 +36,6 @@ public:
 
 private:
     RegMapTreeItem *m_rootItem;
-    void setupModelData(const QStringList &lines, RegMapTreeItem *parent);
 
 };
 

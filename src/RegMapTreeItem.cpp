@@ -1,7 +1,7 @@
 #include "RegMapTreeItem.hpp"
 
-RegMapTreeItem::RegMapTreeItem(QVector<QVariant> &data, RegMapTreeItem *parent)
-    : m_itemData(data), m_parentItem(parent)
+RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QVariant> &data, RegMapTreeItem *parent)
+    : m_kind(kind), m_itemData(data), m_parentItem(parent)
 {}
 
 RegMapTreeItem::~RegMapTreeItem()
@@ -69,7 +69,7 @@ int RegMapTreeItem::row() const
 }
 
 
-bool RegMapTreeItem::insertChildren(int position, int count, int columns)
+bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position, int count, int columns)
 {
     bool insert_status;
     //if((position < 0) || (position > this->m_childItems.size()) || kind != get_possible_children())
@@ -87,7 +87,7 @@ bool RegMapTreeItem::insertChildren(int position, int count, int columns)
             {
                 data.append("NA");
             }
-            RegMapTreeItem item = RegMapTreeItem(data, this);
+            RegMapTreeItem item = RegMapTreeItem(kind, data, this);
             this->m_childItems.insert(position, &item);
         }
         insert_status = true;
@@ -177,16 +177,46 @@ bool RegMapTreeItem::setData(int column, QVariant value)
 
     return(set_status);
 }
-//    def get_icon(self):
-//        return("")
+
+const QString RegMapTreeItem::getKindString(void)
+{
+    QString kind;
+    switch(m_kind)
+    {
+        case RegMapTreeItem::e_rmmKind::root: kind = QString("root"); break;
+        case RegMapTreeItem::e_rmmKind::map : kind = QString("map"); break;
+        case RegMapTreeItem::e_rmmKind::mem : kind = QString("mem"); break;
+        case RegMapTreeItem::e_rmmKind::blk : kind = QString("blk"); break;
+        case RegMapTreeItem::e_rmmKind::reg : kind = QString("reg"); break;
+        case RegMapTreeItem::e_rmmKind::fld : kind = QString("fld"); break;
+        default: kind = QString(""); break;
+    }
+    return (kind);
+}
+
+const QString RegMapTreeItem::get_icon(void)
+{
+    QString icon;
+    switch(m_kind)
+    {
+        case RegMapTreeItem::e_rmmKind::map : icon = QString(":/icons/uvm_map_small.png"); break;
+        case RegMapTreeItem::e_rmmKind::mem : icon = QString(":/icons/uvm_mem_small.png"); break;
+        case RegMapTreeItem::e_rmmKind::blk : icon = QString(":/icons/uvm_reg_block_small.png"); break;
+        case RegMapTreeItem::e_rmmKind::reg : icon = QString(":/icons/uvm_reg_small.png"); break;
+        case RegMapTreeItem::e_rmmKind::fld : icon = QString(":/icons/uvm_reg_field_small.png"); break;
+        default: icon = QString(""); break;
+    }
+    return (icon);
+}
+
 QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::get_possible_children(void)
 {
     QVector<RegMapTreeItem::e_rmmKind> possible_children;
     switch(m_kind)
     {
-        case RegMapTreeItem::e_rmmKind::root: possible_children << RegMapTreeItem::e_rmmKind::blk; break;
-        case RegMapTreeItem::e_rmmKind::blk : possible_children << RegMapTreeItem::e_rmmKind::mem << RegMapTreeItem::e_rmmKind::map << RegMapTreeItem::e_rmmKind::reg << RegMapTreeItem::e_rmmKind::blk; break;
-        case RegMapTreeItem::e_rmmKind::reg : possible_children << RegMapTreeItem::e_rmmKind::fld; break;
+        case RegMapTreeItem::e_rmmKind::root: possible_children = { RegMapTreeItem::e_rmmKind::blk}; break;
+        case RegMapTreeItem::e_rmmKind::blk : possible_children = { RegMapTreeItem::e_rmmKind::mem, RegMapTreeItem::e_rmmKind::map, RegMapTreeItem::e_rmmKind::reg, RegMapTreeItem::e_rmmKind::blk}; break;
+        case RegMapTreeItem::e_rmmKind::reg : possible_children = { RegMapTreeItem::e_rmmKind::fld}; break;
         default: break;
     }
     return (possible_children);
