@@ -1,12 +1,14 @@
 #ifndef REGMAPWINDOW_HPP
 #define REGMAPWINDOW_HPP
 #include <QMainWindow>
+#include <QFileInfo>
 #include <QtWidgets>
 #include <QDebug>
 #include "RegConfigWindow.hpp"
 #include "RegMapDelegate.hpp"
 #include "RegMapTreeView.hpp"
 #include "RegMapTreeModel.hpp"
+#include "RegMapTreeItem.hpp"
 #include "ui_rmap.h"
 
 
@@ -22,11 +24,22 @@ public:
     explicit RegMapWindow(QString &rmap_filename, QWidget *parent = nullptr);
 
 private:
+
+    RegConfigWindow * m_config_window;
+    RegMapTreeModel * m_model;
+    QString           m_rmap_filename;
+    QString           m_default_filename;
+    QString           m_active_folder;
+    QString           m_default_window_title;
+    bool              m_is_regmap_modified;
+
     void fileNew(void);
     void fileOpen(QString fname);
     bool fileSave(QString fname = nullptr);
+    void insertChild(RegMapTreeItem::e_rmmKind kind);
     void regmap_modified(void);
     void regmap_notModified(void);
+    void recursive_delete(RegMapTreeItem* obj);
     void btnFileNew(void);
     void btnFileOpen(void);
     bool btnFileSave(void);
@@ -43,14 +56,6 @@ private:
     void btnQuitButton(void);
     void btnConfig(void);
     void btnAbout(void);
-
-    RegConfigWindow * m_config_window;
-    RegMapTreeModel * m_model;
-    QString           m_rmap_filename;
-    QString           m_default_filename;
-    QString           m_active_folder;
-    QString           m_default_window_title;
-    bool              m_is_regmap_modified;
 };
 
 #endif
