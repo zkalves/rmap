@@ -179,7 +179,7 @@ bool RegMapTreeModel::insertRows(int position, int rows, RegMapTreeItem::e_rmmKi
     return(success);
 }
 
-void RegMapTreeModel::initRow(int row,QModelIndex index)
+void RegMapTreeModel::initRow(int row, QModelIndex index)
 {
     RegMapTreeItem* parentItem = getItem(index);
     RegMapTreeItem* childItem = parentItem->child(row);
@@ -188,7 +188,7 @@ void RegMapTreeModel::initRow(int row,QModelIndex index)
         QModelIndex child = this->index(row, column, index);
         if (column == 0)
         {
-            this->setData(child, (const QVariant&)(childItem->getKindString()), Qt::EditRole);
+            this->setData(child, (childItem->getKindString()), Qt::EditRole);
         }
         else
         {
@@ -224,20 +224,20 @@ void RegMapTreeModel::initRow(int row,QModelIndex index)
 bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     bool set_data_status;
-        if (role != Qt::EditRole)
+    if (role != Qt::EditRole)
+    {
+        set_data_status = false;
+    }
+    else
+    {
+        RegMapTreeItem* item;
+        item = getItem(index);
+        set_data_status = item->setData(index.column(), value);
+        if(set_data_status)
         {
-            set_data_status = false;
+            emit dataChanged(index, index);
         }
-        else
-        {
-            RegMapTreeItem* item;
-            item = getItem(index);
-            set_data_status = item->setData(index.column(), value);
-            if(set_data_status)
-            {
-                emit dataChanged(index, index);
-            }
-        }
+    }
     return (set_data_status);
 }
 
