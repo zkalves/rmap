@@ -168,7 +168,7 @@ bool RegMapTreeModel::insertRows(int position, int rows, RegMapTreeItem::e_rmmKi
                                               position,
                                               rows,
                                               m_rootItem->columnCount());
-        parentItem->m_kind = kind;
+        //parentItem->m_kind = kind;
         this->endInsertRows();
         initRow(position,parent);
     }
