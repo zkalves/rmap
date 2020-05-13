@@ -209,12 +209,15 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
 
 //        return self.createIndex(parentItem.childNumber(), 0, parentItem)
 
-//    def removeRows(self, position, rows, parent=QModelIndex()):
-//        parentItem = self.getItem(parent)
-//        self.beginRemoveRows(parent, position, position + rows - 1)
-//        success = parentItem.removeChildren(position, rows)
-//        self.endRemoveRows()
-//        return success
+bool RegMapTreeModel::removeRows(int position, int rows, const QModelIndex &parent)
+{
+    bool success;
+    RegMapTreeItem* parentItem = getItem(parent);
+    this->beginRemoveRows(parent, position, position + rows - 1);
+    success = parentItem->removeChildren(position, rows);
+    this->endRemoveRows();
+    return(success);
+}
 
 //    def rowCount(self, parent=QModelIndex()):
 //        parentItem = self.getItem(parent)
@@ -230,8 +233,7 @@ bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, i
     }
     else
     {
-        RegMapTreeItem* item;
-        item = getItem(index);
+        RegMapTreeItem* item = getItem(index);
         set_data_status = item->setData(index.column(), value);
         if(set_data_status)
         {

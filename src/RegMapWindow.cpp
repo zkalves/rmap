@@ -199,7 +199,7 @@ void RegMapWindow::btnCheck(void)
 
 void RegMapWindow::btnExport(void)
 {
-        qDebug() << "export";
+    qDebug() << "export";
 }
 
 void RegMapWindow::btnAddMem(void)
@@ -230,21 +230,25 @@ void RegMapWindow::btnAddReg(void)
 
 void RegMapWindow::btnDeleteItem(void)
 {
-//        if len(self.treeView.selectedIndexes()) > 0:
-//            index = self.treeView.selectedIndexes()[0]
-//        else:
-//            index = self.treeView.selectionModel().currentIndex()
-//        # index = self.treeView.selectionModel().currentIndex()
-//        if index.row() >= 0:
-//            model = self.treeView.model()
-//            model.removeRows(index.row(), 1, index.parent())
+    QModelIndex index;
+    //if (this->treeView->selectedIndexes().size()) > 0)
+    //{
+    //    index = this->treeView->selectedIndexes()[0];
+    //}
+    //else
+    //{
+    index = this->treeView->currentIndex();
+    //}
+    if (index.row() >= 0)
+    {
+        m_model->removeRows(index.row(), 1, index.parent());
+    }
 }
 
 void RegMapWindow::fileNew(void)
 {
     recursive_delete(m_model->getRootItem());
     delete m_model;
-//        gc.collect()
     m_model = new RegMapTreeModel();
     connect(m_model,   &RegMapTreeModel::dataChanged, this, &RegMapWindow::regmap_modified);
     this->treeView->setModel(m_model);
@@ -351,7 +355,6 @@ void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind)
     {
         index = this->treeView->selectionModel()->currentIndex();
     }
-    //model = self.treeView.model()
     if (m_model->insertRows(0, 1, kind, index))
     {
         this->treeView->setExpanded(index, true);
