@@ -241,18 +241,6 @@ bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, i
     return (set_data_status);
 }
 
-//    def setHeaderData(self, section, orientation, value, role=Qt.EditRole):
-//        if role != Qt.EditRole or orientation != Qt.Horizontal:
-//            return False
-
-//        result = self.rootItem.setData(section, value)
-//        if result:
-//            self.headerDataChanged.emit(orientation, section, section)
-
-//        return result
-
-//    # def checkItemData(self,itemData):
-//    #     sdf
 //    def recursiveCheckData(self,node):
 //        # self.checkItemData(node.itemData)
 //        # if node.isValid():
