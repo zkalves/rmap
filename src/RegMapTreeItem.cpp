@@ -87,8 +87,8 @@ bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position
             {
                 data.append("NA");
             }
-            RegMapTreeItem item = RegMapTreeItem(kind, data, this);
-            this->m_childItems.insert(position, &item);
+            RegMapTreeItem *item = new RegMapTreeItem(kind, data, this);
+            this->m_childItems.insert(position, item);
         }
         insert_status = true;
     }
