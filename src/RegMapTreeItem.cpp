@@ -72,7 +72,6 @@ int RegMapTreeItem::row() const
 bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position, int count, int columns)
 {
     bool insert_status;
-    //if((position < 0) || (position > this->m_childItems.size()) || kind != get_possible_children())
     if((position < 0) || (position > this->m_childItems.size()))
     {
         insert_status = false;
@@ -221,75 +220,3 @@ QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::get_possible_children(void)
     }
     return (possible_children);
 }
-
-//class RegMapRootItem(RegMapItem):
-//    yaml_loader = yaml.SafeLoader
-//    yaml_dumper = yaml.SafeDumper
-//    yaml_tag    = u'!root'
-//    def __init__(self, data, parent=None):
-//        super().__init__(data, parent)
-//        self.kind = "root"
-//    def get_icon(self):
-//        return("")
-//    def get_possible_children(self):
-//        return(['RegMapBlockItem'])
-
-//class RegMapMemItem(RegMapItem):
-//    yaml_loader = yaml.SafeLoader
-//    yaml_dumper = yaml.SafeDumper
-//    yaml_tag    = u'!mem'
-//    def __init__(self, data, parent=None):
-//        super().__init__(data, parent)
-//        self.kind = "mem"
-//    def get_icon(self):
-//        return(":/icons/uvm_mem_small.png")
-//    def get_possible_children(self):
-//        return([])
-
-//class RegMapMapItem(RegMapItem):
-//    yaml_loader = yaml.SafeLoader
-//    yaml_dumper = yaml.SafeDumper
-//    yaml_tag    = u'!map'
-//    def __init__(self, data, parent=None):
-//        super().__init__(data, parent)
-//        self.kind = "map"
-//    def get_icon(self):
-//        return(":/icons/uvm_map_small.png")
-//    def get_possible_children(self):
-//        return([])
-
-//class RegMapFieldItem(RegMapItem):
-//    yaml_loader = yaml.SafeLoader
-//    yaml_dumper = yaml.SafeDumper
-//    yaml_tag    = u'!fld'
-//    def __init__(self, data, parent=None):
-//        super().__init__(data, parent)
-//        self.kind = "fld"
-//    def get_icon(self):
-//        return(":/icons/uvm_reg_field_small.png")
-//    def get_possible_children(self):
-//        return([])
-
-//class RegMapRegItem(RegMapItem):
-//    yaml_loader = yaml.SafeLoader
-//    yaml_dumper = yaml.SafeDumper
-//    yaml_tag    = u'!reg'
-//    def __init__(self, data, parent=None):
-//        super().__init__(data, parent)
-//        self.kind = "reg"
-//    def get_icon(self):
-//        return(":/icons/uvm_reg_small.png")
-//    def get_possible_children(self):
-//        return(['RegMapFieldItem'])
-
-//class RegMapBlockItem(RegMapItem):
-//    yaml_loader = yaml.SafeLoader
-//    yaml_dumper = yaml.SafeDumper
-//    yaml_tag    = u'!blk'
-//    def __init__(self, data, parent=None):
-//        super().__init__(data, parent)
-//        self.kind = "blk"
-//    def get_icon(self):
-//        return(":/icons/uvm_reg_block_small.png")
-//    def get_possible_children(self):
-//        return(['RegMapMemItem', 'RegMapMapItem', 'RegMapRegItem', 'RegMapBlockItem'])

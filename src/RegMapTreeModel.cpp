@@ -115,6 +115,11 @@ QModelIndex RegMapTreeModel::parent(const QModelIndex &index) const
     return createIndex(parentItem->row(), 0, parentItem);
 }
 
+//    def rowCount(self, parent=QModelIndex()):
+//        parentItem = self.getItem(parent)
+
+//        return parentItem.childCount()
+
 int RegMapTreeModel::rowCount(const QModelIndex &parent) const
 {
     RegMapTreeItem *parentItem;
@@ -168,7 +173,6 @@ bool RegMapTreeModel::insertRows(int position, int rows, RegMapTreeItem::e_rmmKi
                                               position,
                                               rows,
                                               m_rootItem->columnCount());
-        //parentItem->m_kind = kind;
         this->endInsertRows();
         initRow(position,parent);
     }
@@ -219,11 +223,6 @@ bool RegMapTreeModel::removeRows(int position, int rows, const QModelIndex &pare
     return(success);
 }
 
-//    def rowCount(self, parent=QModelIndex()):
-//        parentItem = self.getItem(parent)
-
-//        return parentItem.childCount()
-
 bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     bool set_data_status;
@@ -243,12 +242,18 @@ bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, i
     return (set_data_status);
 }
 
-//    def recursiveCheckData(self,node):
+void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node)
+{
 //        # self.checkItemData(node.itemData)
 //        # if node.isValid():
 //        #     print("aaa")
-//        for child in node.childItems:
-//            self.recursiveCheckData(child)
+    Q_FOREACH (RegMapTreeItem* child, (QVector<RegMapTreeItem*>)node->getChildItems())
+    {
+        recursiveCheckData(child);
+    }
+}
 
-//    def checkData(self):
-//        self.recursiveCheckData(self.rootItem)
+void RegMapTreeModel::checkData(void)
+{
+    recursiveCheckData(m_rootItem);
+}

@@ -194,7 +194,7 @@ void RegMapWindow::btnFileReload(void)
 
 void RegMapWindow::btnCheck(void)
 {
-    //m_model->checkData();
+    m_model->checkData();
 }
 
 void RegMapWindow::btnExport(void)
@@ -231,14 +231,7 @@ void RegMapWindow::btnAddReg(void)
 void RegMapWindow::btnDeleteItem(void)
 {
     QModelIndex index;
-    //if (this->treeView->selectedIndexes().size()) > 0)
-    //{
-    //    index = this->treeView->selectedIndexes()[0];
-    //}
-    //else
-    //{
     index = this->treeView->currentIndex();
-    //}
     if (index.row() >= 0)
     {
         m_model->removeRows(index.row(), 1, index.parent());
