@@ -21,17 +21,18 @@ RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
     connect(actionFileSave,     &QAction::triggered, this, &RegMapWindow::btnFileSave);
     connect(actionFileSaveAs,   &QAction::triggered, this, &RegMapWindow::btnFileSaveAs);
     connect(actionFileReload,   &QAction::triggered, this, &RegMapWindow::btnFileReload);
-    connect(actionAddMem,       &QAction::triggered, this, &RegMapWindow::btnAddMem);
-    connect(actionAddRegBlock,  &QAction::triggered, this, &RegMapWindow::btnAddRegBlock);
-    connect(actionAddRegField,  &QAction::triggered, this, &RegMapWindow::btnAddRegField);
+    connect(actionAddMem,       &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::mem); });
+    connect(actionAddRegBlock,  &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::blk); });
+    connect(actionAddRegField,  &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::fld); });
+    connect(actionAddRegMap,    &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::map); });
+    connect(actionAddReg,       &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::reg); });
     connect(actionDeleteItem,   &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
-    connect(actionAddRegMap,    &QAction::triggered, this, &RegMapWindow::btnAddRegMap);
-    connect(actionAddReg,       &QAction::triggered, this, &RegMapWindow::btnAddReg);
     connect(actionCheck,        &QAction::triggered, this, &RegMapWindow::btnCheck);
     connect(actionExport,       &QAction::triggered, this, &RegMapWindow::btnExport);
     connect(actionQuit,         &QAction::triggered, this, &RegMapWindow::btnQuitButton);
     connect(actionAbout,        &QAction::triggered, this, &RegMapWindow::btnAbout);
     connect(actionConfig,       &QAction::triggered, this, &RegMapWindow::btnConfig);
+
 
     m_config_window = new RegConfigWindow(this);
 
@@ -200,32 +201,6 @@ void RegMapWindow::btnCheck(void)
 void RegMapWindow::btnExport(void)
 {
     qDebug() << "export";
-}
-
-void RegMapWindow::btnAddMem(void)
-{
-    insertChild(RegMapTreeItem::e_rmmKind::mem);
-}
-
-void RegMapWindow::btnAddRegBlock(void)
-{
-    insertChild(RegMapTreeItem::e_rmmKind::blk);
-}
-
-
-void RegMapWindow::btnAddRegField(void)
-{
-    insertChild(RegMapTreeItem::e_rmmKind::fld);
-}
-
-void RegMapWindow::btnAddRegMap(void)
-{
-    insertChild(RegMapTreeItem::e_rmmKind::map);
-}
-
-void RegMapWindow::btnAddReg(void)
-{
-    insertChild(RegMapTreeItem::e_rmmKind::reg);
 }
 
 void RegMapWindow::btnDeleteItem(void)
