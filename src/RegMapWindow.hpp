@@ -45,12 +45,7 @@ private:
     bool btnFileSave(void);
     bool btnFileSaveAs(void);
     void btnFileReload(void);
-    void btnAddMem(void);
-    void btnAddRegBlock(void);
-    void btnAddRegField(void);
     void btnDeleteItem(void);
-    void btnAddRegMap(void);
-    void btnAddReg(void);
     void btnCheck(void);
     void btnExport(void);
     void btnQuitButton(void);
