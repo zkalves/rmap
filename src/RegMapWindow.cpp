@@ -42,10 +42,10 @@ RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
     {
         fileOpen(rmap_filename);
     }
-    this->treeView->setItemDelegateForColumn(1,new RegHexDecBinDelegate);
-    this->treeView->setItemDelegateForColumn(2,new RegHexDecBinDelegate);
-    this->treeView->setItemDelegateForColumn(3,new RegStrDelegate);
-    this->treeView->setItemDelegateForColumn(4,new RegMapDelegate);
+    this->treeView->setItemDelegateForColumn(1,new RegHexDecBinDelegate());
+    this->treeView->setItemDelegateForColumn(2,new RegHexDecBinDelegate());
+    this->treeView->setItemDelegateForColumn(3,new RegStrDelegate());
+    this->treeView->setItemDelegateForColumn(4,new RegMapDelegate());
 
 }
 void RegMapWindow::btnConfig(void)
