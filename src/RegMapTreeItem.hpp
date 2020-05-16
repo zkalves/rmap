@@ -9,7 +9,6 @@ class RegMapTreeItem
 public:
     enum class e_rmmKind { root, mem, map, blk, reg, fld};
 
-    e_rmmKind m_kind;
 
     QVector<RegMapTreeItem*> getChildItems(void);
 
@@ -33,6 +32,7 @@ public:
     const QString get_icon(void);
     const QString getKindString(void);
 private:
+    e_rmmKind m_kind;
     QVector<RegMapTreeItem*> m_childItems;
     QVector<QVariant> m_itemData;
     RegMapTreeItem *m_parentItem;
