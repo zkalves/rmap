@@ -2,6 +2,7 @@
 #define REGMAPDELEGATE_HPP
 #include <QtWidgets>
 #include <QRegularExpressionValidator>
+#include <QDebug>
 #include <QtCore>
 #include <QtGui>
 
@@ -15,8 +16,8 @@ class RegMapDelegate : public QStyledItemDelegate
 
 public:
     explicit  RegMapDelegate(QObject *parent = nullptr);
-    QWidget * createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index);
-    void      paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index);
+    QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+    void      paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 protected:
     QRegularExpression * m_regex;
 };
