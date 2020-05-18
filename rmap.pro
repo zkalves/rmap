@@ -15,7 +15,9 @@ QT += gui widgets
 
 # Input
 FORMS += ui/config.ui ui/rmap.ui
-HEADERS += src/RegMapTreeItem.hpp \
+HEADERS += src/Serializable.hpp \
+           src/SerializationContext.hpp \
+           src/RegMapTreeItem.hpp \
            src/RegMapTreeModel.hpp \
            src/RegMapTreeView.hpp \
            src/RegMapWindow.hpp \
@@ -23,7 +25,8 @@ HEADERS += src/RegMapTreeItem.hpp \
            src/RegConfigWindow.hpp \
            src/rmap.hpp
 INCLUDEPATH += src
-SOURCES += src/RegMapTreeItem.cpp \
+SOURCES += src/SerializationContext.cpp \
+           src/RegMapTreeItem.cpp \
            src/RegMapTreeModel.cpp \
            src/RegMapTreeView.cpp \
            src/RegMapWindow.cpp \
