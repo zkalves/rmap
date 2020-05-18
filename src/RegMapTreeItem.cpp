@@ -1,4 +1,15 @@
 #include "RegMapTreeItem.hpp"
+void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context ) const
+{
+    //data[ "Name" ] << m_name;
+    //data[ "Other" ] = context->serialize( m_other );
+}
+
+void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext* context )
+{
+    //data[ "Name" ] >> m_name;
+    //m_other = context->deserialize<Shape>( data[ "Other" ] );
+}
 
 RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QVariant> &data, RegMapTreeItem *parent)
     : m_kind(kind), m_itemData(data), m_parentItem(parent)

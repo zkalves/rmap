@@ -3,9 +3,12 @@
 
 #include <QVariant>
 #include <QVector>
+#include "Serializable.hpp"
+#include "SerializationContext.hpp"
 
-class RegMapTreeItem
+class RegMapTreeItem : public QObject, public Serializable
 {
+    Q_OBJECT
 public:
     enum class e_rmmKind { root, mem, map, blk, reg, fld};
 
@@ -31,6 +34,8 @@ public:
     QVector<e_rmmKind> get_possible_children(void);
     const QString get_icon(void);
     const QString getKindString(void);
+    void serialize( QVariantMap& data, SerializationContext* context ) const;
+    void deserialize( const QVariantMap& data, SerializationContext* context );
 private:
     e_rmmKind m_kind;
     QVector<RegMapTreeItem*> m_childItems;
