@@ -3,7 +3,6 @@
 #include <QMainWindow>
 #include <QFileInfo>
 #include <QtWidgets>
-#include <QDebug>
 #include "RegConfigWindow.hpp"
 #include "RegMapDelegate.hpp"
 #include "RegMapTreeView.hpp"

@@ -2,7 +2,6 @@
 #define REGMAPDELEGATE_HPP
 #include <QtWidgets>
 #include <QRegularExpressionValidator>
-#include <QDebug>
 #include <QtCore>
 #include <QtGui>
 
