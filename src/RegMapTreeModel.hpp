@@ -3,7 +3,6 @@
 
 #include <QAbstractItemModel>
 #include <QModelIndex>
-#include <QDebug>
 #include <QPixmap>
 #include <QVariant>
 #include <iostream>
@@ -39,6 +38,7 @@ public:
 
 private:
     RegMapTreeItem *m_rootItem;
+    QVector<QVariant> m_displayColumns;
 
 };
 
