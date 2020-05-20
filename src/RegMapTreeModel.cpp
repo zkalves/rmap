@@ -5,8 +5,17 @@
 RegMapTreeModel::RegMapTreeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {
-    QVector<QVariant> headers {tr("Type"), tr("Offset"), tr("Size"), tr("Name"), tr("Description")};
-    m_rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, headers);
+    QVariantList headerlist;
+    QMap<QVariant,QVariant> data;
+    QVariant str;
+    headerlist << tr("Type") << tr("Offset") << tr("Size") << tr("Name") << tr("Description");
+
+    foreach (str, headerlist)
+    {
+        data[str]=str;
+    }
+    m_displayColumns = QVector<QVariant>::fromList(headerlist);
+    m_rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, m_displayColumns, data);
 }
 
 RegMapTreeModel::~RegMapTreeModel()
