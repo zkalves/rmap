@@ -11,8 +11,8 @@ void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext*
     //m_other = context->deserialize<Shape>( data[ "Other" ] );
 }
 
-RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QVariant> &data, RegMapTreeItem *parent)
-    : m_kind(kind), m_itemData(data), m_parentItem(parent)
+RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QVariant> &displayColumns, QMap<QVariant,QVariant> &data, RegMapTreeItem *parent)
+    : m_kind(kind), m_displayColumns(displayColumns), m_itemData(data), m_parentItem(parent)
 {}
 
 RegMapTreeItem::~RegMapTreeItem()
@@ -51,14 +51,16 @@ int RegMapTreeItem::childNumber()
 
 int RegMapTreeItem::columnCount() const
 {
-    return m_itemData.count();
+    return m_displayColumns.count();
 }
 
 QVariant RegMapTreeItem::data(int column) const
 {
-    if (column < 0 || column >= m_itemData.size())
+    if (column < 0 || column >= m_displayColumns.size())
         return QVariant();
-    return m_itemData.at(column);
+
+    QVariant col = m_displayColumns[column];
+    return m_itemData[col];
 }
 
 RegMapTreeItem *RegMapTreeItem::parentItem()
@@ -82,6 +84,7 @@ int RegMapTreeItem::row() const
 
 bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position, int count, int columns)
 {
+    (void) columns;
     bool insert_status;
     if((position < 0) || (position > this->m_childItems.size()))
     {
@@ -91,40 +94,18 @@ bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position
     {
         for(int row=0 ; row < count ; row++)
         {
-            QVector<QVariant> data;
-            data.reserve(columns);
-            for(int i=0;i<columns;i++)
+            QMap<QVariant,QVariant> data;
+            QVariant str;
+            foreach (str, m_displayColumns)
             {
-                data.append("NA");
+                data[str]="NA";
             }
-            RegMapTreeItem *item = new RegMapTreeItem(kind, data, this);
+            RegMapTreeItem *item = new RegMapTreeItem(kind, m_displayColumns, data, this);
             this->m_childItems.insert(position, item);
         }
         insert_status = true;
     }
 
-    return(insert_status);
-}
-
-bool RegMapTreeItem::insertColumns(int position, int columns)
-{
-    bool insert_status;
-    if(position < 0 || position > m_itemData.size())
-    {
-        insert_status = false;
-    }
-    else
-    {
-        for(int column=0 ; column<columns ; column++)
-        {
-            m_itemData.insert(position, QString());
-        }
-        Q_FOREACH (RegMapTreeItem* child, m_childItems)
-        {
-            child->insertColumns(position, columns);
-        }
-        insert_status = true;
-    }
     return(insert_status);
 }
 
@@ -147,41 +128,17 @@ bool RegMapTreeItem::removeChildren(int position, int count)
     return(status);
 }
 
-bool RegMapTreeItem::removeColumns(int position, int columns)
-{
-    bool status = false;
-    if (position < 0 || (position + columns) > m_itemData.size())
-    {
-        status = false;
-    }
-    else
-    {
-
-        for (int column=0 ; column < columns ; column++)
-        {
-            m_itemData.remove(position);
-        }
-
-        Q_FOREACH (RegMapTreeItem* child, m_childItems)
-        {
-            child->removeColumns(position, columns);
-        }
-        status = true;
-    }
-
-    return status;
-}
-
 bool RegMapTreeItem::setData(int column, QVariant value)
 {
     bool set_status;
-    if (column < 0 || column >= m_itemData.size())
+    if (column < 0 || column >= m_displayColumns.size())
     {
         set_status = false;
     }
     else
     {
-        m_itemData[column] = value;
+        QVariant col = m_displayColumns[column];
+        m_itemData[col] = value;
         set_status = true;
     }
 
