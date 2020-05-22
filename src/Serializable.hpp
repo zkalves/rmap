@@ -1,7 +1,7 @@
 #ifndef SERIALIZABLE_HPP
 #define SERIALIZABLE_HPP
 
-#include <SerializationContext.hpp>
+class SerializationContext;
 class Serializable
 {
 public:

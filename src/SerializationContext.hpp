@@ -2,6 +2,8 @@
 #define SERIALIZATIONCONTEXT_HPP
 
 #include <QVariant>
+#include <Serializable.hpp>
+#include <ObjectFactory.hpp>
 
 class SerializationContext
 {
