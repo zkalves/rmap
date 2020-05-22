@@ -1,15 +1,18 @@
 #include "ObjectFactory.hpp"
 
-shared_ptr<MyBaseClass> ObjectFactory::createObject(string name)
+std::shared_ptr<RegMapTreeItem> ObjectFactory::createObject(QByteArray type)
 {
-    MyBaseClass * instance = nullptr;
+    RegMapTreeItem * instance = nullptr;
 
-    if(name == "RegMapTreeItem")
-        instance = new RegMapTreeItem();
+    (void) type;
+
+    //if(name == "RegMapTreeItem")
+    //    instance = new RegMapTreeItem();
 
     //if(name == "two")
     //    instance = new DerivedClassTwo();
 
+    instance = new RegMapTreeItem();
     if(instance != nullptr)
         return std::shared_ptr<RegMapTreeItem>(instance);
     else
