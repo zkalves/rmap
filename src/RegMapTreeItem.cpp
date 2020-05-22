@@ -1,27 +1,6 @@
 #include "RegMapTreeItem.hpp"
 
-void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context ) const
-{
-
-    data[ "kind" ] = QVariant::fromValue(m_kind);
-    data[ "displayColumns" ] = m_displayColumns.toList();
-    //data[ "itemData" ] << m_itemData;
-    //data[ "parent" ] << m_parentItem;
-    //const QVector<RegMapTreeItem *> vec = m_childItems;
-    //for ( Obj *i : list )
-    //data[ "childItems" ] = context->serialize( m_childItems );
-}
-
-void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext* context )
-{
-    m_kind = data["kind"].value<RegMapTreeItem::e_rmmKind>();
-    m_displayColumns.fromList(data[ "displayColumns" ].toList());
-    //data[ "itemData" ] >> m_itemData;
-    //data[ "parent" ] >> m_parentItem;
-    //m_childItems = context->deserialize<RegMapTreeItem>( data[ "childItems" ] );
-}
-
-RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QVariant> &displayColumns, QMap<QVariant,QVariant> &data, RegMapTreeItem *parent)
+RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QString> &displayColumns, QMap<QString,QVariant> &data, RegMapTreeItem *parent)
     : m_kind(kind), m_displayColumns(displayColumns), m_itemData(data), m_parentItem(parent)
 {}
 
@@ -33,6 +12,26 @@ RegMapTreeItem::~RegMapTreeItem()
     qDeleteAll(m_childItems);
 }
 
+void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context ) const
+{
+
+    data[ "kind" ] = QVariant::fromValue(m_kind);
+    //data[ "displayColumns" ] = m_displayColumns.toList();
+    //data[ "itemData" ] << m_itemData;
+    //data[ "parent" ] << m_parentItem;
+    //const QVector<RegMapTreeItem *> vec = m_childItems;
+    //for ( Obj *i : list )
+    //data[ "childItems" ] = context->serialize( m_childItems );
+}
+
+void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext* context )
+{
+    m_kind = data["kind"].value<RegMapTreeItem::e_rmmKind>();
+    //m_displayColumns.fromList(data[ "displayColumns" ].toList());
+    //data[ "itemData" ] >> m_itemData;
+    //data[ "parent" ] >> m_parentItem;
+    //m_childItems = context->deserialize<RegMapTreeItem>( data[ "childItems" ] );
+}
 RegMapTreeItem *RegMapTreeItem::child(int row)
 {
     if (row < 0 || row >= m_childItems.size())
@@ -72,7 +71,7 @@ QVariant RegMapTreeItem::data(int column) const
     if (column < 0 || column >= m_displayColumns.size())
         return QVariant();
 
-    QVariant col = m_displayColumns[column];
+    QString col = m_displayColumns[column];
     return m_itemData[col];
 }
 
@@ -107,8 +106,8 @@ bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position
     {
         for(int row=0 ; row < count ; row++)
         {
-            QMap<QVariant,QVariant> data;
-            QVariant str;
+            QMap<QString,QVariant> data;
+            QString str;
             foreach (str, m_displayColumns)
             {
                 data[str]="NA";
@@ -150,7 +149,7 @@ bool RegMapTreeItem::setData(int column, QVariant value)
     }
     else
     {
-        QVariant col = m_displayColumns[column];
+        QString col = m_displayColumns[column];
         m_itemData[col] = value;
         set_status = true;
     }

@@ -38,7 +38,7 @@ public:
 
 private:
     RegMapTreeItem *m_rootItem;
-    QVector<QVariant> m_displayColumns;
+    QVector<QString> m_displayColumns;
 
 };
 

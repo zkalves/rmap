@@ -24,7 +24,7 @@ public:
     int row() const;
     RegMapTreeItem *parentItem();
 
-    explicit RegMapTreeItem(e_rmmKind kind, QVector<QVariant> &displayColumns, QMap<QVariant,QVariant> &data, RegMapTreeItem *parentItem = nullptr);
+    explicit RegMapTreeItem(e_rmmKind kind, QVector<QString> &displayColumns, QMap<QString,QVariant> &data, RegMapTreeItem *parentItem = nullptr);
     explicit RegMapTreeItem();
     ~RegMapTreeItem();
     void appendChild(RegMapTreeItem *child);
@@ -38,8 +38,8 @@ public:
     void deserialize( const QVariantMap& data, SerializationContext* context );
 private:
     e_rmmKind m_kind;
-    QVector<QVariant> m_displayColumns;
-    QMap<QVariant,QVariant> m_itemData;
+    QVector<QString> m_displayColumns;
+    QMap<QString,QVariant> m_itemData;
     QVector<RegMapTreeItem*> m_childItems;
     RegMapTreeItem *m_parentItem;
 };
