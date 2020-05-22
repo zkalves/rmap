@@ -1,5 +1,4 @@
 #include <SerializationContext.hpp>
-#include <Serializable.hpp>
 
 template<typename T>
 QVariant SerializationContext::serialize( T* ptr )

@@ -12,7 +12,7 @@ class RegMapTreeItem : public QObject, public Serializable
     Q_OBJECT
 public:
     enum class e_rmmKind { root, mem, map, blk, reg, fld};
-
+    Q_ENUM(e_rmmKind)
 
     QVector<RegMapTreeItem*> getChildItems(void);
 
@@ -25,6 +25,7 @@ public:
     RegMapTreeItem *parentItem();
 
     explicit RegMapTreeItem(e_rmmKind kind, QVector<QVariant> &displayColumns, QMap<QVariant,QVariant> &data, RegMapTreeItem *parentItem = nullptr);
+    explicit RegMapTreeItem();
     ~RegMapTreeItem();
     void appendChild(RegMapTreeItem *child);
     bool insertChildren(e_rmmKind kind, int position, int count, int columns);
