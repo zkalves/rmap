@@ -1,20 +1,21 @@
 #include "ObjectFactory.hpp"
 
-std::shared_ptr<RegMapTreeItem> ObjectFactory::createObject(QByteArray type)
+template<typename T>
+std::shared_ptr<T> ObjectFactory<T>::createObject(QByteArray type)
 {
-    RegMapTreeItem * instance = nullptr;
+    T * instance = nullptr;
 
     (void) type;
 
-    //if(name == "RegMapTreeItem")
-    //    instance = new RegMapTreeItem();
+    //if(name == "T")
+    //    instance = new T();
 
     //if(name == "two")
     //    instance = new DerivedClassTwo();
 
-    instance = new RegMapTreeItem();
+    instance = new T();
     if(instance != nullptr)
-        return std::shared_ptr<RegMapTreeItem>(instance);
+        return std::shared_ptr<T>(instance);
     else
         return nullptr;
 }
