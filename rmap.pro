@@ -26,8 +26,7 @@ HEADERS += src/Serializable.hpp \
            src/RegConfigWindow.hpp \
            src/rmap.hpp
 INCLUDEPATH += src
-SOURCES += src/SerializationContext.cpp \
-           src/ObjectFactory.cpp \
+SOURCES += src/ObjectFactory.cpp \
            src/RegMapTreeItem.cpp \
            src/RegMapTreeModel.cpp \
            src/RegMapTreeView.cpp \
