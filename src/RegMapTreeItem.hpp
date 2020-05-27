@@ -1,7 +1,6 @@
 #ifndef REGMAPTREEITEM_HPP
 #define REGMAPTREEITEM_HPP
 
-#include <QMap>
 #include <QVariant>
 #include <QVector>
 #include "Serializable.hpp"
@@ -24,7 +23,7 @@ public:
     int row() const;
     RegMapTreeItem *parentItem();
 
-    explicit RegMapTreeItem(e_rmmKind kind, QVector<QString> &displayColumns, QMap<QString,QVariant> &data, RegMapTreeItem *parentItem = nullptr);
+    explicit RegMapTreeItem(e_rmmKind kind, QVector<QString> &displayColumns, QVariantMap &data, RegMapTreeItem *parentItem = nullptr);
     explicit RegMapTreeItem();
     ~RegMapTreeItem();
     void appendChild(RegMapTreeItem *child);
@@ -39,7 +38,7 @@ public:
 private:
     e_rmmKind m_kind;
     QVector<QString> m_displayColumns;
-    QMap<QString,QVariant> m_itemData;
+    QVariantMap m_itemData;
     QVector<RegMapTreeItem*> m_childItems;
     RegMapTreeItem *m_parentItem;
 };

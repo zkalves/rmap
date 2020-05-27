@@ -1,6 +1,6 @@
 #include "RegMapTreeItem.hpp"
 
-RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QString> &displayColumns, QMap<QString,QVariant> &data, RegMapTreeItem *parent)
+RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVector<QString> &displayColumns, QVariantMap &data, RegMapTreeItem *parent)
     : m_kind(kind), m_displayColumns(displayColumns), m_itemData(data), m_parentItem(parent)
 {}
 
@@ -113,7 +113,7 @@ bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position
     {
         for(int row=0 ; row < count ; row++)
         {
-            QMap<QString,QVariant> data;
+            QVariantMap data;
             QString str;
             foreach (str, m_displayColumns)
             {
