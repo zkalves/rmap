@@ -22,7 +22,13 @@ void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context
     //data[ "parent" ] << m_parentItem;
     //const QVector<RegMapTreeItem *> vec = m_childItems;
     //for ( Obj *i : list )
-    //data[ "childItems" ] = context->serialize( m_childItems );
+    QList<QVariant> childItemsList;
+    RegMapTreeItem* child;
+    foreach (child, m_childItems)
+    {
+        childItemsList.append(context->serialize<RegMapTreeItem>( child ));
+    }
+    data[ "childItems" ] = QVariant(childItemsList);
 }
 
 void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext* context )
