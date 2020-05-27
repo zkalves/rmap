@@ -6,7 +6,7 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {
     QStringList headerlist;
-    QMap<QString,QVariant> data;
+    QVariantMap data;
     QString str;
     headerlist << tr("Type") << tr("Offset") << tr("Size") << tr("Name") << tr("Description");
 
