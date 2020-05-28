@@ -75,7 +75,7 @@ T* SerializationContext::deserialize( const QVariant& handle )
     if ( record.m_object != NULL )
         return static_cast<T*>( record.m_object );
 
-    QObject* object = ObjectFactory<T>::createObject( record.m_type );
+    QObject* object = ObjectFactory::createObject( record.m_type );
 
     record.m_object = object;
 
