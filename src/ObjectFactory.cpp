@@ -1,9 +1,8 @@
 #include "ObjectFactory.hpp"
 
-template<typename T>
-std::shared_ptr<T> ObjectFactory<T>::createObject(QByteArray type)
+QObject* ObjectFactory::createObject(QByteArray type)
 {
-    T * instance = nullptr;
+    QObject* instance = nullptr;
 
     (void) type;
 
@@ -13,9 +12,9 @@ std::shared_ptr<T> ObjectFactory<T>::createObject(QByteArray type)
     //if(name == "two")
     //    instance = new DerivedClassTwo();
 
-    instance = new T();
+    instance = new QObject();
     if(instance != nullptr)
-        return std::shared_ptr<T>(instance);
+        return instance;
     else
         return nullptr;
 }

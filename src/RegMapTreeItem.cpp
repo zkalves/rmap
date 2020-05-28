@@ -20,8 +20,6 @@ void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context
     data[ "displayColumns" ] = QVariant(m_displayColumns.toList());
     data[ "itemData" ] == QVariant(m_itemData);
     //data[ "parent" ] << m_parentItem;
-    //const QVector<RegMapTreeItem *> vec = m_childItems;
-    //for ( Obj *i : list )
     QList<QVariant> childItemsList;
     RegMapTreeItem* child;
     foreach (child, m_childItems)
@@ -37,7 +35,14 @@ void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext*
     m_displayColumns.fromList(data[ "displayColumns" ].toStringList());
     m_itemData = data[ "itemData" ].toMap() ;
     //data[ "parent" ] >> m_parentItem;
-    //m_childItems = context->deserialize<RegMapTreeItem>( data[ "childItems" ] );
+    QList<QVariant> childItemsList = data[ "childItems" ].toList();
+    QVector<RegMapTreeItem*> childItems;
+    QVariant child;
+    foreach (child, childItemsList)
+    {
+        childItems.append(context->deserialize<RegMapTreeItem>(child));
+    }
+    m_childItems = childItems;
 }
 RegMapTreeItem *RegMapTreeItem::child(int row)
 {
