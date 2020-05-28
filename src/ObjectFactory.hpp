@@ -4,13 +4,14 @@
 #include <memory>
 #include <string>
 #include <QByteArray>
+#include <QObject>
 
 
-template<typename T>
 class ObjectFactory
 {
 public:
-    static std::shared_ptr<T> createObject(QByteArray type);
+    // Return shared pointer instead?
+    static QObject* createObject(QByteArray type);
 };
 
 #endif // OBJECTFACTORY_HPP
