@@ -47,7 +47,6 @@ private:
     void insertChild(RegMapTreeItem::e_rmmKind kind);
     void regmap_modified(void);
     void regmap_notModified(void);
-    void recursive_delete(RegMapTreeItem* obj);
     void btnFileNew(void);
     void btnFileOpen(void);
     bool btnFileSave(void);
