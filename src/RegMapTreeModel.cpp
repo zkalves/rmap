@@ -232,6 +232,15 @@ bool RegMapTreeModel::removeRows(int position, int rows, const QModelIndex &pare
     return(success);
 }
 
+bool RegMapTreeModel::clear(void)
+{
+    bool success;
+    this->beginResetModel();
+    success = m_rootItem->removeChildren(0,m_rootItem->childCount());
+    this->endResetModel();
+    return(success);
+}
+
 bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     bool set_data_status;
