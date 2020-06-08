@@ -16,9 +16,9 @@ public:
     QVector<RegMapTreeItem*> getChildItems(void);
 
     RegMapTreeItem *child(int row);
-    int childCount() const;
-    int childNumber();
-    int columnCount() const;
+    int childCount(void) const;
+    int childNumber(void);
+    int columnCount(void) const;
     QVariant data(int column) const;
     int row() const;
     RegMapTreeItem *parentItem();

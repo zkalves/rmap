@@ -9,7 +9,7 @@ RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
     m_active_folder = ".";
     m_is_regmap_modified = false;
     m_rmap_filename = rmap_filename;
-    m_default_filename = "rmap.yaml";
+    m_default_filename = "rmap.rmt";
     m_default_window_title = windowTitle();
     // Set table model and attributes
     m_model = new RegMapTreeModel();
@@ -91,7 +91,7 @@ void RegMapWindow::btnFileNew(void)
 bool RegMapWindow::btnFileSave(void)
 {
     bool save_status = false;
-    if (!m_is_regmap_modified)
+    if (m_rmap_filename.isNull() || m_rmap_filename.isEmpty())
     {
         save_status = btnFileSaveAs();
     }
@@ -108,7 +108,7 @@ bool RegMapWindow::btnFileSaveAs(void)
     bool save_status = false;
     QFileDialog dialog(this);
     dialog.setFileMode(QFileDialog::AnyFile);
-    dialog.setNameFilter("rmap files (*.yaml)");
+    dialog.setNameFilter("*.rmt");
     dialog.setViewMode(QFileDialog::Detail);
     dialog.setAcceptMode(QFileDialog::AcceptSave);
     if(m_rmap_filename.isNull() || m_rmap_filename.isEmpty())
@@ -118,10 +118,10 @@ bool RegMapWindow::btnFileSaveAs(void)
     else
     {
         fname = m_rmap_filename;
-        if (!fname.endsWith(".yaml"))
+        if (!fname.endsWith(".rmt"))
         {
             QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
-            croped_fname.append(".yaml");
+            croped_fname.append(".rmt");
             fname=croped_fname;
         }
     }
@@ -163,12 +163,14 @@ void RegMapWindow::btnFileOpen(void)
             QString fname = QFileDialog::getOpenFileName( this,
                                                          "Open file",
                                                          m_active_folder,
-                                                         "rmap files (*.yaml)");
-            fileOpen(fname);
-            filename = m_default_window_title;
-            filename.append(" - ");
-            filename.append(fname);
-            this->setWindowTitle(filename);
+                                                         "*.rmt");
+            if(!fname.isEmpty()&& !fname.isNull()){
+                fileOpen(fname);
+                filename = m_default_window_title;
+                filename.append(" - ");
+                filename.append(fname);
+                this->setWindowTitle(filename);
+            }
     }
 }
 
@@ -199,6 +201,7 @@ void RegMapWindow::btnCheck(void)
     m_model->checkData();
 }
 
+#include <QDebug>
 void RegMapWindow::btnExport(void)
 {
     qDebug() << "export";
@@ -216,7 +219,8 @@ void RegMapWindow::btnDeleteItem(void)
 
 void RegMapWindow::fileNew(void)
 {
-    recursive_delete(m_model->getRootItem());
+    m_model->clear();
+    //this->treeView->reset();
     delete m_model;
     m_model = new RegMapTreeModel();
     connect(m_model,   &RegMapTreeModel::dataChanged, this, &RegMapWindow::regmap_modified);
@@ -242,11 +246,10 @@ void RegMapWindow::fileOpen(QString fname)
             parser.RecordErrorsTo(&error_collector);
 
             if (fileDescriptor < 0) {
-                QMessageBox::information(this,
+                QMessageBox::critical(this,
                         tr("Error opening file"),
                         tr("Filename: %1\nError no: %2\nError description: %3").arg(fname).arg(errno).arg(strerror(errno)),
                         QMessageBox::Ok);
-                return;
             } else {
                 google::protobuf::io::FileInputStream fileInput(fileDescriptor);
                 fileInput.SetCloseOnDelete( true );
@@ -255,39 +258,60 @@ void RegMapWindow::fileOpen(QString fname)
                             tr("Failed to parse file"),
                             tr("Failed to parse file %1.\n%2").arg(fname).arg(QString::fromStdString(error_collector.get_string())),
                             QMessageBox::Ok);
-                    return;
+                }
+                else {
+                    //this->m_model.m_rootItem = rmt.safe_load(fh);
+                    this->treeView->setItemsExpandable(true);
+                    this->treeView->expandAll();
+                    for (int col = 0 ; col < this->m_model->columnCount() ; col++) {
+                        this->treeView->resizeColumnToContents(col);
+                    }
                 }
             }
         }
-        //this->m_model.m_rootItem = yaml.safe_load(fh);
-        this->treeView->setItemsExpandable(true);
-        this->treeView->expandAll();
-        for (int col = 0 ; col < this->m_model->columnCount() ; col++) {
-            this->treeView->resizeColumnToContents(col);
-        }
+    }
+    else {
+        QMessageBox::critical(this,
+                tr("Error file not found"),
+                tr("Filename: %1 not found").arg(fname),
+                QMessageBox::Ok);
     }
 }
 
 bool RegMapWindow::fileSave(QString fname)
 {
+    protormap::RegModel reg_model;
     bool save_status = false;
-    if(m_rmap_filename.isNull() || m_rmap_filename.isEmpty())
+    if(fname.isNull() || fname.isEmpty())
     {
         fname = m_rmap_filename;
-        if (!fname.endsWith(".yaml"))
-        {
-            QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
-            croped_fname.append(".yaml");
-            fname=croped_fname;
+    }
+    if (!fname.endsWith(".rmt"))
+    {
+        QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
+        croped_fname.append(".rmt");
+        fname=croped_fname;
+    }
+    int fileDescriptor = open(fname.toStdString().c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+
+    if (fileDescriptor < 0) {
+        QMessageBox::critical(this,
+                tr("Error opening file"),
+                tr("Filename: %1\nError no: %2\nError description: %3").arg(fname).arg(errno).arg(strerror(errno)),
+                QMessageBox::Ok);
+    } else {
+        google::protobuf::io::FileOutputStream fileOutput(fileDescriptor);
+        fileOutput.SetCloseOnDelete( true );
+        if (!google::protobuf::TextFormat::Print(reg_model, &fileOutput)) {
+            QMessageBox::critical(this,
+                    tr("Failed to write output file"),
+                    tr("Error writing to Filename: %1\n").arg(fname),
+                    QMessageBox::Ok);
         }
-//        try:
-//            fh = open(fname,"w")
-//            yaml.safe_dump(self.__model.rootItem, fh)
-//            fh.close()
-//            self.regmap_notModified()
-//            save_status = True
-//        except Exception as e:
-//            print("[ERROR] Could not save file", e)
+        else {
+            regmap_notModified();
+            save_status = true;
+        }
     }
     return(save_status);
 }
@@ -298,7 +322,7 @@ void RegMapWindow::regmap_modified(void)
     {
         m_is_regmap_modified = true;
         QString win_title = this->windowTitle();
-        if (win_title.endsWith('*'))
+        if (!win_title.endsWith('*'))
         {
             win_title.append('*');
         }
@@ -308,7 +332,7 @@ void RegMapWindow::regmap_modified(void)
 
 void RegMapWindow::regmap_notModified(void)
 {
-    if(!m_is_regmap_modified)
+    if(m_is_regmap_modified)
     {
         m_is_regmap_modified = false;
         QString win_title = this->windowTitle();
@@ -319,16 +343,6 @@ void RegMapWindow::regmap_notModified(void)
         this->setWindowTitle(win_title);
     }
 }
-
-void RegMapWindow::recursive_delete(RegMapTreeItem* obj)
-{
-    Q_FOREACH (RegMapTreeItem* child, (QVector<RegMapTreeItem*>)obj->getChildItems())
-    {
-        recursive_delete(child);
-        delete child;
-    }
-}
-
 
 void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind)
 {

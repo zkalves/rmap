@@ -33,6 +33,7 @@ public:
     bool insertRows(int position, int rows, RegMapTreeItem::e_rmmKind kind, QModelIndex parent=QModelIndex());
     void initRow(int row,QModelIndex index);
     bool removeRows(int position, int rows, const QModelIndex &parent=QModelIndex());
+    bool clear(void);
     void recursiveCheckData(RegMapTreeItem *node);
     void checkData(void);
 
