@@ -1,13 +1,22 @@
 #ifndef REGMAPWINDOW_HPP
 #define REGMAPWINDOW_HPP
+#include <fstream>
+#include <fcntl.h>
+#include <iostream>
+#include <sys/stat.h>
 #include <QMainWindow>
 #include <QFileInfo>
 #include <QtWidgets>
+#include <google/protobuf/util/time_util.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include "rmap.pb.h"
 #include "RegConfigWindow.hpp"
 #include "RegMapDelegate.hpp"
 #include "RegMapTreeView.hpp"
 #include "RegMapTreeModel.hpp"
 #include "RegMapTreeItem.hpp"
+#include "ProtobufLogCollector.hpp"
 #include "ui_rmap.h"
 
 

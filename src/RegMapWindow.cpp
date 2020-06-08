@@ -3,6 +3,7 @@
 RegMapWindow::RegMapWindow(QString &rmap_filename, QWidget *parent) :
     QMainWindow(parent)
 {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
     this->setupUi(this);
     this->setAttribute(Qt::WA_DeleteOnClose);
     m_active_folder = ".";
@@ -229,17 +230,41 @@ void RegMapWindow::fileOpen(QString fname)
     QFileInfo check_file(fname);
     if (check_file.exists() && check_file.isFile()) {
         fileNew();
-//            try:
-//                fh = open(fname,"r")
-//                self.__model.rootItem = yaml.safe_load(fh)
-//                fh.close()
-//                self.rmap_filename = fname
-//                self.treeView.setItemsExpandable(True)
-//                self.treeView.expandAll()
-//                for col in range(self.__model.columnCount()):
-//                    self.treeView.resizeColumnToContents(col)
-//            except Exception as E:
-//                print("[ERROR] Could not open file", e)
+        this->m_rmap_filename = fname;
+
+        protormap::RegModel reg_model;
+        {
+
+            int fileDescriptor = open(fname.toStdString().c_str(), O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+
+            google::protobuf::TextFormat::Parser parser;
+            ProtobufLogCollector error_collector;
+            parser.RecordErrorsTo(&error_collector);
+
+            if (fileDescriptor < 0) {
+                QMessageBox::information(this,
+                        tr("Error opening file"),
+                        tr("Filename: %1\nError no: %2\nError description: %3").arg(fname).arg(errno).arg(strerror(errno)),
+                        QMessageBox::Ok);
+                return;
+            } else {
+                google::protobuf::io::FileInputStream fileInput(fileDescriptor);
+                fileInput.SetCloseOnDelete( true );
+                if (!parser.Parse(&fileInput,&reg_model)) {
+                    QMessageBox::critical(this,
+                            tr("Failed to parse file"),
+                            tr("Failed to parse file %1.\n%2").arg(fname).arg(QString::fromStdString(error_collector.get_string())),
+                            QMessageBox::Ok);
+                    return;
+                }
+            }
+        }
+        //this->m_model.m_rootItem = yaml.safe_load(fh);
+        this->treeView->setItemsExpandable(true);
+        this->treeView->expandAll();
+        for (int col = 0 ; col < this->m_model->columnCount() ; col++) {
+            this->treeView->resizeColumnToContents(col);
+        }
     }
 }
 
