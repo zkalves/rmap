@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
+
 project(rmap LANGUAGES CXX)
 
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
@@ -23,6 +24,7 @@ set(project_sources
            src/rmap.cpp)
 
 set(project_headers
+           src/ProtobufLogCollector.hpp
            src/Serializable.hpp
            src/SerializationContext.hpp
            src/ObjectFactory.hpp

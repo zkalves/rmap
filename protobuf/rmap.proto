@@ -1,7 +1,24 @@
 syntax = "proto3";
 
-message SearchRequest {
-  string query = 1;
-  int32 page_number = 2;
-  int32 result_per_page = 3;
+package protormap;
+
+import "google/protobuf/timestamp.proto";
+
+message Config {
+    enum FileType {
+        TEXT = 0;
+        BINARY = 1;
+    }
+    FileType filetype = 1;
+}
+
+message RegItem {
+    uint32 id = 1;
+}
+
+message RegModel {
+
+    Config config = 1;
+    repeated RegItem item   = 2;
+    google.protobuf.Timestamp last_updated = 3;
 }
