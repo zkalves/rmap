@@ -15,11 +15,11 @@ RegMapTreeItem::~RegMapTreeItem()
 void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context ) const
 {
 
+    data[ "id" ] = context->serialize<RegMapTreeItem>( const_cast <RegMapTreeItem*> (this) );
     data[ "kind" ] = QVariant::fromValue(m_kind);
-    //data[ "displayColumns" ] = QVariant::fromValue<QList<QString>>(m_displayColumns.toList());
-    data[ "displayColumns" ] = QVariant(m_displayColumns.toList());
-    data[ "itemData" ] == QVariant(m_itemData);
-    //data[ "parent" ] << m_parentItem;
+    //data[ "displayColumns" ] = QVariant(m_displayColumns.toList());
+    data[ "itemData" ] = QVariant(m_itemData);
+    data[ "parent" ] = context->serialize<RegMapTreeItem>( m_parentItem );
     QList<QVariant> childItemsList;
     RegMapTreeItem* child;
     foreach (child, m_childItems)

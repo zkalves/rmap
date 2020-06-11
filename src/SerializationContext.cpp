@@ -58,3 +58,4 @@ T* SerializationContext::deserialize( const QVariant& handle )
 
     return ptr;
 }
+

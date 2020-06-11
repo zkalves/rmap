@@ -16,6 +16,7 @@
 #include "RegMapTreeView.hpp"
 #include "RegMapTreeModel.hpp"
 #include "RegMapTreeItem.hpp"
+#include "SerializationContext.hpp"
 #include "ProtobufLogCollector.hpp"
 #include "ui_rmap.h"
 

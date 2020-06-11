@@ -9,12 +9,25 @@ message Config {
         TEXT = 0;
         BINARY = 1;
     }
-    FileType filetype = 1;
+    FileType filetype   = 1;
     string pythonScript = 2;
 }
 
 message RegItem {
-    uint32 id = 1;
+    enum Kind {
+        ROOT = 0;
+        BLK  = 1;
+        REG  = 2;
+        FLD  = 3;
+        MEM  = 4;
+        MAP  = 5;
+    }
+    uint32 id          = 1;
+    Kind   kind        = 2;
+    string offset      = 3;
+    string size        = 4;
+    string name        = 5;
+    string description = 6;
 }
 
 message RegModel {
