@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>731</width>
+    <width>727</width>
     <height>530</height>
    </rect>
   </property>
@@ -18,6 +18,9 @@
   </property>
   <property name="windowTitle">
    <string>Register Map Generation Tool</string>
+  </property>
+  <property name="locale">
+   <locale language="English" country="UnitedKingdom"/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -68,7 +71,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>731</width>
+     <width>727</width>
      <height>25</height>
     </rect>
    </property>
@@ -109,7 +112,7 @@
   </widget>
   <action name="actionAddMem">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/uvm_mem.png</normaloff>:/toolbar/uvm_mem.png</iconset>
    </property>
    <property name="text">
@@ -121,7 +124,7 @@
   </action>
   <action name="actionAddRegField">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/uvm_reg_field.png</normaloff>:/toolbar/uvm_reg_field.png</iconset>
    </property>
    <property name="text">
@@ -133,7 +136,7 @@
   </action>
   <action name="actionDeleteItem">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/delete-2-xxl.png</normaloff>:/toolbar/delete-2-xxl.png</iconset>
    </property>
    <property name="text">
@@ -145,7 +148,7 @@
   </action>
   <action name="actionAddRegMap">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/uvm_map.png</normaloff>:/toolbar/uvm_map.png</iconset>
    </property>
    <property name="text">
@@ -157,7 +160,7 @@
   </action>
   <action name="actionAddReg">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/uvm_reg.png</normaloff>:/toolbar/uvm_reg.png</iconset>
    </property>
    <property name="text">
@@ -169,7 +172,7 @@
   </action>
   <action name="actionFileNew">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/folder_new.png</normaloff>:/toolbar/folder_new.png</iconset>
    </property>
    <property name="text">
@@ -184,7 +187,7 @@
   </action>
   <action name="actionFileOpen">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/folder_open.png</normaloff>:/toolbar/folder_open.png</iconset>
    </property>
    <property name="text">
@@ -199,7 +202,7 @@
   </action>
   <action name="actionFileSave">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/folder_save.png</normaloff>:/toolbar/folder_save.png</iconset>
    </property>
    <property name="text">
@@ -214,7 +217,7 @@
   </action>
   <action name="actionCheck">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/checkmark-512.png</normaloff>:/toolbar/checkmark-512.png</iconset>
    </property>
    <property name="text">
@@ -229,7 +232,7 @@
   </action>
   <action name="actionExport">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/export.png</normaloff>:/toolbar/export.png</iconset>
    </property>
    <property name="text">
@@ -244,7 +247,7 @@
   </action>
   <action name="actionFileSaveAs">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/folder_save.png</normaloff>:/toolbar/folder_save.png</iconset>
    </property>
    <property name="text">
@@ -256,7 +259,7 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/about.png</normaloff>:/toolbar/about.png</iconset>
    </property>
    <property name="text">
@@ -268,7 +271,7 @@
   </action>
   <action name="actionAddRegBlock">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/uvm_reg_block.png</normaloff>:/toolbar/uvm_reg_block.png</iconset>
    </property>
    <property name="text">
@@ -280,7 +283,7 @@
   </action>
   <action name="actionQuit">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/exit.png</normaloff>:/toolbar/exit.png</iconset>
    </property>
    <property name="text">
@@ -297,7 +300,7 @@
   </action>
   <action name="actionConfig">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/toolbar/config-512.png</normaloff>:/toolbar/config-512.png</iconset>
    </property>
    <property name="text">
