@@ -261,6 +261,12 @@ void RegMapWindow::fileOpen(QString fname)
                 }
                 else {
                     //this->m_model.m_rootItem = rmt.safe_load(fh);
+                    //qDebug() << QString::fromStdString(reg_model.DebugString()) << endl;
+                    if(reg_model.has_config())
+                    {
+                        m_config_window->deserialize(reg_model.config());
+                    }
+
                     this->treeView->setItemsExpandable(true);
                     this->treeView->expandAll();
                     for (int col = 0 ; col < this->m_model->columnCount() ; col++) {
@@ -280,7 +286,6 @@ void RegMapWindow::fileOpen(QString fname)
 
 bool RegMapWindow::fileSave(QString fname)
 {
-    protormap::RegModel reg_model;
     bool save_status = false;
     if(fname.isNull() || fname.isEmpty())
     {
@@ -300,6 +305,8 @@ bool RegMapWindow::fileSave(QString fname)
                 tr("Filename: %1\nError no: %2\nError description: %3").arg(fname).arg(errno).arg(strerror(errno)),
                 QMessageBox::Ok);
     } else {
+        protormap::RegModel reg_model;
+        reg_model.set_allocated_config( m_config_window->serialize());
         google::protobuf::io::FileOutputStream fileOutput(fileDescriptor);
         fileOutput.SetCloseOnDelete( true );
         if (!google::protobuf::TextFormat::Print(reg_model, &fileOutput)) {

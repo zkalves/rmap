@@ -10,6 +10,7 @@ message Config {
         BINARY = 1;
     }
     FileType filetype = 1;
+    string pythonScript = 2;
 }
 
 message RegItem {
