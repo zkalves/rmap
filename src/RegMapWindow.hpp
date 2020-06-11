@@ -19,7 +19,6 @@
 #include "ProtobufLogCollector.hpp"
 #include "ui_rmap.h"
 
-
 namespace Ui {
 class RegMapWindow;
 }

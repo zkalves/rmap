@@ -266,6 +266,9 @@ void RegMapWindow::fileOpen(QString fname)
                     {
                         m_config_window->deserialize(reg_model.config());
                     }
+                    if(reg_model.has_config())
+                    {
+                    }
 
                     this->treeView->setItemsExpandable(true);
                     this->treeView->expandAll();
@@ -307,6 +310,13 @@ bool RegMapWindow::fileSave(QString fname)
     } else {
         protormap::RegModel reg_model;
         reg_model.set_allocated_config( m_config_window->serialize());
+
+        // Set timestamp
+        google::protobuf::Timestamp timestamp;
+        timestamp.set_seconds(time(NULL));
+        timestamp.set_nanos(0);
+        *(reg_model.mutable_last_updated()) = timestamp;
+
         google::protobuf::io::FileOutputStream fileOutput(fileDescriptor);
         fileOutput.SetCloseOnDelete( true );
         if (!google::protobuf::TextFormat::Print(reg_model, &fileOutput)) {
