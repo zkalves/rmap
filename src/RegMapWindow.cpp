@@ -310,7 +310,12 @@ bool RegMapWindow::fileSave(QString fname)
     } else {
         protormap::RegModel reg_model;
         reg_model.set_allocated_config( m_config_window->serialize());
+        //reg_model.set_allocated_config( m_model->serialize());
+        //
+        SerializationContext context;
+        context.serialize( m_model->getRootItem() );
 
+        qDebug() << context;
         // Set timestamp
         google::protobuf::Timestamp timestamp;
         timestamp.set_seconds(time(NULL));
@@ -333,6 +338,24 @@ bool RegMapWindow::fileSave(QString fname)
     return(save_status);
 }
 
+QDataStream& operator <<( QDataStream& stream, const SerializationContext& context )
+{
+    for(SerializationContext::Record rec : context.m_records)
+    {
+        stream << rec.m_type;
+    }
+    return (stream);
+}
+QDebug  operator <<( QDebug  stream, const SerializationContext& context )
+{
+    for(SerializationContext::Record rec : context.m_records)
+    {
+        stream << endl;
+        stream << rec.m_data;
+        stream << endl;
+    }
+    return (stream);
+}
 void RegMapWindow::regmap_modified(void)
 {
     if(!m_is_regmap_modified)
