@@ -58,6 +58,7 @@ add_executable(rmap
     ${PROTO_SRCS}
     ${PROTO_HDRS})
 
+target_compile_options(rmap PRIVATE -Wfatal-errors)
 target_include_directories(rmap PRIVATE src)
 target_link_libraries(rmap 
     PUBLIC
