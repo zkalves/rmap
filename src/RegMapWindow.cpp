@@ -287,6 +287,44 @@ void RegMapWindow::fileOpen(QString fname)
     }
 }
 
+protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context )
+{
+    for(SerializationContext::Record rec : context.m_records)
+    {
+        protormap::RegItem* item = reg_model.add_item();
+        item->set_id(rec.m_data["id"].toUInt());
+        switch (rec.m_data["kind"].value<RegMapTreeItem::e_rmmKind>()){
+            case RegMapTreeItem::e_rmmKind::root: item->set_kind(protormap::RegItem_Kind_ROOT); break;
+            case RegMapTreeItem::e_rmmKind::mem:  item->set_kind(protormap::RegItem_Kind_MEM);  break;
+            case RegMapTreeItem::e_rmmKind::map:  item->set_kind(protormap::RegItem_Kind_MAP);  break;
+            case RegMapTreeItem::e_rmmKind::blk:  item->set_kind(protormap::RegItem_Kind_BLK);  break;
+            case RegMapTreeItem::e_rmmKind::reg:  item->set_kind(protormap::RegItem_Kind_REG);  break;
+            case RegMapTreeItem::e_rmmKind::fld:  item->set_kind(protormap::RegItem_Kind_FLD);  break;
+        }
+    }
+    return(reg_model);
+}
+
+QDataStream& operator <<( QDataStream& stream, const SerializationContext& context )
+{
+    for(SerializationContext::Record rec : context.m_records)
+    {
+        stream << rec.m_type;
+    }
+    return (stream);
+}
+
+QDebug  operator <<( QDebug  stream, const SerializationContext& context )
+{
+    for(SerializationContext::Record rec : context.m_records)
+    {
+        stream << endl;
+        stream << rec.m_data;
+        stream << endl;
+    }
+    return (stream);
+}
+
 bool RegMapWindow::fileSave(QString fname)
 {
     bool save_status = false;
@@ -300,7 +338,7 @@ bool RegMapWindow::fileSave(QString fname)
         croped_fname.append(".rmt");
         fname=croped_fname;
     }
-    int fileDescriptor = open(fname.toStdString().c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    int fileDescriptor = open(fname.toStdString().c_str(), O_TRUNC  | O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 
     if (fileDescriptor < 0) {
         QMessageBox::critical(this,
@@ -310,12 +348,16 @@ bool RegMapWindow::fileSave(QString fname)
     } else {
         protormap::RegModel reg_model;
         reg_model.set_allocated_config( m_config_window->serialize());
-        //reg_model.set_allocated_config( m_model->serialize());
-        //
         SerializationContext context;
         context.serialize( m_model->getRootItem() );
 
-        qDebug() << context;
+        //for(SerializationContext::Record rec : context.m_records)
+        //{
+            //protormap::RegItem* item = reg_model.add_item();
+            ////stream << rec.m_type;
+        //}
+        reg_model << context;
+        //qDebug() << context;
         // Set timestamp
         google::protobuf::Timestamp timestamp;
         timestamp.set_seconds(time(NULL));
@@ -338,24 +380,6 @@ bool RegMapWindow::fileSave(QString fname)
     return(save_status);
 }
 
-QDataStream& operator <<( QDataStream& stream, const SerializationContext& context )
-{
-    for(SerializationContext::Record rec : context.m_records)
-    {
-        stream << rec.m_type;
-    }
-    return (stream);
-}
-QDebug  operator <<( QDebug  stream, const SerializationContext& context )
-{
-    for(SerializationContext::Record rec : context.m_records)
-    {
-        stream << endl;
-        stream << rec.m_data;
-        stream << endl;
-    }
-    return (stream);
-}
 void RegMapWindow::regmap_modified(void)
 {
     if(!m_is_regmap_modified)

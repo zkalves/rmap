@@ -5,6 +5,7 @@
 #include <Serializable.hpp>
 #include <ObjectFactory.hpp>
 #include <QDebug>
+#include "rmap.pb.h"
 
 class SerializationContext
 {
@@ -15,9 +16,10 @@ public:
     template<typename T>
     T* deserialize( const QVariant& handle );
 
-    friend QDebug       operator <<( QDebug  stream, const SerializationContext& context );
-    friend QDataStream& operator <<( QDataStream& stream, const SerializationContext& context );
-    friend QDataStream& operator >>( QDataStream& stream, SerializationContext& context );
+    friend QDebug               operator <<( QDebug  stream, const SerializationContext& context );
+    friend QDataStream&         operator <<( QDataStream& stream, const SerializationContext& context );
+    friend QDataStream&         operator >>( QDataStream& stream, SerializationContext& context );
+    friend protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
 
 private:
     struct Record
