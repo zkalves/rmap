@@ -7,6 +7,7 @@
 #include <QMainWindow>
 #include <QFileInfo>
 #include <QtWidgets>
+#include <QDebug>
 #include <google/protobuf/util/time_util.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
