@@ -161,9 +161,10 @@ void RegMapWindow::btnFileOpen(void)
     {
             QString filename;
             QString fname = QFileDialog::getOpenFileName( this,
-                                                         "Open file",
+                                                         tr("Open file"),
                                                          m_active_folder,
-                                                         "*.rmt");
+                                                         tr("All rmap Formats(*.rmt *.rmb);;Text Format (*.rmt);;Binary Format (*.rmb)"));
+                                                         //"*.rmt");
             if(!fname.isEmpty()&& !fname.isNull()){
                 fileOpen(fname);
                 filename = m_default_window_title;
@@ -201,7 +202,6 @@ void RegMapWindow::btnCheck(void)
     m_model->checkData();
 }
 
-#include <QDebug>
 void RegMapWindow::btnExport(void)
 {
     qDebug() << "export";
@@ -289,6 +289,8 @@ void RegMapWindow::fileOpen(QString fname)
 
 protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context )
 {
+    //QVariantMap rootItem =  context.m_records[0].m_data;
+    //qDebug() << rootItem["itemData"].toMap();
     for(SerializationContext::Record rec : context.m_records)
     {
         protormap::RegItem* item = reg_model.add_item();
@@ -301,6 +303,25 @@ protormap::RegModel& operator <<( protormap::RegModel& reg_model, const Serializ
             case RegMapTreeItem::e_rmmKind::reg:  item->set_kind(protormap::RegItem_Kind_REG);  break;
             case RegMapTreeItem::e_rmmKind::fld:  item->set_kind(protormap::RegItem_Kind_FLD);  break;
         }
+        QVariantMap itemData = rec.m_data["itemData"].toMap();
+        //protormap::RegItem
+        auto & itd = *item->mutable_itemdata();
+        for(auto key : itemData.keys())
+        {
+            //qDebug() << key << "," << itemData.value(key) << '\n';
+            //qDebug() << key.toStdString() << "," << itemData.value(key) << '\n';
+            itd[key.toStdString()] = itemData.value(key).toString().toStdString();
+        }
+        //itd["key"] = "val";
+        //itd["key2"] = "val2";
+        //*item->mutable_itemdata()["key"] = "val";
+        //qDebug() << itemData;
+        //item->set_offset(rec.m_data["itemData"]);
+    //offset
+    //size
+    //name
+    //description
+    //child_id
     }
     return(reg_model);
 }
@@ -350,14 +371,7 @@ bool RegMapWindow::fileSave(QString fname)
         reg_model.set_allocated_config( m_config_window->serialize());
         SerializationContext context;
         context.serialize( m_model->getRootItem() );
-
-        //for(SerializationContext::Record rec : context.m_records)
-        //{
-            //protormap::RegItem* item = reg_model.add_item();
-            ////stream << rec.m_type;
-        //}
         reg_model << context;
-        //qDebug() << context;
         // Set timestamp
         google::protobuf::Timestamp timestamp;
         timestamp.set_seconds(time(NULL));
