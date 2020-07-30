@@ -308,20 +308,16 @@ protormap::RegModel& operator <<( protormap::RegModel& reg_model, const Serializ
         auto & itd = *item->mutable_itemdata();
         for(auto key : itemData.keys())
         {
-            //qDebug() << key << "," << itemData.value(key) << '\n';
-            //qDebug() << key.toStdString() << "," << itemData.value(key) << '\n';
             itd[key.toStdString()] = itemData.value(key).toString().toStdString();
         }
-        //itd["key"] = "val";
-        //itd["key2"] = "val2";
-        //*item->mutable_itemdata()["key"] = "val";
-        //qDebug() << itemData;
-        //item->set_offset(rec.m_data["itemData"]);
-    //offset
-    //size
-    //name
-    //description
-    //child_id
+        QList<QVariant> childItems = rec.m_data["childItems"].toList();
+        for(int i=0; i<childItems.size(); i++) {
+            item->add_child_id(childItems.at(i).toUInt());
+        }
+        //for(auto child : rec.m_data["childItems"])
+        //{
+        //    *item->add_child_id(child);
+        //}
     }
     return(reg_model);
 }
