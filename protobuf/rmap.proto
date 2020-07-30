@@ -23,9 +23,10 @@ message RegItem {
         MAP  = 5;
     }
     uint32          id           = 1;
-    repeated uint32 child_id     = 2;
-    Kind            kind         = 3;
-    map<string, string> itemData = 4;
+    Kind            kind         = 2;
+    uint32          parent_id    = 3;
+    repeated uint32 child_id     = 4;
+    map<string, string> itemData = 5;
 }
 
 message RegModel {
