@@ -49,7 +49,14 @@ QVariant RegMapTreeModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
 
-    return item->data(index.column());
+    if(index.column() == 0)
+    {
+        return item->getKindString();
+    }
+    else
+    {
+        return item->data(index.column());
+    }
 
 }
 
@@ -199,14 +206,7 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
     for(int column=0; column < columnCount(index) ; column++)
     {
         QModelIndex child = this->index(row, column, index);
-        if (column == 0)
-        {
-            this->setData(child, (childItem->getKindString()), Qt::EditRole);
-        }
-        else
-        {
-            this->setData(child, "", Qt::EditRole);
-        }
+        this->setData(child, "", Qt::EditRole);
     }
 }
 
