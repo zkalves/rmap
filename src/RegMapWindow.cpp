@@ -266,8 +266,10 @@ void RegMapWindow::fileOpen(QString fname)
                     {
                         m_config_window->deserialize(reg_model.config());
                     }
-                    if(reg_model.has_config())
+                    if(reg_model.item_size() > 0)
                     {
+                        qDebug() << reg_model.item_size();
+                        //reg_model >> context;
                     }
 
                     this->treeView->setItemsExpandable(true);
@@ -318,6 +320,34 @@ protormap::RegModel& operator <<( protormap::RegModel& reg_model, const Serializ
         //{
         //    *item->add_child_id(child);
         //}
+    }
+    return(reg_model);
+}
+
+protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context )
+{
+    for(SerializationContext::Record rec : context.m_records)
+    {
+    //    protormap::RegItem* item = reg_model.add_item();
+    //    item->set_id(rec.m_data["id"].toUInt());
+    //    switch (rec.m_data["kind"].value<RegMapTreeItem::e_rmmKind>()){
+    //        case RegMapTreeItem::e_rmmKind::root: item->set_kind(protormap::RegItem_Kind_ROOT); break;
+    //        case RegMapTreeItem::e_rmmKind::mem:  item->set_kind(protormap::RegItem_Kind_MEM);  break;
+    //        case RegMapTreeItem::e_rmmKind::map:  item->set_kind(protormap::RegItem_Kind_MAP);  break;
+    //        case RegMapTreeItem::e_rmmKind::blk:  item->set_kind(protormap::RegItem_Kind_BLK);  break;
+    //        case RegMapTreeItem::e_rmmKind::reg:  item->set_kind(protormap::RegItem_Kind_REG);  break;
+    //        case RegMapTreeItem::e_rmmKind::fld:  item->set_kind(protormap::RegItem_Kind_FLD);  break;
+    //    }
+    //    QVariantMap itemData = rec.m_data["itemData"].toMap();
+    //    auto & itd = *item->mutable_itemdata();
+    //    for(auto key : itemData.keys())
+    //    {
+    //        itd[key.toStdString()] = itemData.value(key).toString().toStdString();
+    //    }
+    //    QList<QVariant> childItems = rec.m_data["childItems"].toList();
+    //    for(int i=0; i<childItems.size(); i++) {
+    //        item->add_child_id(childItems.at(i).toUInt());
+    //    }
     }
     return(reg_model);
 }
