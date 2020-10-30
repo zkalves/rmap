@@ -20,6 +20,7 @@ public:
     friend QDataStream&         operator <<( QDataStream& stream, const SerializationContext& context );
     friend QDataStream&         operator >>( QDataStream& stream, SerializationContext& context );
     friend protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
+    friend protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
 
 private:
     struct Record
