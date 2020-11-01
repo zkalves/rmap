@@ -176,6 +176,11 @@ RegMapTreeItem* RegMapTreeModel::getRootItem(void)
     return this->m_rootItem;
 }
 
+void RegMapTreeModel::setRootItem(RegMapTreeItem* item)
+{
+    this->m_rootItem = item;
+}
+
 bool RegMapTreeModel::insertRows(int position, int rows, RegMapTreeItem::e_rmmKind kind, QModelIndex parent)
 {
     bool success;
