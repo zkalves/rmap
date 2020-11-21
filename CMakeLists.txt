@@ -14,7 +14,7 @@ find_package(Qt5 COMPONENTS REQUIRED Core Gui Widgets)
 find_package(Protobuf REQUIRED)
 
 set(project_sources
-           src/ObjectFactory.cpp
+           src/SerializationContext.cpp
            src/RegMapTreeItem.cpp
            src/RegMapTreeModel.cpp
            src/RegMapTreeView.cpp

@@ -17,16 +17,15 @@ public:
     T* deserialize( const QVariant& handle );
 
     friend QDebug               operator <<( QDebug  stream, const SerializationContext& context );
-    friend QDataStream&         operator <<( QDataStream& stream, const SerializationContext& context );
-    friend QDataStream&         operator >>( QDataStream& stream, SerializationContext& context );
     friend protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
     friend protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
+
+    void append_record( QObject* object, QVariantMap data );
 
 private:
     struct Record
     {
         QObject* m_object;
-        QByteArray m_type;
         QVariantMap m_data;
     };
 
@@ -52,7 +51,7 @@ QVariant SerializationContext::serialize( T* ptr )
 
     Record record;
     record.m_object = object;
-    record.m_type = object->metaObject()->className();
+    //record.m_type = object->metaObject()->className();
     m_records.append( record );
 
     m_map.insert( object, index );
@@ -80,7 +79,8 @@ T* SerializationContext::deserialize( const QVariant& handle )
     if ( record.m_object != NULL )
         return static_cast<T*>( record.m_object );
 
-    QObject* object = ObjectFactory::createObject( record.m_type );
+
+    T* object = ObjectFactory::createObject<T>( );
 
     record.m_object = object;
 
@@ -93,4 +93,6 @@ T* SerializationContext::deserialize( const QVariant& handle )
 
     return ptr;
 }
+
+
 #endif
