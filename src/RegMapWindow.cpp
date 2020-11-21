@@ -120,7 +120,7 @@ bool RegMapWindow::btnFileSaveAs(void)
         fname = m_rmap_filename;
         if (!fname.endsWith(".rmt"))
         {
-            QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
+            QString croped_fname=fname.split(".",Qt::SkipEmptyParts).at(0);
             croped_fname.append(".rmt");
             fname=croped_fname;
         }
@@ -271,9 +271,7 @@ void RegMapWindow::fileOpen(QString fname)
                         //qDebug() << reg_model.item_size();
                         SerializationContext context;
                         reg_model >> context;
-                        QVariant a;
-                        QVariant & ee = a;
-                        m_model->setRootItem(context.deserialize<RegMapTreeItem>( ee ));
+                        m_model->setRootItem(context.deserialize<RegMapTreeItem>( QVariant::fromValue<int>( 0 ) ));
 
                     }
 
@@ -349,29 +347,10 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
             childItemsList.append(child);
         }
         m_data["childItems"] = childItemsList;
-        qDebug() << m_data;
+        QObject* object = NULL;
+        context.append_record(object, m_data );
     }
     return(reg_model);
-}
-
-QDataStream& operator <<( QDataStream& stream, const SerializationContext& context )
-{
-    for(SerializationContext::Record rec : context.m_records)
-    {
-        stream << rec.m_type;
-    }
-    return (stream);
-}
-
-QDebug  operator <<( QDebug  stream, const SerializationContext& context )
-{
-    for(SerializationContext::Record rec : context.m_records)
-    {
-        stream << endl;
-        stream << rec.m_data;
-        stream << endl;
-    }
-    return (stream);
 }
 
 bool RegMapWindow::fileSave(QString fname)
@@ -383,7 +362,7 @@ bool RegMapWindow::fileSave(QString fname)
     }
     if (!fname.endsWith(".rmt"))
     {
-        QString croped_fname=fname.split(".",QString::SkipEmptyParts).at(0);
+        QString croped_fname=fname.split(".",Qt::SkipEmptyParts).at(0);
         croped_fname.append(".rmt");
         fname=croped_fname;
     }
