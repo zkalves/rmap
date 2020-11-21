@@ -1,10 +1,9 @@
 #include "ObjectFactory.hpp"
 
-QObject* ObjectFactory::createObject(QByteArray type)
+template<typename T>
+T* ObjectFactory::createObject(void)
 {
-    QObject* instance = nullptr;
-
-    (void) type;
+    T* instance = nullptr;
 
     //if(name == "T")
     //    instance = new T();
@@ -12,7 +11,7 @@ QObject* ObjectFactory::createObject(QByteArray type)
     //if(name == "two")
     //    instance = new DerivedClassTwo();
 
-    instance = new QObject();
+    instance = new T();
     if(instance != nullptr)
         return instance;
     else

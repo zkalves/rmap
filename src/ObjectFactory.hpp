@@ -11,7 +11,25 @@ class ObjectFactory
 {
 public:
     // Return shared pointer instead?
-    static QObject* createObject(QByteArray type);
+    template<typename T>
+    static T* createObject();
 };
 
+template<typename T>
+T* ObjectFactory::createObject(void)
+{
+    T* instance = nullptr;
+
+    //if(name == "T")
+    //    instance = new T();
+
+    //if(name == "two")
+    //    instance = new DerivedClassTwo();
+
+    instance = new T();
+    if(instance != nullptr)
+        return instance;
+    else
+        return nullptr;
+}
 #endif // OBJECTFACTORY_HPP
