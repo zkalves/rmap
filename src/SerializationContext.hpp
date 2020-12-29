@@ -16,11 +16,12 @@ public:
     template<typename T>
     T* deserialize( const QVariant& handle );
 
+    template<typename T>
+    void append_record( T* object, QVariantMap data );
+
     friend QDebug               operator <<( QDebug  stream, const SerializationContext& context );
     friend protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
     friend protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
-
-    void append_record( QObject* object, QVariantMap data );
 
 private:
     struct Record
@@ -94,5 +95,13 @@ T* SerializationContext::deserialize( const QVariant& handle )
     return ptr;
 }
 
+template<typename T>
+void SerializationContext::append_record( T* object, QVariantMap data )
+{
+    Record record;
+    record.m_data=data;
+    record.m_object=object;
+    m_records.append( record );
+}
 
 #endif

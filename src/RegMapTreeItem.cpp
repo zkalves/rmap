@@ -17,7 +17,7 @@ void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context
 
     data[ "id" ] = context->serialize<RegMapTreeItem>( const_cast <RegMapTreeItem*> (this) );
     data[ "kind" ] = QVariant::fromValue(m_kind);
-    //data[ "displayColumns" ] = QVariant(m_displayColumns.toList());
+    data[ "displayColumns" ] = QVariant(m_displayColumns.toList());
     data[ "itemData" ] = QVariant(m_itemData);
     data[ "parent" ] = context->serialize<RegMapTreeItem>( m_parentItem );
     QList<QVariant> childItemsList;
@@ -32,7 +32,7 @@ void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context
 void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext* context )
 {
     m_kind = data["kind"].value<RegMapTreeItem::e_rmmKind>();
-    //m_displayColumns.fromList(data[ "displayColumns" ].toStringList());
+    m_displayColumns.fromList(data[ "displayColumns" ].toStringList());
     m_itemData = data[ "itemData" ].toMap() ;
     //data[ "parent" ] >> m_parentItem;
     QList<QVariant> childItemsList = data[ "childItems" ].toList();
@@ -44,6 +44,7 @@ void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext*
     }
     m_childItems = childItems;
 }
+
 RegMapTreeItem *RegMapTreeItem::child(int row)
 {
     if (row < 0 || row >= m_childItems.size())

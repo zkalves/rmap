@@ -260,21 +260,19 @@ void RegMapWindow::fileOpen(QString fname)
                             QMessageBox::Ok);
                 }
                 else {
-                    //this->m_model.m_rootItem = rmt.safe_load(fh);
-                    //qDebug() << QString::fromStdString(reg_model.DebugString()) << endl;
                     if(reg_model.has_config())
                     {
                         m_config_window->deserialize(reg_model.config());
                     }
+
                     if(reg_model.item_size() > 0)
                     {
-                        //qDebug() << reg_model.item_size();
                         SerializationContext context;
                         reg_model >> context;
+
                         m_model->setRootItem(context.deserialize<RegMapTreeItem>( QVariant::fromValue<int>( 0 ) ));
 
                     }
-
                     this->treeView->setItemsExpandable(true);
                     this->treeView->expandAll();
                     for (int col = 0 ; col < this->m_model->columnCount() ; col++) {
@@ -294,8 +292,6 @@ void RegMapWindow::fileOpen(QString fname)
 
 protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context )
 {
-    //QVariantMap rootItem =  context.m_records[0].m_data;
-    //qDebug() << rootItem["itemData"].toMap();
     for(SerializationContext::Record rec : context.m_records)
     {
         protormap::RegItem* item = reg_model.add_item();
@@ -341,6 +337,15 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
             case protormap::RegItem_Kind_REG:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);  break;
             case protormap::RegItem_Kind_FLD:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::fld);  break;
         }
+
+        QVariantMap itemData;
+        for (auto & [key, value] : item.itemdata())
+        {
+            //itemData[key] = value;
+            itemData[QString(key.c_str())] = QVariant(value.c_str());
+        }
+        m_data["itemData"] = QVariant(itemData);
+
         QList<QVariant> childItemsList;
         foreach (auto child, item.child_id())
         {
