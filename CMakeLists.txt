@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
 
 project(rmap LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
@@ -14,7 +16,6 @@ find_package(Qt5 COMPONENTS REQUIRED Core Gui Widgets)
 find_package(Protobuf REQUIRED)
 
 set(project_sources
-           src/SerializationContext.cpp
            src/RegMapTreeItem.cpp
            src/RegMapTreeModel.cpp
            src/RegMapTreeView.cpp
