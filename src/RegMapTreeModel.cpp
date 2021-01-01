@@ -15,7 +15,7 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent)
         data[str]=str;
     }
     m_displayColumns = QVector<QString>::fromList(headerlist);
-    m_rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, m_displayColumns, data);
+    m_rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, data);
 }
 
 RegMapTreeModel::~RegMapTreeModel()
@@ -55,7 +55,7 @@ QVariant RegMapTreeModel::data(const QModelIndex &index, int role) const
     }
     else
     {
-        return item->data(index.column());
+        return item->data(m_displayColumns[index.column()]);
     }
 
 }
@@ -77,11 +77,10 @@ Qt::ItemFlags RegMapTreeModel::flags(const QModelIndex &index) const
     }
 }
 
-QVariant RegMapTreeModel::headerData(int section, Qt::Orientation orientation,
-                               int role) const
+QVariant RegMapTreeModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
-        return m_rootItem->data(section);
+        return m_rootItem->data(m_displayColumns[section]);
 
     return QVariant();
 }
@@ -130,11 +129,6 @@ QModelIndex RegMapTreeModel::parent(const QModelIndex &index) const
 
     return createIndex(parentItem->row(), 0, parentItem);
 }
-
-//    def rowCount(self, parent=QModelIndex()):
-//        parentItem = self.getItem(parent)
-
-//        return parentItem.childCount()
 
 int RegMapTreeModel::rowCount(const QModelIndex &parent) const
 {
@@ -193,7 +187,7 @@ bool RegMapTreeModel::insertRows(int position, int rows, RegMapTreeItem::e_rmmKi
         success = parentItem->insertChildren( kind,
                                               position,
                                               rows,
-                                              m_rootItem->columnCount());
+                                              m_displayColumns);
         this->endInsertRows();
         initRow(position,parent);
     }
@@ -214,18 +208,6 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
         this->setData(child, "", Qt::EditRole);
     }
 }
-
-//    def parent(self, index):
-//        if not index.isValid():
-//            return QModelIndex()
-
-//        childItem = self.getItem(index)
-//        parentItem = childItem.parent()
-
-//        if parentItem == self.rootItem:
-//            return QModelIndex()
-
-//        return self.createIndex(parentItem.childNumber(), 0, parentItem)
 
 bool RegMapTreeModel::removeRows(int position, int rows, const QModelIndex &parent)
 {
@@ -256,7 +238,7 @@ bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, i
     else
     {
         RegMapTreeItem* item = getItem(index);
-        set_data_status = item->setData(index.column(), value);
+        set_data_status = item->setData(m_displayColumns[index.column()], value);
         if(set_data_status)
         {
             emit dataChanged(index, index);
