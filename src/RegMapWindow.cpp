@@ -295,7 +295,6 @@ protormap::RegModel& operator <<( protormap::RegModel& reg_model, const Serializ
     for(SerializationContext::Record rec : context.m_records)
     {
         protormap::RegItem* item = reg_model.add_item();
-        item->set_id(rec.m_data["id"].toUInt());
         switch (rec.m_data["kind"].value<RegMapTreeItem::e_rmmKind>()){
             case RegMapTreeItem::e_rmmKind::root: item->set_kind(protormap::RegItem_Kind_ROOT); break;
             case RegMapTreeItem::e_rmmKind::mem:  item->set_kind(protormap::RegItem_Kind_MEM);  break;
@@ -304,21 +303,18 @@ protormap::RegModel& operator <<( protormap::RegModel& reg_model, const Serializ
             case RegMapTreeItem::e_rmmKind::reg:  item->set_kind(protormap::RegItem_Kind_REG);  break;
             case RegMapTreeItem::e_rmmKind::fld:  item->set_kind(protormap::RegItem_Kind_FLD);  break;
         }
+        item->set_id(rec.m_data["id"].toUInt());
+        item->set_parent_id(rec.m_data["parent"].toUInt());
+        QList<QVariant> childItems = rec.m_data["childItems"].toList();
+        for(int i=0; i<childItems.size(); i++) {
+            item->add_child_id(childItems.at(i).toUInt());
+        }
         QVariantMap itemData = rec.m_data["itemData"].toMap();
-        //protormap::RegItem
         auto & itd = *item->mutable_itemdata();
         for(auto key : itemData.keys())
         {
             itd[key.toStdString()] = itemData.value(key).toString().toStdString();
         }
-        QList<QVariant> childItems = rec.m_data["childItems"].toList();
-        for(int i=0; i<childItems.size(); i++) {
-            item->add_child_id(childItems.at(i).toUInt());
-        }
-        //for(auto child : rec.m_data["childItems"])
-        //{
-        //    *item->add_child_id(child);
-        //}
     }
     return(reg_model);
 }
@@ -327,8 +323,11 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
 {
     for (int j = 0; j < reg_model.item_size(); j++) {
         QVariantMap m_data;
+        QVariantMap itemData;
+        QList<QVariant> childItemsList;
+        QObject* object = NULL;
+
         const protormap::RegItem& item = reg_model.item(j);
-        m_data["id"]   = item.id();
         switch (item.kind()){
             case protormap::RegItem_Kind_ROOT: m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::root); break;
             case protormap::RegItem_Kind_MEM:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::mem);  break;
@@ -337,22 +336,21 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
             case protormap::RegItem_Kind_REG:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);  break;
             case protormap::RegItem_Kind_FLD:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::fld);  break;
         }
-
-        QVariantMap itemData;
-        for (auto & [key, value] : item.itemdata())
-        {
-            //itemData[key] = value;
-            itemData[QString(key.c_str())] = QVariant(value.c_str());
-        }
-        m_data["itemData"] = QVariant(itemData);
-
-        QList<QVariant> childItemsList;
+        m_data["id"]   = item.id();
+        m_data["parent"]= item.parent_id();
         foreach (auto child, item.child_id())
         {
             childItemsList.append(child);
         }
         m_data["childItems"] = childItemsList;
-        QObject* object = NULL;
+
+        for (auto & [key, value] : item.itemdata())
+        {
+            itemData[QString(key.c_str())] = QVariant(value.c_str());
+        }
+        m_data["itemData"] = QVariant(itemData);
+
+
         context.append_record(object, m_data );
     }
     return(reg_model);

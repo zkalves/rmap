@@ -22,8 +22,8 @@ message RegItem {
         MEM  = 4;
         MAP  = 5;
     }
-    uint32          id           = 1;
-    Kind            kind         = 2;
+    Kind            kind         = 1;
+    uint32          id           = 2;
     uint32          parent_id    = 3;
     repeated uint32 child_id     = 4;
     map<string, string> itemData = 5;
