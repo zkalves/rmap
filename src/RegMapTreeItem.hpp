@@ -17,19 +17,18 @@ public:
 
     RegMapTreeItem *child(int row);
     int childCount(void) const;
-    int childNumber(void);
     int columnCount(void) const;
-    QVariant data(int column) const;
+    QVariant data(QString column) const;
     int row() const;
     RegMapTreeItem *parentItem();
 
-    explicit RegMapTreeItem(e_rmmKind kind, QVector<QString> &displayColumns, QVariantMap &data, RegMapTreeItem *parentItem = nullptr);
+    explicit RegMapTreeItem(e_rmmKind kind, QVariantMap &data, RegMapTreeItem *parentItem = nullptr);
     explicit RegMapTreeItem();
     ~RegMapTreeItem();
     void appendChild(RegMapTreeItem *child);
-    bool insertChildren(e_rmmKind kind, int position, int count, int columns);
+    bool insertChildren(e_rmmKind kind, int position, int count, QVector<QString> displayColumns);
     bool removeChildren(int position, int count);
-    bool setData(int column, QVariant value);
+    bool setData(QString column, QVariant value);
     QVector<e_rmmKind> get_possible_children(void);
     const QString get_icon(void);
     const QString getKindString(void);
