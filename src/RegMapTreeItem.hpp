@@ -1,6 +1,7 @@
 #ifndef REGMAPTREEITEM_HPP
 #define REGMAPTREEITEM_HPP
 
+#include <QObject>
 #include <QVariant>
 #include <QVector>
 #include "Serializable.hpp"
@@ -9,37 +10,49 @@
 class RegMapTreeItem : public QObject, public Serializable
 {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(RegMapTreeItem)
+
 public:
-    enum class e_rmmKind { root, mem, map, blk, reg, fld};
+    enum class e_rmmKind { root, mem, map, blk, reg, fld, };
     Q_ENUM(e_rmmKind)
-
-    QVector<RegMapTreeItem*> getChildItems(void);
-
-    RegMapTreeItem *child(int row);
-    int childCount(void) const;
-    int columnCount(void) const;
-    QVariant data(QString column) const;
-    int row() const;
-    RegMapTreeItem *parentItem();
 
     explicit RegMapTreeItem(e_rmmKind kind, QVariantMap &data, RegMapTreeItem *parentItem = nullptr);
     explicit RegMapTreeItem();
-    ~RegMapTreeItem();
+    ~RegMapTreeItem() override;
+
+    QVector<RegMapTreeItem*> getChildItems() const { return m_childItems; }
+    QVector<RegMapTreeItem*> childItems() const { return m_childItems; }
+    const QVector<RegMapTreeItem*>& childItemsRef() const { return m_childItems; }
+
+    RegMapTreeItem *child(int row) const;
+    int childCount() const;
+    int columnCount() const;
+    QVariant data(const QString &column) const;
+    int row() const;
+    RegMapTreeItem *parentItem() const;
+
     void appendChild(RegMapTreeItem *child);
-    bool insertChildren(e_rmmKind kind, int position, int count, QVector<QString> displayColumns);
+    bool insertChildren(e_rmmKind kind, int position, int count, const QVector<QString> &displayColumns);
     bool removeChildren(int position, int count);
-    bool setData(QString column, QVariant value);
-    QVector<e_rmmKind> get_possible_children(void);
-    const QString get_icon(void);
-    const QString getKindString(void);
-    void serialize( QVariantMap& data, SerializationContext* context ) const;
-    void deserialize( const QVariantMap& data, SerializationContext* context );
+    bool setData(const QString &column, const QVariant &value);
+
+    QVector<e_rmmKind> possibleChildren() const;
+    QString icon() const;
+    QString kindString() const;
+    e_rmmKind kind() const { return m_kind; }
+
+
+
+    void serialize( QVariantMap& data, SerializationContext* context ) const override;
+    void deserialize( const QVariantMap& data, SerializationContext* context ) override;
+
 private:
-    e_rmmKind m_kind;
+    e_rmmKind m_kind = e_rmmKind::root;
     QVector<QString> m_displayColumns;
     QVariantMap m_itemData;
     QVector<RegMapTreeItem*> m_childItems;
-    RegMapTreeItem *m_parentItem;
+    RegMapTreeItem *m_parentItem = nullptr;
 };
+
 #endif // REGMAPTREEITEM_HPP
 

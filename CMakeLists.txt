@@ -1,69 +1,143 @@
-cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15)
 
 project(rmap LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(CMAKE_VERSION VERSION_LESS "3.7.0")
-    set(CMAKE_INCLUDE_CURRENT_DIR ON)
-endif()
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-if(POLICY CMP0071)
-    cmake_policy(SET CMP0071 NEW)
-endif()
+# Fetch Dependencies
+include(FetchContent)
+set(INJA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "" FORCE)
 
-find_package(Qt5 COMPONENTS REQUIRED Core Gui Widgets)
+option(BUILD_BENCHMARK "" OFF)
+
+FetchContent_Declare(inja
+  GIT_REPOSITORY https://github.com/pantor/inja
+  GIT_TAG v3.3.0
+  SYSTEM
+)
+FetchContent_MakeAvailable(inja)
+
+# Testing Support
+include(CTest)
+
+# Find Packages
+find_package(Qt6 COMPONENTS REQUIRED Core Widgets)
 find_package(Protobuf REQUIRED)
+if(BUILD_TESTING)
+    find_package(Qt6 COMPONENTS REQUIRED Test)
+endif()
 
-set(project_sources
-           src/RegMapTreeItem.cpp
-           src/RegMapTreeModel.cpp
-           src/RegMapTreeView.cpp
-           src/RegMapWindow.cpp
-           src/RegMapDelegate.cpp
-           src/RegConfigWindow.cpp
-           src/rmap.cpp)
-
-set(project_headers
-           src/ProtobufLogCollector.hpp
-           src/Serializable.hpp
-           src/SerializationContext.hpp
-           src/ObjectFactory.hpp
-           src/RegMapTreeItem.hpp
-           src/RegMapTreeModel.hpp
-           src/RegMapTreeView.hpp
-           src/RegMapWindow.hpp
-           src/RegMapDelegate.hpp
-           src/RegConfigWindow.hpp
-           src/rmap.hpp)
-
-set(project_ui ui/config.ui ui/rmap.ui)
-set(project_qrc ui/resources.qrc)
-
-set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/rmap.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTOS})
-
+# Qt Auto Tools
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-
 set(CMAKE_AUTOUIC_SEARCH_PATHS ui)
 
-include_directories(protobuf)
-include_directories( "${CMAKE_CURRENT_BINARY_DIR}" )
-add_executable(rmap 
-    ${project_sources}
-    ${project_headers}
+# Core Library Sources & Headers
+set(core_sources
+    src/PathUtils.cpp
+    src/ProtobufLogCollector.cpp
+    src/RegMapTreeItem.cpp
+    src/RegMapTreeModel.cpp
+    src/RegMapTreeView.cpp
+    src/RegMapWindow.cpp
+    src/RegMapDelegate.cpp
+    src/RegConfigWindow.cpp
+    src/RegBitfieldBarWidget.cpp
+    src/BlockMemoryMapWidget.cpp
+    src/CodeGenerator.cpp
+    src/format/FormatManager.cpp
+    src/format/ProtobufHandler.cpp
+    src/format/SystemRdlHandler.cpp
+    src/format/IpxactHandler.cpp
+    src/format/CmsisSvdHandler.cpp
+    src/format/JsonHandler.cpp
+    src/format/CsvHandler.cpp
+    src/ThemeManager.cpp
+    src/AppSettings.cpp
+    src/PreferencesWindow.cpp
+)
+
+set(core_headers
+    src/PathUtils.hpp
+    src/ProtobufLogCollector.hpp
+    src/Serializable.hpp
+    src/SerializationContext.hpp
+    src/ObjectFactory.hpp
+    src/UndoCommands.hpp
+    src/RegMapTreeItem.hpp
+    src/RegMapTreeModel.hpp
+    src/RegMapTreeView.hpp
+    src/RegMapWindow.hpp
+    src/RegMapDelegate.hpp
+    src/RegConfigWindow.hpp
+    src/PreferencesWindow.hpp
+    src/RegBitfieldBarWidget.hpp
+    src/BlockMemoryMapWidget.hpp
+    src/CodeGenerator.hpp
+    src/ThemeManager.hpp
+    src/AppSettings.hpp
+    src/format/IFormatHandler.hpp
+    src/format/FormatManager.hpp
+    src/format/ProtobufHandler.hpp
+    src/format/SystemRdlHandler.hpp
+    src/format/IpxactHandler.hpp
+    src/format/CmsisSvdHandler.hpp
+    src/format/JsonHandler.hpp
+    src/format/CsvHandler.hpp
+)
+
+set(project_ui ui/config.ui ui/preferences.ui ui/rmap.ui)
+set(project_qrc ui/resources.qrc)
+
+# Core Static Library
+qt_add_library(rmap_core STATIC
+    ${core_sources}
+    ${core_headers}
     ${project_ui}
     ${project_qrc}
-    ${PROTO_SRCS}
-    ${PROTO_HDRS})
+)
+
+# Protobuf Generation (Modern Target-Based Approach)
+set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/src/protobuf/rmap.proto)
+protobuf_generate(TARGET rmap_core PROTOS ${PROTOS})
+
+target_include_directories(rmap_core PUBLIC
+    src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/protobuf
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/src/protobuf
+    ${CMAKE_CURRENT_BINARY_DIR}/rmap_core_autogen/include
+    ${inja_SOURCE_DIR}/single_include/inja
+)
+
+target_compile_options(rmap_core PRIVATE -Wfatal-errors)
+
+target_link_libraries(rmap_core PUBLIC
+    Qt6::Core
+    Qt6::Widgets
+    protobuf::libprotobuf
+    pantor::inja
+)
+
+# Target Executable
+qt_add_executable(rmap
+    src/rmap.cpp
+    src/rmap.hpp
+)
 
 target_compile_options(rmap PRIVATE -Wfatal-errors)
-target_include_directories(rmap PRIVATE src)
-target_link_libraries(rmap 
-    PUBLIC
-    Qt5::Core
-    Qt5::Gui 
-    Qt5::Widgets
-    ${Protobuf_LIBRARIES})
+target_link_libraries(rmap PRIVATE rmap_core)
+
+# Tests Subdirectory
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+
+

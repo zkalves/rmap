@@ -1,21 +1,22 @@
 #ifndef PROTOBUFLOGCOLLECTOR_HPP
 #define PROTOBUFLOGCOLLECTOR_HPP
+
 #include <google/protobuf/io/tokenizer.h>
 #include <string>
+
 class ProtobufLogCollector : public google::protobuf::io::ErrorCollector {
-    public:
-        ProtobufLogCollector() {}
-        ~ProtobufLogCollector() {}
+public:
+    ProtobufLogCollector() = default;
+    ~ProtobufLogCollector() override = default;
 
-        std::string m_str = "";
+    void AddError(int line, int column, const std::string& message) override;
+    void AddWarning(int line, int column, const std::string& message) override;
 
-        void AddError(int line, int column, const std::string& message) {
-            m_str = m_str + "ERROR ("   + std::to_string(line+1) + "," + std::to_string(column+1) + "):" + message + "\n";
-        }
-        void AddWarning(int line, int column, const std::string& message) {
-            m_str = m_str + "WARNING (" + std::to_string(line+1) + "," + std::to_string(column+1) + "):" + message + "\n";
-        }
+    std::string string() const { return m_str; }
+    std::string get_string() const { return m_str; }
 
-        std::string get_string() { return(m_str);}
+private:
+    std::string m_str;
 };
-#endif
+
+#endif // PROTOBUFLOGCOLLECTOR_HPP

@@ -1,0 +1,223 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/reg_map.h.inja"
+    output_filepath: "./work/wide_bus_reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_reg_model.sv.inja"
+    output_filepath: "./work/wide_bus_reg_model.sv"
+  }
+  reg_width: 64
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "WIDE_BUS_TOP"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "DMA_SRC_ADDR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "64"
+  }
+  itemData {
+    key: "Description"
+    value: "64-bit DMA Source Address Register"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "LOW_ADDR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x00000000"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "HIGH_ADDR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "32"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "28"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0000000"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 5
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "FLAGS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "60"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: REG
+  id: 6
+  parent_id: 1
+  child_id: 7
+  itemData {
+    key: "Name"
+    value: "DMA_CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x08"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "64"
+  }
+  itemData {
+    key: "Description"
+    value: "64-bit DMA Control"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "START"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

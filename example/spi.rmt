@@ -1,0 +1,197 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/reg_map.h.inja"
+    output_filepath: "./work/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_reg_model.sv.inja"
+    output_filepath: "./work/uvm_reg_model.sv"
+  }
+  reg_width: 32
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "SPI_Top"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Description"
+    value: "Control Register"
+  }
+  itemData {
+    key: "Name"
+    value: "CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Enable SPI"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "EN"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "SPI Mode"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "MODE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x3"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "2"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  itemData {
+    key: "Description"
+    value: "Status Register"
+  }
+  itemData {
+    key: "Name"
+    value: "STATUS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "TX FIFO Empty"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Name"
+    value: "TX_EMPTY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+}
+last_updated {
+  seconds: 1787444198
+}

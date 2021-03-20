@@ -1,0 +1,391 @@
+#include "AppSettings.hpp"
+#include <QCoreApplication>
+
+#include <QWidget>
+#include <QScreen>
+#include <QGuiApplication>
+
+AppSettings& AppSettings::instance()
+{
+    static AppSettings inst;
+    return inst;
+}
+
+AppSettings::AppSettings()
+{
+    const char *envConfig = std::getenv("RMAP_CONFIG_FILE");
+    if (envConfig && envConfig[0] != '\0') {
+        m_configPath = QString::fromUtf8(envConfig);
+    } else {
+        const char *xdgConfig = std::getenv("XDG_CONFIG_HOME");
+        QString configDir = (xdgConfig && xdgConfig[0] != '\0')
+            ? QString::fromUtf8(xdgConfig)
+            : QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+        if (configDir.isEmpty()) {
+            configDir = QDir::homePath() + "/.config";
+        }
+        m_configPath = configDir + "/rmap/rmap.conf";
+    }
+
+    load();
+}
+
+QString AppSettings::configFilePath() const
+{
+    return m_configPath;
+}
+
+void AppSettings::setConfigFilePath(const QString &path)
+{
+    if (!path.isEmpty() && m_configPath != path) {
+        m_configPath = path;
+        load();
+    }
+}
+
+QString AppSettings::colorScheme() const
+{
+    return m_colorScheme;
+}
+
+void AppSettings::setColorScheme(const QString &scheme)
+{
+    QString s = scheme.trimmed().toLower();
+    if (s.isEmpty()) s = "solarized8";
+    if (m_colorScheme != s) {
+        m_colorScheme = s;
+        save();
+        emit colorSchemeChanged(m_colorScheme);
+    }
+}
+
+bool AppSettings::colorBlindMode() const
+{
+    return m_colorBlindMode;
+}
+
+void AppSettings::setColorBlindMode(bool enabled)
+{
+    if (m_colorBlindMode != enabled) {
+        m_colorBlindMode = enabled;
+        save();
+        emit colorBlindModeChanged(m_colorBlindMode);
+    }
+}
+
+QByteArray AppSettings::mainWindowGeometry() const
+{
+    return m_mainWindowGeometry;
+}
+
+void AppSettings::setMainWindowGeometry(const QByteArray &geom)
+{
+    m_mainWindowGeometry = geom;
+    save();
+}
+
+QPoint AppSettings::mainWindowPos() const
+{
+    return m_mainWindowPos;
+}
+
+void AppSettings::setMainWindowPos(const QPoint &pos)
+{
+    m_mainWindowPos = pos;
+    save();
+}
+
+QSize AppSettings::mainWindowSize() const
+{
+    return m_mainWindowSize;
+}
+
+void AppSettings::setMainWindowSize(const QSize &size)
+{
+    if (size.isValid() && size.width() > 0 && size.height() > 0) {
+        m_mainWindowSize = size;
+        save();
+    }
+}
+
+QByteArray AppSettings::mainWindowState() const
+{
+    return m_mainWindowState;
+}
+
+void AppSettings::setMainWindowState(const QByteArray &state)
+{
+    m_mainWindowState = state;
+    save();
+}
+
+QByteArray AppSettings::mainWindowSplitter() const
+{
+    return m_mainWindowSplitter;
+}
+
+void AppSettings::setMainWindowSplitter(const QByteArray &splitter)
+{
+    m_mainWindowSplitter = splitter;
+    save();
+}
+
+QByteArray AppSettings::configWindowGeometry() const
+{
+    return m_configWindowGeometry;
+}
+
+void AppSettings::setConfigWindowGeometry(const QByteArray &geom)
+{
+    m_configWindowGeometry = geom;
+    save();
+}
+
+QPoint AppSettings::configWindowPos() const
+{
+    return m_configWindowPos;
+}
+
+void AppSettings::setConfigWindowPos(const QPoint &pos)
+{
+    m_configWindowPos = pos;
+    save();
+}
+
+QSize AppSettings::configWindowSize() const
+{
+    return m_configWindowSize;
+}
+
+void AppSettings::setConfigWindowSize(const QSize &size)
+{
+    if (size.isValid() && size.width() > 0 && size.height() > 0) {
+        m_configWindowSize = size;
+        save();
+    }
+}
+
+QByteArray AppSettings::windowGeometry(const QString &windowName) const
+{
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    return settings.value(QString("Geometry/%1").arg(windowName)).toByteArray();
+}
+
+void AppSettings::setWindowGeometry(const QString &windowName, const QByteArray &geom)
+{
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    settings.setValue(QString("Geometry/%1").arg(windowName), geom);
+    settings.sync();
+}
+
+QPoint AppSettings::windowPos(const QString &windowName, const QPoint &defaultPos) const
+{
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    bool hasX = settings.contains(QString("Geometry/%1X").arg(windowName));
+    bool hasY = settings.contains(QString("Geometry/%1Y").arg(windowName));
+    if (hasX && hasY) {
+        int x = settings.value(QString("Geometry/%1X").arg(windowName)).toInt();
+        int y = settings.value(QString("Geometry/%1Y").arg(windowName)).toInt();
+        return QPoint(x, y);
+    }
+    return defaultPos;
+}
+
+void AppSettings::setWindowPos(const QString &windowName, const QPoint &pos)
+{
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    settings.setValue(QString("Geometry/%1X").arg(windowName), pos.x());
+    settings.setValue(QString("Geometry/%1Y").arg(windowName), pos.y());
+    settings.sync();
+}
+
+QSize AppSettings::windowSize(const QString &windowName, const QSize &defaultSize) const
+{
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    int w = settings.value(QString("Geometry/%1Width").arg(windowName), defaultSize.width()).toInt();
+    int h = settings.value(QString("Geometry/%1Height").arg(windowName), defaultSize.height()).toInt();
+    if (w > 0 && h > 0) {
+        return QSize(w, h);
+    }
+    return defaultSize;
+}
+
+void AppSettings::setWindowSize(const QString &windowName, const QSize &size)
+{
+    if (size.isValid() && size.width() > 0 && size.height() > 0) {
+        QSettings settings(m_configPath, QSettings::IniFormat);
+        settings.setValue(QString("Geometry/%1Width").arg(windowName), size.width());
+        settings.setValue(QString("Geometry/%1Height").arg(windowName), size.height());
+        settings.sync();
+    }
+}
+
+void AppSettings::ensureWindowOnScreen(QWidget *widget, const QSize &minSize, const QSize &defaultSize)
+{
+    if (!widget) return;
+
+    int minW = minSize.width() > 0 ? minSize.width() : widget->minimumWidth();
+    if (minW <= 0) minW = 200;
+    int minH = minSize.height() > 0 ? minSize.height() : widget->minimumHeight();
+    if (minH <= 0) minH = 150;
+
+    int curW = widget->width();
+    int curH = widget->height();
+
+    // If dimensions are too small or invalid, enlarge to minSize or defaultSize
+    if (curW < minW || curW <= 0) {
+        curW = (defaultSize.width() >= minW) ? defaultSize.width() : minW;
+    }
+    if (curH < minH || curH <= 0) {
+        curH = (defaultSize.height() >= minH) ? defaultSize.height() : minH;
+    }
+
+    QList<QScreen*> screens = QGuiApplication::screens();
+    QScreen *targetScreen = nullptr;
+
+    if (!screens.isEmpty()) {
+        // Find screen with largest intersection with window rectangle
+        QRect windowRect(widget->pos(), QSize(curW, curH));
+        int maxIntersectionArea = 0;
+        for (QScreen *s : screens) {
+            QRect avail = s->availableGeometry();
+            QRect inter = avail.intersected(windowRect);
+            int area = inter.width() * inter.height();
+            if (area > maxIntersectionArea) {
+                maxIntersectionArea = area;
+                targetScreen = s;
+            }
+        }
+
+        // If no overlap, check screen at window position
+        if (!targetScreen) {
+            targetScreen = QGuiApplication::screenAt(widget->pos());
+        }
+
+        // Fallback to primary screen
+        if (!targetScreen) {
+            targetScreen = QGuiApplication::primaryScreen();
+            if (!targetScreen) {
+                targetScreen = screens.first();
+            }
+        }
+    }
+
+    if (targetScreen) {
+        QRect avail = targetScreen->availableGeometry();
+
+        // Clamp size to screen if window is wider/taller than the display
+        if (curW > avail.width()) {
+            curW = avail.width();
+        }
+        if (curH > avail.height()) {
+            curH = avail.height();
+        }
+
+        int curX = widget->x();
+        int curY = widget->y();
+
+        // If window extends past right/bottom edges, bring it back
+        if (curX + curW > avail.right()) {
+            curX = avail.right() - curW;
+        }
+        // If window extends past left/top edges, bring it back
+        if (curX < avail.left()) {
+            curX = avail.left();
+        }
+        if (curY + curH > avail.bottom()) {
+            curY = avail.bottom() - curH;
+        }
+        if (curY < avail.top()) {
+            curY = avail.top();
+        }
+
+        widget->resize(curW, curH);
+        widget->move(curX, curY);
+    } else {
+        widget->resize(curW, curH);
+    }
+}
+
+void AppSettings::load()
+{
+    QFileInfo fi(m_configPath);
+    if (!fi.exists()) {
+        m_colorScheme = "solarized8";
+        m_colorBlindMode = false;
+        m_mainWindowSize = QSize(1200, 800);
+        m_configWindowSize = QSize(750, 560);
+        return;
+    }
+
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    m_colorScheme = settings.value("Appearance/ColorScheme", "solarized8").toString();
+    if (m_colorScheme.isEmpty()) {
+        m_colorScheme = "solarized8";
+    }
+    m_colorBlindMode = settings.value("Appearance/ColorBlindMode", false).toBool();
+
+    m_mainWindowGeometry = settings.value("Geometry/MainWindow").toByteArray();
+    m_mainWindowState = settings.value("Geometry/MainWindowState").toByteArray();
+    m_mainWindowSplitter = settings.value("Geometry/MainWindowSplitter").toByteArray();
+    if (settings.contains("Geometry/MainWindowX") && settings.contains("Geometry/MainWindowY")) {
+        m_mainWindowPos = QPoint(settings.value("Geometry/MainWindowX").toInt(),
+                                 settings.value("Geometry/MainWindowY").toInt());
+    }
+    int mainW = settings.value("Geometry/MainWindowWidth", 1200).toInt();
+    int mainH = settings.value("Geometry/MainWindowHeight", 800).toInt();
+    m_mainWindowSize = QSize(mainW > 0 ? mainW : 1200, mainH > 0 ? mainH : 800);
+
+    m_configWindowGeometry = settings.value("Geometry/ConfigWindow").toByteArray();
+    if (settings.contains("Geometry/ConfigWindowX") && settings.contains("Geometry/ConfigWindowY")) {
+        m_configWindowPos = QPoint(settings.value("Geometry/ConfigWindowX").toInt(),
+                                   settings.value("Geometry/ConfigWindowY").toInt());
+    }
+    int cfgW = settings.value("Geometry/ConfigWindowWidth", 750).toInt();
+    int cfgH = settings.value("Geometry/ConfigWindowHeight", 560).toInt();
+    m_configWindowSize = QSize(cfgW > 0 ? cfgW : 750, cfgH > 0 ? cfgH : 560);
+}
+
+void AppSettings::save()
+{
+    QFileInfo fi(m_configPath);
+    QDir dir = fi.dir();
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    QSettings settings(m_configPath, QSettings::IniFormat);
+    settings.setValue("Appearance/ColorScheme", m_colorScheme);
+    settings.setValue("Appearance/ColorBlindMode", m_colorBlindMode);
+
+    if (!m_mainWindowGeometry.isEmpty()) {
+        settings.setValue("Geometry/MainWindow", m_mainWindowGeometry);
+    }
+    if (!m_mainWindowState.isEmpty()) {
+        settings.setValue("Geometry/MainWindowState", m_mainWindowState);
+    }
+    if (!m_mainWindowSplitter.isEmpty()) {
+        settings.setValue("Geometry/MainWindowSplitter", m_mainWindowSplitter);
+    }
+    if (!m_mainWindowPos.isNull()) {
+        settings.setValue("Geometry/MainWindowX", m_mainWindowPos.x());
+        settings.setValue("Geometry/MainWindowY", m_mainWindowPos.y());
+    }
+    if (m_mainWindowSize.isValid() && m_mainWindowSize.width() > 0 && m_mainWindowSize.height() > 0) {
+        settings.setValue("Geometry/MainWindowWidth", m_mainWindowSize.width());
+        settings.setValue("Geometry/MainWindowHeight", m_mainWindowSize.height());
+    }
+
+    if (!m_configWindowGeometry.isEmpty()) {
+        settings.setValue("Geometry/ConfigWindow", m_configWindowGeometry);
+    }
+    if (!m_configWindowPos.isNull()) {
+        settings.setValue("Geometry/ConfigWindowX", m_configWindowPos.x());
+        settings.setValue("Geometry/ConfigWindowY", m_configWindowPos.y());
+    }
+    if (m_configWindowSize.isValid() && m_configWindowSize.width() > 0 && m_configWindowSize.height() > 0) {
+        settings.setValue("Geometry/ConfigWindowWidth", m_configWindowSize.width());
+        settings.setValue("Geometry/ConfigWindowHeight", m_configWindowSize.height());
+    }
+    settings.sync();
+}

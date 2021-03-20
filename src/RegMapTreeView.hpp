@@ -1,6 +1,9 @@
 #ifndef REGMAPTREEVIEW_HPP
 #define REGMAPTREEVIEW_HPP
-#include <QtWidgets>
+
+#include <QTreeView>
+#include <QMouseEvent>
+
 namespace Ui {
 class RegMapTreeView;
 }
@@ -8,12 +11,15 @@ class RegMapTreeView;
 class RegMapTreeView : public QTreeView
 {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(RegMapTreeView)
 
 public:
-    explicit RegMapTreeView(QWidget* parent = 0);
+    explicit RegMapTreeView(QWidget* parent = nullptr);
+    ~RegMapTreeView() override = default;
 
 protected:
-    void mousePressEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event) override;
 };
-#endif
+
+#endif // REGMAPTREEVIEW_HPP
 

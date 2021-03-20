@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main, master, dev ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Project
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            cmake \
+            git \
+            qt6-base-dev \
+            libqt6test6 \
+            libprotobuf-dev \
+            protobuf-compiler
+
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact
+          path: build/
+          include-hidden-files: true
+
+  test:
+    name: Test (${{ matrix.test_name }})
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        test_name:
+          - test_PathUtils
+          - test_RegMapTreeItem
+          - test_RegMapTreeModel
+          - test_Serialization
+          - test_CodeGenerator
+          - test_Formats
+          - test_ThemeManager
+          - test_RegMapWindow
+          - test_RegConfigWindow
+          - test_PreferencesWindow
+          - test_Delegates
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            qt6-base-dev \
+            libqt6test6 \
+            libprotobuf-dev \
+            protobuf-compiler
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifact
+          path: build/
+
+      - name: Restore Executable Permissions
+        run: chmod +x build/bin/* build/tests/backend/* build/tests/frontend/* || true
+
+      - name: Run Test
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build -R "^${{ matrix.test_name }}$" --output-on-failure

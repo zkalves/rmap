@@ -19,6 +19,10 @@
   <property name="windowTitle">
    <string>Register Map Generation Tool</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/icons/app_icon.png</normaloff>:/icons/app_icon.png</iconset>
+  </property>
   <property name="locale">
    <locale language="English" country="UnitedKingdom"/>
   </property>
@@ -90,6 +94,9 @@
     <property name="title">
      <string>Edit</string>
     </property>
+    <addaction name="actionUndo"/>
+    <addaction name="actionRedo"/>
+    <addaction name="separator"/>
     <addaction name="actionAddRegBlock"/>
     <addaction name="actionAddRegMap"/>
     <addaction name="actionAddMem"/>
@@ -99,17 +106,81 @@
     <addaction name="actionDeleteItem"/>
     <addaction name="actionCheck"/>
     <addaction name="actionExport"/>
+    <addaction name="separator"/>
+    <addaction name="actionConfig"/>
+    <addaction name="actionPreferences"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="actionColorBlindMode"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionKeyboardShortcuts"/>
+    <addaction name="separator"/>
     <addaction name="actionAbout"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
+  <action name="actionKeyboardShortcuts">
+   <property name="text">
+    <string>Key Bindings</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+   <property name="toolTip">
+    <string>Display all application keyboard shortcuts and key bindings</string>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="text">
+    <string>Preferences...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+,</string>
+   </property>
+   <property name="toolTip">
+    <string>Open application preferences</string>
+   </property>
+  </action>
+  <action name="actionColorBlindMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Colour-Blind Mode</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+C</string>
+   </property>
+   <property name="toolTip">
+    <string>Enable barrier-free high-contrast palette for CVD/colour blindness</string>
+   </property>
+  </action>
+  <action name="actionUndo">
+   <property name="text">
+    <string>Undo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Z</string>
+   </property>
+  </action>
+  <action name="actionRedo">
+   <property name="text">
+    <string>Redo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Y</string>
+   </property>
+  </action>
   <action name="actionAddMem">
    <property name="icon">
     <iconset>
@@ -119,7 +190,7 @@
     <string>Add Mem</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+V</string>
+    <string>Ctrl+Shift+M</string>
    </property>
   </action>
   <action name="actionAddRegField">
@@ -131,7 +202,7 @@
     <string>Add Reg Field</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+F</string>
+    <string>Ctrl+Shift+F</string>
    </property>
   </action>
   <action name="actionDeleteItem">
@@ -155,7 +226,7 @@
     <string>Add Reg Map</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+M</string>
+    <string>Ctrl+Shift+A</string>
    </property>
   </action>
   <action name="actionAddReg">
@@ -167,7 +238,7 @@
     <string>Add Reg</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+R</string>
+    <string>Ctrl+Shift+R</string>
    </property>
   </action>
   <action name="actionFileNew">
@@ -254,7 +325,7 @@
     <string>Save model as...</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+A</string>
+    <string>Ctrl+Shift+S</string>
    </property>
   </action>
   <action name="actionAbout">
@@ -278,7 +349,7 @@
     <string>Add Reg Block</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+B</string>
+    <string>Ctrl+Shift+B</string>
    </property>
   </action>
   <action name="actionQuit">
@@ -304,10 +375,13 @@
      <normaloff>:/toolbar/config-512.png</normaloff>:/toolbar/config-512.png</iconset>
    </property>
    <property name="text">
-    <string>Config</string>
+    <string>Configuration...</string>
    </property>
    <property name="toolTip">
-    <string>Config</string>
+    <string>Open project configuration and settings</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
    </property>
   </action>
  </widget>

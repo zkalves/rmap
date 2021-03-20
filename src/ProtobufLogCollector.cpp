@@ -1,9 +1,10 @@
-#include <google/protobuf/text_format.h>
-class ProtobufLogCollector : public google::protobuf::io::ErrorCollector {
-    public:
-        ProtobufLogCollector() {}
-        ~ProtobufLogCollector() {}
+#include "ProtobufLogCollector.hpp"
 
-        void AddError(int line, int column, const string& message) { std::cout << message << std::endl; }
-        void AddWarning(int line, int column, const string& message) { std::cout << message << std::endl; }
-};
+void ProtobufLogCollector::AddError(int line, int column, const std::string& message) {
+    m_str += "ERROR (" + std::to_string(line + 1) + "," + std::to_string(column + 1) + "):" + message + "\n";
+}
+
+void ProtobufLogCollector::AddWarning(int line, int column, const std::string& message) {
+    m_str += "WARNING (" + std::to_string(line + 1) + "," + std::to_string(column + 1) + "):" + message + "\n";
+}
+

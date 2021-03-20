@@ -1,0 +1,56 @@
+#ifndef {{ upper(name) }}_REG_MAP_H
+#define {{ upper(name) }}_REG_MAP_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* =============================================================================
+ * Bit Manipulation Macros
+ * ============================================================================= */
+#define RMAP_REG_GET(val, mask, shift)     (((val) & (mask)) >> (shift))
+#define RMAP_REG_SET(val, mask, shift, fv) (((val) & ~(mask)) | (((fv) << (shift)) & (mask)))
+
+{% for blk in blocks %}
+/* =============================================================================
+ * Register Block: {{ blk.name }}
+ * ============================================================================= */
+{% for reg in blk.registers %}
+/* {{ reg.name }} - {{ reg.description }} */
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_OFFSET ({{ reg.offset_hex }})
+{% if existsIn(reg, "reset_hex") %}
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_RESET ({{ reg.reset_hex }})
+{% endif %}
+
+{% for fld in reg.fields %}
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_MASK ({{ bitmask(fld.size_width, fld.offset_lsb) }})
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SHIFT ({{ fld.offset_lsb }})
+{% if existsIn(fld, "reset_hex") %}
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_RESET ({{ fld.reset_hex }})
+{% endif %}
+
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_GET(reg_val) \
+    RMAP_REG_GET(reg_val, {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_MASK, {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SHIFT)
+
+#define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SET(reg_val, fld_val) \
+    RMAP_REG_SET(reg_val, {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_MASK, {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SHIFT, fld_val)
+{% endfor %}
+
+{% endfor %}
+
+/* Structure definition for {{ blk.name }} */
+typedef struct {
+{% for reg in blk.registers %}
+    volatile uint32_t {{ lower(reg.name) }}; /* {{ reg.offset_hex }}: {{ reg.description }} */
+{% endfor %}
+} {{ lower(blk.name) }}_regs_t;
+
+{% endfor %}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* {{ upper(name) }}_REG_MAP_H */

@@ -1,0 +1,132 @@
+config {
+  templateFolder: "sdfgsdf"
+  outputFolder: "wertwert"
+}
+item {
+  child_id: 1
+  itemData {
+    key: "Description"
+    value: "Description"
+  }
+  itemData {
+    key: "Name"
+    value: "Name"
+  }
+  itemData {
+    key: "Offset"
+    value: "Offset"
+  }
+  itemData {
+    key: "Size"
+    value: "Size"
+  }
+  itemData {
+    key: "Type"
+    value: "Type"
+  }
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  itemData {
+    key: "Description"
+    value: ""
+  }
+  itemData {
+    key: "Name"
+    value: "tiny"
+  }
+  itemData {
+    key: "Offset"
+    value: "0"
+  }
+  itemData {
+    key: "Size"
+    value: "0"
+  }
+  itemData {
+    key: "Type"
+    value: ""
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Description"
+    value: ""
+  }
+  itemData {
+    key: "Name"
+    value: "r1"
+  }
+  itemData {
+    key: "Offset"
+    value: "0"
+  }
+  itemData {
+    key: "Size"
+    value: "0"
+  }
+  itemData {
+    key: "Type"
+    value: ""
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Description"
+    value: ""
+  }
+  itemData {
+    key: "Name"
+    value: "f1"
+  }
+  itemData {
+    key: "Offset"
+    value: "0"
+  }
+  itemData {
+    key: "Size"
+    value: "8"
+  }
+  itemData {
+    key: "Type"
+    value: ""
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Description"
+    value: ""
+  }
+  itemData {
+    key: "Name"
+    value: "f2"
+  }
+  itemData {
+    key: "Offset"
+    value: "8"
+  }
+  itemData {
+    key: "Size"
+    value: "8"
+  }
+  itemData {
+    key: "Type"
+    value: ""
+  }
+}
+last_updated {
+  seconds: 1661727200
+}

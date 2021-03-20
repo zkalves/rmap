@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ipxact:component xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2014"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.accellera.org/XMLSchema/IPXACT/1685-2014 http://www.accellera.org/XMLSchema/IPXACT/1685-2014/index.xsd">
+    <ipxact:vendor>rmap</ipxact:vendor>
+    <ipxact:library>registers</ipxact:library>
+    <ipxact:name>{{ name }}</ipxact:name>
+    <ipxact:version>1.0</ipxact:version>
+    <ipxact:description>{{ description }}</ipxact:description>
+    <ipxact:memoryMaps>
+        <ipxact:memoryMap>
+            <ipxact:name>{{ name }}_mmap</ipxact:name>
+{% for blk in blocks %}
+            <ipxact:addressBlock>
+                <ipxact:name>{{ blk.name }}</ipxact:name>
+                <ipxact:description>{{ blk.description }}</ipxact:description>
+                <ipxact:baseAddress>{{ blk.offset_hex }}</ipxact:baseAddress>
+                <ipxact:range>0x1000</ipxact:range>
+                <ipxact:width>{{ reg_width }}</ipxact:width>
+{% for reg in blk.registers %}
+                <ipxact:register>
+                    <ipxact:name>{{ reg.name }}</ipxact:name>
+                    <ipxact:description>{{ reg.description }}</ipxact:description>
+                    <ipxact:addressOffset>{{ reg.offset_hex }}</ipxact:addressOffset>
+                    <ipxact:size>{{ reg_width }}</ipxact:size>
+                    <ipxact:volatile>{{ reg.volatile }}</ipxact:volatile>
+                    <ipxact:access>{{ reg.access }}</ipxact:access>
+                    <ipxact:reset>
+                        <ipxact:value>{{ reg.reset_hex }}</ipxact:value>
+                    </ipxact:reset>
+{% for fld in reg.fields %}
+                    <ipxact:field>
+                        <ipxact:name>{{ fld.name }}</ipxact:name>
+                        <ipxact:description>{{ fld.description }}</ipxact:description>
+                        <ipxact:bitOffset>{{ fld.offset_lsb }}</ipxact:bitOffset>
+                        <ipxact:bitWidth>{{ fld.size_width }}</ipxact:bitWidth>
+                        <ipxact:volatile>{{ fld.volatile }}</ipxact:volatile>
+                        <ipxact:access>{{ fld.access }}</ipxact:access>
+{% if fld.has_reset %}
+                        <ipxact:resets>
+                            <ipxact:reset>
+                                <ipxact:value>{{ fld.reset_hex }}</ipxact:value>
+                            </ipxact:reset>
+                        </ipxact:resets>
+{% endif %}
+                    </ipxact:field>
+{% endfor %}
+                </ipxact:register>
+{% endfor %}
+            </ipxact:addressBlock>
+{% endfor %}
+        </ipxact:memoryMap>
+    </ipxact:memoryMaps>
+</ipxact:component>

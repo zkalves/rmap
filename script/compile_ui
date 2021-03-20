@@ -1,4 +1,35 @@
 #!/bin/bash
-pyside2-uic -x ../ui/rmap.ui -o ../src/rmap_ui.py
-pyside2-uic -x ../ui/config.ui -o ../src/config_ui.py
-pyside2-rcc ../ui/resources.qrc -o ../src/resources_rc.py
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Detect UIC tool (pyside6-uic, uic, or pyside2-uic)
+if command -v pyside6-uic >/dev/null 2>&1; then
+    UIC="pyside6-uic"
+elif command -v uic-qt6 >/dev/null 2>&1; then
+    UIC="uic-qt6"
+elif command -v uic >/dev/null 2>&1; then
+    UIC="uic"
+else
+    UIC="pyside6-uic"
+fi
+
+# Detect RCC tool (pyside6-rcc, rcc, or pyside2-rcc)
+if command -v pyside6-rcc >/dev/null 2>&1; then
+    RCC="pyside6-rcc"
+elif command -v rcc-qt6 >/dev/null 2>&1; then
+    RCC="rcc-qt6"
+elif command -v rcc >/dev/null 2>&1; then
+    RCC="rcc"
+else
+    RCC="pyside6-rcc"
+fi
+
+echo "Compiling Qt6 UI and Resource files..."
+$UIC -x "$PROJECT_ROOT/ui/rmap.ui" -o "$PROJECT_ROOT/src/rmap_ui.py"
+$UIC -x "$PROJECT_ROOT/ui/config.ui" -o "$PROJECT_ROOT/src/config_ui.py"
+$UIC -x "$PROJECT_ROOT/ui/preferences.ui" -o "$PROJECT_ROOT/src/preferences_ui.py"
+$RCC "$PROJECT_ROOT/ui/resources.qrc" -o "$PROJECT_ROOT/src/resources_rc.py"
+
+echo "UI compilation complete."

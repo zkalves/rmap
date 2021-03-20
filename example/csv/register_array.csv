@@ -1,0 +1,54 @@
+Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description
+blk,DSP_FILTER_ACCELERATOR,,,,0x00,,,,,,Digital Filter Accelerator with Coefficient and Channel Register Arrays
+reg,DSP_FILTER_ACCELERATOR,FILTER_CTRL,,0x00,32,RW,0x0,false,false,true,Global Filter Control
+fld,DSP_FILTER_ACCELERATOR,FILTER_CTRL,ENABLE,0,1,RW,0x0,true,false,true,Enable Filter Core
+fld,DSP_FILTER_ACCELERATOR,FILTER_CTRL,MODE,1,2,RW,0x0,true,false,true,Filter Mode (0: FIR, 1: IIR, 2: Bypass)
+fld,DSP_FILTER_ACCELERATOR,FILTER_CTRL,NUM_TAPS,8,4,RW,0x8,true,false,true,Active Number of Taps (1-8)
+reg,DSP_FILTER_ACCELERATOR,COEFF_0,,0x10,32,RW,0x0,false,false,true,Filter Coefficient 0
+fld,DSP_FILTER_ACCELERATOR,COEFF_0,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_0,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_0,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_1,,0x14,32,RW,0x0,false,false,true,Filter Coefficient 1
+fld,DSP_FILTER_ACCELERATOR,COEFF_1,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_1,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_1,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_2,,0x18,32,RW,0x0,false,false,true,Filter Coefficient 2
+fld,DSP_FILTER_ACCELERATOR,COEFF_2,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_2,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_2,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_3,,0x1C,32,RW,0x0,false,false,true,Filter Coefficient 3
+fld,DSP_FILTER_ACCELERATOR,COEFF_3,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_3,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_3,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_4,,0x20,32,RW,0x0,false,false,true,Filter Coefficient 4
+fld,DSP_FILTER_ACCELERATOR,COEFF_4,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_4,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_4,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_5,,0x24,32,RW,0x0,false,false,true,Filter Coefficient 5
+fld,DSP_FILTER_ACCELERATOR,COEFF_5,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_5,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_5,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_6,,0x28,32,RW,0x0,false,false,true,Filter Coefficient 6
+fld,DSP_FILTER_ACCELERATOR,COEFF_6,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_6,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_6,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,COEFF_7,,0x2C,32,RW,0x0,false,false,true,Filter Coefficient 7
+fld,DSP_FILTER_ACCELERATOR,COEFF_7,FRACTIONAL,0,16,RW,0x0,true,false,true,Q15 Fractional Weight
+fld,DSP_FILTER_ACCELERATOR,COEFF_7,INTEGER,16,8,RW,0x0,true,false,true,Integer Part
+fld,DSP_FILTER_ACCELERATOR,COEFF_7,SIGN,31,1,RW,0x0,true,false,true,Sign Bit
+reg,DSP_FILTER_ACCELERATOR,CH0_DATA_IN,,0x40,32,WO,0x0,true,false,true,Channel 0 Audio Data Input
+fld,DSP_FILTER_ACCELERATOR,CH0_DATA_IN,SAMPLE,0,24,WO,0x0,true,false,true,24-bit Audio Sample
+reg,DSP_FILTER_ACCELERATOR,CH0_DATA_OUT,,0x44,32,RO,0x0,false,true,true,Channel 0 Filtered Output
+fld,DSP_FILTER_ACCELERATOR,CH0_DATA_OUT,SAMPLE,0,24,RO,0x0,false,true,true,24-bit Filtered Result
+reg,DSP_FILTER_ACCELERATOR,CH1_DATA_IN,,0x48,32,WO,0x0,true,false,true,Channel 1 Audio Data Input
+fld,DSP_FILTER_ACCELERATOR,CH1_DATA_IN,SAMPLE,0,24,WO,0x0,true,false,true,24-bit Audio Sample
+reg,DSP_FILTER_ACCELERATOR,CH1_DATA_OUT,,0x4C,32,RO,0x0,false,true,true,Channel 1 Filtered Output
+fld,DSP_FILTER_ACCELERATOR,CH1_DATA_OUT,SAMPLE,0,24,RO,0x0,false,true,true,24-bit Filtered Result
+reg,DSP_FILTER_ACCELERATOR,CH2_DATA_IN,,0x50,32,WO,0x0,true,false,true,Channel 2 Audio Data Input
+fld,DSP_FILTER_ACCELERATOR,CH2_DATA_IN,SAMPLE,0,24,WO,0x0,true,false,true,24-bit Audio Sample
+reg,DSP_FILTER_ACCELERATOR,CH2_DATA_OUT,,0x54,32,RO,0x0,false,true,true,Channel 2 Filtered Output
+fld,DSP_FILTER_ACCELERATOR,CH2_DATA_OUT,SAMPLE,0,24,RO,0x0,false,true,true,24-bit Filtered Result
+reg,DSP_FILTER_ACCELERATOR,CH3_DATA_IN,,0x58,32,WO,0x0,true,false,true,Channel 3 Audio Data Input
+fld,DSP_FILTER_ACCELERATOR,CH3_DATA_IN,SAMPLE,0,24,WO,0x0,true,false,true,24-bit Audio Sample
+reg,DSP_FILTER_ACCELERATOR,CH3_DATA_OUT,,0x5C,32,RO,0x0,false,true,true,Channel 3 Filtered Output
+fld,DSP_FILTER_ACCELERATOR,CH3_DATA_OUT,SAMPLE,0,24,RO,0x0,false,true,true,24-bit Filtered Result

@@ -1,0 +1,724 @@
+config {
+  reg_width: 32
+  project_name: "STM32_UART"
+}
+item {
+  child_id: 1
+  itemData {
+    key: "Access Policy"
+    value: "Access Policy"
+  }
+  itemData {
+    key: "Description"
+    value: "Description"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "Has Reset"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "Is Rand"
+  }
+  itemData {
+    key: "Name"
+    value: "Name"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "Offset/LSB"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "Reset Value"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "Size/Width"
+  }
+  itemData {
+    key: "Type"
+    value: "Type"
+  }
+  itemData {
+    key: "Volatile"
+    value: "Volatile"
+  }
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 8
+  child_id: 15
+  itemData {
+    key: "Description"
+    value: "UART Peripheral Controller"
+  }
+  itemData {
+    key: "Name"
+    value: "UART0"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x40004000"
+  }
+  itemData {
+    key: "Type"
+    value: "blk"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  child_id: 5
+  child_id: 6
+  child_id: 7
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Control Register"
+  }
+  itemData {
+    key: "Name"
+    value: "CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Type"
+    value: "reg"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmitter Enable"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "TX_EN"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Receiver Enable"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "RX_EN"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 5
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Parity Mode: 0=None, 1=Odd, 2=Even"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "PARITY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "2"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Stop Bits: 0=1 bit, 1=2 bits"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "STOP_BITS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "4"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Baud Rate Divisor"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "BAUD_DIV"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "16"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: REG
+  id: 8
+  parent_id: 1
+  child_id: 9
+  child_id: 10
+  child_id: 11
+  child_id: 12
+  child_id: 13
+  child_id: 14
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Status & Interrupt Flag Register"
+  }
+  itemData {
+    key: "Name"
+    value: "STATUS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x4"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x2"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Type"
+    value: "reg"
+  }
+}
+item {
+  kind: FLD
+  id: 9
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmitter Ready for Data"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "TX_READY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 10
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Receiver FIFO Has Data"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "RX_VALID"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 11
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmitter Shift Register Empty"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "TX_EMPTY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 12
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Parity Error Detected (Write 1 to clear)"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "PARITY_ERR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "4"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 13
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Framing Error Detected (Write 1 to clear)"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "FRAME_ERR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "5"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: FLD
+  id: 14
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Overrun Error Detected (Write 1 to clear)"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "OVERRUN_ERR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "6"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+item {
+  kind: REG
+  id: 15
+  parent_id: 1
+  child_id: 16
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmit & Receive Data Buffer"
+  }
+  itemData {
+    key: "Name"
+    value: "DATA"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x8"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Type"
+    value: "reg"
+  }
+}
+item {
+  kind: FLD
+  id: 16
+  parent_id: 15
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "UART Data Byte"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Name"
+    value: "BYTE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Type"
+    value: "fld"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+}
+last_updated {
+  seconds: 1787698271
+}

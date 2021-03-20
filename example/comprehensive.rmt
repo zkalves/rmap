@@ -1,0 +1,560 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/reg_map.h.inja"
+    output_filepath: "./work/comprehensive_reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_reg_model.sv.inja"
+    output_filepath: "./work/comprehensive_reg_model.sv"
+  }
+  reg_width: 32
+}
+item {
+  child_id: 1
+  child_id: 16
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 6
+  child_id: 10
+  child_id: 14
+  itemData {
+    key: "Name"
+    value: "CORE_SUBSYSTEM"
+  }
+  itemData {
+    key: "Description"
+    value: "Primary subsystem register block"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "CONTROL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Subsystem Control Register"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "ENABLE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Core Enable"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "MODE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "3"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0b010"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Operational Mode (3-bit binary reset)"
+  }
+}
+item {
+  kind: FLD
+  id: 5
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "TIMEOUT"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "4"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "WO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "100"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Timeout Clock Cycles (Decimal reset)"
+  }
+}
+item {
+  kind: REG
+  id: 6
+  parent_id: 1
+  child_id: 7
+  child_id: 8
+  child_id: 9
+  itemData {
+    key: "Name"
+    value: "STATUS_FLAGS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Status Flags Register (RO/W1C/W0C)"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "BUSY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Subsystem Busy Indicator"
+  }
+}
+item {
+  kind: FLD
+  id: 8
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "IRQ_PENDING"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1C"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Interrupt Pending (Write 1 to clear)"
+  }
+}
+item {
+  kind: FLD
+  id: 9
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "ERROR_LATCH"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W0C"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Error Status Latch (Write 0 to clear)"
+  }
+}
+item {
+  kind: REG
+  id: 10
+  parent_id: 1
+  child_id: 11
+  child_id: 12
+  child_id: 13
+  itemData {
+    key: "Name"
+    value: "SPECIAL_ACCESS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x08"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Special Access Policy Register (RC/RS/W1S)"
+  }
+}
+item {
+  kind: FLD
+  id: 11
+  parent_id: 10
+  itemData {
+    key: "Name"
+    value: "CLEAR_ON_READ"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RC"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0xF"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Read Clear Counter"
+  }
+}
+item {
+  kind: FLD
+  id: 12
+  parent_id: 10
+  itemData {
+    key: "Name"
+    value: "SET_ON_READ"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "4"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RS"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Read Set Status"
+  }
+}
+item {
+  kind: FLD
+  id: 13
+  parent_id: 10
+  itemData {
+    key: "Name"
+    value: "WRITE_1_SET"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "8"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1S"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Write 1 to Set Trigger"
+  }
+}
+item {
+  kind: REG
+  id: 14
+  parent_id: 1
+  child_id: 15
+  itemData {
+    key: "Name"
+    value: "WRITE_0_SET"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0C"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Write 0 Set Register"
+  }
+}
+item {
+  kind: FLD
+  id: 15
+  parent_id: 14
+  itemData {
+    key: "Name"
+    value: "W0S_FLD"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W0S"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x00"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "Write 0 to Set Field (No reset value)"
+  }
+}
+item {
+  kind: MEM
+  id: 16
+  itemData {
+    key: "Name"
+    value: "SCRATCHPAD_RAM"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x1000"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4096"
+  }
+  itemData {
+    key: "Description"
+    value: "Internal SRAM Memory Region"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}
