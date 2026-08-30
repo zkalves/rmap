@@ -135,4 +135,4 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure arbitrary template
 - **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name.
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
 
-[Next: Architecture & Internal Data Flow &rarr;](architecture.html)
+[Next: Architecture & Internal Data Flow &rarr;](architecture.md)

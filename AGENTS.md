@@ -106,9 +106,9 @@ rmap/
 ├── .github/workflows/
 │   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 parallel test jobs)
 ├── README.md                   # Project overview, badges, features, and quickstart guide
-├── docs/                       # Project documentation
+├── docs/                       # Project documentation portal (Pelican)
 │   ├── dev/                    # Developer documentation & C++ architecture Markdown references
-│   └── user/                   # User guide, getting started, GUI manual, CLI reference (Jekyll)
+│   └── user/                   # User guide, getting started, GUI manual, CLI reference
 ├── proto/                      # Protocol buffer schema (Config, RegItem, RegModel)
 │   └── rmap.proto
 ├── res/                        # Application resources

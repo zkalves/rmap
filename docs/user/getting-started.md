@@ -85,4 +85,4 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ./build/bin/rmap -f examples/spi.rmt --export --out ./work
 ```
 
-[Next: GUI User Guide &rarr;](gui-guide.html)
+[Next: GUI User Guide &rarr;](gui-guide.md)

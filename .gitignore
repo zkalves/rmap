@@ -2,3 +2,6 @@ __pycache__
 CMakeLists.txt.user
 build
 work/
+_site/
+.pelican-cache/
+.python_packages/

@@ -1,7 +1,0 @@
-title: rmap Documentation
-description: Hardware Register Map Designer & UVM/C Header Generator
-theme: jekyll-theme-cayman
-show_downloads: true
-github:
-  is_project_page: true
-  repository_url: https://github.com/zkalves/rmap

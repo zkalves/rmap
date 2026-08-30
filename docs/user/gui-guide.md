@@ -93,7 +93,7 @@ When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the
    - **Explicit RESERVED Gap Blocks**: Automatically detects and renders unmapped address gaps with dark-gray diagonal hatching and byte gap annotations (`[Gap: N Bytes]`), enabling immediate visual verification of address alignment and padding.
    - **Access Policy Colour-Coding**: Matches active theme and colour-blind mode (`RW` Green, `RO` Blue, `WO` Orange, `W1C` Yellow).
    - **Click-to-Navigate**: Click any register block in the diagram to navigate directly to its bitfield visualizer and field editor.
-   - **Example File**: See [`examples/address_gap_example.rmt`](../examples/address_gap_example.rmt) for a sample register map demonstrating unmapped address gaps.
+   - **Example File**: See [`examples/address_gap_example.rmt`](../../examples/address_gap_example.rmt) for a sample register map demonstrating unmapped address gaps.
 
 ---
 

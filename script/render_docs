@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+OUT_DIR="${1:-$PROJECT_ROOT/_site}"
+
+echo "=========================================="
+echo "Rendering rmap Documentation Portal (Pelican)"
+echo "=========================================="
+echo "Source:      $PROJECT_ROOT/docs"
+echo "Destination: $OUT_DIR"
+
+export PYTHONPATH="$PROJECT_ROOT/.python_packages:${PYTHONPATH}"
+
+if python3 -m pelican --version >/dev/null 2>&1; then
+    cd "$PROJECT_ROOT/docs"
+    python3 -m pelican . -s pelicanconf.py -o "$OUT_DIR"
+    echo "Documentation successfully rendered at: $OUT_DIR"
+elif command -v pelican >/dev/null 2>&1; then
+    cd "$PROJECT_ROOT/docs"
+    pelican . -s pelicanconf.py -o "$OUT_DIR"
+    echo "Documentation successfully rendered at: $OUT_DIR"
+else
+    echo "Note: Pelican is not installed locally. To install Pelican and Markdown:"
+    echo "  pip install pelican markdown"
+    echo "Markdown documentation files remain accessible in $PROJECT_ROOT/docs"
+    exit 1
+fi

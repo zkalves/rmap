@@ -134,4 +134,4 @@ codegen:
 
 In headless Linux server environments (where `$DISPLAY` is unset), **rmap** automatically initializes Qt in offscreen mode (`QT_QPA_PLATFORM=offscreen`), eliminating `Cannot connect to X server` failures.
 
-[Next: Templates & Code Generation &rarr;](templates-and-codegen.html)
+[Next: Templates & Code Generation &rarr;](templates-and-codegen.md)

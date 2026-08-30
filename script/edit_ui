@@ -3,11 +3,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if command -v designer >/dev/null 2>&1; then
-    designer "$PROJECT_ROOT"/ui/*.ui &
+    designer "$PROJECT_ROOT"/src/ui/*.ui &
 elif command -v designer-qt6 >/dev/null 2>&1; then
-    designer-qt6 "$PROJECT_ROOT"/ui/*.ui &
+    designer-qt6 "$PROJECT_ROOT"/src/ui/*.ui &
 elif command -v qt6-designer >/dev/null 2>&1; then
-    qt6-designer "$PROJECT_ROOT"/ui/*.ui &
+    qt6-designer "$PROJECT_ROOT"/src/ui/*.ui &
 else
     echo "Qt Designer not found. Please install qt6-tools or designer." >&2
     exit 1

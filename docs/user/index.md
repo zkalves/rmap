@@ -6,11 +6,11 @@ Welcome to the documentation for **rmap**, an open-source tool for hardware regi
 
 ## Documentation Sections
 
-- [🚀 Getting Started](getting-started.html) — Installation, building, and basic workflow.
-- [🖥️ GUI User Guide](gui-guide.html) — Visual design, bitfield packing, validation, and context menus.
-- [⚙️ CLI Reference & Automation](cli-reference.html) — Headless batch generation for CI/CD and Makefiles.
-- [📝 Templates & Code Generation](templates-and-codegen.html) — Writing Inja templates, using helper functions, and custom variables.
-- [🏛️ Architecture & Internals](architecture.html) — Data models, Protobuf serialization, and validation engine.
+- [🚀 Getting Started](getting-started.md) — Installation, building, and basic workflow.
+- [🖥️ GUI User Guide](gui-guide.md) — Visual design, bitfield packing, validation, and context menus.
+- [⚙️ CLI Reference & Automation](cli-reference.md) — Headless batch generation for CI/CD and Makefiles.
+- [📝 Templates & Code Generation](templates-and-codegen.md) — Writing Inja templates, using helper functions, and custom variables.
+- [🏛️ Architecture & Internals](architecture.md) — Data models, Protobuf serialization, and validation engine.
 
 ---
 

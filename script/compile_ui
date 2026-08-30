@@ -27,9 +27,9 @@ else
 fi
 
 echo "Compiling Qt6 UI and Resource files..."
-$UIC -x "$PROJECT_ROOT/ui/rmap.ui" -o "$PROJECT_ROOT/src/rmap_ui.py"
-$UIC -x "$PROJECT_ROOT/ui/config.ui" -o "$PROJECT_ROOT/src/config_ui.py"
-$UIC -x "$PROJECT_ROOT/ui/preferences.ui" -o "$PROJECT_ROOT/src/preferences_ui.py"
-$RCC "$PROJECT_ROOT/ui/resources.qrc" -o "$PROJECT_ROOT/src/resources_rc.py"
+$UIC -x "$PROJECT_ROOT/src/ui/rmap.ui" -o "$PROJECT_ROOT/src/rmap_ui.py"
+$UIC -x "$PROJECT_ROOT/src/ui/config.ui" -o "$PROJECT_ROOT/src/config_ui.py"
+$UIC -x "$PROJECT_ROOT/src/ui/preferences.ui" -o "$PROJECT_ROOT/src/preferences_ui.py"
+$RCC "$PROJECT_ROOT/res/resources.qrc" -o "$PROJECT_ROOT/src/resources_rc.py"
 
 echo "UI compilation complete."
