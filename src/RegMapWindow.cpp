@@ -649,8 +649,6 @@ void RegMapWindow::onSearchTextChanged(const QString &text)
 
 void RegMapWindow::btnConfig(void)
 {
-    QString baseDir = m_rmap_filename.isEmpty() ? QDir::currentPath() : QFileInfo(m_rmap_filename).absolutePath();
-    m_config_window->setBaseDir(baseDir);
     m_config_window->show();
     m_config_window->raise();
     m_config_window->activateWindow();
@@ -1025,10 +1023,7 @@ void RegMapWindow::btnCheck(void)
 
 void RegMapWindow::btnExport(void)
 {
-    QString baseDir = m_config_window->baseDir().isEmpty()
-        ? (m_rmap_filename.isEmpty() ? QDir::currentPath() : QFileInfo(m_rmap_filename).absolutePath())
-        : m_config_window->baseDir();
-    m_config_window->setBaseDir(baseDir);
+    QString baseDir = m_config_window->baseDir();
 
     protormap::Config* cfg = m_config_window->serialize();
     uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
@@ -1701,9 +1696,7 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
         return false;
     }
 
-    QString expandedFile = PathUtils::expandEnvVars(m_rmap_filename);
-    QString baseDir = QFileInfo(expandedFile).absolutePath();
-    m_config_window->setBaseDir(baseDir);
+    QString baseDir = m_config_window->baseDir();
 
     protormap::Config* cfg = m_config_window->serialize();
     uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
@@ -1734,7 +1727,9 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
                 if (!out_dir.isEmpty()) {
                     QFileInfo fi(QString::fromStdString(entry.output_filepath()));
                     QString filename = fi.fileName();
-                    QString customOut = PathUtils::normalizeSeparators(QDir(PathUtils::expandEnvVars(out_dir)).filePath(filename));
+                    QString expOutDir = PathUtils::expandEnvVars(out_dir);
+                    QString absOutDir = QDir(QDir::currentPath()).absoluteFilePath(expOutDir);
+                    QString customOut = PathUtils::normalizeSeparators(QDir(absOutDir).filePath(filename));
                     mappings.push_back({entry.template_filename(), customOut.toStdString()});
                 } else {
                     mappings.push_back({entry.template_filename(), entry.output_filepath()});

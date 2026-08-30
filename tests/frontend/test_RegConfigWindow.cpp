@@ -16,7 +16,7 @@ private slots:
     void testAcceptAndReject();
     void testProjectMetadataAndParameters();
     void testWindowSizePersistence();
-    void testBaseDirRelativization();
+    void testPathStorageVarieties();
 };
 
 void TestRegConfigWindow::testConfigDialogDefaults()
@@ -164,7 +164,7 @@ void TestRegConfigWindow::testWindowSizePersistence()
     AppSettings::instance().setConfigFilePath(origPath);
 }
 
-void TestRegConfigWindow::testBaseDirRelativization()
+void TestRegConfigWindow::testPathStorageVarieties()
 {
     RegConfigWindow cfgWin;
     cfgWin.setBaseDir("/home/user/project");
@@ -173,21 +173,26 @@ void TestRegConfigWindow::testBaseDirRelativization()
     auto *outEdit = cfgWin.findChild<QLineEdit*>("outputFolder");
     auto *pyEdit = cfgWin.findChild<QLineEdit*>("pythonScript");
 
-    tmplEdit->setText("/home/user/project/templates");
-    outEdit->setText("/home/user/project/build/work");
-    pyEdit->setText("/home/user/project/scripts/gen.py");
+    // Relative, absolute, and environment variable paths
+    tmplEdit->setText("$MY_TEMPLATES_DIR");
+    outEdit->setText("/opt/shared/build/work");
+    pyEdit->setText("./scripts/gen.py");
 
-    cfgWin.addTemplateRow("/home/user/project/templates/t1.inja", "/home/user/project/build/work/t1.sv");
+    cfgWin.addTemplateRow("/opt/templates/t1.inja", "/opt/shared/build/work/t1.sv");
+    cfgWin.addTemplateRow("$CUSTOM_TEMPLATES/t2.inja", "./relative_out/t2.h");
 
     protormap::Config* config = cfgWin.serialize();
     QVERIFY(config != nullptr);
 
-    QCOMPARE(config->templatefolder(), std::string("./templates"));
-    QCOMPARE(config->outputfolder(), std::string("./build/work"));
+    // Verify paths are preserved without forced conversion
+    QCOMPARE(config->templatefolder(), std::string("$MY_TEMPLATES_DIR"));
+    QCOMPARE(config->outputfolder(), std::string("/opt/shared/build/work"));
     QCOMPARE(config->pythonscript(), std::string("./scripts/gen.py"));
-    QCOMPARE(config->template_outputs_size(), 1);
-    QCOMPARE(config->template_outputs(0).template_filename(), std::string("./templates/t1.inja"));
-    QCOMPARE(config->template_outputs(0).output_filepath(), std::string("./build/work/t1.sv"));
+    QCOMPARE(config->template_outputs_size(), 2);
+    QCOMPARE(config->template_outputs(0).template_filename(), std::string("/opt/templates/t1.inja"));
+    QCOMPARE(config->template_outputs(0).output_filepath(), std::string("/opt/shared/build/work/t1.sv"));
+    QCOMPARE(config->template_outputs(1).template_filename(), std::string("$CUSTOM_TEMPLATES/t2.inja"));
+    QCOMPARE(config->template_outputs(1).output_filepath(), std::string("./relative_out/t2.h"));
 
     delete config;
 }

@@ -364,9 +364,9 @@ protormap::Config* RegConfigWindow::serialize(void)
 {
     saveStateFromUi();
     protormap::Config* config = new protormap::Config;
-    config->set_pythonscript(PathUtils::toRelativePath(m_pythonScript, baseDir()).toStdString());
-    config->set_templatefolder(PathUtils::toRelativePath(m_templateFolder, baseDir()).toStdString());
-    config->set_outputfolder(PathUtils::toRelativePath(m_outputFolder, baseDir()).toStdString());
+    config->set_pythonscript(m_pythonScript.toStdString());
+    config->set_templatefolder(m_templateFolder.toStdString());
+    config->set_outputfolder(m_outputFolder.toStdString());
     config->set_reg_width(m_regWidth > 0 ? m_regWidth : 32);
 
     config->set_project_name(m_projectName.toStdString());
@@ -379,8 +379,8 @@ protormap::Config* RegConfigWindow::serialize(void)
 
     for (const auto &pair : m_templateOutputs) {
         auto* out = config->add_template_outputs();
-        out->set_template_filename(PathUtils::toRelativePath(pair.first, baseDir()).toStdString());
-        out->set_output_filepath(PathUtils::toRelativePath(pair.second, baseDir()).toStdString());
+        out->set_template_filename(pair.first.toStdString());
+        out->set_output_filepath(pair.second.toStdString());
     }
     return config;
 }

@@ -28,10 +28,12 @@ private slots:
     void initTestCase() {
         s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
         QDir("work").removeRecursively();
+        QDir("example/work").removeRecursively();
         QDir().mkpath("work");
     }
     void cleanupTestCase() {
         QDir("work").removeRecursively();
+        QDir("example/work").removeRecursively();
         qInstallMessageHandler(s_originalHandler);
     }
     void testWindowInitAndFileOpen();
@@ -525,6 +527,8 @@ void TestRegMapWindow::testHeadlessCliMethods()
     // 3. Headless export
     bool exportPass = window.headlessExport("work/test_headless_export");
     QVERIFY(exportPass);
+    QVERIFY(QFile::exists("work/test_headless_export/reg_map.h"));
+    QVERIFY(QFile::exists("work/test_headless_export/uvm_reg_model.sv"));
 
     // 4. Headless methods with environment variables
     qputenv("RMAP_TEST_SPI", "example/spi.rmt");
@@ -533,6 +537,8 @@ void TestRegMapWindow::testHeadlessCliMethods()
     RegMapWindow envWindow("$RMAP_TEST_SPI");
     bool envExportPass = envWindow.headlessExport("$RMAP_TEST_OUT_DIR");
     QVERIFY(envExportPass);
+    QVERIFY(QFile::exists("work/test_env_export/reg_map.h"));
+    QVERIFY(QFile::exists("work/test_env_export/uvm_reg_model.sv"));
 
     bool envDiffPass = RegMapWindow::semanticDiff("$RMAP_TEST_SPI", "$RMAP_TEST_SPI", "text", "");
     QVERIFY(envDiffPass);
