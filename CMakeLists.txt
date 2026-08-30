@@ -37,7 +37,7 @@ endif()
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOUIC_SEARCH_PATHS ui)
+set(CMAKE_AUTOUIC_SEARCH_PATHS src/ui)
 
 # Core Library Sources & Headers
 set(core_sources
@@ -93,8 +93,8 @@ set(core_headers
     src/format/CsvHandler.hpp
 )
 
-set(project_ui ui/config.ui ui/preferences.ui ui/rmap.ui)
-set(project_qrc ui/resources.qrc)
+set(project_ui src/ui/config.ui src/ui/preferences.ui src/ui/rmap.ui)
+set(project_qrc res/resources.qrc)
 
 # Core Static Library
 qt_add_library(rmap_core STATIC
@@ -105,14 +105,14 @@ qt_add_library(rmap_core STATIC
 )
 
 # Protobuf Generation (Modern Target-Based Approach)
-set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/src/protobuf/rmap.proto)
+set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto)
 protobuf_generate(TARGET rmap_core PROTOS ${PROTOS})
 
 target_include_directories(rmap_core PUBLIC
     src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/protobuf
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}/src/protobuf
+    ${CMAKE_CURRENT_BINARY_DIR}/proto
     ${CMAKE_CURRENT_BINARY_DIR}/rmap_core_autogen/include
     ${inja_SOURCE_DIR}/single_include/inja
 )
@@ -128,7 +128,7 @@ target_link_libraries(rmap_core PUBLIC
 
 # Target Executable
 qt_add_executable(rmap
-    src/rmap.cpp
+    src/main.cpp
     src/rmap.hpp
 )
 

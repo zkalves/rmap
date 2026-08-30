@@ -77,12 +77,12 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ./build/bin/rmap
 
 # Open sample SPI register map
-./build/bin/rmap -f example/spi.rmt
+./build/bin/rmap -f examples/spi.rmt
 ```
 
 ### Headless CLI Export
 ```bash
-./build/bin/rmap -f example/spi.rmt --export --out ./work
+./build/bin/rmap -f examples/spi.rmt --export --out ./work
 ```
 
 [Next: GUI User Guide &rarr;](gui-guide.html)

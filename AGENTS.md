@@ -70,7 +70,7 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir build -R "^test_RegMapWindow$" --outp
 ./build/bin/rmap
 
 # Launch rmap directly opening an existing register map file
-./build/bin/rmap -f example/spi.rmt
+./build/bin/rmap -f examples/spi.rmt
 ```
 
 ### CLI Arguments & Capabilities
@@ -106,16 +106,21 @@ rmap/
 ├── .github/workflows/
 │   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 parallel test jobs)
 ├── README.md                   # Project overview, badges, features, and quickstart guide
-├── docs/                       # GitHub Pages documentation website (Jekyll)
-│   ├── _config.yml             # Jekyll theme configuration
-│   ├── index.md                # Documentation portal landing page
-│   ├── getting-started.md      # Installation, building, and first steps
-│   ├── gui-guide.md            # Dual-pane GUI walkthrough, bitfield visualizer, validation, access policies
-│   ├── cli-reference.md        # Headless generation, CI linter (SARIF/JUnit), diff, format conversion
-│   ├── templates-and-codegen.md# Inja template syntax, custom helpers, JSON schema
-│   └── architecture.md         # Internal architecture, models, format handlers, protobuf
+├── docs/                       # Project documentation
+│   ├── dev/                    # Developer documentation & C++ architecture Markdown references
+│   └── user/                   # User guide, getting started, GUI manual, CLI reference (Jekyll)
+├── proto/                      # Protocol buffer schema (Config, RegItem, RegModel)
+│   └── rmap.proto
+├── res/                        # Application resources
+│   ├── images/                 # Application icons, toolbar action artwork, and branding assets
+│   └── resources.qrc           # Qt Resource file (toolbar icons, actions, branding)
 ├── src/                        # Core application C++ source code
-│   ├── rmap.cpp / .hpp         # Application entry point (main) and CLI argument parsing
+│   ├── ui/                     # Qt Designer UI layouts
+│   │   ├── rmap.ui             # Main window UI layout
+│   │   ├── config.ui           # Configuration dialog UI layout
+│   │   └── preferences.ui      # Preferences dialog UI layout
+│   ├── main.cpp                # Application entry point (main) and CLI argument parsing
+│   ├── rmap.hpp                # Main application header declarations
 │   ├── RegMapWindow.cpp / .hpp # Main window, menu/toolbar actions, dual-pane UI orchestration
 │   ├── RegBitfieldBarWidget.*  # Interactive graphical 32/64-bit register slice visualizer widget
 │   ├── BlockMemoryMapWidget.*  # Vertical stacked-block memory map diagram widget with gap detection
@@ -143,6 +148,24 @@ rmap/
 │   ├── Serializable.hpp        # Serializable base interface
 │   ├── SerializationContext.*  # Context manager for serializing tree hierarchy
 │   └── ObjectFactory.hpp       # Factory template for tree object instantiation
+├── templates/                  # Inja code generation templates
+│   ├── generic_reg_file.sv.inja# Bus-agnostic synthesizable SystemVerilog register file module
+│   ├── uvm_reg_model.sv.inja   # UVM SystemVerilog register model template
+│   ├── reg_map.h.inja          # C/C++ firmware header template (offsets, bitmasks, shifts, structs)
+│   ├── reg_map.rs.inja         # Rust Peripheral Access Crate (PAC) template
+│   ├── reg_map.py.inja         # Python lab bring-up register driver class template
+│   ├── reg_doc.html.inja       # Interactive searchable HTML register map specification
+│   ├── systemrdl_map.rdl.inja  # SystemRDL 2.0 register map specification template
+│   ├── ipxact_map.xml.inja     # IP-XACT IEEE 1685-2014/2022 XML register model template
+│   ├── cmsis_svd.xml.inja      # ARM CMSIS-SVD XML peripheral description template
+│   ├── reg_doc.md.inja         # Markdown register map documentation table template
+│   └── reg_map.json.inja       # Formatted JSON register map schema export template
+├── examples/                   # Sample register maps (.rmt) and reference files
+│   ├── spi.rmt                 # Standard SPI peripheral register map
+│   ├── comprehensive.rmt       # Full feature coverage (all 9 access policies, booleans, hex/dec/bin, mem)
+│   ├── wide_bus_64bit.rmt      # 64-bit architecture register map
+│   ├── invalid_overlap.rmt     # Validation test cases (address collision, field collision, width overflow)
+│   └── tiny/                   # Minimal example register map
 ├── tests/                      # Automated test suites (CTest + QtTest)
 │   ├── CMakeLists.txt          # Test target declarations and CTest setup
 │   ├── backend/                # Backend unit tests
@@ -158,32 +181,6 @@ rmap/
 │       ├── test_RegConfigWindow.cpp  # Config dialog, table mappings, save/restore state, non-modality
 │       ├── test_PreferencesWindow.cpp# Preferences dialog, colour schemes, colour-blind mode, state persistence
 │       └── test_Delegates.cpp        # Hex/Dec/Bin, SW access, HW access, boolean delegate tests
-│   └── protobuf/               # Protocol buffer schema (Config, RegItem, RegModel)
-│       └── rmap.proto
-├── images/                     # Application icons, toolbar action artwork, and branding assets
-├── ui/
-│   ├── rmap.ui                 # Qt Designer UI layout for main window
-│   ├── config.ui               # Qt Designer UI layout for configuration dialog
-│   ├── preferences.ui          # Qt Designer UI layout for preferences dialog
-│   └── resources.qrc           # Qt Resource file (toolbar icons, actions, branding)
-├── templates/                  # Inja code generation templates
-│   ├── generic_reg_file.sv.inja# Bus-agnostic synthesizable SystemVerilog register file module
-│   ├── uvm_reg_model.sv.inja   # UVM SystemVerilog register model template
-│   ├── reg_map.h.inja          # C/C++ firmware header template (offsets, bitmasks, shifts, structs)
-│   ├── reg_map.rs.inja         # Rust Peripheral Access Crate (PAC) template
-│   ├── reg_map.py.inja         # Python lab bring-up register driver class template
-│   ├── reg_doc.html.inja       # Interactive searchable HTML register map specification
-│   ├── systemrdl_map.rdl.inja  # SystemRDL 2.0 register map specification template
-│   ├── ipxact_map.xml.inja     # IP-XACT IEEE 1685-2014/2022 XML register model template
-│   ├── cmsis_svd.xml.inja      # ARM CMSIS-SVD XML peripheral description template
-│   ├── reg_doc.md.inja         # Markdown register map documentation table template
-│   └── reg_map.json.inja       # Formatted JSON register map schema export template
-├── example/                    # Sample register maps (.rmt) and reference files
-│   ├── spi.rmt                 # Standard SPI peripheral register map
-│   ├── comprehensive.rmt       # Full feature coverage (all 9 access policies, booleans, hex/dec/bin, mem)
-│   ├── wide_bus_64bit.rmt      # 64-bit architecture register map
-│   ├── invalid_overlap.rmt     # Validation test cases (address collision, field collision, width overflow)
-│   └── tiny/                   # Minimal example register map
 ├── script/                     # Helper developer scripts
 │   ├── compile_ui              # PySide2 UIC/RCC compiler script
 │   └── edit_ui                 # Qt Designer shortcut launcher
@@ -288,6 +285,6 @@ Before committing any changes:
 1. Run `make` to verify compilation succeeds with zero errors (compiler uses `-Wfatal-errors`).
 2. Update or add automated tests in `tests/backend/` and `tests/frontend/` to cover all new/modified features and bug fixes.
 3. Clean up output directory (`work/`) and run `make test` to verify all automated test suites pass (100% pass rate).
-4. Test loading, saving, and cross-converting sample files (e.g. `example/spi.rmt`, `example/comprehensive.rmt`).
+4. Test loading, saving, and cross-converting sample files (e.g. `examples/spi.rmt`, `examples/comprehensive.rmt`).
 5. Ensure no temporary files or build artifacts (`build/`, `.obj/`, `work/`, `work/*.sv`, `work/*.h`) are committed to version control.
 6. Verify that template modifications match the JSON schema exported by `RegMapTreeModel`.

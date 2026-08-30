@@ -8,7 +8,7 @@
 
 Defined in `src/RegConfigWindow.hpp` and implemented in `src/RegConfigWindow.cpp`.
 - Instantiated by `RegMapWindow` and displayed via toolbar/menu action (**Project → Configure**).
-- Serializes project parameters to `protormap::Config` schema in `src/protobuf/rmap.proto`.
+- Serializes project parameters to `protormap::Config` schema in `proto/rmap.proto`.
 - Interfaced with `PathUtils` and `AppSettings`.
 
 Build Requirements:

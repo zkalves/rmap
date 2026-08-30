@@ -28,12 +28,12 @@ private slots:
     void initTestCase() {
         s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
         QDir("work").removeRecursively();
-        QDir("example/work").removeRecursively();
+        QDir("examples/work").removeRecursively();
         QDir().mkpath("work");
     }
     void cleanupTestCase() {
         QDir("work").removeRecursively();
-        QDir("example/work").removeRecursively();
+        QDir("examples/work").removeRecursively();
         qInstallMessageHandler(s_originalHandler);
     }
     void testWindowInitAndFileOpen();
@@ -61,7 +61,7 @@ private slots:
 
 void TestRegMapWindow::testWindowInitAndFileOpen()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -73,23 +73,43 @@ void TestRegMapWindow::testWindowInitAndFileOpen()
 
 void TestRegMapWindow::testFileNewReset()
 {
-    QString file = "example/spi.rmt";
+    // 1. Fresh window without a file (New Project)
+    RegMapWindow freshWindow;
+    auto *freshStacked = freshWindow.findChild<QStackedWidget*>("rightStackedWidget");
+    auto *freshEmpty = freshWindow.findChild<QWidget*>("emptyViewWidget");
+    auto *freshRegView = freshWindow.findChild<QWidget*>("regViewWidget");
+    QVERIFY(freshStacked != nullptr);
+    QVERIFY(freshEmpty != nullptr);
+    QVERIFY(freshRegView != nullptr);
+    QCOMPARE(freshStacked->currentWidget(), freshEmpty);
+    QVERIFY(freshStacked->currentWidget() != freshRegView);
+
+    // 2. Open file and then trigger File -> New
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
+    auto *stacked = window.findChild<QStackedWidget*>("rightStackedWidget");
+    auto *emptyWidget = window.findChild<QWidget*>("emptyViewWidget");
+    auto *regView = window.findChild<QWidget*>("regViewWidget");
     QVERIFY(treeView != nullptr);
+    QVERIFY(stacked != nullptr);
+    QVERIFY(emptyWidget != nullptr);
+    QVERIFY(regView != nullptr);
 
     auto *actNew = window.findChild<QAction*>("actionFileNew");
     QVERIFY(actNew != nullptr);
     actNew->trigger();
 
-    // After reset, tree should have 0 root rows
+    // After reset, tree should have 0 root rows and right pane should be empty
     QCOMPARE(treeView->model()->rowCount(), 0);
+    QCOMPARE(stacked->currentWidget(), emptyWidget);
+    QVERIFY(stacked->currentWidget() != regView);
 }
 
 void TestRegMapWindow::testProxyFilteringAndSelectionSync()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -163,7 +183,7 @@ void TestRegMapWindow::testProxyFilteringAndSelectionSync()
 
 void TestRegMapWindow::testRegisterSortingByOffset()
 {
-    QString file = "example/address_gap_example.rmt";
+    QString file = "examples/address_gap_example.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -194,7 +214,7 @@ void TestRegMapWindow::testRegisterSortingByOffset()
 
 void TestRegMapWindow::testBlockMemoryMapView()
 {
-    QString file = "example/address_gap_example.rmt";
+    QString file = "examples/address_gap_example.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -362,7 +382,7 @@ void TestRegMapWindow::testItemDeletionAction()
 
 void TestRegMapWindow::testExportAction()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
 
     // Re-anchor config output to work/
@@ -403,7 +423,7 @@ void TestRegMapWindow::testExportAction()
 
 void TestRegMapWindow::testBitfieldBarWidgetSync()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -462,7 +482,7 @@ void TestRegMapWindow::testBitfieldBarWidgetSync()
 
 void TestRegMapWindow::testSearchBarFiltering()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -482,7 +502,7 @@ void TestRegMapWindow::testSearchBarFiltering()
 
 void TestRegMapWindow::testUndoRedoStack()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
 
     QUndoStack *undoStack = window.getUndoStack();
@@ -509,7 +529,7 @@ void TestRegMapWindow::testUndoRedoStack()
 
 void TestRegMapWindow::testHeadlessCliMethods()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
 
     // 1. Headless lint
@@ -521,7 +541,7 @@ void TestRegMapWindow::testHeadlessCliMethods()
     QVERIFY(QFile::exists("work/test_lint_out.json"));
 
     // 2. Semantic diff against itself (0 changes)
-    bool diffPass = RegMapWindow::semanticDiff("example/spi.rmt", "example/spi.rmt", "text", "");
+    bool diffPass = RegMapWindow::semanticDiff("examples/spi.rmt", "examples/spi.rmt", "text", "");
     QVERIFY(diffPass);
 
     // 3. Headless export
@@ -531,7 +551,7 @@ void TestRegMapWindow::testHeadlessCliMethods()
     QVERIFY(QFile::exists("work/test_headless_export/uvm_reg_model.sv"));
 
     // 4. Headless methods with environment variables
-    qputenv("RMAP_TEST_SPI", "example/spi.rmt");
+    qputenv("RMAP_TEST_SPI", "examples/spi.rmt");
     qputenv("RMAP_TEST_OUT_DIR", "work/test_env_export");
 
     RegMapWindow envWindow("$RMAP_TEST_SPI");
@@ -550,7 +570,7 @@ void TestRegMapWindow::testHeadlessCliMethods()
 void TestRegMapWindow::testSarifAndJunitLintReports()
 {
     // 1. Test clean file in SARIF format
-    RegMapWindow cleanWindow("example/spi.rmt");
+    RegMapWindow cleanWindow("examples/spi.rmt");
     QString sarifOut = "work/test_spi.sarif";
     bool cleanSarifPass = cleanWindow.headlessLint(false, "sarif", sarifOut);
     QVERIFY(cleanSarifPass);
@@ -587,7 +607,7 @@ void TestRegMapWindow::testSarifAndJunitLintReports()
     QVERIFY(!junitContent.contains("<failure"));
 
     // 3. Test invalid file with strict rules
-    RegMapWindow invalidWindow("example/invalid_overlap.rmt");
+    RegMapWindow invalidWindow("examples/invalid_overlap.rmt");
     QString strictSarifOut = "work/test_invalid_strict.sarif";
     bool invalidStrictPass = invalidWindow.headlessLint(true, "sarif", strictSarifOut);
     QVERIFY(!invalidStrictPass); // Expected to fail validation
@@ -605,10 +625,10 @@ void TestRegMapWindow::testSarifAndJunitLintReports()
 
 void TestRegMapWindow::testSemanticDiffWithModifications()
 {
-    // Create a modified copy of example/spi.rmt
+    // Create a modified copy of examples/spi.rmt
     RegMapTreeModel model;
     RegConfigWindow config;
-    QVERIFY(FormatManager::instance().loadFile("example/spi.rmt", &model, &config).success);
+    QVERIFY(FormatManager::instance().loadFile("examples/spi.rmt", &model, &config).success);
 
     // Add a new register TX_BUFFER to Block 0
     QModelIndex blkIndex = model.index(0, 0, QModelIndex());
@@ -623,7 +643,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
 
     // 1. Run semantic diff in Markdown format
     QString mdOut = "work/test_diff_report.md";
-    bool mdDiffPass = RegMapWindow::semanticDiff("example/spi.rmt", modFile, "markdown", mdOut);
+    bool mdDiffPass = RegMapWindow::semanticDiff("examples/spi.rmt", modFile, "markdown", mdOut);
     QVERIFY(mdDiffPass);
     QVERIFY(QFile::exists(mdOut));
 
@@ -638,7 +658,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
 
     // 2. Run semantic diff in Text format
     QString txtOut = "work/test_diff_report.txt";
-    bool txtDiffPass = RegMapWindow::semanticDiff("example/spi.rmt", modFile, "text", txtOut);
+    bool txtDiffPass = RegMapWindow::semanticDiff("examples/spi.rmt", modFile, "text", txtOut);
     QVERIFY(txtDiffPass);
     QVERIFY(QFile::exists(txtOut));
 
@@ -654,7 +674,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
 
 void TestRegMapWindow::testColorBlindModeToggle()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -679,7 +699,7 @@ void TestRegMapWindow::testColorBlindModeToggle()
 
 void TestRegMapWindow::testKeyBindingsDialog()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -702,7 +722,7 @@ void TestRegMapWindow::testKeyBindingsDialog()
 
 void TestRegMapWindow::testConfigWindowAction()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -722,7 +742,7 @@ void TestRegMapWindow::testConfigWindowAction()
 
 void TestRegMapWindow::testPreferencesWindowAction()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -741,7 +761,7 @@ void TestRegMapWindow::testPreferencesWindowAction()
 
 void TestRegMapWindow::testMenuStructure()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -768,7 +788,7 @@ void TestRegMapWindow::testMenuStructure()
 
 void TestRegMapWindow::testColorSchemeSwitching()
 {
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -809,7 +829,7 @@ void TestRegMapWindow::testMainWindowSizePersistence()
     QString origPath = AppSettings::instance().configFilePath();
     AppSettings::instance().setConfigFilePath(tempDir.path() + "/test_rmap.conf");
 
-    QString file = "example/spi.rmt";
+    QString file = "examples/spi.rmt";
     {
         RegMapWindow window(file);
         window.resize(720, 520);

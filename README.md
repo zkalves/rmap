@@ -80,7 +80,7 @@ Launch the application to design or inspect register maps interactively:
 ./build/bin/rmap
 
 # Open an existing register map
-./build/bin/rmap -f example/spi.rmt
+./build/bin/rmap -f examples/spi.rmt
 ```
 
 ### 2. Headless CLI Mode & CI/CD Automation
@@ -89,14 +89,14 @@ Run code generation, linting, or diffing directly in Makefiles, CI/CD pipelines,
 
 ```bash
 # 1. Headless Batch Code Generation
-./build/bin/rmap -f example/spi.rmt --export --out ./work
+./build/bin/rmap -f examples/spi.rmt --export --out ./work
 
 # 2. Format Conversion (e.g. Protobuf -> ARM CMSIS-SVD)
-./build/bin/rmap -f example/spi.rmt --convert work/spi.svd
+./build/bin/rmap -f examples/spi.rmt --convert work/spi.svd
 
 # 3. CI/CD Linter (SARIF for GitHub PR annotations or JUnit XML for CI test reports)
-./build/bin/rmap -f example/spi.rmt --lint --strict --report-format sarif --out work/lint.sarif
-./build/bin/rmap -f example/spi.rmt --lint --strict --report-format junit --out work/junit.xml
+./build/bin/rmap -f examples/spi.rmt --lint --strict --report-format sarif --out work/lint.sarif
+./build/bin/rmap -f examples/spi.rmt --lint --strict --report-format junit --out work/junit.xml
 
 # 4. Semantic Diff Between Revisions
 ./build/bin/rmap -f base.rmt --diff updated.rmt --report-format markdown --out diff.md

@@ -29,8 +29,8 @@ private slots:
 
 void TestSerialization::testParseSpiRmt()
 {
-    int fd = open("example/spi.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
-    QVERIFY2(fd >= 0, "Failed to open example/spi.rmt");
+    int fd = open("examples/spi.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
+    QVERIFY2(fd >= 0, "Failed to open examples/spi.rmt");
 
     protormap::RegModel reg_model;
     google::protobuf::io::FileInputStream fileInput(fd);
@@ -59,8 +59,8 @@ void TestSerialization::testParseSpiRmt()
 
 void TestSerialization::testParseComprehensiveRmt()
 {
-    int fd = open("example/comprehensive.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
-    QVERIFY2(fd >= 0, "Failed to open example/comprehensive.rmt");
+    int fd = open("examples/comprehensive.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
+    QVERIFY2(fd >= 0, "Failed to open examples/comprehensive.rmt");
 
     protormap::RegModel reg_model;
     google::protobuf::io::FileInputStream fileInput(fd);
@@ -83,8 +83,8 @@ void TestSerialization::testParseComprehensiveRmt()
 
 void TestSerialization::testParseWideBus64Rmt()
 {
-    int fd = open("example/wide_bus_64bit.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
-    QVERIFY2(fd >= 0, "Failed to open example/wide_bus_64bit.rmt");
+    int fd = open("examples/wide_bus_64bit.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
+    QVERIFY2(fd >= 0, "Failed to open examples/wide_bus_64bit.rmt");
 
     protormap::RegModel reg_model;
     google::protobuf::io::FileInputStream fileInput(fd);
@@ -106,8 +106,8 @@ void TestSerialization::testParseWideBus64Rmt()
 
 void TestSerialization::testParseUartRmt()
 {
-    int fd = open("example/uart.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
-    QVERIFY2(fd >= 0, "Failed to open example/uart.rmt");
+    int fd = open("examples/uart.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
+    QVERIFY2(fd >= 0, "Failed to open examples/uart.rmt");
 
     protormap::RegModel reg_model;
     google::protobuf::io::FileInputStream fileInput(fd);
@@ -128,8 +128,8 @@ void TestSerialization::testParseUartRmt()
 
 void TestSerialization::testParseDmaRmt()
 {
-    int fd = open("example/dma.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
-    QVERIFY2(fd >= 0, "Failed to open example/dma.rmt");
+    int fd = open("examples/dma.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
+    QVERIFY2(fd >= 0, "Failed to open examples/dma.rmt");
 
     protormap::RegModel reg_model;
     google::protobuf::io::FileInputStream fileInput(fd);
@@ -149,8 +149,8 @@ void TestSerialization::testParseDmaRmt()
 
 void TestSerialization::testParseSensorHubRmt()
 {
-    int fd = open("example/sensor_hub.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
-    QVERIFY2(fd >= 0, "Failed to open example/sensor_hub.rmt");
+    int fd = open("examples/sensor_hub.rmt", O_RDONLY, S_IRUSR | S_IWUSR);
+    QVERIFY2(fd >= 0, "Failed to open examples/sensor_hub.rmt");
 
     protormap::RegModel reg_model;
     google::protobuf::io::FileInputStream fileInput(fd);

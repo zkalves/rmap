@@ -513,16 +513,12 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     m_rightStackedWidget->addWidget(m_blockViewWidget);
 
     // ==========================================
-    // Page 2: Empty / Placeholder View
+    // Page 2: Empty View (Shown when no register or block is selected)
     // ==========================================
     m_emptyViewWidget = new QWidget(m_rightStackedWidget);
     m_emptyViewWidget->setObjectName("emptyViewWidget");
-    QVBoxLayout *emptyLayout = new QVBoxLayout(m_emptyViewWidget);
-    QLabel *emptyLabel = new QLabel(tr("Select a register or register block in the tree to inspect details."), m_emptyViewWidget);
-    emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setStyleSheet("color: #718096; font-size: 13px; font-style: italic;");
-    emptyLayout->addWidget(emptyLabel);
     m_rightStackedWidget->addWidget(m_emptyViewWidget);
+    m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
 
     rightLayout->addWidget(m_rightStackedWidget);
 

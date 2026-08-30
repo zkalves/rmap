@@ -65,7 +65,7 @@ Replaces Windows backslashes (`\`) with standardized forward slashes (`/`) and r
 void demonstratePathUtils()
 {
     // Expand environment variables
-    QString expanded = PathUtils::expandEnvVars("$HOME/projects/rmap/example/spi.rmt");
+    QString expanded = PathUtils::expandEnvVars("$HOME/projects/rmap/examples/spi.rmt");
 
     // Relativize against project root
     QString rel = PathUtils::toRelativePath("/home/user/project/build/output.sv", "/home/user/project");

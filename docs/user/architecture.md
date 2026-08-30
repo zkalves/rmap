@@ -105,19 +105,19 @@
 
 ## 3. C++ Class Reference Documentation
 
-Detailed C++ API reference documentation for each individual class, delegate, visualizer widget, and format handler is maintained in the [`src/doc/`](../src/doc/index.md) directory:
+Detailed C++ API reference documentation for each individual class, delegate, visualizer widget, and format handler is maintained in the [`docs/dev/`](../dev/index.md) directory:
 
-- [**API Documentation Index**](../src/doc/index.md)
-- [Application Entry Point (`rmap.cpp`)](../src/doc/rmap.md)
-- [Main Window Controller (`RegMapWindow`)](../src/doc/RegMapWindow.md)
-- [Bitfield Slice Visualizer (`RegBitfieldBarWidget`)](../src/doc/RegBitfieldBarWidget.md)
-- [Stacked Memory Map (`BlockMemoryMapWidget`)](../src/doc/BlockMemoryMapWidget.md)
-- [Tree Model (`RegMapTreeModel`)](../src/doc/RegMapTreeModel.md) & [Node Items (`RegMapTreeItem`)](../src/doc/RegMapTreeItem.md)
-- [Item Delegates (`RegMapDelegate`)](../src/doc/RegMapDelegate.md) & [Navigation Tree (`RegMapTreeView`)](../src/doc/RegMapTreeView.md)
-- [Project Configuration Dialog (`RegConfigWindow`)](../src/doc/RegConfigWindow.md)
-- [Preferences Dialog (`PreferencesWindow`)](../src/doc/PreferencesWindow.md)
-- [Code Generator (`CodeGenerator`)](../src/doc/CodeGenerator.md)
-- [Format Registry (`FormatManager`)](../src/doc/FormatManager.md)
-- [Theme Engine (`ThemeManager`)](../src/doc/ThemeManager.md) & [Settings (`AppSettings`)](../src/doc/AppSettings.md)
-- [Path Utilities (`PathUtils`)](../src/doc/PathUtils.md) & [Undo Commands (`UndoCommands`)](../src/doc/UndoCommands.md)
-- [Object Graph Serialization (`SerializationContext`)](../src/doc/SerializationContext.md)
+- [**API Documentation Index**](../dev/index.md)
+- [Application Entry Point (`main.cpp`)](../dev/rmap.md)
+- [Main Window Controller (`RegMapWindow`)](../dev/RegMapWindow.md)
+- [Bitfield Slice Visualizer (`RegBitfieldBarWidget`)](../dev/RegBitfieldBarWidget.md)
+- [Stacked Memory Map (`BlockMemoryMapWidget`)](../dev/BlockMemoryMapWidget.md)
+- [Tree Model (`RegMapTreeModel`)](../dev/RegMapTreeModel.md) & [Node Items (`RegMapTreeItem`)](../dev/RegMapTreeItem.md)
+- [Item Delegates (`RegMapDelegate`)](../dev/RegMapDelegate.md) & [Navigation Tree (`RegMapTreeView`)](../dev/RegMapTreeView.md)
+- [Project Configuration Dialog (`RegConfigWindow`)](../dev/RegConfigWindow.md)
+- [Preferences Dialog (`PreferencesWindow`)](../dev/PreferencesWindow.md)
+- [Code Generator (`CodeGenerator`)](../dev/CodeGenerator.md)
+- [Format Registry (`FormatManager`)](../dev/FormatManager.md)
+- [Theme Engine (`ThemeManager`)](../dev/ThemeManager.md) & [Settings (`AppSettings`)](../dev/AppSettings.md)
+- [Path Utilities (`PathUtils`)](../dev/PathUtils.md) & [Undo Commands (`UndoCommands`)](../dev/UndoCommands.md)
+- [Object Graph Serialization (`SerializationContext`)](../dev/SerializationContext.md)

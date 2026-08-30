@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     // Instantiate main window opening an existing register map
-    RegMapWindow window("example/spi.rmt");
+    RegMapWindow window("examples/spi.rmt");
     window.setColourScheme("nord");
     window.show();
 

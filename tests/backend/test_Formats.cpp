@@ -45,7 +45,7 @@ void TestFormats::test_SystemRdlRead()
     RegConfigWindow config;
 
     // Test reading atxmega_spi.rdl
-    FormatResult res = FormatManager::instance().loadFile("example/systemRdl/atxmega_spi.rdl", &model, &config);
+    FormatResult res = FormatManager::instance().loadFile("examples/systemRdl/atxmega_spi.rdl", &model, &config);
     QVERIFY2(res.success, qPrintable(res.errorMessage));
 
     RegMapTreeItem *root = model.getRootItem();
@@ -80,7 +80,7 @@ void TestFormats::test_SystemRdlWriteAndRoundtrip()
     RegMapTreeModel model1;
     RegConfigWindow config1;
 
-    FormatResult res1 = FormatManager::instance().loadFile("example/systemRdl/atxmega_spi.rdl", &model1, &config1);
+    FormatResult res1 = FormatManager::instance().loadFile("examples/systemRdl/atxmega_spi.rdl", &model1, &config1);
     QVERIFY(res1.success);
 
     // Save as new RDL
@@ -108,7 +108,7 @@ void TestFormats::test_IpxactWriteAndRoundtrip()
     RegConfigWindow config1;
 
     // Load standard SPI protobuf map
-    FormatResult res1 = FormatManager::instance().loadFile("example/spi.rmt", &model1, &config1);
+    FormatResult res1 = FormatManager::instance().loadFile("examples/spi.rmt", &model1, &config1);
     QVERIFY(res1.success);
 
     // Save as IP-XACT XML
@@ -134,7 +134,7 @@ void TestFormats::test_JsonWriteAndRoundtrip()
     RegMapTreeModel model1;
     RegConfigWindow config1;
 
-    FormatResult res1 = FormatManager::instance().loadFile("example/spi.rmt", &model1, &config1);
+    FormatResult res1 = FormatManager::instance().loadFile("examples/spi.rmt", &model1, &config1);
     QVERIFY(res1.success);
 
     // Save as JSON
@@ -161,7 +161,7 @@ void TestFormats::test_CsvWriteAndRoundtrip()
     RegMapTreeModel model1;
     RegConfigWindow config1;
 
-    FormatResult res1 = FormatManager::instance().loadFile("example/spi.rmt", &model1, &config1);
+    FormatResult res1 = FormatManager::instance().loadFile("examples/spi.rmt", &model1, &config1);
     QVERIFY(res1.success);
 
     // Save as CSV
@@ -189,7 +189,7 @@ void TestFormats::test_CmsisSvdWriteAndRoundtrip()
     RegMapTreeModel model1;
     RegConfigWindow config1;
 
-    FormatResult res1 = FormatManager::instance().loadFile("example/spi.rmt", &model1, &config1);
+    FormatResult res1 = FormatManager::instance().loadFile("examples/spi.rmt", &model1, &config1);
     QVERIFY(res1.success);
 
     // Save as CMSIS-SVD (.svd)
@@ -217,7 +217,7 @@ void TestFormats::test_CrossFormatConversion()
     // Hop 1: .rmt (Protobuf) -> .rdl (SystemRDL)
     RegMapTreeModel m1;
     RegConfigWindow c1;
-    QVERIFY(FormatManager::instance().loadFile("example/spi.rmt", &m1, &c1).success);
+    QVERIFY(FormatManager::instance().loadFile("examples/spi.rmt", &m1, &c1).success);
     QVERIFY(FormatManager::instance().saveFile("work/test_formats/hop1.rdl", &m1, &c1).success);
 
     // Hop 2: .rdl (SystemRDL) -> .xml (IP-XACT)
@@ -258,7 +258,7 @@ void TestFormats::test_CmsisSvdRealWorldFile()
 {
     RegMapTreeModel model;
     RegConfigWindow config;
-    FormatResult res = FormatManager::instance().loadFile("example/svd/stm32_uart.svd", &model, &config);
+    FormatResult res = FormatManager::instance().loadFile("examples/svd/stm32_uart.svd", &model, &config);
     QVERIFY2(res.success, qPrintable(res.errorMessage));
 
     RegMapTreeItem *root = model.getRootItem();
@@ -278,7 +278,7 @@ void TestFormats::test_IpxactRealWorldFile()
 {
     RegMapTreeModel model;
     RegConfigWindow config;
-    FormatResult res = FormatManager::instance().loadFile("example/ipxact/spi_ipxact.xml", &model, &config);
+    FormatResult res = FormatManager::instance().loadFile("examples/ipxact/spi_ipxact.xml", &model, &config);
     QVERIFY2(res.success, qPrintable(res.errorMessage));
 
     RegMapTreeItem *root = model.getRootItem();
@@ -293,7 +293,7 @@ void TestFormats::test_JsonRealWorldFile()
 {
     RegMapTreeModel model;
     RegConfigWindow config;
-    FormatResult res = FormatManager::instance().loadFile("example/json/sensor_hub.json", &model, &config);
+    FormatResult res = FormatManager::instance().loadFile("examples/json/sensor_hub.json", &model, &config);
     QVERIFY2(res.success, qPrintable(res.errorMessage));
 
     RegMapTreeItem *root = model.getRootItem();
@@ -309,7 +309,7 @@ void TestFormats::test_CsvRealWorldFile()
 {
     RegMapTreeModel model;
     RegConfigWindow config;
-    FormatResult res = FormatManager::instance().loadFile("example/csv/dma_controller.csv", &model, &config);
+    FormatResult res = FormatManager::instance().loadFile("examples/csv/dma_controller.csv", &model, &config);
     QVERIFY2(res.success, qPrintable(res.errorMessage));
 
     RegMapTreeItem *root = model.getRootItem();
@@ -325,7 +325,7 @@ void TestFormats::test_ProtobufBinaryRoundtrip()
 {
     RegMapTreeModel model1;
     RegConfigWindow config1;
-    QVERIFY(FormatManager::instance().loadFile("example/spi.rmt", &model1, &config1).success);
+    QVERIFY(FormatManager::instance().loadFile("examples/spi.rmt", &model1, &config1).success);
 
     // Save as .rmb binary
     QString outRmb = "work/test_formats/roundtrip.rmb";
@@ -347,7 +347,7 @@ void TestFormats::test_ComprehensiveMapRoundtrip()
 {
     RegMapTreeModel model1;
     RegConfigWindow config1;
-    FormatResult loadRes = FormatManager::instance().loadFile("example/comprehensive.rmt", &model1, &config1);
+    FormatResult loadRes = FormatManager::instance().loadFile("examples/comprehensive.rmt", &model1, &config1);
     QVERIFY2(loadRes.success, qPrintable(loadRes.errorMessage));
 
     RegMapTreeItem *root = model1.getRootItem();
@@ -380,7 +380,7 @@ void TestFormats::test_WideBus64BitMapRoundtrip()
 {
     RegMapTreeModel model1;
     RegConfigWindow config1;
-    FormatResult loadRes = FormatManager::instance().loadFile("example/wide_bus_64bit.rmt", &model1, &config1);
+    FormatResult loadRes = FormatManager::instance().loadFile("examples/wide_bus_64bit.rmt", &model1, &config1);
     QVERIFY2(loadRes.success, qPrintable(loadRes.errorMessage));
 
     RegMapTreeItem *root = model1.getRootItem();
