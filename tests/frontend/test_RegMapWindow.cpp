@@ -38,6 +38,7 @@ private slots:
     }
     void testWindowInitAndFileOpen();
     void testFileNewReset();
+    void testFileClose();
     void testProxyFilteringAndSelectionSync();
     void testRegisterSortingByOffset();
     void testBlockMemoryMapView();
@@ -102,6 +103,33 @@ void TestRegMapWindow::testFileNewReset()
     actNew->trigger();
 
     // After reset, tree should have 0 root rows and right pane should be empty
+    QCOMPARE(treeView->model()->rowCount(), 0);
+    QCOMPARE(stacked->currentWidget(), emptyWidget);
+    QVERIFY(stacked->currentWidget() != regView);
+}
+
+void TestRegMapWindow::testFileClose()
+{
+    QString file = "examples/spi.rmt";
+    RegMapWindow window(file);
+
+    auto *treeView = window.findChild<QTreeView*>("treeView");
+    auto *stacked = window.findChild<QStackedWidget*>("rightStackedWidget");
+    auto *emptyWidget = window.findChild<QWidget*>("emptyViewWidget");
+    auto *regView = window.findChild<QWidget*>("regViewWidget");
+    QVERIFY(treeView != nullptr);
+    QVERIFY(stacked != nullptr);
+    QVERIFY(emptyWidget != nullptr);
+    QVERIFY(regView != nullptr);
+    QVERIFY(treeView->model()->rowCount() > 0);
+
+    auto *actClose = window.findChild<QAction*>("actionFileClose");
+    QVERIFY(actClose != nullptr);
+    QCOMPARE(actClose->text(), QString("Close model"));
+    QCOMPARE(actClose->shortcut(), QKeySequence("Ctrl+W"));
+    actClose->trigger();
+
+    // After closing model, tree should have 0 root rows and right pane should show empty view
     QCOMPARE(treeView->model()->rowCount(), 0);
     QCOMPARE(stacked->currentWidget(), emptyWidget);
     QVERIFY(stacked->currentWidget() != regView);

@@ -561,6 +561,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     // Menu and Action connections
     connect(actionFileNew,      &QAction::triggered, this, &RegMapWindow::btnFileNew);
     connect(actionFileOpen,     &QAction::triggered, this, &RegMapWindow::btnFileOpen);
+    connect(actionFileClose,    &QAction::triggered, this, &RegMapWindow::btnFileClose);
     connect(actionFileSave,     &QAction::triggered, this, &RegMapWindow::btnFileSave);
     connect(actionFileSaveAs,   &QAction::triggered, this, &RegMapWindow::btnFileSaveAs);
     connect(actionFileReload,   &QAction::triggered, this, &RegMapWindow::btnFileReload);
@@ -851,6 +852,7 @@ void RegMapWindow::btnKeyBindings(void)
         "<tr><td colspan='3' style='padding-top:8px;'><b>File Operations</b></td></tr>"
         "<tr><td>File</td><td><kbd>Ctrl+N</kbd></td><td>Create New Register Map</td></tr>"
         "<tr><td>File</td><td><kbd>Ctrl+O</kbd></td><td>Open File (SVD, RDL, XML, JSON, CSV, RMT, RMB)</td></tr>"
+        "<tr><td>File</td><td><kbd>Ctrl+W</kbd></td><td>Close Register Map Model</td></tr>"
         "<tr><td>File</td><td><kbd>Ctrl+S</kbd></td><td>Save Register Map</td></tr>"
         "<tr><td>File</td><td><kbd>Ctrl+Shift+S</kbd></td><td>Save Register Map As...</td></tr>"
         "<tr><td>File</td><td><kbd>Ctrl+R</kbd></td><td>Reload Active File</td></tr>"
@@ -894,6 +896,23 @@ void RegMapWindow::btnFileNew(void)
     bool save_status = false;
     if (m_is_regmap_modified) {
         result = QMessageBox::warning(this, tr("New file"),
+                tr("This action will remove all unsaved data, do you wish to continue?"),
+                QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
+        if (result == QMessageBox::Save) {
+            save_status = btnFileSave();
+        }
+    }
+    if (!m_is_regmap_modified || result == QMessageBox::Ok || (result == QMessageBox::Save && save_status)) {
+        fileNew();
+    }
+}
+
+void RegMapWindow::btnFileClose(void)
+{
+    QMessageBox::StandardButton result;
+    bool save_status = false;
+    if (m_is_regmap_modified) {
+        result = QMessageBox::warning(this, tr("Close model"),
                 tr("This action will remove all unsaved data, do you wish to continue?"),
                 QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
         if (result == QMessageBox::Save) {

@@ -85,6 +85,7 @@
     </property>
     <addaction name="actionFileNew"/>
     <addaction name="actionFileOpen"/>
+    <addaction name="actionFileClose"/>
     <addaction name="actionFileSaveAs"/>
     <addaction name="actionFileSave"/>
     <addaction name="actionFileReload"/>
@@ -269,6 +270,21 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionFileClose">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/toolbar/folder_close.png</normaloff>:/toolbar/folder_close.png</iconset>
+   </property>
+   <property name="text">
+    <string>Close model</string>
+   </property>
+   <property name="toolTip">
+    <string>Close model</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
    </property>
   </action>
   <action name="actionFileSave">

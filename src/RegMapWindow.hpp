@@ -135,6 +135,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         void connectFieldsTableSignals(void);
         void btnFileNew(void);
         void btnFileOpen(void);
+        void btnFileClose(void);
         bool btnFileSave(void);
         bool btnFileSaveAs(void);
         void btnFileReload(void);

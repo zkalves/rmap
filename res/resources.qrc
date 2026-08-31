@@ -8,6 +8,7 @@
     <file alias="checkmark-512.png">images/checkmark-512.png</file>
     <file alias="export.png">images/export.png</file>
     <file alias="folder_open.png">images/folder_open.png</file>
+    <file alias="folder_close.png">images/folder_close.png</file>
     <file alias="uvm_map.png">images/uvm_map.png</file>
     <file alias="uvm_mem.png">images/uvm_mem.png</file>
     <file alias="uvm_reg_block.png">images/uvm_reg_block.png</file>

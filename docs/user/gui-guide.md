@@ -179,6 +179,7 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | :--- | :--- | :--- |
 | **File Operations** | New Register Map | `Ctrl+N` |
 | | Open File | `Ctrl+O` |
+| | Close Model | `Ctrl+W` |
 | | Save File | `Ctrl+S` |
 | | Save As... | `Ctrl+Shift+S` |
 | | Code Generation & Export | `Ctrl+E` |
