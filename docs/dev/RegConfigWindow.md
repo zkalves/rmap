@@ -84,6 +84,9 @@ Restores dialog geometry and column layout from settings.
 
 ### 6. Protected Virtual Methods / Event Handlers
 
+#### void showEvent(QShowEvent *event) [override]
+`QDialog` override. Auto-adjusts dialog dimensions on first display so all action buttons, table viewports, and input fields are displayed completely without crushed controls or clipping.
+
 #### void closeEvent(QCloseEvent *event) [override]
 `QDialog` override. Saves dialog geometry before closing.
 

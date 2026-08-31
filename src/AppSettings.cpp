@@ -314,7 +314,7 @@ void AppSettings::load()
         m_colorScheme = "solarized8";
         m_colorBlindMode = false;
         m_mainWindowSize = QSize(1200, 800);
-        m_configWindowSize = QSize(750, 560);
+        m_configWindowSize = QSize(780, 700);
         return;
     }
 
@@ -341,9 +341,9 @@ void AppSettings::load()
         m_configWindowPos = QPoint(settings.value("Geometry/ConfigWindowX").toInt(),
                                    settings.value("Geometry/ConfigWindowY").toInt());
     }
-    int cfgW = settings.value("Geometry/ConfigWindowWidth", 750).toInt();
-    int cfgH = settings.value("Geometry/ConfigWindowHeight", 560).toInt();
-    m_configWindowSize = QSize(cfgW > 0 ? cfgW : 750, cfgH > 0 ? cfgH : 560);
+    int cfgW = settings.value("Geometry/ConfigWindowWidth", 780).toInt();
+    int cfgH = settings.value("Geometry/ConfigWindowHeight", 700).toInt();
+    m_configWindowSize = QSize(cfgW > 0 ? cfgW : 780, cfgH > 0 ? cfgH : 700);
 }
 
 void AppSettings::save()

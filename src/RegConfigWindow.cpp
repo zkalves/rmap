@@ -8,14 +8,14 @@
 
 RegConfigWindow::RegConfigWindow(QWidget *parent) :
     QDialog(parent, Qt::Window),
+    m_firstShown(true),
     m_regWidth(32)
 {
     setupUi(this);
 
     setWindowTitle(tr("Configuration"));
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
-    resize(750, 560);
-    setMinimumSize(600, 450);
+    setMinimumSize(600, 480);
 
     this->templateTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     this->templateTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
@@ -412,6 +412,22 @@ void RegConfigWindow::deserialize(const protormap::Config &config)
     updateUiFromState();
 }
 
+void RegConfigWindow::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    if (m_firstShown) {
+        m_firstShown = false;
+        QByteArray geom = AppSettings::instance().configWindowGeometry();
+        QSize sz = AppSettings::instance().configWindowSize();
+        if (geom.isEmpty() && (!sz.isValid() || sz.width() <= 0 || sz.height() <= 0)) {
+            adjustSize();
+            QSize optimal = sizeHint().expandedTo(QSize(780, 700));
+            resize(optimal);
+            AppSettings::ensureWindowOnScreen(this, minimumSize(), optimal);
+        }
+    }
+}
+
 void RegConfigWindow::restoreWindowStateFromSettings()
 {
     QByteArray geom = AppSettings::instance().configWindowGeometry();
@@ -423,13 +439,15 @@ void RegConfigWindow::restoreWindowStateFromSettings()
         if (sz.isValid() && sz.width() > 0 && sz.height() > 0) {
             resize(sz);
         } else {
-            resize(750, 560);
+            adjustSize();
+            QSize optimal = sizeHint().expandedTo(QSize(780, 700));
+            resize(optimal);
         }
         if (!p.isNull()) {
             move(p);
         }
     }
-    AppSettings::ensureWindowOnScreen(this, QSize(600, 450), QSize(750, 560));
+    AppSettings::ensureWindowOnScreen(this, minimumSize(), QSize(780, 700));
 }
 
 void RegConfigWindow::saveWindowStateToSettings()

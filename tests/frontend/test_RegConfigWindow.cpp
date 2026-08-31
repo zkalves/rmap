@@ -16,12 +16,48 @@ private slots:
     void testAcceptAndReject();
     void testProjectMetadataAndParameters();
     void testWindowSizePersistence();
+    void testAutoAdjustSizeOnFirstShow();
     void testPathStorageVarieties();
 };
 
 void TestRegConfigWindow::testConfigDialogDefaults()
 {
     RegConfigWindow cfgWin;
+    cfgWin.show();
+    QCoreApplication::processEvents();
+
+    // Verify window auto-adjusts to fit all controls comfortably
+    QVERIFY(cfgWin.width() >= 750);
+    QVERIFY(cfgWin.height() >= 650);
+
+    // Verify all template toolbar buttons are fully sized and visible
+    const QStringList toolbarButtons = {
+        "btnAddTemplateFiles", "btnAddRow", "btnBrowseTemplate",
+        "btnBrowseOutputFile", "btnBrowseOutputFolderItem",
+        "btnRemoveRow", "btnClearAll"
+    };
+    for (const QString &btnName : toolbarButtons) {
+        auto *btn = cfgWin.findChild<QPushButton*>(btnName);
+        QVERIFY2(btn != nullptr, qPrintable(QString("Button %1 must exist").arg(btnName)));
+        QVERIFY2(btn->isVisible(), qPrintable(QString("Button %1 must be visible").arg(btnName)));
+        QVERIFY2(btn->height() >= 24, qPrintable(QString("Button %1 height (%2) must be >= 24").arg(btnName).arg(btn->height())));
+    }
+
+    // Verify parameter buttons
+    const QStringList paramButtons = {"btnAddParameter", "btnRemoveParameter"};
+    for (const QString &btnName : paramButtons) {
+        auto *btn = cfgWin.findChild<QPushButton*>(btnName);
+        QVERIFY2(btn != nullptr, qPrintable(QString("Button %1 must exist").arg(btnName)));
+        QVERIFY2(btn->isVisible(), qPrintable(QString("Button %1 must be visible").arg(btnName)));
+        QVERIFY2(btn->height() >= 24, qPrintable(QString("Button %1 height (%2) must be >= 24").arg(btnName).arg(btn->height())));
+    }
+
+    // Verify dialog button box
+    auto *buttonBox = cfgWin.findChild<QDialogButtonBox*>("buttonBox");
+    QVERIFY(buttonBox != nullptr);
+    QVERIFY(buttonBox->isVisible());
+    QVERIFY(buttonBox->height() >= 20);
+
     auto *regWidthBox = cfgWin.findChild<QSpinBox*>("regWidthSpinBox");
     QVERIFY(regWidthBox != nullptr);
     QCOMPARE(regWidthBox->value(), 32);
@@ -35,7 +71,7 @@ void TestRegConfigWindow::testConfigDialogDefaults()
     QVERIFY(cfgWin.windowFlags().testFlag(Qt::Window));
     QVERIFY(cfgWin.windowFlags().testFlag(Qt::WindowMinMaxButtonsHint));
     QVERIFY(cfgWin.windowFlags().testFlag(Qt::WindowCloseButtonHint));
-    QCOMPARE(cfgWin.minimumSize(), QSize(600, 450));
+    QCOMPARE(cfgWin.minimumSize(), QSize(600, 480));
 }
 
 void TestRegConfigWindow::testStateModificationAndRows()
@@ -159,6 +195,53 @@ void TestRegConfigWindow::testWindowSizePersistence()
         RegConfigWindow cfgWin2;
         QCOMPARE(AppSettings::instance().configWindowSize(), QSize(700, 500));
         QCOMPARE(cfgWin2.size(), QSize(700, 500));
+    }
+
+    AppSettings::instance().setConfigFilePath(origPath);
+}
+
+void TestRegConfigWindow::testAutoAdjustSizeOnFirstShow()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString origPath = AppSettings::instance().configFilePath();
+    AppSettings::instance().setConfigFilePath(tempDir.path() + "/test_fresh_rmap.conf");
+
+    // Fresh configuration dialog brought up for the first time
+    RegConfigWindow cfgWin;
+    cfgWin.show();
+    QCoreApplication::processEvents();
+
+    // Verify window dimensions accommodate contents without clipping
+    QVERIFY(cfgWin.width() >= cfgWin.minimumWidth());
+    QVERIFY(cfgWin.height() >= cfgWin.minimumHeight());
+    QVERIFY(cfgWin.height() >= 650);
+
+    // Verify all toolbar and parameter buttons have adequate height so text and icons are not crushed
+    const QStringList toolbarAndParamButtons = {
+        "btnAddParameter", "btnRemoveParameter",
+        "btnAddTemplateFiles", "btnAddRow", "btnBrowseTemplate",
+        "btnBrowseOutputFile", "btnBrowseOutputFolderItem",
+        "btnRemoveRow", "btnClearAll"
+    };
+
+    for (const QString &btnName : toolbarAndParamButtons) {
+        auto *btn = cfgWin.findChild<QPushButton*>(btnName);
+        QVERIFY2(btn != nullptr, qPrintable(QString("Button %1 must exist").arg(btnName)));
+        QVERIFY2(btn->isVisible(), qPrintable(QString("Button %1 must be visible").arg(btnName)));
+        QVERIFY2(btn->height() >= 24, qPrintable(QString("Button %1 height (%2) must be >= 24").arg(btnName).arg(btn->height())));
+        QVERIFY2(btn->width() >= 60, qPrintable(QString("Button %1 width (%2) must be >= 60").arg(btnName).arg(btn->width())));
+    }
+
+    const QStringList browseButtons = {
+        "btnBrowseTemplateFolder", "btnBrowseOutputFolder", "btnBrowsePythonScript"
+    };
+    for (const QString &btnName : browseButtons) {
+        auto *btn = cfgWin.findChild<QPushButton*>(btnName);
+        QVERIFY2(btn != nullptr, qPrintable(QString("Button %1 must exist").arg(btnName)));
+        QVERIFY2(btn->isVisible(), qPrintable(QString("Button %1 must be visible").arg(btnName)));
+        QVERIFY2(btn->height() >= 20, qPrintable(QString("Button %1 height (%2) must be >= 20").arg(btnName).arg(btn->height())));
+        QVERIFY2(btn->width() >= 60, qPrintable(QString("Button %1 width (%2) must be >= 60").arg(btnName).arg(btn->width())));
     }
 
     AppSettings::instance().setConfigFilePath(origPath);

@@ -47,6 +47,7 @@ class RegConfigWindow : public QDialog, private Ui::config
         void reject(void) override;
 
     protected:
+        void showEvent(QShowEvent *event) override;
         void closeEvent(QCloseEvent *event) override;
         void resizeEvent(QResizeEvent *event) override;
         void moveEvent(QMoveEvent *event) override;
@@ -73,6 +74,7 @@ class RegConfigWindow : public QDialog, private Ui::config
         QString m_projectName;
         QString m_projectVersion;
         bool m_strictValidation = true;
+        bool m_firstShown = true;
         uint32_t m_regWidth = 32;
         QList<std::pair<QString, QString>> m_templateOutputs;
         QList<std::pair<QString, QString>> m_customParameters;

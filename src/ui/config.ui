@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>750</width>
-    <height>560</height>
+    <width>780</width>
+    <height>700</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>600</width>
-    <height>450</height>
+    <height>480</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -119,8 +119,7 @@
       </item>
      </layout>
     </widget>
-   </item>
-   <item><widget class="QGroupBox" name="groupParams"><property name="title"><string>Custom Parameters (Inja Template Variables)</string></property><layout class="QVBoxLayout" name="vlayoutParams"><item><widget class="QTableWidget" name="customParametersTable"><property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property><property name="alternatingRowColors"><bool>true</bool></property><column><property name="text"><string>Key</string></property></column><column><property name="text"><string>Value</string></property></column></widget></item><item><layout class="QHBoxLayout"><item><widget class="QPushButton" name="btnAddParameter"><property name="text"><string>Add Parameter</string></property></widget></item><item><widget class="QPushButton" name="btnRemoveParameter"><property name="text"><string>Remove Selected</string></property></widget></item><item><spacer name="spacerParams" /></item></layout></item></layout></widget></item><item>
+   </item><item><widget class="QGroupBox" name="groupParams"><property name="title"><string>Custom Parameters (Inja Template Variables)</string></property><layout class="QVBoxLayout" name="vlayoutParams"><item><widget class="QTableWidget" name="customParametersTable"><property name="minimumSize"><size><width>0</width><height>80</height></size></property><property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property><property name="alternatingRowColors"><bool>true</bool></property><column><property name="text"><string>Key</string></property></column><column><property name="text"><string>Value</string></property></column></widget></item><item><layout class="QHBoxLayout"><item><widget class="QPushButton" name="btnAddParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Add Parameter</string></property></widget></item><item><widget class="QPushButton" name="btnRemoveParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Remove Selected</string></property></widget></item><item><spacer name="spacerParams" /></item></layout></item></layout></widget></item><item>
     <widget class="QGroupBox" name="groupTemplates">
      <property name="title">
       <string>Template and Output Mappings</string>
@@ -137,6 +136,12 @@
        <layout class="QHBoxLayout" name="tableWithToolbarLayout">
         <item>
          <widget class="QTableWidget" name="templateTable">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>120</height>
+           </size>
+          </property>
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
           </property>
@@ -162,6 +167,12 @@
          <layout class="QVBoxLayout" name="tableToolbarLayout">
           <item>
            <widget class="QPushButton" name="btnAddTemplateFiles">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Add Template(s)...</string>
             </property>
@@ -172,6 +183,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnAddRow">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Add Row</string>
             </property>
@@ -182,6 +199,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnBrowseTemplate">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Browse Template...</string>
             </property>
@@ -192,6 +215,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnBrowseOutputFile">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Browse Output File...</string>
             </property>
@@ -202,6 +231,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnBrowseOutputFolderItem">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Browse Output Folder...</string>
             </property>
@@ -212,6 +247,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnRemoveRow">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Remove Selected</string>
             </property>
@@ -222,6 +263,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnClearAll">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="text">
              <string>Clear All</string>
             </property>
