@@ -25,6 +25,7 @@ private slots:
     void testParseDmaRmt();
     void testParseSensorHubRmt();
     void testRoundTripTextAndBinary();
+    void testConfigTemplateFoldersAndEnabled();
 };
 
 void TestSerialization::testParseSpiRmt()
@@ -234,6 +235,43 @@ void TestSerialization::testRoundTripTextAndBinary()
     protormap::RegModel restoredBinModel;
     QVERIFY(restoredBinModel.ParseFromString(binaryOutput));
     QCOMPARE(restoredBinModel.item_size(), protoModel.item_size());
+}
+
+void TestSerialization::testConfigTemplateFoldersAndEnabled()
+{
+    protormap::Config cfg;
+    cfg.set_reg_width(32);
+    cfg.add_template_folders("templates/c");
+    cfg.add_template_folders("templates/rtl");
+    cfg.add_template_folders("/custom/templates");
+
+    auto *t1 = cfg.add_template_outputs();
+    t1->set_template_filename("templates/c/reg_map.h.inja");
+    t1->set_output_filepath("work/c/reg_map.h");
+    t1->set_enabled(true);
+
+    auto *t2 = cfg.add_template_outputs();
+    t2->set_template_filename("templates/rtl/reg_map.sv.inja");
+    t2->set_output_filepath("work/rtl/reg_map.sv");
+    t2->set_enabled(false);
+
+    // Text serialization round-trip
+    std::string textOutput;
+    google::protobuf::TextFormat::PrintToString(cfg, &textOutput);
+    QVERIFY(!textOutput.empty());
+
+    protormap::Config restoredCfg;
+    QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg));
+    QCOMPARE(restoredCfg.template_folders_size(), 3);
+    QCOMPARE(QString::fromStdString(restoredCfg.template_folders(0)), QString("templates/c"));
+    QCOMPARE(QString::fromStdString(restoredCfg.template_folders(1)), QString("templates/rtl"));
+    QCOMPARE(QString::fromStdString(restoredCfg.template_folders(2)), QString("/custom/templates"));
+
+    QCOMPARE(restoredCfg.template_outputs_size(), 2);
+    QVERIFY(restoredCfg.template_outputs(0).has_enabled());
+    QCOMPARE(restoredCfg.template_outputs(0).enabled(), true);
+    QVERIFY(restoredCfg.template_outputs(1).has_enabled());
+    QCOMPARE(restoredCfg.template_outputs(1).enabled(), false);
 }
 
 QTEST_MAIN(TestSerialization)

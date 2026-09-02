@@ -46,6 +46,7 @@ private slots:
     void testItemCreationActions();
     void testItemDeletionAction();
     void testExportAction();
+    void testExportSkipsDisabledTemplates();
     void testBitfieldBarWidgetSync();
     void testSearchBarFiltering();
     void testUndoRedoStack();
@@ -598,6 +599,48 @@ void TestRegMapWindow::testExportAction()
     // Verify generated files exist in work/
     QVERIFY(QFile::exists("work/c/reg_map.h"));
     QVERIFY(QFile::exists("work/uvm/reg_model.sv"));
+
+    dismissTimer->stop();
+}
+
+void TestRegMapWindow::testExportSkipsDisabledTemplates()
+{
+    QString file = "examples/spi.rmt";
+    RegMapWindow window(file);
+
+    window.configWindow()->setBaseDir(QDir::currentPath());
+    protormap::Config cfg;
+    cfg.set_templatefolder("./templates");
+    cfg.set_outputfolder("./work");
+    auto *entry1 = cfg.add_template_outputs();
+    entry1->set_template_filename("templates/c/reg_map.h.inja");
+    entry1->set_output_filepath("work/c/reg_map.h");
+    entry1->set_enabled(true);
+
+    auto *entry2 = cfg.add_template_outputs();
+    entry2->set_template_filename("templates/uvm/reg_model.sv.inja");
+    entry2->set_output_filepath("work/uvm/reg_model.sv");
+    entry2->set_enabled(false); // DISABLED
+    window.configWindow()->deserialize(cfg);
+
+    QTimer *dismissTimer = new QTimer(&window);
+    QObject::connect(dismissTimer, &QTimer::timeout, []() {
+        QWidget* modal = QApplication::activeModalWidget();
+        if (modal) {
+            modal->close();
+        }
+    });
+    QFile::remove("work/c/reg_map.h");
+    QFile::remove("work/uvm/reg_model.sv");
+    dismissTimer->start(50);
+
+    auto *actExport = window.findChild<QAction*>("actionExport");
+    QVERIFY(actExport != nullptr);
+    actExport->trigger();
+
+    // Verify enabled file was generated and disabled file was NOT generated
+    QVERIFY(QFile::exists("work/c/reg_map.h"));
+    QVERIFY(!QFile::exists("work/uvm/reg_model.sv"));
 
     dismissTimer->stop();
 }

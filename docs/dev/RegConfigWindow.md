@@ -24,8 +24,17 @@ Build Requirements:
 
 ### 4. Public Slots
 
+#### void addTemplateRow(bool enabled = false, const QString &tmpl = "", const QString &out = "")
+Appends a new template mapping row with an enable checkbox to the template configuration table.
+
 #### void addTemplateRow(const QString &tmpl = "", const QString &out = "")
-Appends a new template mapping row to the template configuration table.
+Convenience overload for backward compatibility. Appends an enabled template mapping row.
+
+#### void addTemplateFolder(const QString &folder)
+Adds a template search directory path to the search folder list if not already present.
+
+#### void scanTemplateFolders()
+Recursively scans all configured template search directories for `*.inja` and `*.tmpl` files and populates newly discovered templates (initially unchecked/disabled) into the mapping table with default output destinations.
 
 #### void addParameterRow(const QString &key = "", const QString &val = "")
 Appends a custom key-value parameter row to the user parameter table.
@@ -48,12 +57,17 @@ Destructor.
 Allocates and returns a new `protormap::Config` Protocol Buffer object reflecting current project configuration settings (caller assumes ownership of the returned pointer).
 
 #### void deserialize(const protormap::Config &config)
-Loads project settings, template mappings, register width, and custom parameters from `config`.
+Loads project settings, template search folders, template mappings (including enabled states), register width, and custom parameters from `config`.
+
+#### void setTemplateFolders(const QStringList &folders)
+Sets the list of template search directories.
+
+#### QStringList templateFolders() const
+Returns the list of configured template search directories.
 
 #### void setRegisterWidth(uint32_t width)
 Sets the default register bus bit width (e.g. 32 or 64).
 
-#### uint32_t registerWidth() const
 #### uint32_t registerWidth() const
 Returns the configured register bit width.
 
@@ -72,7 +86,6 @@ Returns the project version.
 #### void setBaseDir(const QString &baseDir)
 Sets the base directory used for resolving relative template and output paths.
 
-#### QString baseDir() const
 #### QString baseDir() const
 Returns the base project directory.
 

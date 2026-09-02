@@ -11,8 +11,9 @@ message Config {
         BINARY = 1;
     }
     message TemplateOutput {
-        string template_filename = 1;
-        string output_filepath   = 2;
+        string        template_filename = 1;
+        string        output_filepath   = 2;
+        optional bool enabled           = 3;
     }
 
     FileType                filetype           = 1;
@@ -27,6 +28,7 @@ message Config {
     string                  project_version    = 8;
     bool                    strict_validation  = 9;
     map<string, string>     custom_parameters  = 10;
+    repeated string         template_folders   = 11;
 }
 
 message RegItem {

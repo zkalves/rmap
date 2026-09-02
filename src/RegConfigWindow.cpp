@@ -4,6 +4,9 @@
 #include "PathUtils.hpp"
 #include <QFileInfo>
 #include <QDir>
+#include <QDirIterator>
+#include <QSet>
+#include <QMap>
 #include <algorithm>
 
 RegConfigWindow::RegConfigWindow(QWidget *parent) :
@@ -17,29 +20,46 @@ RegConfigWindow::RegConfigWindow(QWidget *parent) :
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
     setMinimumSize(600, 480);
 
-    this->templateTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    this->templateTable->setColumnCount(3);
+    this->templateTable->setHorizontalHeaderLabels(QStringList()
+        << tr("Enable")
+        << tr("Template Source (File / Path)")
+        << tr("Output Destination (File / Folder)"));
+    this->templateTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     this->templateTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    this->templateTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+
+    // Connect Template Folders buttons
+    connect(this->btnAddTemplateFolder,    &QPushButton::clicked, this, &RegConfigWindow::onAddTemplateFolder);
+    connect(this->btnRemoveTemplateFolder, &QPushButton::clicked, this, &RegConfigWindow::onRemoveTemplateFolder);
 
     // Connect General Settings browse buttons
-    connect(this->btnBrowseTemplateFolder, &QPushButton::clicked, this, &RegConfigWindow::onBrowseTemplateFolder);
     connect(this->btnBrowseOutputFolder,   &QPushButton::clicked, this, &RegConfigWindow::onBrowseOutputFolder);
     connect(this->btnBrowsePythonScript,   &QPushButton::clicked, this, &RegConfigWindow::onBrowsePythonScript);
 
     // Connect Template & Output Table buttons
+    connect(this->btnScanTemplates,          &QPushButton::clicked, this, &RegConfigWindow::onScanTemplates);
+    connect(this->btnEnableAll,              &QPushButton::clicked, this, &RegConfigWindow::onEnableAll);
+    connect(this->btnDisableAll,             &QPushButton::clicked, this, &RegConfigWindow::onDisableAll);
     connect(this->btnAddTemplateFiles,       &QPushButton::clicked, this, &RegConfigWindow::onAddTemplateFiles);
     connect(this->btnAddRow,                 &QPushButton::clicked, this, &RegConfigWindow::onAddCustomRow);
     connect(this->btnBrowseTemplate,         &QPushButton::clicked, this, &RegConfigWindow::onBrowseTemplate);
     connect(this->btnBrowseOutputFile,       &QPushButton::clicked, this, &RegConfigWindow::onBrowseOutputFile);
     connect(this->btnBrowseOutputFolderItem, &QPushButton::clicked, this, &RegConfigWindow::onBrowseOutputFolderItem);
     connect(this->btnRemoveRow,              &QPushButton::clicked, this, &RegConfigWindow::onRemoveSelected);
-    connect(this->btnClearAll,              &QPushButton::clicked, this, &RegConfigWindow::onClearAll);
+    connect(this->btnClearAll,               &QPushButton::clicked, this, &RegConfigWindow::onClearAll);
 
     // Connect Parameter Table buttons
-    connect(this->btnAddParameter, &QPushButton::clicked, this, &RegConfigWindow::onAddParameterRow);
+    connect(this->btnAddParameter,    &QPushButton::clicked, this, &RegConfigWindow::onAddParameterRow);
     connect(this->btnRemoveParameter, &QPushButton::clicked, this, &RegConfigWindow::onRemoveParameterRow);
 
     this->customParametersTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     this->customParametersTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+
+    // Default template folder if list is empty
+    if (this->templateFoldersList->count() == 0) {
+        this->templateFoldersList->addItem(PathUtils::defaultTemplatesDir());
+    }
 
     restoreWindowStateFromSettings();
 }
@@ -57,6 +77,82 @@ QString RegConfigWindow::baseDir() const
     return QDir::currentPath();
 }
 
+void RegConfigWindow::setTemplateFolders(const QStringList &folders)
+{
+    m_templateFolders = folders;
+    this->templateFoldersList->clear();
+    for (const QString &f : m_templateFolders) {
+        if (!f.trimmed().isEmpty()) {
+            this->templateFoldersList->addItem(f.trimmed());
+        }
+    }
+    if (this->templateFoldersList->count() == 0) {
+        this->templateFoldersList->addItem(PathUtils::defaultTemplatesDir());
+    }
+}
+
+QStringList RegConfigWindow::templateFolders() const
+{
+    QStringList list;
+    for (int i = 0; i < this->templateFoldersList->count(); ++i) {
+        QString f = this->templateFoldersList->item(i)->text().trimmed();
+        if (!f.isEmpty()) {
+            list.append(f);
+        }
+    }
+    if (list.isEmpty()) {
+        list.append(PathUtils::defaultTemplatesDir());
+    }
+    return list;
+}
+
+void RegConfigWindow::addTemplateFolder(const QString &folder)
+{
+    QString trimmed = folder.trimmed();
+    if (trimmed.isEmpty()) return;
+    for (int i = 0; i < this->templateFoldersList->count(); ++i) {
+        if (this->templateFoldersList->item(i)->text().trimmed() == trimmed) {
+            return;
+        }
+    }
+    this->templateFoldersList->addItem(trimmed);
+}
+
+void RegConfigWindow::onAddTemplateFolder()
+{
+    QString startDir = baseDir();
+    if (this->templateFoldersList->count() > 0) {
+        QString first = this->templateFoldersList->item(0)->text().trimmed();
+        if (!first.isEmpty()) {
+            startDir = PathUtils::resolvePath(first, baseDir());
+        }
+    }
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Template Search Folder"), startDir);
+    if (!dir.isEmpty()) {
+        QString relDir = PathUtils::toRelativePath(dir, baseDir());
+        addTemplateFolder(relDir);
+        scanTemplateFolders();
+    }
+}
+
+void RegConfigWindow::onRemoveTemplateFolder()
+{
+    QList<QListWidgetItem*> selected = this->templateFoldersList->selectedItems();
+    if (selected.isEmpty()) {
+        int row = this->templateFoldersList->currentRow();
+        if (row >= 0) {
+            delete this->templateFoldersList->takeItem(row);
+        }
+    } else {
+        for (auto *item : selected) {
+            delete this->templateFoldersList->takeItem(this->templateFoldersList->row(item));
+        }
+    }
+    if (this->templateFoldersList->count() == 0) {
+        this->templateFoldersList->addItem(PathUtils::defaultTemplatesDir());
+    }
+}
+
 void RegConfigWindow::addParameterRow(const QString &key, const QString &val)
 {
     int row = this->customParametersTable->rowCount();
@@ -65,22 +161,129 @@ void RegConfigWindow::addParameterRow(const QString &key, const QString &val)
     this->customParametersTable->setItem(row, 1, new QTableWidgetItem(val));
 }
 
-void RegConfigWindow::addTemplateRow(const QString &tmpl, const QString &out)
+void RegConfigWindow::addTemplateRow(bool enabled, const QString &tmpl, const QString &out)
 {
     int row = this->templateTable->rowCount();
     this->templateTable->insertRow(row);
-    this->templateTable->setItem(row, 0, new QTableWidgetItem(tmpl));
-    this->templateTable->setItem(row, 1, new QTableWidgetItem(out));
+
+    auto *checkItem = new QTableWidgetItem();
+    checkItem->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+    checkItem->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
+    checkItem->setTextAlignment(Qt::AlignCenter);
+
+    auto *tmplItem = new QTableWidgetItem(tmpl);
+    auto *outItem = new QTableWidgetItem(out);
+
+    this->templateTable->setItem(row, 0, checkItem);
+    this->templateTable->setItem(row, 1, tmplItem);
+    this->templateTable->setItem(row, 2, outItem);
 }
 
-void RegConfigWindow::onBrowseTemplateFolder()
+void RegConfigWindow::addTemplateRow(const QString &tmpl, const QString &out)
 {
-    QString initialDir = this->templateFolder->text().trimmed();
-    if (initialDir.isEmpty()) initialDir = baseDir();
-    else initialDir = PathUtils::resolvePath(initialDir, baseDir());
-    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Default Template Folder"), initialDir);
-    if (!dir.isEmpty()) {
-        this->templateFolder->setText(PathUtils::toRelativePath(dir, baseDir()));
+    addTemplateRow(true, tmpl, out);
+}
+
+QString RegConfigWindow::computeDefaultOutputPath(const QString &tmplRelPath)
+{
+    QString defaultOutDir = this->outputFolder->text().trimmed();
+    if (defaultOutDir.isEmpty()) defaultOutDir = PathUtils::defaultOutputDir();
+
+    QString relSubPath = tmplRelPath;
+    QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::defaultTemplatesDir()));
+    if (relSubPath.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+        relSubPath = relSubPath.mid(expDefaultTmpl.length() + 1);
+    } else if (relSubPath.startsWith("./" + expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+        relSubPath = relSubPath.mid(expDefaultTmpl.length() + 3);
+    } else if (relSubPath.startsWith("templates/", Qt::CaseInsensitive)) {
+        relSubPath = relSubPath.mid(10);
+    } else if (relSubPath.startsWith("./templates/", Qt::CaseInsensitive)) {
+        relSubPath = relSubPath.mid(12);
+    } else {
+        bool matched = false;
+        for (int i = 0; i < this->templateFoldersList->count(); ++i) {
+            QString f = PathUtils::normalizeSeparators(this->templateFoldersList->item(i)->text().trimmed());
+            if (!f.isEmpty()) {
+                if (relSubPath.startsWith(f + "/", Qt::CaseInsensitive)) {
+                    relSubPath = relSubPath.mid(f.length() + 1);
+                    matched = true;
+                    break;
+                } else if (relSubPath.startsWith("./" + f + "/", Qt::CaseInsensitive)) {
+                    relSubPath = relSubPath.mid(f.length() + 3);
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        if (!matched) {
+            QFileInfo fi(tmplRelPath);
+            relSubPath = fi.fileName();
+        }
+    }
+
+    if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
+        relSubPath.chop(5);
+    } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
+        relSubPath.chop(5);
+    }
+
+    return defaultOutDir + "/" + relSubPath;
+}
+
+void RegConfigWindow::scanTemplateFolders()
+{
+    QStringList folders = templateFolders();
+
+    QSet<QString> existingTemplates;
+    for (int r = 0; r < this->templateTable->rowCount(); ++r) {
+        if (this->templateTable->item(r, 1)) {
+            QString t = this->templateTable->item(r, 1)->text().trimmed();
+            if (!t.isEmpty()) {
+                existingTemplates.insert(PathUtils::normalizeSeparators(t));
+            }
+        }
+    }
+
+    for (const QString &folder : folders) {
+        QString resolvedDir = PathUtils::resolvePath(folder, baseDir());
+        QDir dir(resolvedDir);
+        if (!dir.exists()) continue;
+
+        QDirIterator it(resolvedDir, QStringList() << "*.inja" << "*.tmpl", QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            QString file = it.next();
+            QString relTmpl = PathUtils::toRelativePath(file, baseDir());
+            QString normRel = PathUtils::normalizeSeparators(relTmpl);
+
+            if (!existingTemplates.contains(normRel)) {
+                QString defaultOut = computeDefaultOutputPath(relTmpl);
+                addTemplateRow(false, relTmpl, defaultOut);
+                existingTemplates.insert(normRel);
+            }
+        }
+    }
+}
+
+void RegConfigWindow::onScanTemplates()
+{
+    scanTemplateFolders();
+}
+
+void RegConfigWindow::onEnableAll()
+{
+    for (int r = 0; r < this->templateTable->rowCount(); ++r) {
+        if (auto *item = this->templateTable->item(r, 0)) {
+            item->setCheckState(Qt::Checked);
+        }
+    }
+}
+
+void RegConfigWindow::onDisableAll()
+{
+    for (int r = 0; r < this->templateTable->rowCount(); ++r) {
+        if (auto *item = this->templateTable->item(r, 0)) {
+            item->setCheckState(Qt::Unchecked);
+        }
     }
 }
 
@@ -113,9 +316,13 @@ void RegConfigWindow::onBrowsePythonScript()
 
 void RegConfigWindow::onAddTemplateFiles()
 {
-    QString startDir = this->templateFolder->text().trimmed();
-    if (startDir.isEmpty()) startDir = baseDir();
-    else startDir = PathUtils::resolvePath(startDir, baseDir());
+    QString startDir = baseDir();
+    if (this->templateFoldersList->count() > 0) {
+        QString first = this->templateFoldersList->item(0)->text().trimmed();
+        if (!first.isEmpty()) {
+            startDir = PathUtils::resolvePath(first, baseDir());
+        }
+    }
 
     QStringList files = QFileDialog::getOpenFileNames(
         this,
@@ -125,43 +332,22 @@ void RegConfigWindow::onAddTemplateFiles()
     );
 
     if (!files.isEmpty()) {
-        QString defaultOutDir = this->outputFolder->text().trimmed();
-        if (defaultOutDir.isEmpty()) defaultOutDir = PathUtils::defaultOutputDir();
-
         for (const QString &file : files) {
             QString relTmpl = PathUtils::toRelativePath(file, baseDir());
-            QString relSubPath = relTmpl;
-            QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::DEFAULT_TEMPLATES_DIR));
-            if (relSubPath.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 1);
-            } else if (relSubPath.startsWith("./" + expDefaultTmpl + "/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 3);
-            } else if (relSubPath.startsWith("templates/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(10);
-            } else if (relSubPath.startsWith("./templates/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(12);
-            } else {
-                QFileInfo fi(file);
-                relSubPath = fi.fileName();
-            }
-
-            if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
-                relSubPath.chop(5);
-            } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
-                relSubPath.chop(5);
-            }
-            QString defaultOut = defaultOutDir + "/" + relSubPath;
-            addTemplateRow(relTmpl, defaultOut);
+            QString defaultOut = computeDefaultOutputPath(relTmpl);
+            addTemplateRow(true, relTmpl, defaultOut);
         }
     }
 }
 
 void RegConfigWindow::onAddCustomRow()
 {
-    addTemplateRow("", "");
+    addTemplateRow(true, "", "");
     int lastRow = this->templateTable->rowCount() - 1;
-    this->templateTable->setCurrentCell(lastRow, 0);
-    this->templateTable->editItem(this->templateTable->item(lastRow, 0));
+    this->templateTable->setCurrentCell(lastRow, 1);
+    if (this->templateTable->item(lastRow, 1)) {
+        this->templateTable->editItem(this->templateTable->item(lastRow, 1));
+    }
 }
 
 void RegConfigWindow::onBrowseTemplate()
@@ -176,10 +362,16 @@ void RegConfigWindow::onBrowseTemplate()
         }
     }
 
-    QString currTmpl = this->templateTable->item(row, 0) ? this->templateTable->item(row, 0)->text().trimmed() : "";
-    QString startDir = currTmpl.isEmpty()
-        ? (this->templateFolder->text().trimmed().isEmpty() ? baseDir() : PathUtils::resolvePath(this->templateFolder->text().trimmed(), baseDir()))
-        : PathUtils::resolvePath(currTmpl, baseDir());
+    QString currTmpl = this->templateTable->item(row, 1) ? this->templateTable->item(row, 1)->text().trimmed() : "";
+    QString startDir = baseDir();
+    if (!currTmpl.isEmpty()) {
+        startDir = PathUtils::resolvePath(currTmpl, baseDir());
+    } else if (this->templateFoldersList->count() > 0) {
+        QString first = this->templateFoldersList->item(0)->text().trimmed();
+        if (!first.isEmpty()) {
+            startDir = PathUtils::resolvePath(first, baseDir());
+        }
+    }
 
     QString file = QFileDialog::getOpenFileName(
         this,
@@ -189,41 +381,19 @@ void RegConfigWindow::onBrowseTemplate()
     );
 
     if (!file.isEmpty()) {
-        if (!this->templateTable->item(row, 0)) {
-            this->templateTable->setItem(row, 0, new QTableWidgetItem());
+        if (!this->templateTable->item(row, 1)) {
+            this->templateTable->setItem(row, 1, new QTableWidgetItem());
         }
-        this->templateTable->item(row, 0)->setText(PathUtils::toRelativePath(file, baseDir()));
+        QString relTmpl = PathUtils::toRelativePath(file, baseDir());
+        this->templateTable->item(row, 1)->setText(relTmpl);
 
         // Auto-populate output path if currently empty
-        if (!this->templateTable->item(row, 1) || this->templateTable->item(row, 1)->text().trimmed().isEmpty()) {
-            QString relTmpl = PathUtils::toRelativePath(file, baseDir());
-            QString relSubPath = relTmpl;
-            QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::DEFAULT_TEMPLATES_DIR));
-            if (relSubPath.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 1);
-            } else if (relSubPath.startsWith("./" + expDefaultTmpl + "/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 3);
-            } else if (relSubPath.startsWith("templates/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(10);
-            } else if (relSubPath.startsWith("./templates/", Qt::CaseInsensitive)) {
-                relSubPath = relSubPath.mid(12);
-            } else {
-                QFileInfo fi(file);
-                relSubPath = fi.fileName();
+        if (!this->templateTable->item(row, 2) || this->templateTable->item(row, 2)->text().trimmed().isEmpty()) {
+            QString defaultOut = computeDefaultOutputPath(relTmpl);
+            if (!this->templateTable->item(row, 2)) {
+                this->templateTable->setItem(row, 2, new QTableWidgetItem());
             }
-
-            if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
-                relSubPath.chop(5);
-            } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
-                relSubPath.chop(5);
-            }
-            QString defaultOutDir = this->outputFolder->text().trimmed();
-            if (defaultOutDir.isEmpty()) defaultOutDir = PathUtils::defaultOutputDir();
-
-            if (!this->templateTable->item(row, 1)) {
-                this->templateTable->setItem(row, 1, new QTableWidgetItem());
-            }
-            this->templateTable->item(row, 1)->setText(defaultOutDir + "/" + relSubPath);
+            this->templateTable->item(row, 2)->setText(defaultOut);
         }
     }
 }
@@ -236,7 +406,7 @@ void RegConfigWindow::onBrowseOutputFile()
         return;
     }
 
-    QString currOut = this->templateTable->item(row, 1) ? this->templateTable->item(row, 1)->text().trimmed() : "";
+    QString currOut = this->templateTable->item(row, 2) ? this->templateTable->item(row, 2)->text().trimmed() : "";
     QString startPath = currOut.isEmpty()
         ? (this->outputFolder->text().trimmed().isEmpty() ? PathUtils::defaultOutputDir() : this->outputFolder->text().trimmed())
         : currOut;
@@ -250,10 +420,10 @@ void RegConfigWindow::onBrowseOutputFile()
     );
 
     if (!file.isEmpty()) {
-        if (!this->templateTable->item(row, 1)) {
-            this->templateTable->setItem(row, 1, new QTableWidgetItem());
+        if (!this->templateTable->item(row, 2)) {
+            this->templateTable->setItem(row, 2, new QTableWidgetItem());
         }
-        this->templateTable->item(row, 1)->setText(PathUtils::toRelativePath(file, baseDir()));
+        this->templateTable->item(row, 2)->setText(PathUtils::toRelativePath(file, baseDir()));
     }
 }
 
@@ -265,7 +435,7 @@ void RegConfigWindow::onBrowseOutputFolderItem()
         return;
     }
 
-    QString currOut = this->templateTable->item(row, 1) ? this->templateTable->item(row, 1)->text().trimmed() : "";
+    QString currOut = this->templateTable->item(row, 2) ? this->templateTable->item(row, 2)->text().trimmed() : "";
     QString startDir = currOut.isEmpty()
         ? (this->outputFolder->text().trimmed().isEmpty() ? PathUtils::defaultOutputDir() : this->outputFolder->text().trimmed())
         : currOut;
@@ -278,10 +448,10 @@ void RegConfigWindow::onBrowseOutputFolderItem()
     );
 
     if (!dir.isEmpty()) {
-        if (!this->templateTable->item(row, 1)) {
-            this->templateTable->setItem(row, 1, new QTableWidgetItem());
+        if (!this->templateTable->item(row, 2)) {
+            this->templateTable->setItem(row, 2, new QTableWidgetItem());
         }
-        this->templateTable->item(row, 1)->setText(PathUtils::toRelativePath(dir, baseDir()));
+        this->templateTable->item(row, 2)->setText(PathUtils::toRelativePath(dir, baseDir()));
     }
 }
 
@@ -311,13 +481,14 @@ void RegConfigWindow::onClearAll()
     }
 }
 
-
 void RegConfigWindow::onAddParameterRow()
 {
     addParameterRow("", "");
     int lastRow = this->customParametersTable->rowCount() - 1;
     this->customParametersTable->setCurrentCell(lastRow, 0);
-    this->customParametersTable->editItem(this->customParametersTable->item(lastRow, 0));
+    if (this->customParametersTable->item(lastRow, 0)) {
+        this->customParametersTable->editItem(this->customParametersTable->item(lastRow, 0));
+    }
 }
 
 void RegConfigWindow::onRemoveParameterRow()
@@ -337,13 +508,14 @@ void RegConfigWindow::onRemoveParameterRow()
 void RegConfigWindow::saveStateFromUi()
 {
     m_pythonScript = this->pythonScript->text().trimmed();
-    m_templateFolder = this->templateFolder->text().trimmed();
     m_outputFolder = this->outputFolder->text().trimmed();
     m_regWidth = this->regWidthSpinBox->value();
 
     m_projectName = this->Ui_config::projectName->text().trimmed();
     m_projectVersion = this->Ui_config::projectVersion->text().trimmed();
     m_strictValidation = this->strictValidation->isChecked();
+
+    m_templateFolders = templateFolders();
 
     m_customParameters.clear();
     for (int i = 0; i < this->customParametersTable->rowCount(); ++i) {
@@ -354,13 +526,13 @@ void RegConfigWindow::saveStateFromUi()
         }
     }
 
-
     m_templateOutputs.clear();
     for (int i = 0; i < this->templateTable->rowCount(); ++i) {
-        QString tmpl = this->templateTable->item(i, 0) ? this->templateTable->item(i, 0)->text().trimmed() : "";
-        QString out = this->templateTable->item(i, 1) ? this->templateTable->item(i, 1)->text().trimmed() : "";
-        if (!tmpl.isEmpty() && !out.isEmpty()) {
-            m_templateOutputs.append(qMakePair(tmpl, out));
+        bool enabled = this->templateTable->item(i, 0) ? (this->templateTable->item(i, 0)->checkState() == Qt::Checked) : true;
+        QString tmpl = this->templateTable->item(i, 1) ? this->templateTable->item(i, 1)->text().trimmed() : "";
+        QString out = this->templateTable->item(i, 2) ? this->templateTable->item(i, 2)->text().trimmed() : "";
+        if (!tmpl.isEmpty()) {
+            m_templateOutputs.append({enabled, tmpl, out});
         }
     }
 }
@@ -368,23 +540,31 @@ void RegConfigWindow::saveStateFromUi()
 void RegConfigWindow::updateUiFromState()
 {
     this->pythonScript->setText(m_pythonScript);
-    this->templateFolder->setText(m_templateFolder);
     this->outputFolder->setText(m_outputFolder);
     this->regWidthSpinBox->setValue(m_regWidth > 0 ? m_regWidth : 32);
 
     this->Ui_config::projectName->setText(m_projectName);
     this->Ui_config::projectVersion->setText(m_projectVersion);
     this->strictValidation->setChecked(m_strictValidation);
-    
+
+    this->templateFoldersList->clear();
+    for (const QString &f : m_templateFolders) {
+        if (!f.trimmed().isEmpty()) {
+            this->templateFoldersList->addItem(f.trimmed());
+        }
+    }
+    if (this->templateFoldersList->count() == 0) {
+        this->templateFoldersList->addItem(PathUtils::defaultTemplatesDir());
+    }
+
     this->customParametersTable->setRowCount(0);
     for (const auto &pair : m_customParameters) {
         addParameterRow(pair.first, pair.second);
     }
 
-
     this->templateTable->setRowCount(0);
-    for (const auto &pair : m_templateOutputs) {
-        addTemplateRow(pair.first, pair.second);
+    for (const auto &entry : m_templateOutputs) {
+        addTemplateRow(entry.enabled, entry.templateFile, entry.outputFile);
     }
 }
 
@@ -393,22 +573,27 @@ protormap::Config* RegConfigWindow::serialize(void)
     saveStateFromUi();
     protormap::Config* config = new protormap::Config;
     config->set_pythonscript(m_pythonScript.toStdString());
-    config->set_templatefolder(m_templateFolder.toStdString());
     config->set_outputfolder(m_outputFolder.toStdString());
     config->set_reg_width(m_regWidth > 0 ? m_regWidth : 32);
 
     config->set_project_name(m_projectName.toStdString());
     config->set_project_version(m_projectVersion.toStdString());
     config->set_strict_validation(m_strictValidation);
+
+    for (const QString &f : m_templateFolders) {
+        config->add_template_folders(f.toStdString());
+    }
+    config->set_templatefolder(m_templateFolders.isEmpty() ? PathUtils::DEFAULT_TEMPLATES_DIR : m_templateFolders.first().toStdString());
+
     for (const auto &pair : m_customParameters) {
         (*config->mutable_custom_parameters())[pair.first.toStdString()] = pair.second.toStdString();
     }
 
-
-    for (const auto &pair : m_templateOutputs) {
+    for (const auto &entry : m_templateOutputs) {
         auto* out = config->add_template_outputs();
-        out->set_template_filename(pair.first.toStdString());
-        out->set_output_filepath(pair.second.toStdString());
+        out->set_template_filename(entry.templateFile.toStdString());
+        out->set_output_filepath(entry.outputFile.toStdString());
+        out->set_enabled(entry.enabled);
     }
     return config;
 }
@@ -416,7 +601,6 @@ protormap::Config* RegConfigWindow::serialize(void)
 void RegConfigWindow::deserialize(const protormap::Config &config)
 {
     m_pythonScript = QString::fromStdString(config.pythonscript());
-    m_templateFolder = QString::fromStdString(config.templatefolder());
     m_outputFolder = QString::fromStdString(config.outputfolder());
     m_regWidth = config.reg_width() > 0 ? config.reg_width() : 32;
 
@@ -424,18 +608,30 @@ void RegConfigWindow::deserialize(const protormap::Config &config)
     m_projectVersion = QString::fromStdString(config.project_version());
     m_strictValidation = config.strict_validation();
 
+    m_templateFolders.clear();
+    for (const auto &f : config.template_folders()) {
+        m_templateFolders.append(QString::fromStdString(f));
+    }
+    if (m_templateFolders.isEmpty() && !config.templatefolder().empty()) {
+        m_templateFolders.append(QString::fromStdString(config.templatefolder()));
+    }
+    if (m_templateFolders.isEmpty()) {
+        m_templateFolders.append(PathUtils::defaultTemplatesDir());
+    }
+
     m_customParameters.clear();
     for (const auto& [key, value] : config.custom_parameters()) {
         m_customParameters.append(std::make_pair(QString::fromStdString(key), QString::fromStdString(value)));
     }
 
-
     m_templateOutputs.clear();
     for (const auto& entry : config.template_outputs()) {
-        m_templateOutputs.append(std::make_pair(
+        bool enabled = entry.has_enabled() ? entry.enabled() : true;
+        m_templateOutputs.append({
+            enabled,
             QString::fromStdString(entry.template_filename()),
             QString::fromStdString(entry.output_filepath())
-        ));
+        });
     }
     updateUiFromState();
 }

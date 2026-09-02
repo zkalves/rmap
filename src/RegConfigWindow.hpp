@@ -6,6 +6,7 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QString>
+#include <QStringList>
 #include <QList>
 #include <utility>
 #include "rmap.pb.h"
@@ -14,6 +15,12 @@
 namespace Ui {
     class config;
 }
+
+struct TemplateEntry {
+    bool enabled = true;
+    QString templateFile;
+    QString outputFile;
+};
 
 class RegConfigWindow : public QDialog, private Ui::config
 {
@@ -37,12 +44,18 @@ class RegConfigWindow : public QDialog, private Ui::config
         void setBaseDir(const QString &baseDir);
         QString baseDir() const;
 
+        void setTemplateFolders(const QStringList &folders);
+        QStringList templateFolders() const;
+
         void saveWindowStateToSettings();
         void restoreWindowStateFromSettings();
 
     public slots:
+        void addTemplateRow(bool enabled, const QString &tmpl = "", const QString &out = "");
         void addTemplateRow(const QString &tmpl = "", const QString &out = "");
         void addParameterRow(const QString &key = "", const QString &val = "");
+        void addTemplateFolder(const QString &folder);
+        void scanTemplateFolders();
         void accept(void) override;
         void reject(void) override;
 
@@ -53,7 +66,11 @@ class RegConfigWindow : public QDialog, private Ui::config
         void moveEvent(QMoveEvent *event) override;
 
     private slots:
-        void onBrowseTemplateFolder();
+        void onAddTemplateFolder();
+        void onRemoveTemplateFolder();
+        void onScanTemplates();
+        void onEnableAll();
+        void onDisableAll();
         void onBrowseOutputFolder();
         void onBrowsePythonScript();
         void onAddTemplateFiles();
@@ -69,18 +86,19 @@ class RegConfigWindow : public QDialog, private Ui::config
     private:
         QString m_baseDir;
         QString m_pythonScript;
-        QString m_templateFolder;
+        QStringList m_templateFolders;
         QString m_outputFolder;
         QString m_projectName;
         QString m_projectVersion;
         bool m_strictValidation = true;
         bool m_firstShown = true;
         uint32_t m_regWidth = 32;
-        QList<std::pair<QString, QString>> m_templateOutputs;
+        QList<TemplateEntry> m_templateOutputs;
         QList<std::pair<QString, QString>> m_customParameters;
 
         void updateUiFromState();
         void saveStateFromUi();
+        QString computeDefaultOutputPath(const QString &tmplRelPath);
 };
 
 #endif // REGCONFIGWINDOW_HPP

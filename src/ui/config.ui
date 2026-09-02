@@ -66,237 +66,358 @@
         </property>
        </spacer>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_templateFolder">
-        <property name="text">
-         <string>Default Template Folder:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="templateFolder" />
-      </item>
-      <item row="1" column="2">
-       <widget class="QPushButton" name="btnBrowseTemplateFolder">
-        <property name="text">
-         <string>Browse...</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_outputFolder">
-        <property name="text">
-         <string>Default Output Folder:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLineEdit" name="outputFolder" />
-      </item>
-      <item row="2" column="2">
-       <widget class="QPushButton" name="btnBrowseOutputFolder">
-        <property name="text">
-         <string>Browse...</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_pythonScript">
-        <property name="text">
-         <string>Python Script (Optional):</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QLineEdit" name="pythonScript" />
-      </item>
-      <item row="3" column="2">
-       <widget class="QPushButton" name="btnBrowsePythonScript">
-        <property name="text">
-         <string>Browse...</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item><item><widget class="QGroupBox" name="groupParams"><property name="title"><string>Custom Parameters (Inja Template Variables)</string></property><layout class="QVBoxLayout" name="vlayoutParams"><item><widget class="QTableWidget" name="customParametersTable"><property name="minimumSize"><size><width>0</width><height>80</height></size></property><property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property><property name="alternatingRowColors"><bool>true</bool></property><column><property name="text"><string>Key</string></property></column><column><property name="text"><string>Value</string></property></column></widget></item><item><layout class="QHBoxLayout"><item><widget class="QPushButton" name="btnAddParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Add Parameter</string></property></widget></item><item><widget class="QPushButton" name="btnRemoveParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Remove Selected</string></property></widget></item><item><spacer name="spacerParams" /></item></layout></item></layout></widget></item><item>
-    <widget class="QGroupBox" name="groupTemplates">
-     <property name="title">
-      <string>Template and Output Mappings</string>
-     </property>
-     <layout class="QVBoxLayout" name="templatesVerticalLayout">
-      <item>
-       <widget class="QLabel" name="label_mappingHelp">
-        <property name="text">
-         <string>Configure templates from any directory and specify the output destination for each:</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="tableWithToolbarLayout">
-        <item>
-         <widget class="QTableWidget" name="templateTable">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>120</height>
-           </size>
-          </property>
-          <property name="selectionMode">
-           <enum>QAbstractItemView::ExtendedSelection</enum>
-          </property>
-          <property name="selectionBehavior">
-           <enum>QAbstractItemView::SelectRows</enum>
-          </property>
-          <property name="alternatingRowColors">
-           <bool>true</bool>
-          </property>
-          <column>
-           <property name="text">
-            <string>Template Source (File / Path)</string>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_templateFolders">
+         <property name="text">
+          <string>Template Search Folders:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QListWidget" name="templateFoldersList">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>64</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>100</height>
+          </size>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::ExtendedSelection</enum>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <layout class="QVBoxLayout" name="folderButtonsLayout">
+         <item>
+          <widget class="QPushButton" name="btnAddTemplateFolder">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>26</height>
+            </size>
            </property>
-          </column>
-          <column>
            <property name="text">
-            <string>Output Destination (File / Folder)</string>
+            <string>Add Folder...</string>
            </property>
-          </column>
-         </widget>
-        </item>
-        <item>
-         <layout class="QVBoxLayout" name="tableToolbarLayout">
-          <item>
-           <widget class="QPushButton" name="btnAddTemplateFiles">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
+           <property name="toolTip">
+            <string>Add a template search directory</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnRemoveTemplateFolder">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>26</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Remove</string>
+           </property>
+           <property name="toolTip">
+            <string>Remove selected template folders</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="spacerFolderBtns">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>10</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_outputFolder">
+         <property name="text">
+          <string>Default Output Folder:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="outputFolder" />
+       </item>
+       <item row="2" column="2">
+        <widget class="QPushButton" name="btnBrowseOutputFolder">
+         <property name="text">
+          <string>Browse...</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_pythonScript">
+         <property name="text">
+          <string>Python Script (Optional):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="pythonScript" />
+       </item>
+       <item row="3" column="2">
+        <widget class="QPushButton" name="btnBrowsePythonScript">
+         <property name="text">
+          <string>Browse...</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item><item><widget class="QGroupBox" name="groupParams"><property name="title"><string>Custom Parameters (Inja Template Variables)</string></property><layout class="QVBoxLayout" name="vlayoutParams"><item><widget class="QTableWidget" name="customParametersTable"><property name="minimumSize"><size><width>0</width><height>80</height></size></property><property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property><property name="alternatingRowColors"><bool>true</bool></property><column><property name="text"><string>Key</string></property></column><column><property name="text"><string>Value</string></property></column></widget></item><item><layout class="QHBoxLayout"><item><widget class="QPushButton" name="btnAddParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Add Parameter</string></property></widget></item><item><widget class="QPushButton" name="btnRemoveParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Remove Selected</string></property></widget></item><item><spacer name="spacerParams" /></item></layout></item></layout></widget></item><item>
+     <widget class="QGroupBox" name="groupTemplates">
+      <property name="title">
+       <string>Template and Output Mappings</string>
+      </property>
+      <layout class="QVBoxLayout" name="templatesVerticalLayout">
+       <item>
+        <widget class="QLabel" name="label_mappingHelp">
+         <property name="text">
+          <string>Configure templates from search folders or individual files, toggle enable status, and set output destinations:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="tableWithToolbarLayout">
+         <item>
+          <widget class="QTableWidget" name="templateTable">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>120</height>
+            </size>
+           </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::ExtendedSelection</enum>
+           </property>
+           <property name="selectionBehavior">
+            <enum>QAbstractItemView::SelectRows</enum>
+           </property>
+           <property name="alternatingRowColors">
+            <bool>true</bool>
+           </property>
+           <column>
             <property name="text">
-             <string>Add Template(s)...</string>
+             <string>Enable</string>
             </property>
-            <property name="toolTip">
-             <string>Add one or more template files</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnAddRow">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
+           </column>
+           <column>
             <property name="text">
-             <string>Add Row</string>
+             <string>Template Source (File / Path)</string>
             </property>
-            <property name="toolTip">
-             <string>Add an empty template mapping row</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnBrowseTemplate">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
+           </column>
+           <column>
             <property name="text">
-             <string>Browse Template...</string>
+             <string>Output Destination (File / Folder)</string>
             </property>
-            <property name="toolTip">
-             <string>Browse template file for selected row</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnBrowseOutputFile">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Browse Output File...</string>
-            </property>
-            <property name="toolTip">
-             <string>Browse output file for selected row</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnBrowseOutputFolderItem">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Browse Output Folder...</string>
-            </property>
-            <property name="toolTip">
-             <string>Browse output folder for selected row</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnRemoveRow">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Remove Selected</string>
-            </property>
-            <property name="toolTip">
-             <string>Remove selected template mapping rows</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnClearAll">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>26</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Clear All</string>
-            </property>
-            <property name="toolTip">
-             <string>Clear all template mapping rows</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="verticalSpacer_tableToolbar">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </widget>
-   </item>
+           </column>
+          </widget>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="tableToolbarLayout">
+           <item>
+            <widget class="QPushButton" name="btnScanTemplates">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Scan / Refresh</string>
+             </property>
+             <property name="toolTip">
+              <string>Scan all template search folders recursively and add discovered templates</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="toggleButtonsLayout">
+             <item>
+              <widget class="QPushButton" name="btnEnableAll">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>24</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>All</string>
+               </property>
+               <property name="toolTip">
+                <string>Enable all templates</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnDisableAll">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>24</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>None</string>
+               </property>
+               <property name="toolTip">
+                <string>Disable all templates</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnAddTemplateFiles">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Add Template(s)...</string>
+             </property>
+             <property name="toolTip">
+              <string>Add one or more template files</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnAddRow">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Add Row</string>
+             </property>
+             <property name="toolTip">
+              <string>Add an empty template mapping row</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnBrowseTemplate">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Browse Template...</string>
+             </property>
+             <property name="toolTip">
+              <string>Browse template file for selected row</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnBrowseOutputFile">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Browse Output File...</string>
+             </property>
+             <property name="toolTip">
+              <string>Browse output file for selected row</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnBrowseOutputFolderItem">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Browse Output Folder...</string>
+             </property>
+             <property name="toolTip">
+              <string>Browse output folder for selected row</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnRemoveRow">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Remove Selected</string>
+             </property>
+             <property name="toolTip">
+              <string>Remove selected template mapping rows</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnClearAll">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Clear All</string>
+             </property>
+             <property name="toolTip">
+              <string>Clear all template mapping rows</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_tableToolbar">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">

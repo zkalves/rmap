@@ -129,7 +129,7 @@ rmap/
 │   ├── RegMapTreeItem.cpp/.hpp # Hierarchical tree nodes (root, block, reg, field, mem, map)
 │   ├── RegMapTreeView.cpp/.hpp # Custom QTreeView implementation for register hierarchy
 │   ├── RegMapDelegate.cpp/.hpp # Custom item delegates (Hex/Dec/Bin, SW Access, HW Access, Bool checkboxes)
-│   ├── RegConfigWindow.cpp/.hpp# Project Configuration dialog (template paths, outputs, register width)
+│   ├── RegConfigWindow.cpp/.hpp# Project Configuration dialog (multiple template search folders, scanning, enable/disable, outputs, width)
 │   ├── PreferencesWindow.cpp/.hpp# Application Preferences dialog (colour scheme, colour-blind mode)
 │   ├── CodeGenerator.cpp/.hpp  # Inja template renderer with custom helper callbacks
 │   ├── format/                 # Multi-format serializer and deserializer handlers
@@ -178,7 +178,7 @@ rmap/
 │   │   └── test_ThemeManager.cpp     # Theme switching, palettes, CVD barrier-free colours, AppSettings
 │   └── frontend/               # Frontend GUI tests (offscreen QtTest)
 │       ├── test_RegMapWindow.cpp     # Window orchestration, bitfield bar, proxy filtering, add/delete, export, themes
-│       ├── test_RegConfigWindow.cpp  # Config dialog, table mappings, save/restore state, non-modality
+│       ├── test_RegConfigWindow.cpp  # Config dialog, multi-folder list, template scanning, enable toggles, non-modality
 │       ├── test_PreferencesWindow.cpp# Preferences dialog, colour schemes, colour-blind mode, state persistence
 │       └── test_Delegates.cpp        # Hex/Dec/Bin, SW access, HW access, boolean delegate tests
 ├── script/                     # Helper developer scripts

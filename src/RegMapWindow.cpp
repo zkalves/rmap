@@ -1109,7 +1109,7 @@ void RegMapWindow::btnExport(void)
 
         std::vector<TemplateMapping> mappings;
         for (const auto& entry : cfg->template_outputs()) {
-            if (!entry.template_filename().empty()) {
+            if (!entry.template_filename().empty() && (!entry.has_enabled() || entry.enabled())) {
                 mappings.push_back({entry.template_filename(), entry.output_filepath()});
             }
         }
@@ -1794,7 +1794,7 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
 
         std::vector<TemplateMapping> mappings;
         for (const auto& entry : cfg->template_outputs()) {
-            if (!entry.template_filename().empty()) {
+            if (!entry.template_filename().empty() && (!entry.has_enabled() || entry.enabled())) {
                 if (!out_dir.isEmpty()) {
                     QString entryOut = QString::fromStdString(entry.output_filepath());
                     QString cfgOut = QString::fromStdString(cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder());

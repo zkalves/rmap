@@ -126,13 +126,18 @@ When templates are executed, the full register map model is exposed as a JSON st
 
 ---
 
-## 4. Multi-Source Template Mappings
+## 4. Multi-Source Template Mappings & Folder Scanning
 
-In the **Configuration Dialog** (`Ctrl+P`), you can configure arbitrary template sources to specific output destinations:
-- **Relative Path Resolution**: Template and output paths specified as relative (e.g. `./templates/c/reg_map.h.inja`, `./work/c/reg_map.h`) resolve relative to the register map file's directory first, with fallback to the Current Working Directory (CWD).
+In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template search folders, individual template files, per-template enable toggles, and target output destinations:
+
+- **Multiple Template Search Folders**: Configure one or more search directories (e.g. `./templates`, `../shared_templates`, `$MY_TEMPLATES`).
+- **Automatic Template Scanning**: Click **Scan / Refresh** to recursively discover all `*.inja` and `*.tmpl` files across all configured search folders. Newly discovered templates are added to the list unchecked (disabled by default) so you can selectively enable only what you need, while preserving your existing configuration.
+- **Granular Enable / Disable Controls**: Toggle individual templates via checkboxes in the **Enable** column, or use **All** / **None** buttons to bulk-toggle generation. Only enabled templates are processed during GUI export (`Ctrl+E`) and headless export (`--export`).
+- **Relative Path Resolution**: Template and output paths specified as relative (e.g. `templates/c/reg_map.h.inja`, `work/c/reg_map.h`) resolve relative to the register map file's directory first, with fallback to the Current Working Directory (CWD).
 - **Environment Variable Expansion**: Paths can include `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (home directory), expanded dynamically at generation time.
 - **Direct File Output**: Outputs directly to `target_file.sv` or relative destination. Missing parent directories are created automatically.
-- **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure.
+- **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
 
 [Next: Architecture & Internal Data Flow &rarr;](architecture.md)
+
