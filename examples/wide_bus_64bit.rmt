@@ -2,12 +2,12 @@ config {
   templateFolder: "./templates"
   outputFolder: "./work"
   template_outputs {
-    template_filename: "./templates/reg_map.h.inja"
-    output_filepath: "./work/wide_bus_reg_map.h"
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/wide_bus_reg_map.h"
   }
   template_outputs {
-    template_filename: "./templates/uvm_reg_model.sv.inja"
-    output_filepath: "./work/wide_bus_reg_model.sv"
+    template_filename: "./templates/uvm/reg_model.sv.inja"
+    output_filepath: "./work/uvm/wide_bus_reg_model.sv"
   }
   reg_width: 64
 }

@@ -121,8 +121,8 @@ void configureProject(QWidget *parent)
     configDialog->setProjectVersion("2.1");
     configDialog->setRegisterWidth(32);
 
-    configDialog->addTemplateRow("templates/reg_map.h.inja", "work/spi_map.h");
-    configDialog->addTemplateRow("templates/uvm_reg_model.sv.inja", "work/spi_uvm.sv");
+    configDialog->addTemplateRow("templates/c/reg_map.h.inja", "work/c/spi_map.h");
+    configDialog->addTemplateRow("templates/uvm/reg_model.sv.inja", "work/uvm/spi_uvm.sv");
 
     configDialog->show();
     configDialog->raise();

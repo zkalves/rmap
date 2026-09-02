@@ -17,17 +17,17 @@
 - **Full Undo / Redo System**: Complete multi-level undo/redo (`Ctrl+Z` / `Ctrl+Y`) covering cell edits, additions, and deletions.
 - **Real-Time Search & Live Filtering**: Filter through block names, register names, hex addresses, access policies, and descriptions with instant visual feedback.
 - **Multi-Target Code & Model Generation**:
-  - **Synthesizable RTL**: Bus-agnostic generic SystemVerilog slave register file (`generic_reg_file.sv.inja`) with address decode, byte enables, and HW/SW strobes.
-  - **Verification Models**: Complete UVM SystemVerilog Register Model (`uvm_reg_model.sv.inja`) with backdoor HDL paths and coverage hooks.
-  - **Firmware & Embedded Headers**: C/C++ packed structs and bit manipulation macros (`reg_map.h.inja`).
-  - **Rust PAC**: Type-safe Rust Peripheral Access Crate (`reg_map.rs.inja`).
-  - **Python Lab Bring-Up Drivers**: Standalone Python register driver class compatible with Cocotb, PyUVM, PyFTDI, and JTAG (`reg_map.py.inja`).
-  - **Interactive HTML Documentation**: Searchable, responsive HTML register documentation specification (`reg_doc.html.inja`).
-  - **SystemRDL 2.0 Specification**: Standard SystemRDL 2.0 register file and addrmap model (`systemrdl_map.rdl.inja`).
-  - **IP-XACT IEEE 1685**: Component XML register model specification (`ipxact_map.xml.inja`).
-  - **ARM CMSIS-SVD**: Cortex-M peripheral description XML for debuggers (`cmsis_svd.xml.inja`).
-  - **Markdown Documentation**: Table-driven GitHub-flavored Markdown specification (`reg_doc.md.inja`).
-  - **JSON Schema**: Formatted machine-readable JSON schema export (`reg_map.json.inja`).
+  - **Synthesizable RTL**: Bus-agnostic generic SystemVerilog slave register file (`rtl/reg_map.sv.inja`) with address decode, byte enables, and HW/SW strobes.
+  - **Verification Models**: Complete UVM SystemVerilog Register Model (`uvm/reg_model.sv.inja`) with backdoor HDL paths and coverage hooks.
+  - **Firmware & Embedded Headers**: C/C++ packed structs and bit manipulation macros (`c/reg_map.h.inja`).
+  - **Rust PAC**: Type-safe Rust Peripheral Access Crate (`rust/reg_map.rs.inja`).
+  - **Python Lab Bring-Up Drivers**: Standalone Python register driver class compatible with Cocotb, PyUVM, PyFTDI, and JTAG (`python/reg_map.py.inja`).
+  - **Interactive HTML Documentation**: Searchable, responsive HTML register documentation specification (`html/reg_doc.html.inja`).
+  - **SystemRDL 2.0 Specification**: Standard SystemRDL 2.0 register file and addrmap model (`systemrdl/reg_map.rdl.inja`).
+  - **IP-XACT IEEE 1685**: Component XML register model specification (`ipxact/reg_map.xml.inja`).
+  - **ARM CMSIS-SVD**: Cortex-M peripheral description XML for debuggers (`svd/reg_map.xml.inja`).
+  - **Markdown Documentation**: Table-driven GitHub-flavored Markdown specification (`markdown/reg_doc.md.inja`).
+  - **JSON Schema**: Formatted machine-readable JSON schema export (`json/reg_map.json.inja`).
 - **Automated CI/CD Linter**: Headless validation engine (`--lint`, `--strict`) with machine-readable reports in **SARIF** (GitHub PR code scanning), **JUnit XML** (CI test dashboards), **JSON**, or human-readable **Text**.
 - **Semantic Register Map Diff Engine**: Headless structural diffing (`--diff`) comparing registers, addresses, bitfields, and access policies across versions with Text and Markdown reports.
 - **Curated Multi-Theme Engine & User Preferences**: Built-in dark and light colour schemes (**Solarized 8 (Dark)** default, **Solarized 8 (Light)**, **Nord**, **Dracula**, **Monokai**, **Classic Light**). User GUI settings persist in the user's home configuration file (`~/.config/rmap/rmap.conf`), keeping register map model files decoupled from client-side appearance preferences.

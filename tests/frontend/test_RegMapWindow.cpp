@@ -572,11 +572,11 @@ void TestRegMapWindow::testExportAction()
     cfg.set_templatefolder("./templates");
     cfg.set_outputfolder("./work");
     auto *entry1 = cfg.add_template_outputs();
-    entry1->set_template_filename("templates/reg_map.h.inja");
-    entry1->set_output_filepath("work/reg_map.h");
+    entry1->set_template_filename("templates/c/reg_map.h.inja");
+    entry1->set_output_filepath("work/c/reg_map.h");
     auto *entry2 = cfg.add_template_outputs();
-    entry2->set_template_filename("templates/uvm_reg_model.sv.inja");
-    entry2->set_output_filepath("work/uvm_reg_model.sv");
+    entry2->set_template_filename("templates/uvm/reg_model.sv.inja");
+    entry2->set_output_filepath("work/uvm/reg_model.sv");
     window.configWindow()->deserialize(cfg);
 
     // Dismiss modal QMessageBox automatically when triggered
@@ -587,8 +587,8 @@ void TestRegMapWindow::testExportAction()
             modal->close();
         }
     });
-    QFile::remove("work/reg_map.h");
-    QFile::remove("work/uvm_reg_model.sv");
+    QFile::remove("work/c/reg_map.h");
+    QFile::remove("work/uvm/reg_model.sv");
     dismissTimer->start(50);
 
     auto *actExport = window.findChild<QAction*>("actionExport");
@@ -596,8 +596,8 @@ void TestRegMapWindow::testExportAction()
     actExport->trigger();
 
     // Verify generated files exist in work/
-    QVERIFY(QFile::exists("work/reg_map.h"));
-    QVERIFY(QFile::exists("work/uvm_reg_model.sv"));
+    QVERIFY(QFile::exists("work/c/reg_map.h"));
+    QVERIFY(QFile::exists("work/uvm/reg_model.sv"));
 
     dismissTimer->stop();
 }
@@ -728,8 +728,8 @@ void TestRegMapWindow::testHeadlessCliMethods()
     // 3. Headless export
     bool exportPass = window.headlessExport("work/test_headless_export");
     QVERIFY(exportPass);
-    QVERIFY(QFile::exists("work/test_headless_export/reg_map.h"));
-    QVERIFY(QFile::exists("work/test_headless_export/uvm_reg_model.sv"));
+    QVERIFY(QFile::exists("work/test_headless_export/c/reg_map.h"));
+    QVERIFY(QFile::exists("work/test_headless_export/uvm/reg_model.sv"));
 
     // 4. Headless methods with environment variables
     qputenv("RMAP_TEST_SPI", "examples/spi.rmt");
@@ -738,8 +738,8 @@ void TestRegMapWindow::testHeadlessCliMethods()
     RegMapWindow envWindow("$RMAP_TEST_SPI");
     bool envExportPass = envWindow.headlessExport("$RMAP_TEST_OUT_DIR");
     QVERIFY(envExportPass);
-    QVERIFY(QFile::exists("work/test_env_export/reg_map.h"));
-    QVERIFY(QFile::exists("work/test_env_export/uvm_reg_model.sv"));
+    QVERIFY(QFile::exists("work/test_env_export/c/reg_map.h"));
+    QVERIFY(QFile::exists("work/test_env_export/uvm/reg_model.sv"));
 
     bool envDiffPass = RegMapWindow::semanticDiff("$RMAP_TEST_SPI", "$RMAP_TEST_SPI", "text", "");
     QVERIFY(envDiffPass);

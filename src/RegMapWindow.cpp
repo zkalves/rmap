@@ -1796,11 +1796,27 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
         for (const auto& entry : cfg->template_outputs()) {
             if (!entry.template_filename().empty()) {
                 if (!out_dir.isEmpty()) {
-                    QFileInfo fi(QString::fromStdString(entry.output_filepath()));
-                    QString filename = fi.fileName();
+                    QString entryOut = QString::fromStdString(entry.output_filepath());
+                    QString cfgOut = QString::fromStdString(cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder());
+                    cfgOut = PathUtils::normalizeSeparators(cfgOut);
+                    QString normalizedEntryOut = PathUtils::normalizeSeparators(entryOut);
+
+                    QString relPath;
+                    if (normalizedEntryOut.startsWith(cfgOut + "/", Qt::CaseInsensitive)) {
+                        relPath = normalizedEntryOut.mid(cfgOut.length() + 1);
+                    } else if (normalizedEntryOut.startsWith("./" + cfgOut + "/", Qt::CaseInsensitive)) {
+                        relPath = normalizedEntryOut.mid(cfgOut.length() + 3);
+                    } else if (normalizedEntryOut.startsWith("work/", Qt::CaseInsensitive)) {
+                        relPath = normalizedEntryOut.mid(5);
+                    } else if (normalizedEntryOut.startsWith("./work/", Qt::CaseInsensitive)) {
+                        relPath = normalizedEntryOut.mid(7);
+                    } else {
+                        relPath = normalizedEntryOut;
+                    }
+
                     QString expOutDir = PathUtils::expandEnvVars(out_dir);
                     QString absOutDir = QDir(QDir::currentPath()).absoluteFilePath(expOutDir);
-                    QString customOut = PathUtils::normalizeSeparators(QDir(absOutDir).filePath(filename));
+                    QString customOut = PathUtils::normalizeSeparators(QDir(absOutDir).filePath(relPath));
                     mappings.push_back({entry.template_filename(), customOut.toStdString()});
                 } else {
                     mappings.push_back({entry.template_filename(), entry.output_filepath()});

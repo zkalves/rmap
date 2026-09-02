@@ -83,18 +83,18 @@ void TestPathUtils::testExpandEnvVarsMixed()
 void TestPathUtils::testToRelativePath()
 {
     QString baseDir = "/home/user/project";
-    QString absTarget = "/home/user/project/templates/reg_map.h.inja";
+    QString absTarget = "/home/user/project/templates/c/reg_map.h.inja";
 
     QString rel = PathUtils::toRelativePath(absTarget, baseDir);
-    QCOMPARE(rel, QString("./templates/reg_map.h.inja"));
+    QCOMPARE(rel, QString("./templates/c/reg_map.h.inja"));
 
     QString parentTarget = "/home/user/other/file.txt";
     QString relParent = PathUtils::toRelativePath(parentTarget, baseDir);
     QCOMPARE(relParent, QString("../other/file.txt"));
 
     // Already relative paths remain relative
-    QCOMPARE(PathUtils::toRelativePath("./templates/reg_map.h.inja", baseDir), QString("./templates/reg_map.h.inja"));
-    QCOMPARE(PathUtils::toRelativePath("templates/reg_map.h.inja", baseDir), QString("templates/reg_map.h.inja"));
+    QCOMPARE(PathUtils::toRelativePath("./templates/c/reg_map.h.inja", baseDir), QString("./templates/c/reg_map.h.inja"));
+    QCOMPARE(PathUtils::toRelativePath("templates/c/reg_map.h.inja", baseDir), QString("templates/c/reg_map.h.inja"));
 
     // Environment variables are left untouched
     QCOMPARE(PathUtils::toRelativePath("$PROJECT_ROOT/templates/t.inja", baseDir), QString("$PROJECT_ROOT/templates/t.inja"));

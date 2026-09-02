@@ -1,7 +1,4 @@
-#include <sstream>
-#include <iomanip>
-#include <algorithm>
-#include <cctype>
+#include <QDirIterator>
 #include "CodeGenerator.hpp"
 
 void CodeGenerator::registerHelpers(Environment &env) {
@@ -187,14 +184,37 @@ std::string CodeGenerator::resolveOutputPath(
     const std::string &default_out_folder,
     const std::string &base_dir)
 {
-    QFileInfo tmplInfo(QString::fromStdString(tmpl_path));
+    QString expTmpl = QString::fromStdString(PathUtils::expandEnvVars(tmpl_path)).trimmed();
+    expTmpl = PathUtils::normalizeSeparators(expTmpl);
+
+    QString expDefaultTmpl = PathUtils::expandEnvVars(PathUtils::defaultTemplatesDir()).trimmed();
+    expDefaultTmpl = PathUtils::normalizeSeparators(expDefaultTmpl);
+
+    // Extract subpath relative to templates folder if applicable
+    QString relSubPath;
+    if (expTmpl.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+        relSubPath = expTmpl.mid(expDefaultTmpl.length() + 1);
+    } else if (expTmpl.startsWith("./" + expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+        relSubPath = expTmpl.mid(expDefaultTmpl.length() + 3);
+    } else if (expTmpl.startsWith("templates/", Qt::CaseInsensitive)) {
+        relSubPath = expTmpl.mid(10);
+    } else if (expTmpl.startsWith("./templates/", Qt::CaseInsensitive)) {
+        relSubPath = expTmpl.mid(12);
+    } else {
+        QFileInfo tmplInfo(expTmpl);
+        QString dirPath = tmplInfo.path();
+        if (dirPath != "." && !dirPath.isEmpty() && !expTmpl.startsWith("/")) {
+            relSubPath = expTmpl;
+        } else {
+            relSubPath = tmplInfo.fileName();
+        }
+    }
 
     // Determine default base filename by stripping .inja / .tmpl suffix
-    QString baseName = tmplInfo.fileName();
-    if (baseName.endsWith(".inja", Qt::CaseInsensitive)) {
-        baseName.chop(5);
-    } else if (baseName.endsWith(".tmpl", Qt::CaseInsensitive)) {
-        baseName.chop(5);
+    if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
+        relSubPath.chop(5);
+    } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
+        relSubPath.chop(5);
     }
 
     QString expOut = QString::fromStdString(PathUtils::expandEnvVars(out_path)).trimmed();
@@ -211,7 +231,7 @@ std::string CodeGenerator::resolveOutputPath(
     QFileInfo outInfo(resolved);
     // If output is explicitly a directory, ends with a slash separator, or has no file extension (folder path)
     if (targetDirOrFile.endsWith('/') || targetDirOrFile.endsWith('\\') || (outInfo.exists() && outInfo.isDir()) || !outInfo.fileName().contains('.')) {
-        return PathUtils::normalizeSeparators(QDir(resolved).filePath(baseName)).toStdString();
+        return PathUtils::normalizeSeparators(QDir(resolved).filePath(relSubPath)).toStdString();
     }
 
     return PathUtils::normalizeSeparators(resolved).toStdString();
@@ -296,17 +316,27 @@ GenerationReport CodeGenerator::parseDirectory(
     }
 
     QStringList filters;
-    filters << "*.inja" << "*.tmpl" << "*.txt" << "*.sv" << "*.h" << "*.cpp";
-    QFileInfoList fileList = tmplDir.entryInfoList(filters, QDir::Files);
-
-    if (fileList.isEmpty()) {
-        qDebug() << "[CodeGenerator] No template files matching pattern found in directory:" << resolvedTmplFolder.c_str();
-        return report;
-    }
+    filters << "*.inja" << "*.tmpl" << "*.txt" << "*.sv" << "*.h" << "*.cpp" << "*.rs" << "*.py" << "*.html" << "*.md" << "*.rdl" << "*.xml" << "*.json";
 
     std::vector<TemplateMapping> mappings;
-    for (const QFileInfo &fi : fileList) {
-        mappings.push_back({fi.absoluteFilePath().toStdString(), outFolder});
+    QDirIterator it(QString::fromStdString(resolvedTmplFolder), filters, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        QFileInfo fi = it.fileInfo();
+        QString relPath = tmplDir.relativeFilePath(fi.absoluteFilePath());
+        QString relOutPath = relPath;
+        if (relOutPath.endsWith(".inja", Qt::CaseInsensitive)) {
+            relOutPath.chop(5);
+        } else if (relOutPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
+            relOutPath.chop(5);
+        }
+        QString targetOut = QDir(QString::fromStdString(outFolder)).filePath(relOutPath);
+        mappings.push_back({fi.absoluteFilePath().toStdString(), targetOut.toStdString()});
+    }
+
+    if (mappings.empty()) {
+        qDebug() << "[CodeGenerator] No template files matching pattern found in directory:" << resolvedTmplFolder.c_str();
+        return report;
     }
 
     return generate(json_data, resolvedTmplFolder, outFolder, mappings, base_dir);

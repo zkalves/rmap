@@ -2,16 +2,16 @@ config {
   templateFolder: "./templates"
   outputFolder: "./work"
   template_outputs {
-    template_filename: "./templates/reg_map.h.inja"
-    output_filepath: "./work/sparse_reg_map.h"
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/sparse_reg_map.h"
   }
   template_outputs {
-    template_filename: "./templates/uvm_reg_model.sv.inja"
-    output_filepath: "./work/sparse_uvm_reg_model.sv"
+    template_filename: "./templates/uvm/reg_model.sv.inja"
+    output_filepath: "./work/uvm/sparse_uvm_reg_model.sv"
   }
   template_outputs {
-    template_filename: "./templates/reg_doc.html.inja"
-    output_filepath: "./work/sparse_reg_doc.html"
+    template_filename: "./templates/html/reg_doc.html.inja"
+    output_filepath: "./work/html/sparse_reg_doc.html"
   }
   reg_width: 32
 }

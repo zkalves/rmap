@@ -148,18 +148,18 @@ rmap/
 │   ├── Serializable.hpp        # Serializable base interface
 │   ├── SerializationContext.*  # Context manager for serializing tree hierarchy
 │   └── ObjectFactory.hpp       # Factory template for tree object instantiation
-├── templates/                  # Inja code generation templates
-│   ├── generic_reg_file.sv.inja# Bus-agnostic synthesizable SystemVerilog register file module
-│   ├── uvm_reg_model.sv.inja   # UVM SystemVerilog register model template
-│   ├── reg_map.h.inja          # C/C++ firmware header template (offsets, bitmasks, shifts, structs)
-│   ├── reg_map.rs.inja         # Rust Peripheral Access Crate (PAC) template
-│   ├── reg_map.py.inja         # Python lab bring-up register driver class template
-│   ├── reg_doc.html.inja       # Interactive searchable HTML register map specification
-│   ├── systemrdl_map.rdl.inja  # SystemRDL 2.0 register map specification template
-│   ├── ipxact_map.xml.inja     # IP-XACT IEEE 1685-2014/2022 XML register model template
-│   ├── cmsis_svd.xml.inja      # ARM CMSIS-SVD XML peripheral description template
-│   ├── reg_doc.md.inja         # Markdown register map documentation table template
-│   └── reg_map.json.inja       # Formatted JSON register map schema export template
+├── templates/                  # Inja code generation templates organized by output type
+│   ├── c/                      # C/C++ firmware headers (reg_map.h.inja)
+│   ├── html/                   # Interactive HTML documentation (reg_doc.html.inja)
+│   ├── ipxact/                 # IP-XACT IEEE 1685 XML models (reg_map.xml.inja)
+│   ├── json/                   # JSON schema exports (reg_map.json.inja)
+│   ├── markdown/               # Markdown specification tables (reg_doc.md.inja)
+│   ├── python/                 # Python bring-up drivers (reg_map.py.inja)
+│   ├── rtl/                    # Synthesizable SystemVerilog RTL (reg_map.sv.inja)
+│   ├── rust/                   # Rust PAC crates (reg_map.rs.inja)
+│   ├── svd/                    # ARM CMSIS-SVD peripheral XML (reg_map.xml.inja)
+│   ├── systemrdl/              # SystemRDL 2.0 specifications (reg_map.rdl.inja)
+│   └── uvm/                    # UVM register models (reg_model.sv.inja)
 ├── examples/                   # Sample register maps (.rmt) and reference files
 │   ├── spi.rmt                 # Standard SPI peripheral register map
 │   ├── comprehensive.rmt       # Full feature coverage (all 9 access policies, booleans, hex/dec/bin, mem)
@@ -252,17 +252,17 @@ rmap/
 The code generation system uses **Pantor Inja** to render output files from JSON data extracted by `RegMapTreeModel::extractJsonData()`.
 
 ### Full Template Suite in `templates/`
-1. `generic_reg_file.sv.inja`: Synthesizable generic bus-agnostic SystemVerilog register file.
-2. `uvm_reg_model.sv.inja`: Complete UVM SystemVerilog register model.
-3. `reg_map.h.inja`: C/C++ firmware header (macros, bitmasks, offsets, packed structs).
-4. `reg_map.rs.inja`: Type-safe Rust Peripheral Access Crate (PAC).
-5. `reg_map.py.inja`: Standalone Python bring-up driver class (Cocotb, PyUVM, PyFTDI, JTAG).
-6. `reg_doc.html.inja`: Searchable interactive single-page HTML register map documentation.
-7. `systemrdl_map.rdl.inja`: Accellera SystemRDL 2.0 register file and addrmap specification.
-8. `ipxact_map.xml.inja`: IP-XACT IEEE 1685-2014/2022 XML register model.
-9. `cmsis_svd.xml.inja`: ARM CMSIS-SVD Cortex-M peripheral description XML.
-10. `reg_doc.md.inja`: GitHub-flavored Markdown register map specification tables.
-11. `reg_map.json.inja`: Formatted JSON register map schema export.
+1. `c/reg_map.h.inja`: C/C++ firmware header (macros, bitmasks, offsets, packed structs).
+2. `html/reg_doc.html.inja`: Searchable interactive single-page HTML register map documentation.
+3. `ipxact/reg_map.xml.inja`: IP-XACT IEEE 1685-2014/2022 XML register model.
+4. `json/reg_map.json.inja`: Formatted JSON register map schema export.
+5. `markdown/reg_doc.md.inja`: GitHub-flavored Markdown register map specification tables.
+6. `python/reg_map.py.inja`: Standalone Python bring-up driver class (Cocotb, PyUVM, PyFTDI, JTAG).
+7. `rtl/reg_map.sv.inja`: Synthesizable generic bus-agnostic SystemVerilog register file.
+8. `rust/reg_map.rs.inja`: Type-safe Rust Peripheral Access Crate (PAC).
+9. `svd/reg_map.xml.inja`: ARM CMSIS-SVD Cortex-M peripheral description XML.
+10. `systemrdl/reg_map.rdl.inja`: Accellera SystemRDL 2.0 register file and addrmap specification.
+11. `uvm/reg_model.sv.inja`: Complete UVM SystemVerilog register model.
 
 ### Custom Inja Helpers Registered
 - `{{ upper(str) }}`: Converts string to uppercase.

@@ -129,15 +129,29 @@ void RegConfigWindow::onAddTemplateFiles()
         if (defaultOutDir.isEmpty()) defaultOutDir = PathUtils::defaultOutputDir();
 
         for (const QString &file : files) {
-            QFileInfo fi(file);
-            QString outName = fi.fileName();
-            if (outName.endsWith(".inja", Qt::CaseInsensitive)) {
-                outName.chop(5);
-            } else if (outName.endsWith(".tmpl", Qt::CaseInsensitive)) {
-                outName.chop(5);
+            QString relTmpl = PathUtils::toRelativePath(file, baseDir());
+            QString relSubPath = relTmpl;
+            QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::DEFAULT_TEMPLATES_DIR));
+            if (relSubPath.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 1);
+            } else if (relSubPath.startsWith("./" + expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 3);
+            } else if (relSubPath.startsWith("templates/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(10);
+            } else if (relSubPath.startsWith("./templates/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(12);
+            } else {
+                QFileInfo fi(file);
+                relSubPath = fi.fileName();
             }
-            QString defaultOut = defaultOutDir + "/" + outName;
-            addTemplateRow(PathUtils::toRelativePath(file, baseDir()), defaultOut);
+
+            if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
+                relSubPath.chop(5);
+            } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
+                relSubPath.chop(5);
+            }
+            QString defaultOut = defaultOutDir + "/" + relSubPath;
+            addTemplateRow(relTmpl, defaultOut);
         }
     }
 }
@@ -182,12 +196,26 @@ void RegConfigWindow::onBrowseTemplate()
 
         // Auto-populate output path if currently empty
         if (!this->templateTable->item(row, 1) || this->templateTable->item(row, 1)->text().trimmed().isEmpty()) {
-            QFileInfo fi(file);
-            QString outName = fi.fileName();
-            if (outName.endsWith(".inja", Qt::CaseInsensitive)) {
-                outName.chop(5);
-            } else if (outName.endsWith(".tmpl", Qt::CaseInsensitive)) {
-                outName.chop(5);
+            QString relTmpl = PathUtils::toRelativePath(file, baseDir());
+            QString relSubPath = relTmpl;
+            QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::DEFAULT_TEMPLATES_DIR));
+            if (relSubPath.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 1);
+            } else if (relSubPath.startsWith("./" + expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(expDefaultTmpl.length() + 3);
+            } else if (relSubPath.startsWith("templates/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(10);
+            } else if (relSubPath.startsWith("./templates/", Qt::CaseInsensitive)) {
+                relSubPath = relSubPath.mid(12);
+            } else {
+                QFileInfo fi(file);
+                relSubPath = fi.fileName();
+            }
+
+            if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
+                relSubPath.chop(5);
+            } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
+                relSubPath.chop(5);
             }
             QString defaultOutDir = this->outputFolder->text().trimmed();
             if (defaultOutDir.isEmpty()) defaultOutDir = PathUtils::defaultOutputDir();
@@ -195,7 +223,7 @@ void RegConfigWindow::onBrowseTemplate()
             if (!this->templateTable->item(row, 1)) {
                 this->templateTable->setItem(row, 1, new QTableWidgetItem());
             }
-            this->templateTable->item(row, 1)->setText(defaultOutDir + "/" + outName);
+            this->templateTable->item(row, 1)->setText(defaultOutDir + "/" + relSubPath);
         }
     }
 }

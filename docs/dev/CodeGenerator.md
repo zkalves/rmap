@@ -100,8 +100,8 @@ void runCodeGeneration(const json &modelJson)
     CodeGenerator generator;
 
     std::vector<TemplateMapping> mappings = {
-        {"templates/generic_reg_file.sv.inja", "work/spi_reg_file.sv"},
-        {"templates/reg_map.h.inja", "work/spi_map.h"}
+        {"templates/rtl/reg_map.sv.inja", "work/rtl/spi_reg_file.sv"},
+        {"templates/c/reg_map.h.inja", "work/c/spi_map.h"}
     };
 
     GenerationReport report = generator.generate(

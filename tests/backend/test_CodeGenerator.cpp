@@ -35,6 +35,7 @@ private slots:
     void testFullGenerationJsonMap();
     void testRelativePathAndBaseDirResolution();
     void testEnvVarExpansionInTemplateAndOutput();
+    void testRecursiveDirectoryGeneration();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -190,13 +191,13 @@ void TestCodeGenerator::testFullGenerationCHeader()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_map.h.inja", "work/test_c_header.h"});
+    mappings.push_back({"templates/c/reg_map.h.inja", "work/c/test_c_header.h"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
     QCOMPARE(report.success_files.size(), (size_t)1);
 
-    QFile out("work/test_c_header.h");
+    QFile out("work/c/test_c_header.h");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -240,12 +241,12 @@ void TestCodeGenerator::testFullGenerationUvmModel()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/uvm_reg_model.sv.inja", "work/test_uvm_model.sv"});
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/uvm/test_uvm_model.sv"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/test_uvm_model.sv");
+    QFile out("work/uvm/test_uvm_model.sv");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -266,8 +267,8 @@ void TestCodeGenerator::testMultiSourceTemplateMappings()
     data["blocks"] = json::array();
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_map.h.inja", "work/multi_out1.h"});
-    mappings.push_back({"templates/uvm_reg_model.sv.inja", "work/multi_out2.sv"});
+    mappings.push_back({"templates/c/reg_map.h.inja", "work/c/multi_out1.h"});
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/uvm/multi_out2.sv"});
 
     GenerationReport report = cg.generate(data, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
@@ -357,12 +358,12 @@ void TestCodeGenerator::testFullGenerationGenericRtl()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/generic_reg_file.sv.inja", "work/spi_core_reg_file.sv"});
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/rtl/spi_core_reg_file.sv"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_core_reg_file.sv");
+    QFile out("work/rtl/spi_core_reg_file.sv");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -419,12 +420,12 @@ void TestCodeGenerator::testFullGenerationRustPac()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_map.rs.inja", "work/spi_pac.rs"});
+    mappings.push_back({"templates/rust/reg_map.rs.inja", "work/rust/spi_pac.rs"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_pac.rs");
+    QFile out("work/rust/spi_pac.rs");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -469,12 +470,12 @@ void TestCodeGenerator::testFullGenerationPythonDriver()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_map.py.inja", "work/spi_driver.py"});
+    mappings.push_back({"templates/python/reg_map.py.inja", "work/python/spi_driver.py"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_driver.py");
+    QFile out("work/python/spi_driver.py");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -519,12 +520,12 @@ void TestCodeGenerator::testFullGenerationHtmlDoc()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_doc.html.inja", "work/spi_doc.html"});
+    mappings.push_back({"templates/html/reg_doc.html.inja", "work/html/spi_doc.html"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_doc.html");
+    QFile out("work/html/spi_doc.html");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -570,12 +571,12 @@ void TestCodeGenerator::testFullGenerationSystemRdl()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/systemrdl_map.rdl.inja", "work/spi_map.rdl"});
+    mappings.push_back({"templates/systemrdl/reg_map.rdl.inja", "work/systemrdl/spi_map.rdl"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_map.rdl");
+    QFile out("work/systemrdl/spi_map.rdl");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -625,12 +626,12 @@ void TestCodeGenerator::testFullGenerationIpxact()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/ipxact_map.xml.inja", "work/spi_ipxact.xml"});
+    mappings.push_back({"templates/ipxact/reg_map.xml.inja", "work/ipxact/spi_ipxact.xml"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_ipxact.xml");
+    QFile out("work/ipxact/spi_ipxact.xml");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -674,12 +675,12 @@ void TestCodeGenerator::testFullGenerationCmsisSvd()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/cmsis_svd.xml.inja", "work/spi.svd"});
+    mappings.push_back({"templates/svd/reg_map.xml.inja", "work/svd/spi.svd"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi.svd");
+    QFile out("work/svd/spi.svd");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -726,12 +727,12 @@ void TestCodeGenerator::testFullGenerationMarkdownDoc()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_doc.md.inja", "work/spi_doc.md"});
+    mappings.push_back({"templates/markdown/reg_doc.md.inja", "work/markdown/spi_doc.md"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_doc.md");
+    QFile out("work/markdown/spi_doc.md");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -785,12 +786,12 @@ void TestCodeGenerator::testFullGenerationJsonMap()
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/reg_map.json.inja", "work/spi_map.json"});
+    mappings.push_back({"templates/json/reg_map.json.inja", "work/json/spi_map.json"});
 
     GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
     QVERIFY(!report.has_errors());
 
-    QFile out("work/spi_map.json");
+    QFile out("work/json/spi_map.json");
     const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
     QVERIFY(outOpened);
     QString content = out.readAll();
@@ -872,6 +873,72 @@ void TestCodeGenerator::testEnvVarExpansionInTemplateAndOutput()
 
     qunsetenv("RMAP_CODEGEN_TMPL");
     qunsetenv("RMAP_CODEGEN_OUT");
+}
+
+void TestCodeGenerator::testRecursiveDirectoryGeneration()
+{
+    CodeGenerator cg;
+
+    json root;
+    root["name"] = "SPI_ALL";
+    root["description"] = "Comprehensive Generation Test";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+    root["project_name"] = "SPI_ALL";
+    root["project_version"] = "1.0";
+
+    json blk;
+    blk["name"] = "SPI_CORE";
+    blk["offset_hex"] = "0x0";
+    blk["description"] = "Core Control Block";
+
+    json reg;
+    reg["name"] = "CTRL";
+    reg["offset_hex"] = "0x0";
+    reg["offset_lsb"] = 0;
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["sw_access"] = "RW";
+    reg["hw_access"] = "RO";
+    reg["reset_hex"] = "0x00000000";
+    reg["reset_val"] = 0;
+    reg["volatile"] = false;
+    reg["description"] = "Control Register";
+
+    json fld;
+    fld["name"] = "ENABLE";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 1;
+    fld["access"] = "RW";
+    fld["sw_access"] = "RW";
+    fld["hw_access"] = "RO";
+    fld["reset_hex"] = "0x0";
+    fld["reset_val"] = 0;
+    fld["has_reset"] = true;
+    fld["volatile"] = false;
+    fld["is_rand"] = false;
+    fld["description"] = "Enable Field";
+
+    reg["fields"] = json::array({fld});
+    blk["registers"] = json::array({reg});
+    root["blocks"] = json::array({blk});
+
+    GenerationReport report = cg.parseDirectory(root, "templates", "work");
+    QVERIFY(!report.has_errors());
+    QCOMPARE(report.success_files.size(), (size_t)11);
+
+    // Verify each expected output subfolder contains its rendered file
+    QVERIFY(QFile::exists("work/c/reg_map.h"));
+    QVERIFY(QFile::exists("work/rtl/reg_map.sv"));
+    QVERIFY(QFile::exists("work/uvm/reg_model.sv"));
+    QVERIFY(QFile::exists("work/rust/reg_map.rs"));
+    QVERIFY(QFile::exists("work/python/reg_map.py"));
+    QVERIFY(QFile::exists("work/html/reg_doc.html"));
+    QVERIFY(QFile::exists("work/markdown/reg_doc.md"));
+    QVERIFY(QFile::exists("work/systemrdl/reg_map.rdl"));
+    QVERIFY(QFile::exists("work/ipxact/reg_map.xml"));
+    QVERIFY(QFile::exists("work/svd/reg_map.xml"));
+    QVERIFY(QFile::exists("work/json/reg_map.json"));
 }
 
 QTEST_MAIN(TestCodeGenerator)

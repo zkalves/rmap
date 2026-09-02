@@ -73,9 +73,9 @@ When templates are executed, the full register map model is exposed as a JSON st
 
 ## 3. Built-in Generation Templates
 
-**rmap** includes a comprehensive suite of production-grade generation templates located in `templates/`:
+**rmap** includes a comprehensive suite of production-grade generation templates organized by output type in `templates/`:
 
-1. **Synthesizable SystemVerilog Register File (`generic_reg_file.sv.inja`)**:
+1. **Synthesizable SystemVerilog Register File (`rtl/reg_map.sv.inja`)**:
    - IEEE 1800-2017 SystemVerilog synthesizable register file conforming to ASIC/FPGA HDL coding guidelines.
    - Standardized signal suffixes (`clk_i`, `rst_ni`, `_i` inputs, `_o` outputs, `_q`/`_d` register state).
    - Bus-agnostic generic slave register file with address decode logic and 2-space indentation.
@@ -84,44 +84,44 @@ When templates are executed, the full register map model is exposed as a JSON st
    - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`).
    - Hardware write priority over software writes.
 
-2. **UVM SystemVerilog Register Model (`uvm_reg_model.sv.inja`)**:
+2. **UVM SystemVerilog Register Model (`uvm/reg_model.sv.inja`)**:
    - Complete `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy.
    - Backdoor HDL access paths (`add_hdl_path`).
    - Functional coverage sampling hooks.
 
-3. **C/C++ Firmware Header (`reg_map.h.inja`)**:
+3. **C/C++ Firmware Header (`c/reg_map.h.inja`)**:
    - Clean register address offsets and bitfield definitions.
    - Bitfield extraction and update macros (`RMAP_REG_GET`, `RMAP_REG_SET`).
    - Packed volatile C struct representation.
 
-4. **Rust Peripheral Access Crate (`reg_map.rs.inja`)**:
+4. **Rust Peripheral Access Crate (`rust/reg_map.rs.inja`)**:
    - `#[repr(C)]` memory-mapped register block structures.
    - Type-safe `read()`, `write()`, and `modify()` accessors using volatile pointer operations.
 
-5. **Python Bring-Up Driver (`reg_map.py.inja`)**:
+5. **Python Bring-Up Driver (`python/reg_map.py.inja`)**:
    - Standalone Python object-oriented register driver class.
    - Bitfield getter/setter helpers.
    - Pluggable bus transport adapters for Cocotb, PyUVM, PyFTDI, PySerial, or JTAG.
 
-6. **Interactive HTML Specification (`reg_doc.html.inja`)**:
+6. **Interactive HTML Specification (`html/reg_doc.html.inja`)**:
    - Responsive, styled single-page HTML documentation.
    - Live interactive search bar.
    - Color-coded graphical bitfield slice bars with access policy tags.
 
-7. **SystemRDL 2.0 Specification (`systemrdl_map.rdl.inja`)**:
+7. **SystemRDL 2.0 Specification (`systemrdl/reg_map.rdl.inja`)**:
    - Standard Accellera SystemRDL 2.0 register file and addrmap specification.
    - Complete `field`, `reg`, and `regfile` component hierarchy with SW and HW access policies.
 
-8. **IP-XACT IEEE 1685-2014/2022 (`ipxact_map.xml.inja`)**:
+8. **IP-XACT IEEE 1685-2014/2022 (`ipxact/reg_map.xml.inja`)**:
    - Complete IP-XACT XML register model component definition (`ipxact:component`, `ipxact:memoryMaps`, `ipxact:addressBlock`, `ipxact:register`, `ipxact:field`).
 
-9. **ARM CMSIS-SVD Peripheral XML (`cmsis_svd.xml.inja`)**:
+9. **ARM CMSIS-SVD Peripheral XML (`svd/reg_map.xml.inja`)**:
    - Cortex-M CMSIS-SVD device specification (`<device>`, `<peripheral>`, `<register>`, `<field>`) for IDE debuggers (Keil, IAR, VS Code Cortex-Debug, SVDconv).
 
-10. **Markdown Documentation Specification (`reg_doc.md.inja`)**:
+10. **Markdown Documentation Specification (`markdown/reg_doc.md.inja`)**:
     - Clean GitHub-flavored Markdown register map table specification with block anchors and bitfield tables.
 
-11. **JSON Schema Specification (`reg_map.json.inja`)**:
+11. **JSON Schema Specification (`json/reg_map.json.inja`)**:
     - Formatted JSON register map schema export for custom tooling, CI scripts, and automation pipelines.
 
 ---
@@ -129,10 +129,10 @@ When templates are executed, the full register map model is exposed as a JSON st
 ## 4. Multi-Source Template Mappings
 
 In the **Configuration Dialog** (`Ctrl+P`), you can configure arbitrary template sources to specific output destinations:
-- **Relative Path Resolution**: Template and output paths specified as relative (e.g. `./templates/reg_map.h.inja`, `./work/reg_map.h`) resolve relative to the register map file's directory first, with fallback to the Current Working Directory (CWD).
+- **Relative Path Resolution**: Template and output paths specified as relative (e.g. `./templates/c/reg_map.h.inja`, `./work/c/reg_map.h`) resolve relative to the register map file's directory first, with fallback to the Current Working Directory (CWD).
 - **Environment Variable Expansion**: Paths can include `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (home directory), expanded dynamically at generation time.
 - **Direct File Output**: Outputs directly to `target_file.sv` or relative destination. Missing parent directories are created automatically.
-- **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name.
+- **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure.
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
 
 [Next: Architecture & Internal Data Flow &rarr;](architecture.md)
