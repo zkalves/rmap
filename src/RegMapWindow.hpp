@@ -67,6 +67,14 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         RegBitfieldBarWidget* bitfieldWidget() const { return m_bitfieldBar; }
         BlockMemoryMapWidget* memoryMapWidget() const { return m_blockMemoryMapWidget; }
 
+        bool isModelLoaded() const;
+        bool hasModel() const { return isModelLoaded(); }
+        QStackedWidget* leftStackedWidget() const { return m_leftStackedWidget; }
+        QWidget* leftViewWidget() const { return m_leftViewWidget; }
+        QWidget* leftEmptyWidget() const { return m_leftEmptyWidget; }
+        QStackedWidget* rightStackedWidget() const { return m_rightStackedWidget; }
+        QWidget* emptyViewWidget() const { return m_emptyViewWidget; }
+
         void setColourBlindMode(bool enabled);
         bool isColourBlindMode() const;
         void setColorBlindMode(bool enabled) { setColourBlindMode(enabled); }
@@ -91,6 +99,11 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         RegMapTreeModel       * m_model = nullptr;
         TreeFilterProxyModel  * m_treeProxy = nullptr;
         FieldSortProxyModel   * m_fieldProxy = nullptr;
+
+        // Left Pane Stacked View (Tree View vs Empty View)
+        QStackedWidget        * m_leftStackedWidget = nullptr;
+        QWidget               * m_leftViewWidget = nullptr;
+        QWidget               * m_leftEmptyWidget = nullptr;
 
         // Right Pane Stacked View (Register Bitfield View vs Block Memory Map View)
         QStackedWidget        * m_rightStackedWidget = nullptr;
@@ -133,6 +146,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         void regmap_notModified(void);
         void connectModelSignals(void);
         void connectFieldsTableSignals(void);
+        void updatePaneVisibility(void);
         void btnFileNew(void);
         void btnFileOpen(void);
         void btnFileClose(void);

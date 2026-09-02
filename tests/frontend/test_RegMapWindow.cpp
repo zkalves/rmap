@@ -39,6 +39,7 @@ private slots:
     void testWindowInitAndFileOpen();
     void testFileNewReset();
     void testFileClose();
+    void testLeftPaneEmptyStateWhenNoModel();
     void testProxyFilteringAndSelectionSync();
     void testRegisterSortingByOffset();
     void testBlockMemoryMapView();
@@ -76,36 +77,71 @@ void TestRegMapWindow::testFileNewReset()
 {
     // 1. Fresh window without a file (New Project)
     RegMapWindow freshWindow;
-    auto *freshStacked = freshWindow.findChild<QStackedWidget*>("rightStackedWidget");
+    auto *freshRightStacked = freshWindow.findChild<QStackedWidget*>("rightStackedWidget");
     auto *freshEmpty = freshWindow.findChild<QWidget*>("emptyViewWidget");
     auto *freshRegView = freshWindow.findChild<QWidget*>("regViewWidget");
-    QVERIFY(freshStacked != nullptr);
+    auto *freshLeftStacked = freshWindow.findChild<QStackedWidget*>("leftStackedWidget");
+    auto *freshLeftEmpty = freshWindow.findChild<QWidget*>("leftEmptyWidget");
+    auto *freshLeftView = freshWindow.findChild<QWidget*>("leftViewWidget");
+    auto *freshTreeView = freshWindow.findChild<QTreeView*>("treeView");
+    auto *freshSearchBox = freshWindow.findChild<QLineEdit*>("searchEdit");
+    QVERIFY(freshRightStacked != nullptr);
     QVERIFY(freshEmpty != nullptr);
     QVERIFY(freshRegView != nullptr);
-    QCOMPARE(freshStacked->currentWidget(), freshEmpty);
-    QVERIFY(freshStacked->currentWidget() != freshRegView);
+    QVERIFY(freshLeftStacked != nullptr);
+    QVERIFY(freshLeftEmpty != nullptr);
+    QVERIFY(freshLeftView != nullptr);
+    QVERIFY(freshTreeView != nullptr);
+    QVERIFY(freshSearchBox != nullptr);
+    QCOMPARE(freshRightStacked->currentWidget(), freshEmpty);
+    QVERIFY(freshRightStacked->currentWidget() != freshRegView);
+    QCOMPARE(freshLeftStacked->currentWidget(), freshLeftEmpty);
+    QVERIFY(freshLeftStacked->currentWidget() != freshLeftView);
+    QCOMPARE(freshTreeView->model()->rowCount(), 0);
+    QVERIFY(freshSearchBox->text().isEmpty());
+    QVERIFY(!freshWindow.isModelLoaded());
 
     // 2. Open file and then trigger File -> New
     QString file = "examples/spi.rmt";
     RegMapWindow window(file);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
+    auto *searchBox = window.findChild<QLineEdit*>("searchEdit");
     auto *stacked = window.findChild<QStackedWidget*>("rightStackedWidget");
     auto *emptyWidget = window.findChild<QWidget*>("emptyViewWidget");
     auto *regView = window.findChild<QWidget*>("regViewWidget");
+    auto *leftStacked = window.findChild<QStackedWidget*>("leftStackedWidget");
+    auto *leftEmptyWidget = window.findChild<QWidget*>("leftEmptyWidget");
+    auto *leftViewWidget = window.findChild<QWidget*>("leftViewWidget");
     QVERIFY(treeView != nullptr);
+    QVERIFY(searchBox != nullptr);
     QVERIFY(stacked != nullptr);
     QVERIFY(emptyWidget != nullptr);
     QVERIFY(regView != nullptr);
+    QVERIFY(leftStacked != nullptr);
+    QVERIFY(leftEmptyWidget != nullptr);
+    QVERIFY(leftViewWidget != nullptr);
+    QCOMPARE(leftStacked->currentWidget(), leftViewWidget);
+    QVERIFY(window.isModelLoaded());
+
+    // Set search filter before creating new
+    searchBox->setText("CTRL");
+    QVERIFY(!searchBox->text().isEmpty());
 
     auto *actNew = window.findChild<QAction*>("actionFileNew");
     QVERIFY(actNew != nullptr);
     actNew->trigger();
 
-    // After reset, tree should have 0 root rows and right pane should be empty
+    // After reset, tree should have 0 root rows, search bar clear, and both panes should be empty
     QCOMPARE(treeView->model()->rowCount(), 0);
+    QVERIFY(treeView->selectionModel()->selectedIndexes().isEmpty());
+    QVERIFY(!treeView->currentIndex().isValid());
+    QVERIFY(searchBox->text().isEmpty());
     QCOMPARE(stacked->currentWidget(), emptyWidget);
     QVERIFY(stacked->currentWidget() != regView);
+    QCOMPARE(leftStacked->currentWidget(), leftEmptyWidget);
+    QVERIFY(leftStacked->currentWidget() != leftViewWidget);
+    QVERIFY(!window.isModelLoaded());
 }
 
 void TestRegMapWindow::testFileClose()
@@ -114,14 +150,28 @@ void TestRegMapWindow::testFileClose()
     RegMapWindow window(file);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
+    auto *searchBox = window.findChild<QLineEdit*>("searchEdit");
     auto *stacked = window.findChild<QStackedWidget*>("rightStackedWidget");
     auto *emptyWidget = window.findChild<QWidget*>("emptyViewWidget");
     auto *regView = window.findChild<QWidget*>("regViewWidget");
+    auto *leftStacked = window.findChild<QStackedWidget*>("leftStackedWidget");
+    auto *leftEmptyWidget = window.findChild<QWidget*>("leftEmptyWidget");
+    auto *leftViewWidget = window.findChild<QWidget*>("leftViewWidget");
     QVERIFY(treeView != nullptr);
+    QVERIFY(searchBox != nullptr);
     QVERIFY(stacked != nullptr);
     QVERIFY(emptyWidget != nullptr);
     QVERIFY(regView != nullptr);
+    QVERIFY(leftStacked != nullptr);
+    QVERIFY(leftEmptyWidget != nullptr);
+    QVERIFY(leftViewWidget != nullptr);
     QVERIFY(treeView->model()->rowCount() > 0);
+    QCOMPARE(leftStacked->currentWidget(), leftViewWidget);
+    QVERIFY(window.isModelLoaded());
+
+    // Set search filter before closing
+    searchBox->setText("STATUS");
+    QVERIFY(!searchBox->text().isEmpty());
 
     auto *actClose = window.findChild<QAction*>("actionFileClose");
     QVERIFY(actClose != nullptr);
@@ -129,10 +179,84 @@ void TestRegMapWindow::testFileClose()
     QCOMPARE(actClose->shortcut(), QKeySequence("Ctrl+W"));
     actClose->trigger();
 
-    // After closing model, tree should have 0 root rows and right pane should show empty view
+    // After closing model, tree should have 0 root rows, left pane search box clear, and both panes should show empty view
     QCOMPARE(treeView->model()->rowCount(), 0);
+    QVERIFY(treeView->selectionModel()->selectedIndexes().isEmpty());
+    QVERIFY(!treeView->currentIndex().isValid());
+    QVERIFY(searchBox->text().isEmpty());
     QCOMPARE(stacked->currentWidget(), emptyWidget);
     QVERIFY(stacked->currentWidget() != regView);
+    QCOMPARE(leftStacked->currentWidget(), leftEmptyWidget);
+    QVERIFY(leftStacked->currentWidget() != leftViewWidget);
+    QVERIFY(!window.isModelLoaded());
+}
+
+void TestRegMapWindow::testLeftPaneEmptyStateWhenNoModel()
+{
+    // Verify that when there is no model loaded, the left pane shows nothing at all
+    RegMapWindow window;
+    auto *leftStacked = window.leftStackedWidget();
+    auto *leftEmpty = window.leftEmptyWidget();
+    auto *leftView = window.leftViewWidget();
+    auto *rightStacked = window.rightStackedWidget();
+    auto *rightEmpty = window.emptyViewWidget();
+
+    QVERIFY(leftStacked != nullptr);
+    QVERIFY(leftEmpty != nullptr);
+    QVERIFY(leftView != nullptr);
+    QVERIFY(rightStacked != nullptr);
+    QVERIFY(rightEmpty != nullptr);
+
+    // Initial state: no model loaded -> both left and right panes show empty views
+    QVERIFY(!window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QCOMPARE(rightStacked->currentWidget(), rightEmpty);
+
+    // Add a block -> model is now loaded -> left pane switches to tree view
+    auto *actAddBlk = window.findChild<QAction*>("actionAddRegBlock");
+    QVERIFY(actAddBlk != nullptr);
+    actAddBlk->trigger();
+
+    QVERIFY(window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftView);
+    QVERIFY(rightStacked->currentWidget() != rightEmpty);
+
+    // Undo adding the block -> row count becomes 0 -> both panes switch back to empty views
+    window.undoStack()->undo();
+    QVERIFY(!window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QCOMPARE(rightStacked->currentWidget(), rightEmpty);
+
+    // Redo adding the block -> model restored -> left pane switches back to tree view
+    window.undoStack()->redo();
+    QVERIFY(window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftView);
+
+    // Select the restored block and delete it -> row count becomes 0 -> both panes switch back to empty views
+    auto *treeView = window.findChild<QTreeView*>("treeView");
+    QVERIFY(treeView != nullptr);
+    QModelIndex blkIndex = treeView->model()->index(0, 0);
+    treeView->setCurrentIndex(blkIndex);
+
+    auto *actDelete = window.findChild<QAction*>("actionDeleteItem");
+    QVERIFY(actDelete != nullptr);
+    actDelete->trigger();
+    QVERIFY(!window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QCOMPARE(rightStacked->currentWidget(), rightEmpty);
+
+    // Open an existing file -> left pane shows tree view
+    window.fileOpen("examples/spi.rmt");
+    QVERIFY(window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftView);
+
+    // Close the file -> both panes switch to empty views
+    auto *actClose = window.findChild<QAction*>("actionFileClose");
+    QVERIFY(actClose != nullptr);
+    actClose->trigger();
+    QVERIFY(!window.isModelLoaded());
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QCOMPARE(rightStacked->currentWidget(), rightEmpty);
 }
 
 void TestRegMapWindow::testProxyFilteringAndSelectionSync()
@@ -336,11 +460,22 @@ void TestRegMapWindow::testItemCreationActions()
     window.show();
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
+    auto *leftStacked = window.leftStackedWidget();
+    auto *leftEmpty = window.leftEmptyWidget();
+    auto *leftView = window.leftViewWidget();
+
+    // Before adding any item, left pane must be empty
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QVERIFY(!window.isModelLoaded());
 
     // Add Block
     auto *actAddBlk = window.findChild<QAction*>("actionAddRegBlock");
     QVERIFY(actAddBlk != nullptr);
     actAddBlk->trigger();
+
+    // After adding block, left pane must show tree view
+    QCOMPARE(leftStacked->currentWidget(), leftView);
+    QVERIFY(window.isModelLoaded());
 
     qDebug() << "Block added, rowCount:" << treeView->model()->rowCount();
     QCOMPARE(treeView->model()->rowCount(), 1);
@@ -392,10 +527,24 @@ void TestRegMapWindow::testItemDeletionAction()
     RegMapWindow window(emptyFile);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
+    auto *leftStacked = window.leftStackedWidget();
+    auto *leftEmpty = window.leftEmptyWidget();
+    auto *leftView = window.leftViewWidget();
+    auto *rightStacked = window.rightStackedWidget();
+    auto *rightEmpty = window.emptyViewWidget();
+
+    // Initially empty
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QCOMPARE(rightStacked->currentWidget(), rightEmpty);
+    QVERIFY(!window.isModelLoaded());
+
     auto *actAddBlk = window.findChild<QAction*>("actionAddRegBlock");
     actAddBlk->trigger();
 
     QCOMPARE(treeView->model()->rowCount(), 1);
+    QCOMPARE(leftStacked->currentWidget(), leftView);
+    QVERIFY(window.isModelLoaded());
+
     QModelIndex blkIndex = treeView->model()->index(0, 0);
     treeView->setCurrentIndex(blkIndex);
 
@@ -405,6 +554,10 @@ void TestRegMapWindow::testItemDeletionAction()
 
     qDebug() << "Item deleted, rowCount:" << treeView->model()->rowCount();
     QCOMPARE(treeView->model()->rowCount(), 0);
+    // After deleting all items, left and right panes must show empty views
+    QCOMPARE(leftStacked->currentWidget(), leftEmpty);
+    QCOMPARE(rightStacked->currentWidget(), rightEmpty);
+    QVERIFY(!window.isModelLoaded());
     qDebug() << "--- END testItemDeletionAction ---";
 }
 

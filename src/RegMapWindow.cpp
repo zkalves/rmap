@@ -234,22 +234,35 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     m_treeProxy->setSourceModel(m_model);
     m_fieldProxy->setSourceModel(m_model);
 
-    // Left Panel: Search Bar + Tree
+    // Left Panel: Stacked Widget (Tree View vs Empty View)
     QWidget *leftPanel = new QWidget(this);
     QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(4);
+    leftLayout->setSpacing(0);
+
+    m_leftStackedWidget = new QStackedWidget(leftPanel);
+    m_leftStackedWidget->setObjectName("leftStackedWidget");
+
+    // ==========================================
+    // Page 0: Tree View (Search Bar + Tree)
+    // ==========================================
+    m_leftViewWidget = new QWidget(m_leftStackedWidget);
+    m_leftViewWidget->setObjectName("leftViewWidget");
+    QVBoxLayout *leftViewLayout = new QVBoxLayout(m_leftViewWidget);
+    leftViewLayout->setContentsMargins(0, 0, 0, 0);
+    leftViewLayout->setSpacing(4);
 
     QHBoxLayout *searchLayout = new QHBoxLayout();
-    m_searchEdit = new QLineEdit(leftPanel);
+    m_searchEdit = new QLineEdit(m_leftViewWidget);
+    m_searchEdit->setObjectName("searchEdit");
     m_searchEdit->setPlaceholderText(tr("Search registers/blocks (e.g. CTRL, 0x0)..."));
     m_searchEdit->setClearButtonEnabled(true);
     connect(m_searchEdit, &QLineEdit::textChanged, this, &RegMapWindow::onSearchTextChanged);
 
     searchLayout->addWidget(m_searchEdit);
-    leftLayout->addLayout(searchLayout);
+    leftViewLayout->addLayout(searchLayout);
 
-    this->treeView->setParent(leftPanel);
+    this->treeView->setParent(m_leftViewWidget);
     this->treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
     this->treeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     this->treeView->setModel(m_treeProxy);
@@ -267,7 +280,19 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     this->treeView->header()->setStretchLastSection(true);
     this->treeView->header()->setSectionResizeMode(QHeaderView::Interactive);
     this->treeView->header()->setSectionResizeMode(10, QHeaderView::Stretch);
-    leftLayout->addWidget(this->treeView);
+    leftViewLayout->addWidget(this->treeView);
+
+    m_leftStackedWidget->addWidget(m_leftViewWidget);
+
+    // ==========================================
+    // Page 1: Empty View (Shown when no model is loaded)
+    // ==========================================
+    m_leftEmptyWidget = new QWidget(m_leftStackedWidget);
+    m_leftEmptyWidget->setObjectName("leftEmptyWidget");
+    m_leftStackedWidget->addWidget(m_leftEmptyWidget);
+    m_leftStackedWidget->setCurrentWidget(m_leftEmptyWidget);
+
+    leftLayout->addWidget(m_leftStackedWidget);
 
     // Right Panel: Stacked Widget (Register Bitfield View vs Block Memory Map View)
     QWidget *rightPanel = new QWidget(this);
@@ -594,6 +619,8 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
 
     if (!m_rmap_filename.isNull() && !m_rmap_filename.isEmpty()) {
         fileOpen(rmap_filename);
+    } else {
+        updatePaneVisibility();
     }
 
     this->treeView->setItemDelegateForColumn(1, new RegHexDecBinDelegate(this));       // Offset
@@ -1129,6 +1156,22 @@ void RegMapWindow::btnDeleteItem(void)
     }
 }
 
+bool RegMapWindow::isModelLoaded() const
+{
+    return (m_model != nullptr && m_model->rowCount() > 0);
+}
+
+void RegMapWindow::updatePaneVisibility(void)
+{
+    const bool modelLoaded = isModelLoaded();
+    if (m_leftStackedWidget && m_leftViewWidget && m_leftEmptyWidget) {
+        m_leftStackedWidget->setCurrentWidget(modelLoaded ? m_leftViewWidget : m_leftEmptyWidget);
+    }
+    if (!modelLoaded && m_rightStackedWidget && m_emptyViewWidget) {
+        m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+    }
+}
+
 void RegMapWindow::connectModelSignals(void)
 {
     if (!m_model) return;
@@ -1153,6 +1196,7 @@ void RegMapWindow::connectModelSignals(void)
     });
     connect(m_model, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex &parent, int first, int last) {
         Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+        updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
         }
@@ -1162,6 +1206,7 @@ void RegMapWindow::connectModelSignals(void)
     });
     connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex &parent, int first, int last) {
         Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+        updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
         }
@@ -1170,6 +1215,7 @@ void RegMapWindow::connectModelSignals(void)
         }
     });
     connect(m_model, &QAbstractItemModel::modelReset, this, [this]() {
+        updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
         }
@@ -1213,17 +1259,25 @@ void RegMapWindow::fileNew(void)
 {
     m_model->clear();
     delete m_model;
-    m_model = new RegMapTreeModel();
+    m_model = new RegMapTreeModel(this);
     connectModelSignals();
 
     m_treeProxy->setSourceModel(m_model);
+    m_treeProxy->setSearchFilter(QString());
     m_fieldProxy->setSourceModel(m_model);
     this->treeView->setModel(m_treeProxy);
     this->treeView->setSortingEnabled(true);
     this->treeView->sortByColumn(1, Qt::AscendingOrder);
+    this->treeView->clearSelection();
+    this->treeView->setCurrentIndex(QModelIndex());
+    this->treeView->reset();
 
     connect(this->treeView->selectionModel(), &QItemSelectionModel::currentChanged,
             this, &RegMapWindow::updateFieldsTable);
+
+    if (m_searchEdit) {
+        m_searchEdit->clear();
+    }
 
     if (m_fieldsTableView) {
         m_fieldsTableView->setModel(m_fieldProxy);
@@ -1245,9 +1299,7 @@ void RegMapWindow::fileNew(void)
     m_currentRegItem = nullptr;
     m_currentBlkItem = nullptr;
 
-    if (m_rightStackedWidget && m_emptyViewWidget) {
-        m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
-    }
+    updatePaneVisibility();
 
     if (m_undoStack) {
         m_undoStack->clear();
@@ -1255,6 +1307,7 @@ void RegMapWindow::fileNew(void)
 
     this->regmap_notModified();
     this->m_rmap_filename = QString();
+    this->setWindowTitle(this->m_default_window_title);
 
     if (m_config_window) {
         m_config_window->deserialize(protormap::Config());
@@ -1272,6 +1325,7 @@ void RegMapWindow::fileOpen(QString fname)
 
         FormatResult res = FormatManager::instance().loadFile(expanded, m_model, m_config_window);
         if (!res.success) {
+            fileNew();
             QMessageBox::warning(this, tr("Open Error"),
                                 tr("Failed to open %1:\n%2").arg(fname, res.errorMessage));
             return;
@@ -1279,6 +1333,8 @@ void RegMapWindow::fileOpen(QString fname)
 
         this->regmap_notModified();
         this->setWindowTitle(this->m_default_window_title + " (" + this->m_rmap_filename + ")");
+
+        updatePaneVisibility();
 
         if (this->treeView->model() && this->treeView->model()->rowCount() > 0) {
             this->treeView->expandAll();
