@@ -46,7 +46,7 @@ void TestSerialization::testParseSpiRmt()
 
     QVERIFY(reg_model.has_config());
     QCOMPARE(reg_model.config().reg_width(), (uint32_t)32);
-    QCOMPARE(reg_model.config().template_outputs_size(), 11);
+    QCOMPARE(reg_model.config().template_outputs_size(), 19);
     QVERIFY(reg_model.item_size() > 0);
 
     SerializationContext context;

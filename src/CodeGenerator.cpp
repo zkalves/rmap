@@ -289,8 +289,9 @@ std::string CodeGenerator::resolveOutputPath(
     resolved = PathUtils::normalizeSeparators(resolved);
 
     QFileInfo outInfo(resolved);
+    bool isKnownFileWithoutExt = outInfo.fileName().compare("makefile", Qt::CaseInsensitive) == 0;
     // If output is explicitly a directory, ends with a slash separator, or has no file extension (folder path)
-    if (targetDirOrFile.endsWith('/') || targetDirOrFile.endsWith('\\') || (outInfo.exists() && outInfo.isDir()) || !outInfo.fileName().contains('.')) {
+    if (!isKnownFileWithoutExt && (targetDirOrFile.endsWith('/') || targetDirOrFile.endsWith('\\') || (outInfo.exists() && outInfo.isDir()) || !outInfo.fileName().contains('.'))) {
         QString finalSubPath = relSubPath;
         if (!category.isEmpty()) {
             QString normTarget = PathUtils::normalizeSeparators(targetDirOrFile);
@@ -320,6 +321,10 @@ GenerationReport CodeGenerator::generate(
 
     // Ensure memory gap padding is present if raw json data didn't go through model extraction
     json preparedJson = json_data;
+    if (!preparedJson.contains("reg_width_bytes")) {
+        uint32_t width = preparedJson.value("reg_width", 32U);
+        preparedJson["reg_width_bytes"] = width > 0 ? (width / 8) : 4;
+    }
     if (preparedJson.contains("blocks") && preparedJson["blocks"].is_array()) {
         uint64_t regBytes = preparedJson.value("reg_width_bytes", 4ULL);
         if (regBytes == 0) regBytes = 4;
@@ -339,6 +344,53 @@ GenerationReport CodeGenerator::generate(
             }
         }
     }
+
+    // Pre-scan mappings to identify output paths for RTL, UVM, and SIM directory
+    QString resolvedRtlOut;
+    QString resolvedUvmOut;
+    QString resolvedSimDir;
+
+    for (const auto &m : mappings) {
+        QString tmplPath = PathUtils::normalizeSeparators(QString::fromStdString(m.template_file));
+        std::string resolvedOut = resolveOutputPath(m.template_file, m.output_file, default_output_folder, base_dir, preparedJson);
+        QString normOut = PathUtils::normalizeSeparators(QString::fromStdString(resolvedOut));
+        QFileInfo outFi(normOut);
+
+        if (tmplPath.contains("/rtl/", Qt::CaseInsensitive) && tmplPath.endsWith(".sv.inja", Qt::CaseInsensitive) && !tmplPath.contains("_tb", Qt::CaseInsensitive)) {
+            resolvedRtlOut = normOut;
+        } else if (tmplPath.contains("/uvm/", Qt::CaseInsensitive) && tmplPath.endsWith(".sv.inja", Qt::CaseInsensitive) && !tmplPath.contains("_tb", Qt::CaseInsensitive)) {
+            resolvedUvmOut = normOut;
+        }
+
+        if (tmplPath.contains("/sim/", Qt::CaseInsensitive) || normOut.contains("/sim/", Qt::CaseInsensitive)) {
+            resolvedSimDir = outFi.isDir() ? normOut : outFi.dir().absolutePath();
+        }
+    }
+
+    if (resolvedSimDir.isEmpty()) {
+        resolvedSimDir = PathUtils::normalizeSeparators(QDir(QString::fromStdString(default_output_folder.empty() ? PathUtils::DEFAULT_OUTPUT_DIR : default_output_folder)).filePath("sim"));
+    }
+
+    QString relRtlPath = "../rtl/reg_map.sv";
+    QString relRtlDir  = "../rtl";
+    if (!resolvedRtlOut.isEmpty() && !resolvedSimDir.isEmpty()) {
+        QDir simD(resolvedSimDir);
+        relRtlPath = PathUtils::normalizeSeparators(simD.relativeFilePath(resolvedRtlOut));
+        relRtlDir  = PathUtils::normalizeSeparators(simD.relativeFilePath(QFileInfo(resolvedRtlOut).dir().absolutePath()));
+    }
+
+    QString relUvmPath = "../uvm/reg_model.sv";
+    QString relUvmDir  = "../uvm";
+    if (!resolvedUvmOut.isEmpty() && !resolvedSimDir.isEmpty()) {
+        QDir simD(resolvedSimDir);
+        relUvmPath = PathUtils::normalizeSeparators(simD.relativeFilePath(resolvedUvmOut));
+        relUvmDir  = PathUtils::normalizeSeparators(simD.relativeFilePath(QFileInfo(resolvedUvmOut).dir().absolutePath()));
+    }
+
+    preparedJson["sim_rel_rtl_path"] = relRtlPath.toStdString();
+    preparedJson["sim_rel_rtl_dir"]  = relRtlDir.toStdString();
+    preparedJson["sim_rel_uvm_path"] = relUvmPath.toStdString();
+    preparedJson["sim_rel_uvm_dir"]  = relUvmDir.toStdString();
 
     // Process each configured template mapping
     for (const auto &mapping : mappings) {

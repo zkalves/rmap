@@ -39,6 +39,7 @@ private slots:
     void testDynamicPathVariableSubstitution();
     void testCHeaderPaddingGeneration();
     void testRtlStrobeAndCrcGeneration();
+    void testDynamicSimulationPathResolution();
     void testComprehensiveTemplateVerification();
 };
 
@@ -929,7 +930,7 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration()
 
     GenerationReport report = cg.parseDirectory(root, "templates", "work");
     QVERIFY(!report.has_errors());
-    QCOMPARE(report.success_files.size(), (size_t)11);
+    QCOMPARE(report.success_files.size(), (size_t)19);
 
     // Verify each expected output subfolder contains its rendered file
     QVERIFY(QFile::exists("work/c/reg_map.h"));
@@ -943,6 +944,10 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration()
     QVERIFY(QFile::exists("work/ipxact/reg_map.xml"));
     QVERIFY(QFile::exists("work/svd/reg_map.xml"));
     QVERIFY(QFile::exists("work/json/reg_map.json"));
+    QVERIFY(QFile::exists("work/rtl_tb/tb_reg_map.sv"));
+    QVERIFY(QFile::exists("work/pyuvm_tb/tb_pyuvm.py"));
+    QVERIFY(QFile::exists("work/uvm_tb/tb_top.sv"));
+    QVERIFY(QFile::exists("work/sim/Makefile"));
 }
 
 void TestCodeGenerator::testDynamicPathVariableSubstitution()
@@ -1085,6 +1090,64 @@ void TestCodeGenerator::testRtlStrobeAndCrcGeneration()
     QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 0xCAFE1234;"));
     // Verify byte-strobe qualified W1C update
     QVERIFY(content.contains("wstrb_i[b]"));
+}
+
+void TestCodeGenerator::testDynamicSimulationPathResolution()
+{
+    CodeGenerator cg;
+    json root;
+    json blk;
+    blk["name"] = "MY_PERIPH";
+    json reg;
+    reg["name"] = "CTRL";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0000";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x00000000";
+    json fld;
+    fld["name"] = "EN";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 1;
+    fld["access"] = "RW";
+    fld["sw_access"] = "RW";
+    fld["hw_access"] = "RO";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["has_reset"] = true;
+    fld["volatile"] = false;
+    fld["is_rand"] = false;
+    fld["description"] = "Enable Field";
+    reg["fields"] = json::array({fld});
+    blk["registers"] = json::array({reg});
+    blk["crc32_hex"] = "0xCAFE1234";
+    root["name"] = "my_periph";
+    root["reg_width"] = 32;
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/hardware/custom_rtl/spi_core.sv"});
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/verif/custom_uvm/spi_model.sv"});
+    mappings.push_back({"templates/sim/Makefile.inja", "work/build/sim/Makefile"});
+
+    GenerationReport report = cg.generate(root, "templates", "work", mappings);
+    QVERIFY(!report.has_errors());
+    QCOMPARE(report.success_files.size(), (size_t)3);
+
+    QFile mkFile("work/build/sim/Makefile");
+    QVERIFY(mkFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString mkContent = QString::fromUtf8(mkFile.readAll());
+    mkFile.close();
+
+    QVERIFY2(mkContent.contains("RTL_SRC     ?= ../../hardware/custom_rtl/spi_core.sv"),
+             qPrintable(QString("Expected RTL_SRC relative path in Makefile, got:\n%1").arg(mkContent)));
+    QVERIFY2(mkContent.contains("UVM_SRC     ?= ../../verif/custom_uvm/spi_model.sv"),
+             qPrintable(QString("Expected UVM_SRC relative path in Makefile, got:\n%1").arg(mkContent)));
+    QVERIFY2(mkContent.contains("RTL_INC_DIR ?= ../../hardware/custom_rtl"),
+             qPrintable(QString("Expected RTL_INC_DIR in Makefile, got:\n%1").arg(mkContent)));
+    QVERIFY2(mkContent.contains("UVM_INC_DIR ?= ../../verif/custom_uvm"),
+             qPrintable(QString("Expected UVM_INC_DIR in Makefile, got:\n%1").arg(mkContent)));
 }
 
 void TestCodeGenerator::testComprehensiveTemplateVerification()

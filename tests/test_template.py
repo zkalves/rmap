@@ -18,6 +18,7 @@ import re
 import importlib.util
 from html.parser import HTMLParser
 import xml.etree.ElementTree as ET
+import py_compile
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DEFAULT_BIN = os.path.join(PROJECT_ROOT, "build", "bin", "rmap")
@@ -733,6 +734,153 @@ def test_json(rmap_bin, work_dir):
 
 
 # =============================================================================
+# 12. RTL Testbench Validator (Self-Checking SystemVerilog TB)
+# =============================================================================
+def test_rtl_tb(rmap_bin, work_dir):
+    print("Testing 'rtl_tb' template (Self-Checking SystemVerilog TB)...")
+    comp_out, spi_out, _ = export_examples("rtl_tb", rmap_bin, work_dir)
+
+    tb_comp = os.path.join(comp_out, "sim", "tb_reg_map.sv")
+    tb_spi = os.path.join(spi_out, "sim", "tb_reg_map.sv")
+
+    assert os.path.isfile(tb_comp), f"RTL TB output '{tb_comp}' not found!"
+    assert os.path.isfile(tb_spi), f"RTL TB output '{tb_spi}' not found!"
+
+    with open(tb_comp, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "module tb_core_subsystem_reg_file;" in content
+    assert "core_subsystem_reg_file #(" in content
+    assert "task automatic bus_write(" in content
+    assert "task automatic bus_read(" in content
+    assert "task automatic check_val(" in content
+    assert "Phase 1] Reset & Power-On Defaults" in content
+    assert "Phase 2] Access Policy Verification" in content
+    assert "Phase 3] Byte Strobe Masking Verification" in content
+    assert "Phase 4] Hardware Sideband Interaction" in content
+
+    # If iverilog is installed, compile and simulate
+    iverilog_bin = shutil.which("iverilog")
+    vvp_bin = shutil.which("vvp")
+    if iverilog_bin and vvp_bin:
+        rtl_file = os.path.join(comp_out, "rtl", "reg_map.sv")
+        sim_vvp = os.path.join(work_dir, "sim_rtl.vvp")
+        run_command([iverilog_bin, "-g2012", "-o", sim_vvp, f"-I{os.path.dirname(rtl_file)}", rtl_file, tb_comp])
+        res = run_command([vvp_bin, sim_vvp])
+        assert "ALL ASSERTIONS PASSED" in res.stdout
+        print("  ✓ Icarus Verilog simulation executed and all assertions passed.")
+
+    # If verilator is installed, run lint check
+    verilator_bin = shutil.which("verilator")
+    if verilator_bin:
+        rtl_file = os.path.join(comp_out, "rtl", "reg_map.sv")
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", f"-I{os.path.dirname(rtl_file)}", rtl_file, tb_comp])
+        print("  ✓ Verilator lint check passed on RTL testbench.")
+
+    print("✓ RTL Testbench template verified successfully.\n")
+
+
+# =============================================================================
+# 13. pyuvm Testbench Validator (Open-Source Python UVM TB)
+# =============================================================================
+def test_pyuvm_tb(rmap_bin, work_dir):
+    print("Testing 'pyuvm_tb' template (Open-Source Python UVM TB)...")
+    comp_out, spi_out, _ = export_examples("pyuvm_tb", rmap_bin, work_dir)
+
+    pyuvm_comp = os.path.join(comp_out, "sim", "tb_pyuvm.py")
+    pyuvm_spi = os.path.join(spi_out, "sim", "tb_pyuvm.py")
+
+    assert os.path.isfile(pyuvm_comp), f"pyuvm TB output '{pyuvm_comp}' not found!"
+    assert os.path.isfile(pyuvm_spi), f"pyuvm TB output '{pyuvm_spi}' not found!"
+
+    # Syntax check
+    py_compile.compile(pyuvm_comp, doraise=True)
+    py_compile.compile(pyuvm_spi, doraise=True)
+    print("  ✓ py_compile syntax verification passed.")
+
+    with open(pyuvm_comp, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "class RegBusItem(uvm_sequence_item):" in content
+    assert "class RegBusDriver(uvm_driver):" in content
+    assert "class RegBusMonitor(uvm_monitor):" in content
+    assert "class RegBusAgent(uvm_agent):" in content
+    assert "class RegEnv(uvm_env):" in content
+    assert "class HwResetCheckSequence(uvm_sequence):" in content
+    assert "class RegisterRwSequence(uvm_sequence):" in content
+    assert "class PyUvmRegisterTest(uvm_test):" in content
+    assert "@cocotb.test()" in content
+
+    print("✓ pyuvm Testbench template verified successfully.\n")
+
+
+# =============================================================================
+# 14. UVM IEEE 1800.2 Testbench Validator (uvm-ieee VIP & Environment)
+# =============================================================================
+def test_uvm_tb(rmap_bin, work_dir):
+    print("Testing 'uvm_tb' template (IEEE 1800.2 uvm-ieee Environment)...")
+    comp_out, spi_out, _ = export_examples("uvm_tb", rmap_bin, work_dir)
+
+    uvm_dir = os.path.join(comp_out, "sim", "uvm")
+    bus_if = os.path.join(uvm_dir, "reg_bus_if.sv")
+    bus_pkg = os.path.join(uvm_dir, "reg_bus_pkg.sv")
+    env_sv = os.path.join(uvm_dir, "reg_env.sv")
+    tests_sv = os.path.join(uvm_dir, "reg_tests.sv")
+    top_sv = os.path.join(uvm_dir, "tb_top.sv")
+
+    for fpath in [bus_if, bus_pkg, env_sv, tests_sv, top_sv]:
+        assert os.path.isfile(fpath), f"UVM TB output '{fpath}' not found!"
+
+    with open(bus_pkg, "r", encoding="utf-8") as f:
+        pkg_content = f.read()
+    assert "package reg_bus_pkg;" in pkg_content
+    assert "class reg_bus_item extends uvm_sequence_item;" in pkg_content
+    assert "class reg_bus_driver extends uvm_driver" in pkg_content
+    assert "class reg_bus_monitor extends uvm_monitor;" in pkg_content
+    assert "class reg_bus_agent extends uvm_agent;" in pkg_content
+    assert "class reg_bus_adapter extends uvm_reg_adapter;" in pkg_content
+
+    with open(tests_sv, "r", encoding="utf-8") as f:
+        tests_content = f.read()
+    assert "class core_subsystem_hw_reset_test extends core_subsystem_base_test;" in tests_content
+    assert "class core_subsystem_bit_bash_test extends core_subsystem_base_test;" in tests_content
+    assert "class core_subsystem_reg_access_test extends core_subsystem_base_test;" in tests_content
+
+    with open(top_sv, "r", encoding="utf-8") as f:
+        top_content = f.read()
+    assert "module tb_top;" in top_content
+    assert "reg_bus_if" in top_content
+    assert "run_test();" in top_content
+
+    print("✓ UVM IEEE 1800.2 Testbench template verified successfully.\n")
+
+
+# =============================================================================
+# 15. Simulation Makefile Validator
+# =============================================================================
+def test_sim_makefile(rmap_bin, work_dir):
+    print("Testing 'sim_makefile' template (Multi-Tool Simulation Makefile)...")
+    comp_out, spi_out, _ = export_examples("sim_makefile", rmap_bin, work_dir)
+
+    mk_comp = os.path.join(comp_out, "sim", "Makefile")
+    mk_spi = os.path.join(spi_out, "sim", "Makefile")
+
+    assert os.path.isfile(mk_comp), f"Simulation Makefile '{mk_comp}' not found!"
+    assert os.path.isfile(mk_spi), f"Simulation Makefile '{mk_spi}' not found!"
+
+    with open(mk_comp, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "sim-rtl:" in content
+    assert "sim-verilator:" in content
+    assert "sim-pyuvm:" in content
+    assert "sim-uvm:" in content
+    assert "uvm-ieee" in content
+
+    print("✓ Simulation Makefile template verified successfully.\n")
+
+
+# =============================================================================
 # Main Dispatcher
 # =============================================================================
 TEMPLATES = {
@@ -747,6 +895,10 @@ TEMPLATES = {
     "ipxact": test_ipxact,
     "svd": test_svd,
     "json": test_json,
+    "rtl_tb": test_rtl_tb,
+    "pyuvm_tb": test_pyuvm_tb,
+    "uvm_tb": test_uvm_tb,
+    "sim_makefile": test_sim_makefile,
 }
 
 def main():

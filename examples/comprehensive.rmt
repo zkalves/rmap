@@ -45,6 +45,38 @@ config {
     template_filename: "./templates/json/reg_map.json.inja"
     output_filepath: "./work/json/reg_map.json"
   }
+  template_outputs {
+    template_filename: "./templates/rtl_tb/tb_reg_map.sv.inja"
+    output_filepath: "./work/sim/tb_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/pyuvm_tb/tb_pyuvm.py.inja"
+    output_filepath: "./work/sim/tb_pyuvm.py"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_if.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_if.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_pkg.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_pkg.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_env.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_env.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_tests.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_tests.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/tb_top.sv.inja"
+    output_filepath: "./work/sim/uvm/tb_top.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/sim/Makefile.inja"
+    output_filepath: "./work/sim/Makefile"
+  }
   reg_width: 32
 }
 item {

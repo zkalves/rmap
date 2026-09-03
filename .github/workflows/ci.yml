@@ -105,6 +105,10 @@ jobs:
           - ipxact
           - svd
           - json
+          - rtl_tb
+          - pyuvm_tb
+          - uvm_tb
+          - sim_makefile
 
     steps:
       - name: Checkout repository
@@ -128,11 +132,14 @@ jobs:
             c)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential
               ;;
-            rtl)
+            rtl|rtl_tb)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq verilator iverilog
               ;;
-            uvm)
+            uvm|uvm_tb)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq verilator
+              ;;
+            pyuvm_tb)
+              python3 -m pip install --break-system-packages cocotb pyuvm || true
               ;;
             rust)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rustc

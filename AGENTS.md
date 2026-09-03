@@ -158,11 +158,15 @@ rmap/
 │   ├── json/                   # JSON schema exports (reg_map.json.inja)
 │   ├── markdown/               # Markdown specification tables (reg_doc.md.inja)
 │   ├── python/                 # Python bring-up drivers (reg_map.py.inja)
+│   ├── pyuvm_tb/               # Open-source Python UVM testbenches (tb_pyuvm.py.inja)
 │   ├── rtl/                    # Synthesizable SystemVerilog RTL (reg_map.sv.inja)
+│   ├── rtl_tb/                 # Self-checking SystemVerilog testbenches (tb_reg_map.sv.inja)
 │   ├── rust/                   # Rust PAC crates (reg_map.rs.inja)
+│   ├── sim/                    # Multi-tool simulation runner Makefiles (Makefile.inja)
 │   ├── svd/                    # ARM CMSIS-SVD peripheral XML (reg_map.xml.inja)
 │   ├── systemrdl/              # SystemRDL 2.0 specifications (reg_map.rdl.inja)
 │   └── uvm/                    # UVM register models (reg_model.sv.inja)
+│   └── uvm_tb/                 # IEEE 1800.2 uvm-ieee verification environments (*.sv.inja)
 ├── examples/                   # Sample register maps (.rmt) and reference files
 │   ├── spi.rmt                 # Standard SPI peripheral register map
 │   ├── comprehensive.rmt       # Full feature coverage (all 9 access policies, booleans, hex/dec/bin, mem)
@@ -171,7 +175,7 @@ rmap/
 │   └── tiny/                   # Minimal example register map
 ├── tests/                      # Automated test suites (CTest + QtTest + Template validator)
 │   ├── CMakeLists.txt          # Test target declarations and CTest setup
-│   ├── test_template.py        # Comprehensive verification test runner for all 11 templates
+│   ├── test_template.py        # Comprehensive verification test runner for all 15 templates
 │   ├── backend/                # Backend unit tests
 │   │   ├── test_PathUtils.cpp        # Env var expansion ($VAR, %VAR%, ~), relativization, resolution order
 │   │   ├── test_RegMapTreeItem.cpp   # Node kinds, hierarchy, serialization context
@@ -267,6 +271,10 @@ The code generation system uses **Pantor Inja** to render output files from JSON
 9. `svd/reg_map.xml.inja`: ARM CMSIS-SVD Cortex-M peripheral description XML.
 10. `systemrdl/reg_map.rdl.inja`: Accellera SystemRDL 2.0 register file and addrmap specification.
 11. `uvm/reg_model.sv.inja`: Complete UVM SystemVerilog register model.
+12. `rtl_tb/tb_reg_map.sv.inja`: Standalone self-checking SystemVerilog testbench for open-source simulators (Icarus Verilog, Verilator).
+13. `pyuvm_tb/tb_pyuvm.py.inja`: Open-source Python UVM testbench powered by `pyuvm` and `cocotb`.
+14. `uvm_tb/*.inja`: IEEE 1800.2 standard (`uvm-ieee`) SystemVerilog verification suite (bus VIP, adapter, predictor, environment, tests, top TB).
+15. `sim/Makefile.inja`: Multi-tool simulation runner Makefile (`sim-rtl`, `sim-verilator`, `sim-pyuvm`, `sim-uvm`).
 
 ### Custom Inja Helpers Registered
 - `{{ upper(str) }}`: Converts string to uppercase.
