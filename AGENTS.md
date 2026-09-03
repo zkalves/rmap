@@ -85,7 +85,7 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir build -R "^test_RegMapWindow$" --outp
 ./build/bin/rmap
 
 # Launch rmap directly opening an existing register map file
-./build/bin/rmap -f examples/spi.rmt
+./build/bin/rmap -f examples/rmt/peripherals/spi.rmt
 ```
 
 ### CLI Arguments & Capabilities
@@ -179,12 +179,17 @@ rmap/
 │   ├── systemrdl/              # SystemRDL 2.0 specifications (reg_map.rdl.inja)
 │   └── uvm/                    # UVM register models (reg_model.sv.inja)
 │   └── uvm_tb/                 # IEEE 1800.2 uvm-ieee verification environments (*.sv.inja)
-├── examples/                   # Sample register maps (.rmt) and reference files
-│   ├── spi.rmt                 # Standard SPI peripheral register map
-│   ├── comprehensive.rmt       # Full feature coverage (all 9 access policies, booleans, hex/dec/bin, mem)
-│   ├── wide_bus_64bit.rmt      # 64-bit architecture register map
-│   ├── invalid_overlap.rmt     # Validation test cases (address collision, field collision, width overflow)
-│   └── tiny/                   # Minimal example register map
+├── examples/                   # Sample register maps (.rmt) and multi-format references
+│   ├── README.md               # Overview and usage guide for all example files
+│   ├── rmt/                    # Native Protocol Buffer register maps (.rmt text & .rmb binary)
+│   │   ├── peripherals/        # Standard peripheral blocks (spi.rmt/.rmb, uart.rmt, dma.rmt, sensor_hub.rmt)
+│   │   ├── features/           # Feature coverage (comprehensive.rmt, wide_bus_64bit.rmt, address_gap_example.rmt)
+│   │   └── validation/         # Negative validation tests (invalid_overlap.rmt)
+│   ├── csv/                    # Tabular format references (dma_controller.csv)
+│   ├── ipxact/                 # IP-XACT IEEE 1685 XML models (spi_ipxact.xml)
+│   ├── json/                   # Standardized JSON schema models (sensor_hub.json)
+│   ├── svd/                    # ARM CMSIS-SVD peripheral XML (stm32_uart.svd)
+│   └── systemrdl/              # Accellera SystemRDL 2.0 specifications (atxmega_spi.rdl)
 ├── tests/                      # Automated test suites (CTest + QtTest + Template validator)
 │   ├── CMakeLists.txt          # Test target declarations and CTest setup
 │   ├── test_template.py        # Comprehensive verification test runner for all 15 templates
@@ -323,6 +328,6 @@ Before committing any changes:
 1. Run `make` to verify compilation succeeds with zero errors (compiler uses `-Wfatal-errors`).
 2. Update or add automated tests in `tests/backend/` and `tests/frontend/` to cover all new/modified features and bug fixes.
 3. Clean up output directory (`work/`) and run `make test` to verify all automated test suites pass (100% pass rate).
-4. Test loading, saving, and cross-converting sample files (e.g. `examples/spi.rmt`, `examples/comprehensive.rmt`).
+4. Test loading, saving, and cross-converting sample files (e.g. `examples/rmt/peripherals/spi.rmt`, `examples/rmt/features/comprehensive.rmt`).
 5. Ensure no temporary files or build artifacts (`build/`, `.obj/`, `work/`, `work/*.sv`, `work/*.h`) are committed to version control.
 6. Verify that template modifications match the JSON schema exported by `RegMapTreeModel`.

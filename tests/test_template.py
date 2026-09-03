@@ -63,9 +63,9 @@ def run_command(cmd, check=True, cwd=None, env=None):
 def export_examples(template_name, rmap_bin, target_work_dir):
     """Export comprehensive and spi examples into target_work_dir."""
     os.makedirs(target_work_dir, exist_ok=True)
-    comp_rmt = os.path.join(PROJECT_ROOT, "examples", "comprehensive.rmt")
-    spi_rmt = os.path.join(PROJECT_ROOT, "examples", "spi.rmt")
-    gap_rmt = os.path.join(PROJECT_ROOT, "examples", "address_gap_example.rmt")
+    comp_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "features", "comprehensive.rmt")
+    spi_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "peripherals", "spi.rmt")
+    gap_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "features", "address_gap_example.rmt")
 
     comp_out = os.path.join(target_work_dir, "comprehensive")
     spi_out = os.path.join(target_work_dir, "spi")

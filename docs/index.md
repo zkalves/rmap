@@ -65,8 +65,8 @@ make
 make test
 
 # Launch GUI with sample SPI peripheral
-./build/bin/rmap -f examples/spi.rmt
+./build/bin/rmap -f examples/rmt/peripherals/spi.rmt
 
 # Headless batch code generation
-./build/bin/rmap -f examples/spi.rmt --export --out ./work
+./build/bin/rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```

@@ -36,5 +36,5 @@ make
 make test
 
 # Generate C header and UVM models headlessly from an existing map
-./build/bin/rmap -f examples/spi.rmt --export --out ./work
+./build/bin/rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```

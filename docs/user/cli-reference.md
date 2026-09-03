@@ -77,7 +77,7 @@ Translate between any register map format headlessly:
 
 ```bash
 # Convert SystemRDL to ARM CMSIS-SVD (.svd)
-rmap -f examples/systemRdl/atxmega_spi.rdl --convert spi.svd
+rmap -f examples/systemrdl/atxmega_spi.rdl --convert spi.svd
 
 # Convert ARM CMSIS-SVD to IP-XACT IEEE 1685 XML
 rmap -f spi.svd --convert spi.xml
@@ -89,7 +89,7 @@ rmap -f spi.xml --convert spi.csv
 rmap -f spi.csv --convert spi.rdl
 
 # Convert Protobuf to JSON schema
-rmap -f examples/spi.rmt --convert spi.json
+rmap -f examples/rmt/peripherals/spi.rmt --convert spi.json
 ```
 
 ---
