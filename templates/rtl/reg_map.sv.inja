@@ -53,7 +53,7 @@ module {{ lower(blk.name) }}_reg_file #(
   localparam logic [ADDR_WIDTH-1:0] ADDR_{{ upper(reg.name) }} = {{ reg.offset_hex }};
 {% endfor %}
 {% if existsIn(blk, "crc32_hex") %}
-  localparam logic [31:0] REGMAP_CRC32 = 32'h{{ blk.crc32_hex }};
+  localparam logic [31:0] REGMAP_CRC32 = {{ blk.crc32_hex }};
 {% endif %}
 
   // =========================================================================

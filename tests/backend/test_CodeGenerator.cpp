@@ -1082,7 +1082,7 @@ void TestCodeGenerator::testRtlStrobeAndCrcGeneration()
     outFile.close();
 
     // Verify REGMAP_CRC32 localparam
-    QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 32'h0xCAFE1234;"));
+    QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 0xCAFE1234;"));
     // Verify byte-strobe qualified W1C update
     QVERIFY(content.contains("wstrb_i[b]"));
 }
@@ -1107,6 +1107,10 @@ void TestCodeGenerator::testComprehensiveTemplateVerification()
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::MergedChannels);
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("RMAP_BIN", rmapBin);
+    env.insert("QT_QPA_PLATFORM", "offscreen");
+    proc.setProcessEnvironment(env);
     proc.start(pythonBin, QStringList() << "tests/test_template.py" << "all");
     bool finished = proc.waitForFinished(60000);
     QVERIFY2(finished, "Template verification process timed out");

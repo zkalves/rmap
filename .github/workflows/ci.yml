@@ -118,6 +118,8 @@ jobs:
             libprotobuf-dev \
             protobuf-compiler \
             python3 \
+            python3-pip \
+            python3-venv \
             jq
 
       - name: Install Template-Specific Toolchain
@@ -159,7 +161,7 @@ jobs:
         run: chmod +x build/bin/* || true
 
       - name: Run Template Test
-        run: python3 tests/test_template.py ${{ matrix.template }}
+        run: QT_QPA_PLATFORM=offscreen python3 tests/test_template.py ${{ matrix.template }}
 
   docs-build:
     name: Build & Render Documentation (Pelican)
