@@ -1,4 +1,4 @@
-.PHONY: all run test check clean rebuild docs docs-serve test-templates
+.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all
 
 # Default target: compile using existing build files
 all: build/Makefile
@@ -17,17 +17,35 @@ rmap: build/Makefile
 run: rmap
 	@./build/bin/rmap
 
-# Run automated test suites (cleans up output directory first)
-test check: all
+# Run C++ unit test suites (backend and frontend)
+test-unit: all
 	@rm -rf work
 	@mkdir -p work
-	@QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "unit" --output-on-failure
 
-# Run comprehensive template verification tests across all 11 output formats
+# Run only backend unit tests
+test-backend: all
+	@rm -rf work
+	@mkdir -p work
+	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "backend" --output-on-failure
+
+# Run only frontend GUI unit tests
+test-frontend: all
+	@rm -rf work
+	@mkdir -p work
+	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "frontend" --output-on-failure
+
+# Run comprehensive template verification tests across all 15 output templates
 test-templates: rmap
 	@rm -rf work/test_templates
 	@mkdir -p work/test_templates
 	@python3 tests/test_template.py all
+
+# Run complete verification: unit tests and template verification
+test-all: test-unit test-templates
+
+# Convenience alias for test-unit
+test check: test-unit
 
 # Clean up build directory and test artifacts
 clean:

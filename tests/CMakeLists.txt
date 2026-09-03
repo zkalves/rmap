@@ -15,6 +15,7 @@ foreach(test_name ${BACKEND_TESTS})
     target_link_libraries(${test_name} PRIVATE rmap_core Qt6::Test)
     add_test(NAME ${test_name} COMMAND ${test_name})
     set_tests_properties(${test_name} PROPERTIES
+        LABELS "unit;backend"
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
@@ -35,6 +36,7 @@ foreach(test_name ${FRONTEND_TESTS})
     target_link_libraries(${test_name} PRIVATE rmap_core Qt6::Test)
     add_test(NAME ${test_name} COMMAND ${test_name})
     set_tests_properties(${test_name} PROPERTIES
+        LABELS "unit;frontend"
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )

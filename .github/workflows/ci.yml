@@ -41,8 +41,8 @@ jobs:
           path: build/
           include-hidden-files: true
 
-  test:
-    name: Test (${{ matrix.test_name }})
+  test-unit:
+    name: Unit Test (${{ matrix.test_name }})
     needs: build
     runs-on: ubuntu-24.04
     strategy:

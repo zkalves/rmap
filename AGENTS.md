@@ -34,11 +34,23 @@ make
 # Build only the application binary (fast, skips tests)
 make rmap
 
-# Run all automated test suites (cleans work/ output directory first)
-make test
+# Run C++ unit test suites (backend and frontend)
+make test-unit
 
-# Run comprehensive template verification tests across all 11 output templates
+# Run only backend unit tests
+make test-backend
+
+# Run only frontend GUI unit tests
+make test-frontend
+
+# Run comprehensive template verification tests across all 15 output templates
 make test-templates
+
+# Run complete verification (unit tests + template verification)
+make test-all
+
+# Convenience alias for make test-unit
+make test
 
 # Clean build directory and all generated test output directories
 make clean
