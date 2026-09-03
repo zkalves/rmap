@@ -39,6 +39,7 @@ private slots:
     void testDynamicPathVariableSubstitution();
     void testCHeaderPaddingGeneration();
     void testRtlStrobeAndCrcGeneration();
+    void testComprehensiveTemplateVerification();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -1084,6 +1085,36 @@ void TestCodeGenerator::testRtlStrobeAndCrcGeneration()
     QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 32'h0xCAFE1234;"));
     // Verify byte-strobe qualified W1C update
     QVERIFY(content.contains("wstrb_i[b]"));
+}
+
+void TestCodeGenerator::testComprehensiveTemplateVerification()
+{
+    QString pythonBin = QStandardPaths::findExecutable("python3");
+    if (pythonBin.isEmpty()) {
+        QSKIP("python3 not available in PATH");
+    }
+
+    QString rmapBin = QDir("build/bin/rmap").absolutePath();
+    if (!QFile::exists(rmapBin)) {
+        rmapBin = QDir("bin/rmap").absolutePath();
+    }
+    if (!QFile::exists(rmapBin)) {
+        rmapBin = QDir("../bin/rmap").absolutePath();
+    }
+    if (!QFile::exists(rmapBin)) {
+        QSKIP("rmap binary not available for comprehensive template test");
+    }
+
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start(pythonBin, QStringList() << "tests/test_template.py" << "all");
+    bool finished = proc.waitForFinished(60000);
+    QVERIFY2(finished, "Template verification process timed out");
+    QByteArray output = proc.readAll();
+    if (proc.exitCode() != 0) {
+        qWarning() << "Template verification failed output:\n" << output.constData();
+    }
+    QCOMPARE(proc.exitCode(), 0);
 }
 
 QTEST_MAIN(TestCodeGenerator)

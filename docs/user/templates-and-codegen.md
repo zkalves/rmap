@@ -156,5 +156,36 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
 - **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
 
+---
+
+## 5. Automated Template Testing & Verification
+
+Every template in `templates/` is validated through automated test pipelines in CI/CD and locally:
+
+- **Automated Verification Harness (`tests/test_template.py`)**: Runs comprehensive functional, structural, and syntax tests on each template:
+  - **`c`**: Verifies include guards, `extern "C"`, bit manipulation macros (`_GET`, `_SET`, `_MASK`, `_SHIFT`), alignment padding (`_reserved_`), CRC32 macros, and compiles a C99/C++17 runtime test harness with `gcc`/`g++`.
+  - **`rtl`**: Verifies synthesizable SystemVerilog module declaration, bus slave interface, hardware sideband signals, address decoding, byte-strobe updates, W1C/W1S/W0C logic, and runs `verilator` / `iverilog` syntax & lint checks.
+  - **`uvm`**: Verifies `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy, factory registration, field access configuration, backdoor HDL paths, and address map registration.
+  - **`rust`**: Verifies `#![no_std]` PAC layout, volatile pointers, transparent struct wrappers, bit extraction functions (`get_*`, `set_*`), and compiles library and functional tests with `rustc`.
+  - **`python`**: Validates syntax with `py_compile`, dynamically imports the driver module, attaches mock bus read/write callbacks, and tests field read-modify-write operations.
+  - **`html`**: Validates HTML5 syntax with `HTMLParser`, DOM table structures, interactive search inputs, and verifies no unrendered Inja tags remain.
+  - **`markdown`**: Validates table column alignments, bit range formatting `[msb:lsb]`, block headings, and renders tables with Python markdown.
+  - **`systemrdl`**: Validates Accellera SystemRDL 2.0 `addrmap`, `regfile`, `reg`, `field` hierarchy, balanced braces, and software/hardware access properties.
+  - **`ipxact`**: Validates IEEE 1685-2014 XML schema hierarchy, namespaces, memory maps, address blocks, registers, and fields with `xml.etree` and `xmllint`.
+  - **`svd`**: Validates ARM CMSIS-SVD 1.3 XML schema, peripherals, registers, and bit ranges.
+  - **`json`**: Validates JSON schema correctness, block/register/field nesting, and verifies strict boolean/integer data types.
+
+- **Local Execution**:
+  ```bash
+  # Test all templates
+  make test-templates
+
+  # Test an individual template
+  python3 tests/test_template.py rtl
+  python3 tests/test_template.py c
+  ```
+
+- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs 11 parallel test jobs in CI with template-specific toolchains (`verilator`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
+
 [Next: Architecture & Internal Data Flow &rarr;](architecture.md)
 

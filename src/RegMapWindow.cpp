@@ -1101,6 +1101,15 @@ void RegMapWindow::btnExport(void)
 
     try {
         json jsonData = m_model->extractJsonData(regWidth);
+        if (!cfg->project_name().empty()) {
+            jsonData["name"] = cfg->project_name();
+        } else if (!m_rmap_filename.isEmpty() && (jsonData.value("name", "").empty() || jsonData["name"] == "regmap")) {
+            QFileInfo fi(m_rmap_filename);
+            QString base = fi.baseName();
+            if (!base.isEmpty()) {
+                jsonData["name"] = base.toStdString();
+            }
+        }
         jsonData["project_name"] = cfg->project_name();
         jsonData["project_version"] = cfg->project_version();
         for (const auto& [key, value] : cfg->custom_parameters()) {
@@ -1786,6 +1795,15 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
 
     try {
         json jsonData = m_model->extractJsonData(regWidth);
+        if (!cfg->project_name().empty()) {
+            jsonData["name"] = cfg->project_name();
+        } else if (!m_rmap_filename.isEmpty() && (jsonData.value("name", "").empty() || jsonData["name"] == "regmap")) {
+            QFileInfo fi(m_rmap_filename);
+            QString base = fi.baseName();
+            if (!base.isEmpty()) {
+                jsonData["name"] = base.toStdString();
+            }
+        }
         jsonData["project_name"] = cfg->project_name();
         jsonData["project_version"] = cfg->project_version();
         for (const auto& [key, value] : cfg->custom_parameters()) {

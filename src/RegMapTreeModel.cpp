@@ -650,6 +650,13 @@ json RegMapTreeModel::extractJsonData(uint32_t regWidth)
     root_json["reg_width"]       = regWidth;
     root_json["reg_width_bytes"] = regWidth / 8;
 
+    if (root_json.value("name", "").empty()) {
+        root_json["name"] = "regmap";
+    }
+    if (root_json.value("description", "").empty()) {
+        root_json["description"] = "Hardware Register Map Specification";
+    }
+
     if (root_json.contains("blocks") && root_json["blocks"].is_array()) {
         for (auto &blk : root_json["blocks"]) {
             uint32_t bCrc = computeBlockCrc32(blk);

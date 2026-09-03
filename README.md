@@ -63,8 +63,11 @@ cd rmap
 # Build with Make wrapper
 make
 
-# Run automated test suites (100% pass rate)
+# Run automated unit test suites (100% pass rate)
 make test
+
+# Run comprehensive template verification tests across all 11 output formats
+make test-templates
 ```
 
 ---

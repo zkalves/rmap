@@ -37,6 +37,9 @@ make rmap
 # Run all automated test suites (cleans work/ output directory first)
 make test
 
+# Run comprehensive template verification tests across all 11 output templates
+make test-templates
+
 # Clean build directory and all generated test output directories
 make clean
 
@@ -104,7 +107,7 @@ rmap/
 ├── CMakeLists.txt              # CMake build configuration with FetchContent, rmap_core, rmap, & CTest
 ├── Makefile                    # Make convenience wrapper (all, run, test, clean, rebuild)
 ├── .github/workflows/
-│   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 parallel test jobs)
+│   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 unit test jobs + 11 template test jobs)
 ├── README.md                   # Project overview, badges, features, and quickstart guide
 ├── docs/                       # Project documentation portal (Pelican)
 │   ├── dev/                    # Developer documentation & C++ architecture Markdown references
@@ -166,8 +169,9 @@ rmap/
 │   ├── wide_bus_64bit.rmt      # 64-bit architecture register map
 │   ├── invalid_overlap.rmt     # Validation test cases (address collision, field collision, width overflow)
 │   └── tiny/                   # Minimal example register map
-├── tests/                      # Automated test suites (CTest + QtTest)
+├── tests/                      # Automated test suites (CTest + QtTest + Template validator)
 │   ├── CMakeLists.txt          # Test target declarations and CTest setup
+│   ├── test_template.py        # Comprehensive verification test runner for all 11 templates
 │   ├── backend/                # Backend unit tests
 │   │   ├── test_PathUtils.cpp        # Env var expansion ($VAR, %VAR%, ~), relativization, resolution order
 │   │   ├── test_RegMapTreeItem.cpp   # Node kinds, hierarchy, serialization context

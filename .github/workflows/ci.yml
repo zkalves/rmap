@@ -86,6 +86,81 @@ jobs:
       - name: Run Test
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build -R "^${{ matrix.test_name }}$" --output-on-failure
 
+  test-templates:
+    name: Template Test (${{ matrix.template }})
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        template:
+          - c
+          - rtl
+          - uvm
+          - rust
+          - python
+          - html
+          - markdown
+          - systemrdl
+          - ipxact
+          - svd
+          - json
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            qt6-base-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            python3 \
+            jq
+
+      - name: Install Template-Specific Toolchain
+        run: |
+          case "${{ matrix.template }}" in
+            c)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential
+              ;;
+            rtl)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq verilator iverilog
+              ;;
+            uvm)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq verilator
+              ;;
+            rust)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rustc
+              ;;
+            markdown)
+              python3 -m pip install --break-system-packages markdown || true
+              ;;
+            systemrdl)
+              python3 -m pip install --break-system-packages peakrdl peakrdl-systemrdl || true
+              ;;
+            ipxact|svd)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libxml2-utils
+              ;;
+            *)
+              echo "No additional toolchain required for ${{ matrix.template }}"
+              ;;
+          esac
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifact
+          path: build/
+
+      - name: Restore Executable Permissions
+        run: chmod +x build/bin/* || true
+
+      - name: Run Template Test
+        run: python3 tests/test_template.py ${{ matrix.template }}
+
   docs-build:
     name: Build & Render Documentation (Pelican)
     runs-on: ubuntu-24.04

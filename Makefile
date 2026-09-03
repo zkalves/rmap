@@ -1,4 +1,4 @@
-.PHONY: all run test check clean rebuild docs docs-serve
+.PHONY: all run test check clean rebuild docs docs-serve test-templates
 
 # Default target: compile using existing build files
 all: build/Makefile
@@ -22,6 +22,12 @@ test check: all
 	@rm -rf work
 	@mkdir -p work
 	@QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+
+# Run comprehensive template verification tests across all 11 output formats
+test-templates: rmap
+	@rm -rf work/test_templates
+	@mkdir -p work/test_templates
+	@python3 tests/test_template.py all
 
 # Clean up build directory and test artifacts
 clean:
