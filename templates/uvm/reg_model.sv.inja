@@ -40,6 +40,7 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     this.{{ lower(reg.name) }} = {{ lower(reg.name) }}_reg::type_id::create("{{ reg.name }}");
     this.{{ lower(reg.name) }}.configure(this, null, "reg_{{ lower(reg.name) }}_q");
     this.{{ lower(reg.name) }}.build();
+    this.{{ lower(reg.name) }}.add_hdl_path_slice("reg_{{ lower(reg.name) }}_q", 0, {{ reg.size_width }});
     this.default_map.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{{ upper(reg.access) }}");
     {% endfor %}
   endfunction

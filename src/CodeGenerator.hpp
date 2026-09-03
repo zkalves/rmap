@@ -59,7 +59,13 @@ class CodeGenerator
     private:
         void registerHelpers(Environment &env);
         std::string resolveTemplatePath(const std::string &tmpl_path, const std::string &default_folder, const std::string &base_dir = "");
-        std::string resolveOutputPath(const std::string &tmpl_resolved_path, const std::string &out_path, const std::string &default_out_folder, const std::string &base_dir = "");
+        std::string resolveOutputPath(
+            const std::string &tmpl_resolved_path,
+            const std::string &out_path,
+            const std::string &default_out_folder,
+            const std::string &base_dir = "",
+            const json &context = json()
+        );
 };
 
 #endif // CODEGENERATOR_HPP

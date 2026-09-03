@@ -56,6 +56,8 @@ class RegConfigWindow : public QDialog, private Ui::config
         void addParameterRow(const QString &key = "", const QString &val = "");
         void addTemplateFolder(const QString &folder);
         void scanTemplateFolders();
+        void onSyncDefaultOutputs();
+        void onOutputFolderEdited(const QString &newFolder);
         void accept(void) override;
         void reject(void) override;
 
@@ -98,7 +100,7 @@ class RegConfigWindow : public QDialog, private Ui::config
 
         void updateUiFromState();
         void saveStateFromUi();
-        QString computeDefaultOutputPath(const QString &tmplRelPath);
+        QString computeDefaultOutputPath(const QString &tmplRelPath, const QString &outFolderOverride = QString());
 };
 
 #endif // REGCONFIGWINDOW_HPP

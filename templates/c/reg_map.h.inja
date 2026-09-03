@@ -17,6 +17,7 @@ extern "C" {
 /* =============================================================================
  * Register Block: {{ blk.name }}
  * ============================================================================= */
+{% if existsIn(blk, "registers") %}
 {% for reg in blk.registers %}
 /* {{ reg.name }} - {{ reg.description }} */
 #define {{ upper(blk.name) }}_{{ upper(reg.name) }}_OFFSET ({{ reg.offset_hex }})
@@ -24,6 +25,7 @@ extern "C" {
 #define {{ upper(blk.name) }}_{{ upper(reg.name) }}_RESET ({{ reg.reset_hex }})
 {% endif %}
 
+{% if existsIn(reg, "fields") %}
 {% for fld in reg.fields %}
 #define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_MASK ({{ bitmask(fld.size_width, fld.offset_lsb) }})
 #define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SHIFT ({{ fld.offset_lsb }})
@@ -37,17 +39,33 @@ extern "C" {
 #define {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SET(reg_val, fld_val) \
     RMAP_REG_SET(reg_val, {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_MASK, {{ upper(blk.name) }}_{{ upper(reg.name) }}_{{ upper(fld.name) }}_SHIFT, fld_val)
 {% endfor %}
+{% endif %}
 
 {% endfor %}
+{% endif %}
 
 /* Structure definition for {{ blk.name }} */
 typedef struct {
+{% if existsIn(blk, "registers") %}
 {% for reg in blk.registers %}
+{% if existsIn(reg, "pad_words_before") %}
+{% if reg.pad_words_before > 0 %}
+    uint32_t _reserved_{{ loop.index }}[{{ reg.pad_words_before }}];
+{% endif %}
+{% endif %}
     volatile uint32_t {{ lower(reg.name) }}; /* {{ reg.offset_hex }}: {{ reg.description }} */
 {% endfor %}
+{% endif %}
 } {{ lower(blk.name) }}_regs_t;
 
+{% if existsIn(blk, "crc32_hex") %}
+#define {{ upper(blk.name) }}_BLOCK_CRC32 ({{ blk.crc32_hex }})
+{% endif %}
 {% endfor %}
+
+{% if exists("regmap_crc32_hex") %}
+#define {{ upper(name) }}_REGMAP_CRC32 ({{ regmap_crc32_hex }})
+{% endif %}
 
 #ifdef __cplusplus
 }

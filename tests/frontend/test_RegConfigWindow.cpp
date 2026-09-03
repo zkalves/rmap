@@ -21,6 +21,7 @@ private slots:
     void testPathStorageVarieties();
     void testTemplateFoldersListAndScanning();
     void testEnableDisableToggles();
+    void testDynamicOutputFolderSync();
 };
 
 void TestRegConfigWindow::testConfigDialogDefaults()
@@ -36,7 +37,7 @@ void TestRegConfigWindow::testConfigDialogDefaults()
     // Verify all template toolbar buttons are fully sized and visible
     const QStringList toolbarButtons = {
         "btnAddTemplateFolder", "btnRemoveTemplateFolder",
-        "btnScanTemplates", "btnEnableAll", "btnDisableAll",
+        "btnScanTemplates", "btnSyncOutputs", "btnEnableAll", "btnDisableAll",
         "btnAddTemplateFiles", "btnAddRow", "btnBrowseTemplate",
         "btnBrowseOutputFile", "btnBrowseOutputFolderItem",
         "btnRemoveRow", "btnClearAll"
@@ -348,6 +349,44 @@ void TestRegConfigWindow::testEnableDisableToggles()
     btnEnableAll->click();
     QCOMPARE(table->item(0, 0)->checkState(), Qt::Checked);
     QCOMPARE(table->item(1, 0)->checkState(), Qt::Checked);
+}
+
+void TestRegConfigWindow::testDynamicOutputFolderSync()
+{
+    RegConfigWindow cfgWin;
+    auto *outEdit = cfgWin.findChild<QLineEdit*>("outputFolder");
+    auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+    auto *btnSyncOutputs = cfgWin.findChild<QPushButton*>("btnSyncOutputs");
+
+    QVERIFY(outEdit != nullptr);
+    QVERIFY(table != nullptr);
+    QVERIFY(btnSyncOutputs != nullptr);
+
+    // Initial default output folder is empty / "./work"
+    outEdit->setText("work");
+    cfgWin.onOutputFolderEdited("work");
+
+    // Row 0: uses default mirrored path
+    cfgWin.addTemplateRow(true, "templates/rtl/reg_map.sv.inja", "work/rtl/reg_map.sv");
+    // Row 1: uses an explicit custom override
+    cfgWin.addTemplateRow(true, "templates/c/reg_map.h.inja", "../custom/path/my_regs.h");
+
+    QCOMPARE(table->item(0, 2)->text(), QString("work/rtl/reg_map.sv"));
+    QCOMPARE(table->item(1, 2)->text(), QString("../custom/path/my_regs.h"));
+
+    // User updates default output folder to "build/generated"
+    outEdit->setText("build/generated");
+    cfgWin.onOutputFolderEdited("build/generated");
+
+    // Row 0 (default) updates dynamically
+    QCOMPARE(table->item(0, 2)->text(), QString("build/generated/rtl/reg_map.sv"));
+    // Row 1 (custom override) remains preserved
+    QCOMPARE(table->item(1, 2)->text(), QString("../custom/path/my_regs.h"));
+
+    // Clicking "Sync Outputs" re-syncs all rows to the active output folder
+    btnSyncOutputs->click();
+    QCOMPARE(table->item(0, 2)->text(), QString("build/generated/rtl/reg_map.sv"));
+    QCOMPARE(table->item(1, 2)->text(), QString("build/generated/c/reg_map.h"));
 }
 
 QTEST_MAIN(TestRegConfigWindow)

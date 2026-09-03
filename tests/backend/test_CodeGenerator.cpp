@@ -36,6 +36,9 @@ private slots:
     void testRelativePathAndBaseDirResolution();
     void testEnvVarExpansionInTemplateAndOutput();
     void testRecursiveDirectoryGeneration();
+    void testDynamicPathVariableSubstitution();
+    void testCHeaderPaddingGeneration();
+    void testRtlStrobeAndCrcGeneration();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -939,6 +942,148 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration()
     QVERIFY(QFile::exists("work/ipxact/reg_map.xml"));
     QVERIFY(QFile::exists("work/svd/reg_map.xml"));
     QVERIFY(QFile::exists("work/json/reg_map.json"));
+}
+
+void TestCodeGenerator::testDynamicPathVariableSubstitution()
+{
+    CodeGenerator cg;
+    json data;
+    data["name"] = "spi_master";
+    data["project_name"] = "spi_project";
+    data["reg_width"] = 32;
+    data["reg_width_bytes"] = 4;
+    json blk;
+    blk["name"] = "spi_core";
+    blk["registers"] = json::array();
+    data["blocks"] = json::array({blk});
+
+    // Test meaningful variables: {output_folder}, {category}, {block_name}, {file_extension}
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({
+        "templates/c/reg_map.h.inja",
+        "{output_folder}/{category}/{block_name}_custom.{file_extension}"
+    });
+
+    GenerationReport report = cg.generate(data, "templates", "work/custom_out", mappings);
+    QVERIFY(!report.has_errors());
+    QCOMPARE(report.success_files.size(), (size_t)1);
+    QVERIFY(QFile::exists("work/custom_out/c/spi_core_custom.h"));
+
+    // Test category directory override deduplication (hw/rtl/ does not produce hw/rtl/rtl)
+    std::vector<TemplateMapping> dirMappings;
+    dirMappings.push_back({
+        "templates/rtl/reg_map.sv.inja",
+        "work/dedup_test/rtl/"
+    });
+    GenerationReport report2 = cg.generate(data, "templates", "work/dedup_test", dirMappings);
+    QVERIFY(!report2.has_errors());
+    QVERIFY(QFile::exists("work/dedup_test/rtl/reg_map.sv"));
+    QVERIFY(!QFile::exists("work/dedup_test/rtl/rtl/reg_map.sv"));
+}
+
+void TestCodeGenerator::testCHeaderPaddingGeneration()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SPI_PAD";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+    root["regmap_crc32_hex"] = "0xDEADBEEF";
+
+    json blk;
+    blk["name"] = "CORE";
+    blk["crc32_hex"] = "0x12345678";
+
+    // Register 0 @ offset 0x0
+    json reg0;
+    reg0["name"] = "CTRL";
+    reg0["offset_hex"] = "0x0";
+    reg0["offset_lsb"] = 0;
+    reg0["size_width"] = 32;
+    reg0["access"] = "RW";
+    reg0["description"] = "Control";
+    reg0["pad_words_before"] = 0;
+    reg0["pad_bytes_before"] = 0;
+    reg0["fields"] = json::array();
+
+    // Register 1 @ offset 0x10 -> 12 byte gap = 3 words
+    json reg1;
+    reg1["name"] = "STATUS";
+    reg1["offset_hex"] = "0x10";
+    reg1["offset_lsb"] = 16;
+    reg1["size_width"] = 32;
+    reg1["access"] = "RO";
+    reg1["description"] = "Status";
+    reg1["pad_words_before"] = 3;
+    reg1["pad_bytes_before"] = 12;
+    reg1["fields"] = json::array();
+
+    blk["registers"] = json::array({reg0, reg1});
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/c/reg_map.h.inja", "work/c/test_pad.h"});
+
+    GenerationReport report = cg.generate(root, "templates", "work", mappings);
+    QVERIFY(!report.has_errors());
+
+    QFile outFile("work/c/test_pad.h");
+    QVERIFY(outFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = outFile.readAll();
+    outFile.close();
+
+    // Verify reserved word padding array was generated
+    QVERIFY(content.contains("uint32_t _reserved_1[3];"));
+    // Verify CRC32 macros were generated
+    QVERIFY(content.contains("#define SPI_PAD_REGMAP_CRC32 (0xDEADBEEF)"));
+    QVERIFY(content.contains("#define CORE_BLOCK_CRC32 (0x12345678)"));
+}
+
+void TestCodeGenerator::testRtlStrobeAndCrcGeneration()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SPI_RTL";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json blk;
+    blk["name"] = "CORE";
+    blk["crc32_hex"] = "0xCAFE1234";
+
+    json reg;
+    reg["name"] = "INTR_STATUS";
+    reg["offset_hex"] = "0x0";
+    reg["offset_lsb"] = 0;
+    reg["size_width"] = 32;
+
+    json fld;
+    fld["name"] = "TX_DONE";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 1;
+    fld["access"] = "W1C";
+    fld["sw_access"] = "W1C";
+    fld["hw_access"] = "W1S";
+
+    reg["fields"] = json::array({fld});
+    blk["registers"] = json::array({reg});
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/rtl/test_strobe.sv"});
+
+    GenerationReport report = cg.generate(root, "templates", "work", mappings);
+    QVERIFY(!report.has_errors());
+
+    QFile outFile("work/rtl/test_strobe.sv");
+    QVERIFY(outFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = outFile.readAll();
+    outFile.close();
+
+    // Verify REGMAP_CRC32 localparam
+    QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 32'h0xCAFE1234;"));
+    // Verify byte-strobe qualified W1C update
+    QVERIFY(content.contains("wstrb_i[b]"));
 }
 
 QTEST_MAIN(TestCodeGenerator)

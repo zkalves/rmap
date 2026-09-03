@@ -15,9 +15,13 @@ When templates are executed, the full register map model is exposed as a JSON st
   "project_version": "1.0.0",
   "reg_width": 32,
   "reg_width_bytes": 4,
+  "regmap_crc32": 2743849182,
+  "regmap_crc32_hex": "0xA38EB0DE",
   "blocks": [
     {
       "name": "SPI_Top",
+      "crc32": 305419896,
+      "crc32_hex": "0x12345678",
       "registers": [
         {
           "name": "CTRL",
@@ -28,6 +32,8 @@ When templates are executed, the full register map model is exposed as a JSON st
           "reset_val": 0,
           "reset_hex": "0x0",
           "description": "Control Register",
+          "pad_bytes_before": 0,
+          "pad_words_before": 0,
           "fields": [
             {
               "name": "EN",
@@ -135,7 +141,18 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
 - **Granular Enable / Disable Controls**: Toggle individual templates via checkboxes in the **Enable** column, or use **All** / **None** buttons to bulk-toggle generation. Only enabled templates are processed during GUI export (`Ctrl+E`) and headless export (`--export`).
 - **Relative Path Resolution**: Template and output paths specified as relative (e.g. `templates/c/reg_map.h.inja`, `work/c/reg_map.h`) resolve relative to the register map file's directory first, with fallback to the Current Working Directory (CWD).
 - **Environment Variable Expansion**: Paths can include `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (home directory), expanded dynamically at generation time.
-- **Direct File Output**: Outputs directly to `target_file.sv` or relative destination. Missing parent directories are created automatically.
+- **Mirrored Output Directory Architecture**: By default, generated files automatically mirror the category subdirectory of their source template (e.g. `templates/rtl/reg_map.sv.inja` &rarr; `<out_dir>/rtl/reg_map.sv`, `templates/c/reg_map.h.inja` &rarr; `<out_dir>/c/reg_map.h`).
+- **Dynamic GUI Synchronization**: Changing the **Default Output Folder** in the Configuration Dialog automatically updates all rows using default mirrored paths, while leaving any custom per-template overrides untouched.
+- **Sync Outputs**: Click **Sync Outputs** in the toolbar to synchronize or reset all template outputs to the active default output folder.
+- **Dynamic Path Variables**: Output destination paths support meaningful dynamic variables for flexible SoC repository layouts:
+  - `{output_folder}` / `{output_dir}`: Configured global default output folder.
+  - `{category}` / `{cat}`: Template category subfolder (e.g. `rtl`, `c`, `uvm`, `html`).
+  - `{block_name}` / `{block}`: Lowercase register block or peripheral name (e.g. `spi_core`).
+  - `{project_name}` / `{project}`: Project name defined in configuration.
+  - `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl`).
+  - `{template_name}` / `{filename}`: Base template name (e.g. `reg_map`, `reg_doc`).
+  *(e.g., `{output_folder}/{category}/{block_name}_regs.{file_extension}`).*
+- **Direct File Output & Per-Template Overrides**: Users can override any template to target an explicit file path (e.g. `../../hw/rtl/spi_reg_file.sv` or `../../sw/include/spi_regs.h`). Missing parent directories are created automatically.
 - **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
 

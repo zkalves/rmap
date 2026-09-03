@@ -48,7 +48,16 @@ Constructs a code generator instance.
 Destructor.
 
 #### GenerationReport generate(const json &json_data, const std::string &default_template_folder, const std::string &default_output_folder, const std::vector<TemplateMapping> &mappings, const std::string &base_dir = "")
-Main generation entry point. Iterates through `mappings`, resolves template paths against `default_template_folder` and `base_dir`, expands environment variables, executes Inja rendering with custom helpers, creates target directories, and writes generated code to disk. Returns a detailed `GenerationReport`.
+Main generation entry point. Iterates through `mappings`, resolves template paths against `default_template_folder` and `base_dir`, expands dynamic path variables and environment variables, executes Inja rendering with custom helpers, creates target directories, and writes generated code to disk. Returns a detailed `GenerationReport`.
+
+#### Dynamic Path Variables
+Output destination paths support meaningful dynamic path variables for flexible SoC repo organization:
+- `{output_folder}` / `{output_dir}`: Configured global default output folder.
+- `{category}` / `{cat}`: Template category subfolder (e.g. `rtl`, `c`, `uvm`, `html`).
+- `{block_name}` / `{block}`: Lowercase register block or peripheral name.
+- `{project_name}` / `{project}`: Project name defined in configuration.
+- `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl`).
+- `{template_name}` / `{filename}`: Base template name.
 
 #### GenerationReport parseDirectory(const json &json_data, const std::string &template_folder, const std::string &output_folder, const std::string &base_dir = "")
 Discovers all `.inja` templates inside `template_folder`, derives output filenames by stripping the `.inja` extension, and renders all templates into `output_folder`.

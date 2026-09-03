@@ -14,6 +14,7 @@ private slots:
     void testValidationRules();
     void test64BitWideRegisters();
     void testInvalidCellsTracking();
+    void testCrc32AndMemoryGapPadding();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders()
@@ -226,6 +227,63 @@ void TestRegMapTreeModel::testInvalidCellsTracking()
     // Verify cell is marked invalid
     QModelIndex lsbIndex = model.index(0, 1, regIndex);
     QVERIFY(model.isIndexInvalid(lsbIndex));
+}
+
+void TestRegMapTreeModel::testCrc32AndMemoryGapPadding()
+{
+    RegMapTreeModel model;
+    // Insert Block
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.setData(model.index(0, 3, QModelIndex()), "SPI_CORE", Qt::EditRole);
+    model.setData(model.index(0, 1, QModelIndex()), "0", Qt::EditRole);
+
+    // Insert Register 0 @ offset 0x0
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex reg0Index = model.index(0, 0, blkIndex);
+    model.setData(model.index(0, 3, blkIndex), "CTRL", Qt::EditRole);
+    model.setData(model.index(0, 1, blkIndex), "0", Qt::EditRole);
+
+    // Insert Register 1 @ offset 0x10 (16) -> 12 byte gap between reg0 (size 4) and reg1 (offset 16)
+    model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    model.setData(model.index(1, 3, blkIndex), "STATUS", Qt::EditRole);
+    model.setData(model.index(1, 1, blkIndex), "16", Qt::EditRole);
+
+    json extracted = model.extractJsonData(32);
+
+    // Verify CRC32 presence
+    QVERIFY(extracted.contains("regmap_crc32"));
+    QVERIFY(extracted.contains("regmap_crc32_hex"));
+    uint32_t crc1 = extracted["regmap_crc32"].get<uint32_t>();
+    QVERIFY(crc1 != 0);
+    QString crcHex = QString::fromStdString(extracted["regmap_crc32_hex"].get<std::string>());
+    QVERIFY(crcHex.startsWith("0x"));
+
+    // Verify Block-level CRC
+    QVERIFY(extracted["blocks"][0].contains("crc32"));
+    QVERIFY(extracted["blocks"][0].contains("crc32_hex"));
+
+    // Verify memory gap calculation:
+    // reg0: offset 0 -> pad_bytes_before = 0, pad_words_before = 0
+    // reg1: offset 16 -> pad_bytes_before = 12, pad_words_before = 3 (12 / 4)
+    auto &regs = extracted["blocks"][0]["registers"];
+    QCOMPARE(regs.size(), (size_t)2);
+    QCOMPARE(regs[0]["pad_bytes_before"].get<uint64_t>(), 0ULL);
+    QCOMPARE(regs[0]["pad_words_before"].get<uint64_t>(), 0ULL);
+    QCOMPARE(regs[1]["pad_bytes_before"].get<uint64_t>(), 12ULL);
+    QCOMPARE(regs[1]["pad_words_before"].get<uint64_t>(), 3ULL);
+
+    // Verify CRC determinism when offset changes
+    model.setData(model.index(1, 1, blkIndex), "32", Qt::EditRole);
+    json extractedModified = model.extractJsonData(32);
+    uint32_t crc2 = extractedModified["regmap_crc32"].get<uint32_t>();
+    QVERIFY(crc1 != crc2);
+
+    // Restore offset -> CRC matches crc1
+    model.setData(model.index(1, 1, blkIndex), "16", Qt::EditRole);
+    json extractedRestored = model.extractJsonData(32);
+    uint32_t crc3 = extractedRestored["regmap_crc32"].get<uint32_t>();
+    QCOMPARE(crc1, crc3);
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

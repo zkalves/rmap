@@ -36,9 +36,11 @@ RegConfigWindow::RegConfigWindow(QWidget *parent) :
     // Connect General Settings browse buttons
     connect(this->btnBrowseOutputFolder,   &QPushButton::clicked, this, &RegConfigWindow::onBrowseOutputFolder);
     connect(this->btnBrowsePythonScript,   &QPushButton::clicked, this, &RegConfigWindow::onBrowsePythonScript);
+    connect(this->outputFolder,            &QLineEdit::textEdited, this, &RegConfigWindow::onOutputFolderEdited);
 
     // Connect Template & Output Table buttons
     connect(this->btnScanTemplates,          &QPushButton::clicked, this, &RegConfigWindow::onScanTemplates);
+    connect(this->btnSyncOutputs,            &QPushButton::clicked, this, &RegConfigWindow::onSyncDefaultOutputs);
     connect(this->btnEnableAll,              &QPushButton::clicked, this, &RegConfigWindow::onEnableAll);
     connect(this->btnDisableAll,             &QPushButton::clicked, this, &RegConfigWindow::onDisableAll);
     connect(this->btnAddTemplateFiles,       &QPushButton::clicked, this, &RegConfigWindow::onAddTemplateFiles);
@@ -184,10 +186,14 @@ void RegConfigWindow::addTemplateRow(const QString &tmpl, const QString &out)
     addTemplateRow(true, tmpl, out);
 }
 
-QString RegConfigWindow::computeDefaultOutputPath(const QString &tmplRelPath)
+QString RegConfigWindow::computeDefaultOutputPath(const QString &tmplRelPath, const QString &outFolderOverride)
 {
-    QString defaultOutDir = this->outputFolder->text().trimmed();
+    QString defaultOutDir = outFolderOverride.trimmed();
+    if (defaultOutDir.isEmpty()) {
+        defaultOutDir = this->outputFolder->text().trimmed();
+    }
     if (defaultOutDir.isEmpty()) defaultOutDir = PathUtils::defaultOutputDir();
+    defaultOutDir = PathUtils::normalizeSeparators(defaultOutDir);
 
     QString relSubPath = tmplRelPath;
     QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::defaultTemplatesDir()));
@@ -269,6 +275,63 @@ void RegConfigWindow::onScanTemplates()
     scanTemplateFolders();
 }
 
+void RegConfigWindow::onSyncDefaultOutputs()
+{
+    QString currDefault = this->outputFolder->text().trimmed();
+    if (currDefault.isEmpty()) currDefault = PathUtils::defaultOutputDir();
+    currDefault = PathUtils::normalizeSeparators(currDefault);
+
+    for (int r = 0; r < this->templateTable->rowCount(); ++r) {
+        auto *tmplItem = this->templateTable->item(r, 1);
+        if (!tmplItem) continue;
+        QString tmpl = tmplItem->text().trimmed();
+        if (tmpl.isEmpty()) continue;
+
+        QString newOut = computeDefaultOutputPath(tmpl, currDefault);
+        auto *outItem = this->templateTable->item(r, 2);
+        if (!outItem) {
+            outItem = new QTableWidgetItem();
+            this->templateTable->setItem(r, 2, outItem);
+        }
+        outItem->setText(newOut);
+    }
+}
+
+void RegConfigWindow::onOutputFolderEdited(const QString &newFolder)
+{
+    QString prevDefault = m_outputFolder.trimmed().isEmpty() ? PathUtils::defaultOutputDir() : m_outputFolder.trimmed();
+    prevDefault = PathUtils::normalizeSeparators(prevDefault);
+
+    QString newDefault = newFolder.trimmed().isEmpty() ? PathUtils::defaultOutputDir() : newFolder.trimmed();
+    newDefault = PathUtils::normalizeSeparators(newDefault);
+
+    for (int r = 0; r < this->templateTable->rowCount(); ++r) {
+        auto *tmplItem = this->templateTable->item(r, 1);
+        auto *outItem = this->templateTable->item(r, 2);
+        if (!tmplItem) continue;
+
+        QString tmpl = tmplItem->text().trimmed();
+        if (tmpl.isEmpty()) continue;
+
+        QString expectedOld = computeDefaultOutputPath(tmpl, prevDefault);
+        QString currentOut = outItem ? outItem->text().trimmed() : "";
+
+        // If current output was empty or equal to the previous default output, update it to the new default
+        if (currentOut.isEmpty() || currentOut == expectedOld ||
+            currentOut.startsWith(prevDefault + "/", Qt::CaseInsensitive) ||
+            currentOut.startsWith("./" + prevDefault + "/", Qt::CaseInsensitive))
+        {
+            QString newOut = computeDefaultOutputPath(tmpl, newDefault);
+            if (!outItem) {
+                outItem = new QTableWidgetItem();
+                this->templateTable->setItem(r, 2, outItem);
+            }
+            outItem->setText(newOut);
+        }
+    }
+    m_outputFolder = newFolder;
+}
+
 void RegConfigWindow::onEnableAll()
 {
     for (int r = 0; r < this->templateTable->rowCount(); ++r) {
@@ -294,7 +357,9 @@ void RegConfigWindow::onBrowseOutputFolder()
     else initialDir = PathUtils::resolvePath(initialDir, baseDir());
     QString dir = QFileDialog::getExistingDirectory(this, tr("Select Default Output Folder"), initialDir);
     if (!dir.isEmpty()) {
-        this->outputFolder->setText(PathUtils::toRelativePath(dir, baseDir()));
+        QString relDir = PathUtils::toRelativePath(dir, baseDir());
+        this->outputFolder->setText(relDir);
+        onOutputFolderEdited(relDir);
     }
 }
 

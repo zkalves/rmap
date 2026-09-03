@@ -182,7 +182,8 @@ std::string CodeGenerator::resolveOutputPath(
     const std::string &tmpl_path,
     const std::string &out_path,
     const std::string &default_out_folder,
-    const std::string &base_dir)
+    const std::string &base_dir,
+    const json &context)
 {
     QString expTmpl = QString::fromStdString(PathUtils::expandEnvVars(tmpl_path)).trimmed();
     expTmpl = PathUtils::normalizeSeparators(expTmpl);
@@ -217,21 +218,87 @@ std::string CodeGenerator::resolveOutputPath(
         relSubPath.chop(5);
     }
 
-    QString expOut = QString::fromStdString(PathUtils::expandEnvVars(out_path)).trimmed();
+    // Extract category, base filename, template name, and extension
+    QString category = "";
+    QString baseFileName = relSubPath;
+    int slashIdx = relSubPath.lastIndexOf('/');
+    if (slashIdx >= 0) {
+        category = relSubPath.left(slashIdx);
+        baseFileName = relSubPath.mid(slashIdx + 1);
+    }
+    QString fileExt = "";
+    QString tmplName = baseFileName;
+    int dotIdx = baseFileName.lastIndexOf('.');
+    if (dotIdx >= 0) {
+        tmplName = baseFileName.left(dotIdx);
+        fileExt = baseFileName.mid(dotIdx + 1);
+    }
+
     QString expDefaultOut = QString::fromStdString(PathUtils::expandEnvVars(default_out_folder)).trimmed();
     if (expDefaultOut.isEmpty()) {
         expDefaultOut = PathUtils::defaultOutputDir();
+    }
+    expDefaultOut = PathUtils::normalizeSeparators(expDefaultOut);
+
+    QString expOut = QString::fromStdString(PathUtils::expandEnvVars(out_path)).trimmed();
+    expOut = PathUtils::normalizeSeparators(expOut);
+
+    // Dynamic variable expansion
+    if (!expOut.isEmpty()) {
+        std::string rawBlockName;
+        if (context.contains("blocks") && context["blocks"].is_array() && !context["blocks"].empty()) {
+            rawBlockName = context["blocks"][0].value("name", "");
+        }
+        if (rawBlockName.empty()) {
+            rawBlockName = context.value("name", "");
+        }
+        QString blockName = QString::fromStdString(rawBlockName).toLower();
+
+        std::string rawProj = context.value("project_name", "");
+        if (rawProj.empty()) rawProj = rawBlockName;
+        QString projName = QString::fromStdString(rawProj).toLower();
+
+        expOut.replace("{output_folder}", expDefaultOut, Qt::CaseInsensitive);
+        expOut.replace("{output_dir}", expDefaultOut, Qt::CaseInsensitive);
+        expOut.replace("{out_dir}", expDefaultOut, Qt::CaseInsensitive);
+        expOut.replace("{out}", expDefaultOut, Qt::CaseInsensitive);
+
+        expOut.replace("{category}", category, Qt::CaseInsensitive);
+        expOut.replace("{cat}", category, Qt::CaseInsensitive);
+
+        expOut.replace("{block_name}", blockName, Qt::CaseInsensitive);
+        expOut.replace("{block}", blockName, Qt::CaseInsensitive);
+        expOut.replace("{name}", blockName, Qt::CaseInsensitive);
+
+        expOut.replace("{project_name}", projName, Qt::CaseInsensitive);
+        expOut.replace("{project}", projName, Qt::CaseInsensitive);
+
+        expOut.replace("{file_extension}", fileExt, Qt::CaseInsensitive);
+        expOut.replace("{ext}", fileExt, Qt::CaseInsensitive);
+
+        expOut.replace("{template_name}", tmplName, Qt::CaseInsensitive);
+        expOut.replace("{filename}", tmplName, Qt::CaseInsensitive);
+
+        expOut = PathUtils::normalizeSeparators(expOut);
     }
 
     QString targetDirOrFile = expOut.isEmpty() ? expDefaultOut : expOut;
 
     // Resolve directory/file against base_dir if relative
     QString resolved = PathUtils::resolvePath(targetDirOrFile, QString::fromStdString(PathUtils::expandEnvVars(base_dir)));
+    resolved = PathUtils::normalizeSeparators(resolved);
 
     QFileInfo outInfo(resolved);
     // If output is explicitly a directory, ends with a slash separator, or has no file extension (folder path)
     if (targetDirOrFile.endsWith('/') || targetDirOrFile.endsWith('\\') || (outInfo.exists() && outInfo.isDir()) || !outInfo.fileName().contains('.')) {
-        return PathUtils::normalizeSeparators(QDir(resolved).filePath(relSubPath)).toStdString();
+        QString finalSubPath = relSubPath;
+        if (!category.isEmpty()) {
+            QString normTarget = PathUtils::normalizeSeparators(targetDirOrFile);
+            if (normTarget.endsWith("/" + category, Qt::CaseInsensitive) || normTarget.endsWith("/" + category + "/", Qt::CaseInsensitive) || normTarget == category) {
+                finalSubPath = baseFileName;
+            }
+        }
+        return PathUtils::normalizeSeparators(QDir(resolved).filePath(finalSubPath)).toStdString();
     }
 
     return PathUtils::normalizeSeparators(resolved).toStdString();
@@ -251,10 +318,32 @@ GenerationReport CodeGenerator::generate(
         return parseDirectory(json_data, default_template_folder, default_output_folder, base_dir);
     }
 
+    // Ensure memory gap padding is present if raw json data didn't go through model extraction
+    json preparedJson = json_data;
+    if (preparedJson.contains("blocks") && preparedJson["blocks"].is_array()) {
+        uint64_t regBytes = preparedJson.value("reg_width_bytes", 4ULL);
+        if (regBytes == 0) regBytes = 4;
+        for (auto &blk : preparedJson["blocks"]) {
+            if (blk.contains("registers") && blk["registers"].is_array()) {
+                uint64_t currentOffset = 0;
+                for (auto &r : blk["registers"]) {
+                    if (!r.contains("pad_words_before")) {
+                        uint64_t regOffset = r.value("offset_lsb", 0ULL);
+                        uint64_t padBytes = (regOffset > currentOffset) ? (regOffset - currentOffset) : 0;
+                        uint64_t padWords = (regBytes > 0) ? (padBytes / regBytes) : 0;
+                        r["pad_bytes_before"] = padBytes;
+                        r["pad_words_before"] = padWords;
+                    }
+                    currentOffset = r.value("offset_lsb", 0ULL) + regBytes;
+                }
+            }
+        }
+    }
+
     // Process each configured template mapping
     for (const auto &mapping : mappings) {
         std::string resolvedTmpl = resolveTemplatePath(mapping.template_file, default_template_folder, base_dir);
-        std::string resolvedOut  = resolveOutputPath(mapping.template_file, mapping.output_file, default_output_folder, base_dir);
+        std::string resolvedOut  = resolveOutputPath(mapping.template_file, mapping.output_file, default_output_folder, base_dir, preparedJson);
 
         QFileInfo tmplInfo(QString::fromStdString(resolvedTmpl));
         if (!tmplInfo.exists() || !tmplInfo.isFile()) {
@@ -283,7 +372,7 @@ GenerationReport CodeGenerator::generate(
             registerHelpers(env);
 
             Template temp = env.parse_template(tmplFileName);
-            env.write(temp, json_data, resolvedOut);
+            env.write(temp, preparedJson, resolvedOut);
 
             qDebug() << "[CodeGenerator] Successfully generated:" << resolvedOut.c_str()
                      << "from template:" << resolvedTmpl.c_str();

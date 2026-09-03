@@ -275,7 +275,21 @@ The code generation system uses **Pantor Inja** to render output files from JSON
 - `{{ to_hex(val, width) }}`: Formats a number as zero-padded hex with `0x` prefix (e.g. `to_hex(15, 4)` &rarr; `0x000F`).
 - `{{ to_dec(val) }}`: Formats an unsigned integer as decimal.
 - `{{ bitmask(width, lsb) }}`: Computes bitmask in hex `((1 << width) - 1) << lsb`.
-- `{{ pad_zero(val, width) }}`: Pads decimal numbers with leading zeros.
+### Dynamic Path Variables in Output Destinations
+Output paths support meaningful variables for flexible SoC repository organization:
+- `{output_folder}` / `{output_dir}`: Configured global default output folder.
+- `{category}` / `{cat}`: Template category subfolder (e.g. `rtl`, `c`, `uvm`, `html`).
+- `{block_name}` / `{block}`: Lowercase register block or peripheral name (e.g. `spi_core`).
+- `{project_name}` / `{project}`: Project name defined in configuration.
+- `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl`).
+- `{template_name}` / `{filename}`: Base template name (e.g. `reg_map`, `reg_doc`).
+*(e.g., `{output_folder}/{category}/{block_name}_regs.{file_extension}`).*
+
+### Deterministic CRC32 & Hardware Safety
+- `RegMapTreeModel::extractJsonData()` computes deterministic IEEE 802.3 CRC32 checksums (`regmap_crc32`, `regmap_crc32_hex`, `blk.crc32`, `blk.crc32_hex`) available for optional hardware version/fingerprint registers.
+- Non-contiguous register gaps are automatically calculated (`pad_words_before`, `pad_bytes_before`), and `c/reg_map.h.inja` emits `uint32_t _reserved_[...]` words for exact memory-mapped struct alignment.
+- Synthesizable RTL (`rtl/reg_map.sv.inja`) qualifies `W1C` and `W1S` write updates with `wstrb_i` byte-lane strobes and supports `RC` (Read Clears) next-state logic.
+- UVM models (`uvm/reg_model.sv.inja`) register backdoor HDL paths (`add_hdl_path_slice`) for direct simulation access.
 
 ---
 

@@ -52,6 +52,9 @@ module {{ lower(blk.name) }}_reg_file #(
 {% for reg in blk.registers %}
   localparam logic [ADDR_WIDTH-1:0] ADDR_{{ upper(reg.name) }} = {{ reg.offset_hex }};
 {% endfor %}
+{% if existsIn(blk, "crc32_hex") %}
+  localparam logic [31:0] REGMAP_CRC32 = 32'h{{ blk.crc32_hex }};
+{% endif %}
 
   // =========================================================================
   // Internal Register Storage Declarations
@@ -90,13 +93,40 @@ module {{ lower(blk.name) }}_reg_file #(
         end
       end
 {% else if upper(fld.access) == "W1C" %}
-      // Write-1-to-Clear update
-      reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = 
-        reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] & ~wdata_i[{{ fld.offset_lsb }} +: {{ fld.size_width }}];
+      // Write-1-to-Clear update with byte-strobe qualification
+      for (int b = 0; b < STRB_WIDTH; b++) begin
+        if (wstrb_i[b]) begin
+          for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
+            if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
+              if (wdata_i[bit_idx]) begin
+                reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b0;
+              end
+            end
+          end
+        end
+      end
 {% else if upper(fld.access) == "W1S" %}
-      // Write-1-to-Set update
-      reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = 
-        reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] | wdata_i[{{ fld.offset_lsb }} +: {{ fld.size_width }}];
+      // Write-1-to-Set update with byte-strobe qualification
+      for (int b = 0; b < STRB_WIDTH; b++) begin
+        if (wstrb_i[b]) begin
+          for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
+            if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
+              if (wdata_i[bit_idx]) begin
+                reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b1;
+              end
+            end
+          end
+        end
+      end
+{% endif %}
+{% endfor %}
+    end
+
+    // Read-Clears (RC) Update
+    if (sw_{{ lower(reg.name) }}_rd_strobe_o) begin
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "RC" %}
+      reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
 {% endif %}
 {% endfor %}
     end

@@ -76,10 +76,22 @@ Runs a full architectural validation check over all nodes using register bit wid
 Returns `true` if the cell at `index` has failed validation checks (used by `data()` to paint light red backgrounds `#FFC8C8`).
 
 #### json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32)
-Recursively converts `node` and its descendants into structured `nlohmann::json` objects containing sorted `blocks`, `registers`, `fields`, and `memories` arrays.
+Recursively converts `node` and its descendants into structured `nlohmann::json` objects containing sorted `blocks`, `registers`, `fields`, and `memories` arrays. Computes `pad_bytes_before` and `pad_words_before` for non-contiguous register offsets to enable accurate C struct memory-mapped padding.
 
 #### json extractJsonData(uint32_t regWidth = 32)
-Exports the entire tree model into a root `nlohmann::json` object formatted for Inja code generation templates.
+Exports the entire tree model into a root `nlohmann::json` object formatted for Inja code generation templates. Computes deterministic IEEE 802.3 CRC32 checksums:
+- `regmap_crc32`: 32-bit unsigned integer checksum of the entire register model.
+- `regmap_crc32_hex`: Hexadecimal string representation (`0x...`).
+- `blk["crc32"]` / `blk["crc32_hex"]`: Block-level checksums.
+
+#### static uint32_t calculateCrc32(const uint8_t *data, size_t length, uint32_t previousCrc32 = 0)
+Computes IEEE 802.3 CRC32 over the supplied byte buffer using a precomputed 256-entry lookup table.
+
+#### static uint32_t computeBlockCrc32(const json &blkJson)
+Computes deterministic CRC32 for a single register block and its registers/fields.
+
+#### static uint32_t computeTreeCrc32(const json &rootJson)
+Computes deterministic CRC32 across all blocks and registers in the tree.
 
 ### 6. Protected Virtual Methods / Model Contract Overrides
 
