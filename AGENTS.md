@@ -119,7 +119,7 @@ rmap/
 ├── CMakeLists.txt              # CMake build configuration with FetchContent, rmap_core, rmap, & CTest
 ├── Makefile                    # Make convenience wrapper (all, run, test, clean, rebuild)
 ├── .github/workflows/
-│   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 unit test jobs + 11 template test jobs)
+│   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 unit test jobs + 15 template test jobs with Verilator 5.050)
 ├── README.md                   # Project overview, badges, features, and quickstart guide
 ├── docs/                       # Project documentation portal (Pelican)
 │   ├── dev/                    # Developer documentation & C++ architecture Markdown references

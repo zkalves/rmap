@@ -245,6 +245,8 @@ def test_rtl(rmap_bin, work_dir):
     # Verilator lint if installed
     verilator_bin = shutil.which("verilator")
     if verilator_bin:
+        ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
+        print(f"  Verilator: {ver_info}")
         run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file])
         run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_spi_file])
         print("  ✓ Verilator lint checks passed.")
@@ -773,6 +775,8 @@ def test_rtl_tb(rmap_bin, work_dir):
     # If verilator is installed, run lint check
     verilator_bin = shutil.which("verilator")
     if verilator_bin:
+        ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
+        print(f"  Verilator: {ver_info}")
         rtl_file = os.path.join(comp_out, "rtl", "reg_map.sv")
         ver_cmd = [verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME"]
         help_out = subprocess.run([verilator_bin, "--help"], capture_output=True, text=True).stdout

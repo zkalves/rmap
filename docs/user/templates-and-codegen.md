@@ -187,7 +187,7 @@ Every template in `templates/` is validated through automated test pipelines in 
   python3 tests/test_template.py c
   ```
 
-- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs 11 parallel test jobs in CI with template-specific toolchains (`verilator`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
+- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs 15 parallel test jobs in CI with template-specific toolchains (`verilator 5.050`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
 
 [Next: Architecture & Internal Data Flow &rarr;](architecture.md)
 
