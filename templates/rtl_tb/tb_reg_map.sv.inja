@@ -47,6 +47,35 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endfor %}
 {% endfor %}
 
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+  // Memory Passthrough Signals and Behavioral SRAM Models
+{% for mem in blk.memories %}
+  logic                    mem_{{ lower(mem.name) }}_req_o;
+  logic                    mem_{{ lower(mem.name) }}_we_o;
+  logic [ADDR_WIDTH-1:0]   mem_{{ lower(mem.name) }}_addr_o;
+  logic [DATA_WIDTH-1:0]   mem_{{ lower(mem.name) }}_wdata_o;
+  logic [STRB_WIDTH-1:0]   mem_{{ lower(mem.name) }}_wstrb_o;
+  logic [DATA_WIDTH-1:0]   mem_{{ lower(mem.name) }}_rdata_i = '0;
+  logic                    mem_{{ lower(mem.name) }}_ready_i = 1'b1;
+
+  logic [DATA_WIDTH-1:0]   tb_sram_{{ lower(mem.name) }} [0:1023];
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      mem_{{ lower(mem.name) }}_rdata_i <= '0;
+    end else if (mem_{{ lower(mem.name) }}_req_o) begin
+      if (mem_{{ lower(mem.name) }}_we_o) begin
+        for (int b = 0; b < STRB_WIDTH; b++) begin
+          if (mem_{{ lower(mem.name) }}_wstrb_o[b]) begin
+            tb_sram_{{ lower(mem.name) }}[(mem_{{ lower(mem.name) }}_addr_o >> 2) & 10'h3FF][b*8 +: 8] <= mem_{{ lower(mem.name) }}_wdata_o[b*8 +: 8];
+          end
+        end
+      end
+      mem_{{ lower(mem.name) }}_rdata_i <= tb_sram_{{ lower(mem.name) }}[(mem_{{ lower(mem.name) }}_addr_o >> 2) & 10'h3FF];
+    end
+  end
+{% endfor %}
+{% endif %}
+
   // Verification Counters
   int pass_count = 0;
   int fail_count = 0;
@@ -82,6 +111,17 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endif %}
 {% endfor %}
 {% endfor %}
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+{% for mem in blk.memories %}
+    .mem_{{ lower(mem.name) }}_req_o   (mem_{{ lower(mem.name) }}_req_o),
+    .mem_{{ lower(mem.name) }}_we_o    (mem_{{ lower(mem.name) }}_we_o),
+    .mem_{{ lower(mem.name) }}_addr_o  (mem_{{ lower(mem.name) }}_addr_o),
+    .mem_{{ lower(mem.name) }}_wdata_o (mem_{{ lower(mem.name) }}_wdata_o),
+    .mem_{{ lower(mem.name) }}_wstrb_o (mem_{{ lower(mem.name) }}_wstrb_o),
+    .mem_{{ lower(mem.name) }}_rdata_i (mem_{{ lower(mem.name) }}_rdata_i),
+    .mem_{{ lower(mem.name) }}_ready_i (mem_{{ lower(mem.name) }}_ready_i),
+{% endfor %}
+{% endif %}
     .bus_wr_en_i               (bus_wr_en_i),
     .bus_rd_en_i               (bus_rd_en_i),
     .bus_addr_i                (bus_addr_i),
@@ -284,6 +324,25 @@ module tb_{{ lower(blk.name) }}_reg_file;
       fail_count++;
       $display("  [FAIL] Unmapped address 0xFFFFFFF0 did not assert bus_error_o");
     end
+
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+    // -----------------------------------------------------------------------
+    // Phase 6: Memory Subsystem Passthrough Verification
+    // -----------------------------------------------------------------------
+    $display("\n[Phase 6] Memory Subsystem Passthrough Verification");
+{% for mem in blk.memories %}
+    bus_write({{ mem.offset_hex }}, 32'hDEAD_BEEF, '1);
+    bus_read({{ mem.offset_hex }}, rdata);
+    check_val("Memory Passthrough {{ mem.name }} @ {{ mem.offset_hex }}", rdata, 32'hDEAD_BEEF, '1);
+    if (bus_error_o === 1'b0) begin
+      pass_count++;
+      $display("  [PASS] Memory {{ mem.name }} access correctly asserted no bus_error_o");
+    end else begin
+      fail_count++;
+      $display("  [FAIL] Memory {{ mem.name }} access asserted bus_error_o");
+    end
+{% endfor %}
+{% endif %}
 
     // -----------------------------------------------------------------------
     // Final Summary & Exit

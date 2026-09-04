@@ -327,11 +327,11 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
         QString colName = m_displayColumns[column];
 
         if (colName == "Offset/LSB") {
-            this->setData(child, (childItem->kindString() == "reg") ?
+            this->setData(child, (childItem->kindString() == "reg" || childItem->kindString() == "mem") ?
                           QString::fromStdString(formatHex(nextOffsetLsb)) :
                           QString::number(nextOffsetLsb), Qt::EditRole);
         } else if (colName == "Size/Width") {
-            this->setData(child, (childItem->kindString() == "reg") ? "32" : "1", Qt::EditRole);
+            this->setData(child, (childItem->kindString() == "mem") ? "1024" : ((childItem->kindString() == "reg") ? "32" : "1"), Qt::EditRole);
         } else if (colName == "Access Policy") {
             this->setData(child, "RW", Qt::EditRole);
         } else if (colName == "HW Access") {
@@ -418,31 +418,36 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
         }
     }
 
-    // 1. Validate Register Overlaps inside a Block
+    // 1. Validate Register & Memory Overlaps inside a Block
     if (kind == "blk")
     {
-        struct RegInfo { RegMapTreeItem* item; uint64_t start; uint64_t end; QString name; };
-        std::vector<RegInfo> regs;
+        struct RegionInfo { RegMapTreeItem* item; uint64_t start; uint64_t end; QString name; QString type; };
+        std::vector<RegionInfo> regions;
 
         for (RegMapTreeItem* child : node->getChildItems()) {
             if (child->kindString().toStdString() == "reg") {
                 uint64_t offset = parseNumericValue(child->data("Offset/LSB"));
                 uint64_t size_bytes = (regWidth > 0) ? (regWidth / 8) : 4;
-                regs.push_back({child, offset, offset + size_bytes - 1, child->data("Name").toString()});
+                regions.push_back({child, offset, offset + size_bytes - 1, child->data("Name").toString(), "Register"});
+            } else if (child->kindString().toStdString() == "mem") {
+                uint64_t offset = parseNumericValue(child->data("Offset/LSB"));
+                uint64_t size_bytes = parseNumericValue(child->data("Size/Width"));
+                if (size_bytes == 0) size_bytes = 4;
+                regions.push_back({child, offset, offset + size_bytes - 1, child->data("Name").toString(), "Memory"});
             }
         }
 
-        for (size_t i = 0; i < regs.size(); ++i) {
-            for (size_t j = i + 1; j < regs.size(); ++j) {
-                if (!(regs[i].end < regs[j].start || regs[i].start > regs[j].end)) {
-                    m_invalidCells.insert(std::make_pair(regs[i].item, 1)); // Highlight Offset column
-                    m_invalidCells.insert(std::make_pair(regs[j].item, 1));
+        for (size_t i = 0; i < regions.size(); ++i) {
+            for (size_t j = i + 1; j < regions.size(); ++j) {
+                if (!(regions[i].end < regions[j].start || regions[i].start > regions[j].end)) {
+                    m_invalidCells.insert(std::make_pair(regions[i].item, 1)); // Highlight Offset column
+                    m_invalidCells.insert(std::make_pair(regions[j].item, 1));
 
-                    errors.append(tr("Register '%1' (offset 0x%2) overlaps with '%3' (offset 0x%4) in Block '%5'")
-                        .arg(regs[i].name,
-                             QString::number(regs[i].start, 16).toUpper(),
-                             regs[j].name,
-                             QString::number(regs[j].start, 16).toUpper(),
+                    errors.append(tr("%1 '%2' (offset 0x%3) overlaps with %4 '%5' (offset 0x%6) in Block '%7'")
+                        .arg(regions[i].type, regions[i].name,
+                             QString::number(regions[i].start, 16).toUpper(),
+                             regions[j].type, regions[j].name,
+                             QString::number(regions[j].start, 16).toUpper(),
                              nodeName));
                 }
             }
@@ -572,6 +577,7 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
 
     uint64_t offset_lsb = parseNumericValue(node->data("Offset/LSB"));
     uint64_t size_width = (kind == "reg") ? regWidth : parseNumericValue(node->data("Size/Width"));
+    if (kind == "mem" && size_width == 0) size_width = 1024;
     uint64_t reset_val  = parseNumericValue(node->data("Reset Value"));
 
     bool is_rand     = (node->data("Is Rand").toString().toLower() == "true");
@@ -646,7 +652,12 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
         });
         item_json["fields"] = fields;
     }
-    if (!memories.empty())  item_json["memories"] = memories;
+    if (!memories.empty()) {
+        std::sort(memories.begin(), memories.end(), [](const json &a, const json &b) {
+            return a.value("offset_lsb", 0ULL) < b.value("offset_lsb", 0ULL);
+        });
+        item_json["memories"] = memories;
+    }
 
     return item_json;
 }

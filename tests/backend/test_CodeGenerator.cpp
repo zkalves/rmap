@@ -25,6 +25,7 @@ private slots:
     void testMultiSourceTemplateMappings();
     void testNewNamingAndTypeHelpers();
     void testFullGenerationGenericRtl();
+    void testFullGenerationRtlWithMemories();
     void testFullGenerationRustPac();
     void testFullGenerationPythonDriver();
     void testFullGenerationHtmlDoc();
@@ -389,6 +390,105 @@ void TestCodeGenerator::testFullGenerationGenericRtl()
     QVERIFY(content.contains("always_ff @(posedge clk_i or negedge rst_ni)"));
     QVERIFY(content.contains("always_comb begin : proc_ctrl_next"));
     QVERIFY(content.contains("always_comb begin : proc_read_decode"));
+}
+
+void TestCodeGenerator::testFullGenerationRtlWithMemories()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SOC_BLOCK";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json blk;
+    blk["name"] = "PERIPH";
+
+    json reg;
+    reg["name"] = "STATUS";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["description"] = "Status Register";
+
+    json fld;
+    fld["name"] = "READY";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 1;
+    fld["access"] = "RO";
+    fld["hw_access"] = "RO";
+    fld["reset_val"] = 1;
+    fld["reset_hex"] = "0x1";
+    fld["description"] = "Ready bit";
+    reg["fields"] = json::array({fld});
+    blk["registers"] = json::array({reg});
+
+    json mem;
+    mem["name"] = "BUFFER_RAM";
+    mem["offset_lsb"] = 4096;
+    mem["offset_hex"] = "0x1000";
+    mem["size_width"] = 1024;
+    mem["access"] = "RW";
+    mem["description"] = "Packet Buffer SRAM";
+    blk["memories"] = json::array({mem});
+
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/rtl/periph_reg_file.sv"});
+    mappings.push_back({"templates/rtl_tb/tb_reg_map.sv.inja", "work/rtl_tb/tb_periph.sv"});
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/uvm/periph_reg_model.sv"});
+    mappings.push_back({"templates/c/reg_map.h.inja", "work/c/periph_reg_map.h"});
+
+    GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
+    QVERIFY(!report.has_errors());
+
+    // 1. Check RTL
+    QFile rtlFile("work/rtl/periph_reg_file.sv");
+    QVERIFY(rtlFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString rtlContent = rtlFile.readAll();
+    rtlFile.close();
+
+    QVERIFY(rtlContent.contains("output logic                      mem_buffer_ram_req_o"));
+    QVERIFY(rtlContent.contains("output logic                      mem_buffer_ram_we_o"));
+    QVERIFY(rtlContent.contains("output logic [ADDR_WIDTH-1:0]     mem_buffer_ram_addr_o"));
+    QVERIFY(rtlContent.contains("output logic [DATA_WIDTH-1:0]     mem_buffer_ram_wdata_o"));
+    QVERIFY(rtlContent.contains("output logic [STRB_WIDTH-1:0]     mem_buffer_ram_wstrb_o"));
+    QVERIFY(rtlContent.contains("input  logic [DATA_WIDTH-1:0]     mem_buffer_ram_rdata_i"));
+    QVERIFY(rtlContent.contains("input  logic                      mem_buffer_ram_ready_i"));
+    QVERIFY(rtlContent.contains("localparam logic [ADDR_WIDTH-1:0] MEM_BUFFER_RAM_START = 0x1000;"));
+    QVERIFY(rtlContent.contains("localparam logic [ADDR_WIDTH-1:0] MEM_BUFFER_RAM_SIZE  = 1024;"));
+    QVERIFY(rtlContent.contains("logic mem_buffer_ram_hit;"));
+    QVERIFY(rtlContent.contains("mem_buffer_ram_hit: begin"));
+    QVERIFY(rtlContent.contains("bus_rdata_o = mem_buffer_ram_rdata_i;"));
+    QVERIFY(rtlContent.contains("bus_ready_o = mem_buffer_ram_ready_i;"));
+
+    // 2. Check RTL Testbench
+    QFile tbFile("work/rtl_tb/tb_periph.sv");
+    QVERIFY(tbFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString tbContent = tbFile.readAll();
+    tbFile.close();
+    QVERIFY(tbContent.contains("tb_sram_buffer_ram"));
+    QVERIFY(tbContent.contains(".mem_buffer_ram_req_o   (mem_buffer_ram_req_o)"));
+    QVERIFY(tbContent.contains("Phase 6: Memory Subsystem Passthrough Verification"));
+
+    // 3. Check UVM Model
+    QFile uvmFile("work/uvm/periph_reg_model.sv");
+    QVERIFY(uvmFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString uvmContent = uvmFile.readAll();
+    uvmFile.close();
+    QVERIFY(uvmContent.contains("uvm_mem buffer_ram;"));
+    QVERIFY(uvmContent.contains("this.default_map.add_mem(this.buffer_ram, 0x1000);"));
+
+    // 4. Check C Header
+    QFile cFile("work/c/periph_reg_map.h");
+    QVERIFY(cFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString cContent = cFile.readAll();
+    cFile.close();
+    QVERIFY(cContent.contains("#define PERIPH_BUFFER_RAM_OFFSET (0x1000)"));
+    QVERIFY(cContent.contains("#define PERIPH_BUFFER_RAM_SIZE   (1024U)"));
 }
 
 void TestCodeGenerator::testFullGenerationRustPac()

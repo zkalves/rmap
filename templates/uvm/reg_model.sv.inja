@@ -22,12 +22,19 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     virtual function void build();
       {% for fld in reg.fields %}
       this.{{ lower(fld.name) }} = uvm_reg_field::type_id::create("{{ fld.name }}");
-      this.{{ lower(fld.name) }}.configure(this, {{ fld.size_width }}, {{ fld.offset_lsb }}, "{{ upper(fld.access) }}", {{ fld.volatile }}, {{ fld.reset_hex }}, {{ fld.has_reset }}, {{ fld.is_rand }}, 1);
+      this.{{ lower(fld.name) }}.configure(this, {{ fld.size_width }}, {{ fld.offset_lsb }}, "{{ upper(fld.access) }}", {% if existsIn(fld, "volatile") %}{{ fld.volatile }}{% else %}0{% endif %}, {% if existsIn(fld, "reset_hex") %}{{ fld.reset_hex }}{% else %}0{% endif %}, {% if existsIn(fld, "has_reset") %}{{ fld.has_reset }}{% else %}1{% endif %}, {% if existsIn(fld, "is_rand") %}{{ fld.is_rand }}{% else %}1{% endif %}, 1);
       {% endfor %}
     endfunction
   endclass
   rand {{ lower(reg.name) }}_reg {{ lower(reg.name) }};
   {% endfor %}
+
+  {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+  {% for mem in blk.memories %}
+  // Memory: {{ mem.name }} @ {{ mem.offset_hex }} (Size: {{ mem.size_width }} B)
+  uvm_mem {{ lower(mem.name) }};
+  {% endfor %}
+  {% endif %}
 
   function new(string name = "{{ blk.name }}");
     super.new(name, UVM_CVR_ALL);
@@ -43,6 +50,14 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     this.{{ lower(reg.name) }}.add_hdl_path_slice("reg_{{ lower(reg.name) }}_q", 0, {{ reg.size_width }});
     this.default_map.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{{ upper(reg.access) }}");
     {% endfor %}
+
+    {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+    {% for mem in blk.memories %}
+    this.{{ lower(mem.name) }} = new("{{ mem.name }}", {{ mem.size_width }} / {{ reg_width_bytes }}, {{ reg_width }}, "{{ upper(mem.access) }}");
+    this.{{ lower(mem.name) }}.configure(this);
+    this.default_map.add_mem(this.{{ lower(mem.name) }}, {{ mem.offset_hex }});
+    {% endfor %}
+    {% endif %}
   endfunction
 endclass
 {% endfor %}

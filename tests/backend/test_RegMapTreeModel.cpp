@@ -16,6 +16,7 @@ private slots:
     void testInvalidCellsTracking();
     void testCrc32AndMemoryGapPadding();
     void testAsicLinterDrc();
+    void testMemoryOverlapValidation();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders()
@@ -357,6 +358,41 @@ void TestRegMapTreeModel::testAsicLinterDrc()
     // Fix: reset value = 0 or Has Reset = true
     model.setData(model.index(0, 9, regIndex), "true", Qt::EditRole);
     QVERIFY(model.checkData(32).isEmpty());
+}
+
+void TestRegMapTreeModel::testMemoryOverlapValidation()
+{
+    RegMapTreeModel model;
+
+    // Add block
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.setData(model.index(0, 3, QModelIndex()), "SRAM_BLOCK", Qt::EditRole);
+
+    // Add register at 0x1000 (size 4 bytes -> 0x1000 to 0x1003)
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    model.setData(model.index(0, 1, blkIndex), "0x1000", Qt::EditRole);
+    model.setData(model.index(0, 3, blkIndex), "REG_CFG", Qt::EditRole);
+
+    // Add memory at 0x1000 (size 1024 bytes -> overlaps with register!)
+    model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::mem, blkIndex);
+    QModelIndex memIndex = model.index(1, 0, blkIndex);
+    model.setData(model.index(1, 1, blkIndex), "0x1000", Qt::EditRole);
+    model.setData(model.index(1, 2, blkIndex), "1024", Qt::EditRole);
+    model.setData(model.index(1, 3, blkIndex), "MEM_BUF", Qt::EditRole);
+
+    QStringList errs = model.checkData(32);
+    QVERIFY(!errs.isEmpty());
+    QVERIFY(errs.join("\n").contains("overlaps"));
+    QVERIFY(model.isIndexInvalid(model.index(0, 1, blkIndex)));
+    QVERIFY(model.isIndexInvalid(model.index(1, 1, blkIndex)));
+
+    // Move memory to non-overlapping address 0x2000
+    model.setData(model.index(1, 1, blkIndex), "0x2000", Qt::EditRole);
+    QVERIFY(model.checkData(32).isEmpty());
+    QVERIFY(!model.isIndexInvalid(model.index(0, 1, blkIndex)));
+    QVERIFY(!model.isIndexInvalid(model.index(1, 1, blkIndex)));
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

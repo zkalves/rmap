@@ -333,6 +333,19 @@ Output paths support meaningful variables for flexible SoC repository organizati
 - Synthesizable RTL (`rtl/reg_map.sv.inja`) qualifies `W1C` and `W1S` write updates with `bus_wstrb_i` byte-lane strobes and supports `RC` (Read Clears) next-state logic.
 - UVM models (`uvm/reg_model.sv.inja`) register backdoor HDL paths (`add_hdl_path_slice`) for direct simulation access.
 
+### Memory Regions & Passthrough Architecture (Option 1)
+- **SRAM / Sub-Bus Passthrough Interface**: Memory items (`mem`) define contiguous memory regions with starting byte `offset` and byte capacity `size`.
+- **Generated RTL Ports**: When `blk.memories` contains entries, `templates/rtl/reg_map.sv.inja` generates external memory passthrough ports:
+  - `mem_<name>_req_o`: Request strobe active when transaction targets the memory window `[MEM_START, MEM_END)`.
+  - `mem_<name>_we_o`: Write enable strobe qualified with `bus_wr_en_i`.
+  - `mem_<name>_addr_o`: Relative byte address within the memory window (`bus_addr_i - MEM_<NAME>_START`).
+  - `mem_<name>_wdata_o` & `mem_<name>_wstrb_o`: Forwarded bus write data and byte-enable strobes.
+  - `mem_<name>_rdata_i` & `mem_<name>_ready_i`: Return read data and ready handshake from the memory/sub-system.
+- **Window Address Decoding**: Address decoder matches `bus_addr_i >= MEM_START && bus_addr_i < MEM_END`, routes read data/ready handshakes, and suppresses `bus_error_o`.
+- **UVM Verification Model**: Memory elements are instantiated as `uvm_mem` components in `templates/uvm/reg_model.sv.inja` and mapped via `this.default_map.add_mem(this.<name>, <offset>)`.
+- **Simulation Testbench**: `templates/rtl_tb/tb_reg_map.sv.inja` includes behavioral simulation SRAM models and port bindings, automatically exercising read/write verification cycles against memory windows in Phase 6.
+- **Design Rule Checking (DRC)**: Real-time overlap detection in `RegMapTreeModel` validates registers and memories against each other, highlighting address conflicts in the GUI and reporting errors in CLI linting.
+
 ---
 
 ## 7. Agent Quick-Check Checklist

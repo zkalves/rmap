@@ -44,6 +44,17 @@ extern "C" {
 {% endfor %}
 {% endif %}
 
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+/* =============================================================================
+ * Memory Subsystem Windows: {{ blk.name }}
+ * ============================================================================= */
+{% for mem in blk.memories %}
+/* {{ mem.name }} - {{ mem.description }} */
+#define {{ upper(blk.name) }}_{{ upper(mem.name) }}_OFFSET ({{ mem.offset_hex }})
+#define {{ upper(blk.name) }}_{{ upper(mem.name) }}_SIZE   ({{ mem.size_width }}U)
+{% endfor %}
+{% endif %}
+
 /* Structure definition for {{ blk.name }} */
 typedef struct {
 {% if existsIn(blk, "registers") %}

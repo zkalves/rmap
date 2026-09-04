@@ -37,6 +37,20 @@ module {{ lower(blk.name) }}_reg_file #(
 {% endfor %}
 
 {% endfor %}
+
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+  // External Memory Subsystem Passthrough Ports
+{% for mem in blk.memories %}
+  // --- Memory: {{ mem.name }} (Offset: {{ mem.offset_hex }}, Size: {{ mem.size_width }} B) ---
+  output logic                      mem_{{ lower(mem.name) }}_req_o,
+  output logic                      mem_{{ lower(mem.name) }}_we_o,
+  output logic [ADDR_WIDTH-1:0]     mem_{{ lower(mem.name) }}_addr_o,
+  output logic [DATA_WIDTH-1:0]     mem_{{ lower(mem.name) }}_wdata_o,
+  output logic [STRB_WIDTH-1:0]     mem_{{ lower(mem.name) }}_wstrb_o,
+  input  logic [DATA_WIDTH-1:0]     mem_{{ lower(mem.name) }}_rdata_i,
+  input  logic                      mem_{{ lower(mem.name) }}_ready_i,
+{% endfor %}
+{% endif %}
   // Protocol Bus Slave Interface (Protocol-Independent)
   input  logic                      bus_wr_en_i,
   input  logic                      bus_rd_en_i,
@@ -49,13 +63,32 @@ module {{ lower(blk.name) }}_reg_file #(
 );
 
   // =========================================================================
-  // Register Address Offsets
+  // Register & Memory Address Offsets
   // =========================================================================
 {% for reg in blk.registers %}
   localparam logic [ADDR_WIDTH-1:0] ADDR_{{ upper(reg.name) }} = {{ reg.offset_hex }};
 {% endfor %}
 {% if existsIn(blk, "crc32_hex") %}
   localparam logic [31:0] REGMAP_CRC32 = {{ blk.crc32_hex }};
+{% endif %}
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+  // Memory Window Address Parameters
+{% for mem in blk.memories %}
+  localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_START = {{ mem.offset_hex }};
+  localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_SIZE  = {{ mem.size_width }};
+  localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_END   = MEM_{{ upper(mem.name) }}_START + MEM_{{ upper(mem.name) }}_SIZE;
+{% endfor %}
+
+  // Memory Window Hit and Passthrough Logic
+{% for mem in blk.memories %}
+  logic mem_{{ lower(mem.name) }}_hit;
+  assign mem_{{ lower(mem.name) }}_hit     = (bus_addr_i >= MEM_{{ upper(mem.name) }}_START) && (bus_addr_i < MEM_{{ upper(mem.name) }}_END);
+  assign mem_{{ lower(mem.name) }}_req_o   = (bus_wr_en_i | bus_rd_en_i) & mem_{{ lower(mem.name) }}_hit;
+  assign mem_{{ lower(mem.name) }}_we_o    = bus_wr_en_i & mem_{{ lower(mem.name) }}_hit;
+  assign mem_{{ lower(mem.name) }}_addr_o  = mem_{{ lower(mem.name) }}_hit ? (bus_addr_i - MEM_{{ upper(mem.name) }}_START) : '0;
+  assign mem_{{ lower(mem.name) }}_wdata_o = bus_wdata_i;
+  assign mem_{{ lower(mem.name) }}_wstrb_o = bus_wstrb_i;
+{% endfor %}
 {% endif %}
 
   // =========================================================================
@@ -177,6 +210,46 @@ module {{ lower(blk.name) }}_reg_file #(
     bus_ready_o = bus_wr_en_i | bus_rd_en_i; // Single-cycle response
     bus_error_o = 1'b0;
 
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+    if (bus_rd_en_i || bus_wr_en_i) begin
+      case (1'b1)
+{% for mem in blk.memories %}
+        mem_{{ lower(mem.name) }}_hit: begin
+          bus_rdata_o = mem_{{ lower(mem.name) }}_rdata_i;
+          bus_ready_o = mem_{{ lower(mem.name) }}_ready_i;
+          bus_error_o = 1'b0;
+        end
+{% endfor %}
+        default: begin
+          case (bus_addr_i)
+{% for reg in blk.registers %}
+            ADDR_{{ upper(reg.name) }}: begin
+              bus_ready_o = 1'b1;
+              if (bus_rd_en_i) begin
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
+                bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ fld.reset_hex }};
+{% else if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+                bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
+{% else if upper(fld.access) == "WO" %}
+                bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
+{% else %}
+                bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}];
+{% endif %}
+{% endfor %}
+              end
+            end
+{% endfor %}
+            default: begin
+              bus_rdata_o = '0;
+              bus_ready_o = 1'b1;
+              bus_error_o = 1'b1;
+            end
+          endcase
+        end
+      endcase
+    end
+{% else %}
     if (bus_rd_en_i || bus_wr_en_i) begin
       case (bus_addr_i)
 {% for reg in blk.registers %}
@@ -202,6 +275,7 @@ module {{ lower(blk.name) }}_reg_file #(
         end
       endcase
     end
+{% endif %}
   end
 
   // Output Signal Assignments

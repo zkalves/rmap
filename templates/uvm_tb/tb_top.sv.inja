@@ -59,6 +59,19 @@ module tb_top;
 {% endfor %}
 {% endfor %}
 
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+  // Memory Passthrough Signals
+{% for mem in blk.memories %}
+  logic                    mem_{{ lower(mem.name) }}_req;
+  logic                    mem_{{ lower(mem.name) }}_we;
+  logic [31:0]             mem_{{ lower(mem.name) }}_addr;
+  logic [{{ reg_width }}-1:0] mem_{{ lower(mem.name) }}_wdata;
+  logic [({{ reg_width }}/8)-1:0] mem_{{ lower(mem.name) }}_wstrb;
+  logic [{{ reg_width }}-1:0] mem_{{ lower(mem.name) }}_rdata = '0;
+  logic                    mem_{{ lower(mem.name) }}_ready = 1'b1;
+{% endfor %}
+{% endif %}
+
   // DUT Instantiation
   {{ lower(blk.name) }}_reg_file #(
     .ADDR_WIDTH(32),
@@ -84,6 +97,17 @@ module tb_top;
 {% endif %}
 {% endfor %}
 {% endfor %}
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+{% for mem in blk.memories %}
+    .mem_{{ lower(mem.name) }}_req_o   (mem_{{ lower(mem.name) }}_req),
+    .mem_{{ lower(mem.name) }}_we_o    (mem_{{ lower(mem.name) }}_we),
+    .mem_{{ lower(mem.name) }}_addr_o  (mem_{{ lower(mem.name) }}_addr),
+    .mem_{{ lower(mem.name) }}_wdata_o (mem_{{ lower(mem.name) }}_wdata),
+    .mem_{{ lower(mem.name) }}_wstrb_o (mem_{{ lower(mem.name) }}_wstrb),
+    .mem_{{ lower(mem.name) }}_rdata_i (mem_{{ lower(mem.name) }}_rdata),
+    .mem_{{ lower(mem.name) }}_ready_i (mem_{{ lower(mem.name) }}_ready),
+{% endfor %}
+{% endif %}
     .bus_wr_en_i               (bus_if.wr_en),
     .bus_rd_en_i               (bus_if.rd_en),
     .bus_addr_i                (bus_if.addr),

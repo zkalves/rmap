@@ -89,9 +89,11 @@ When templates are executed, the full register map model is exposed as a JSON st
    - Hardware sideband interface signals (`hw_*_i`, `hw_*_o`, `hw_*_set_i`).
    - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`).
    - Hardware write priority over software writes.
+   - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
 
 2. **UVM SystemVerilog Register Model (`uvm/reg_model.sv.inja`)**:
    - Complete `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy.
+   - `uvm_mem` instance and address mapping integration for hardware memory windows.
    - Backdoor HDL access paths (`add_hdl_path`).
    - Functional coverage sampling hooks.
 
