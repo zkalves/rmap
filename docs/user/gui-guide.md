@@ -186,10 +186,11 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | | Preferences & Configuration | `Ctrl+P` |
 | **Edit Operations** | Undo | `Ctrl+Z` |
 | | Redo | `Ctrl+Y` |
-| | Delete Selected Item | `Delete` / `Backspace` |
+| | Duplicate Selected Register/Field | `Ctrl+D` |
+| | Delete Selected Item | `Delete` / `Del` / `Backspace` |
 | **Item Insertion** | Add Register Block (`blk`) | `Ctrl+Shift+B` |
-| | Add Register (`reg`) | `Ctrl+Shift+R` |
-| | Add Bitfield (`fld`) | `Ctrl+Shift+F` |
+| | Add Register (`reg`) | `Ctrl+Shift+R` / `Ctrl+Return` |
+| | Add Bitfield (`fld`) | `Ctrl+Shift+F` / `Ctrl+Shift+Return` |
 | | Add Memory (`mem`) | `Ctrl+Shift+M` |
 | | Add Map (`map`) | `Ctrl+M` |
 | **Configuration & Preferences**| Open Project Configuration | `Ctrl+P` |

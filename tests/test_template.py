@@ -215,14 +215,14 @@ def test_rtl(rmap_bin, work_dir):
     assert "module core_subsystem_reg_file" in content
     assert "input  logic                      clk_i" in content
     assert "input  logic                      rst_ni" in content
-    assert "input  logic                      wr_en_i" in content
-    assert "input  logic                      rd_en_i" in content
-    assert "input  logic [ADDR_WIDTH-1:0]     addr_i" in content
-    assert "input  logic [DATA_WIDTH-1:0]     wdata_i" in content
-    assert "input  logic [STRB_WIDTH-1:0]     wstrb_i" in content
-    assert "output logic [DATA_WIDTH-1:0]     rdata_o" in content
-    assert "output logic                      ready_o" in content
-    assert "output logic                      irq_o" in content
+    assert "input  logic                      bus_wr_en_i" in content
+    assert "input  logic                      bus_rd_en_i" in content
+    assert "input  logic [ADDR_WIDTH-1:0]     bus_addr_i" in content
+    assert "input  logic [DATA_WIDTH-1:0]     bus_wdata_i" in content
+    assert "input  logic [STRB_WIDTH-1:0]     bus_wstrb_i" in content
+    assert "output logic [DATA_WIDTH-1:0]     bus_rdata_o" in content
+    assert "output logic                      bus_ready_o" in content
+    assert "output logic                      bus_error_o" in content
 
     # Sideband hardware ports
     assert "output logic                      sw_control_wr_strobe_o" in content

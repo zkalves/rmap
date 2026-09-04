@@ -65,6 +65,7 @@
    <addaction name="actionAddMem"/>
    <addaction name="actionAddReg"/>
    <addaction name="actionAddRegField"/>
+   <addaction name="actionDuplicate"/>
    <addaction name="actionDeleteItem"/>
    <addaction name="separator"/>
    <addaction name="actionCheck"/>
@@ -103,6 +104,7 @@
     <addaction name="actionAddMem"/>
     <addaction name="actionAddReg"/>
     <addaction name="actionAddRegField"/>
+    <addaction name="actionDuplicate"/>
     <addaction name="separator"/>
     <addaction name="actionDeleteItem"/>
     <addaction name="actionCheck"/>
@@ -213,6 +215,21 @@
    </property>
    <property name="text">
     <string>Delete</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+  </action>
+  <action name="actionDuplicate">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/toolbar/uvm_reg.png</normaloff>:/toolbar/uvm_reg.png</iconset>
+   </property>
+   <property name="text">
+    <string>Duplicate Register</string>
+   </property>
+   <property name="toolTip">
+    <string>Duplicate selected register and its fields (Ctrl+D)</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+D</string>

@@ -67,7 +67,13 @@ Initializes newly inserted rows with default column values based on node type.
 Clears the entire tree model, replacing it with a fresh root item.
 
 #### void recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth, QStringList &errors)
-Recursively validates `node` and all descendants against architectural rules (checking for address overlap, field collisions, exceeding `regWidth`, and zero widths). Appends error descriptions to `errors` and registers invalid cells in `m_invalidCells`.
+Recursively validates `node` and all descendants against architectural design rules and ASIC linting constraints:
+- **Address & Field Overlap**: Register boundary collisions within blocks, bitfield overlap within registers, and exceeding `regWidth` (32 or 64-bit).
+- **Reserved Identifier Keywords**: Flags block, register, and field names matching reserved SystemVerilog/Verilog or C/C++ keywords (e.g. `logic`, `wire`, `reg`, `module`, `assign`, `auto`, `int`, etc.), highlighting column 3 (`Name`).
+- **Reset Value Overflow**: Flags bitfield reset values exceeding the maximum capacity `(1ULL << width) - 1`, highlighting column 6 (`Reset Value`).
+- **Contradictory Access Policies**: Flags un-readable / un-drivable black hole fields where software is write-only (`SW=WO`) and hardware is write-only (`HW=WO`), highlighting columns 4 & 5.
+- **Reset Consistency**: Flags non-zero reset values when `Has Reset` is disabled (`false`), highlighting columns 6 (`Reset Value`) and 9 (`Has Reset`).
+Appends error descriptions to `errors` and registers invalid cells in `m_invalidCells`.
 
 #### QStringList checkData(uint32_t regWidth = 32)
 Runs a full architectural validation check over all nodes using register bit width `regWidth` (typically 32 or 64). Returns the complete list of validation error strings.

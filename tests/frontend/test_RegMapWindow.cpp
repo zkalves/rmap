@@ -45,6 +45,7 @@ private slots:
     void testBlockMemoryMapView();
     void testItemCreationActions();
     void testItemDeletionAction();
+    void testRegisterDuplicationAction();
     void testExportAction();
     void testExportSkipsDisabledTemplates();
     void testBitfieldBarWidgetSync();
@@ -560,6 +561,67 @@ void TestRegMapWindow::testItemDeletionAction()
     QCOMPARE(rightStacked->currentWidget(), rightEmpty);
     QVERIFY(!window.isModelLoaded());
     qDebug() << "--- END testItemDeletionAction ---";
+}
+
+void TestRegMapWindow::testRegisterDuplicationAction()
+{
+    qDebug() << "--- START testRegisterDuplicationAction ---";
+    QString file = "examples/rmt/peripherals/spi.rmt";
+    RegMapWindow window(file);
+
+    auto *treeView = window.findChild<QTreeView*>("treeView");
+    QVERIFY(treeView != nullptr);
+
+    auto *actDup = window.findChild<QAction*>("actionDuplicate");
+    QVERIFY(actDup != nullptr);
+    QCOMPARE(actDup->shortcut(), QKeySequence("Ctrl+D"));
+
+    // In spi.rmt, root child 0 is BLK (e.g. SPI)
+    QModelIndex blkIndex = treeView->model()->index(0, 0);
+    QVERIFY(blkIndex.isValid());
+
+    // Expand blk
+    treeView->setExpanded(blkIndex, true);
+    int initialRegCount = treeView->model()->rowCount(blkIndex);
+    QVERIFY(initialRegCount > 0);
+
+    // Select the first register (e.g. CTRL)
+    QModelIndex reg0Index = treeView->model()->index(0, 0, blkIndex);
+    treeView->setCurrentIndex(reg0Index);
+    QString origName = treeView->model()->data(treeView->model()->index(0, 3, blkIndex)).toString();
+
+    // Trigger duplicate
+    actDup->trigger();
+
+    // Verify rowCount of block increased by 1
+    int newRegCount = treeView->model()->rowCount(blkIndex);
+    QCOMPARE(newRegCount, initialRegCount + 1);
+
+    // Verify duplicated register properties
+    QModelIndex dupRegIndex = treeView->model()->index(1, 0, blkIndex);
+    QString dupName = treeView->model()->data(treeView->model()->index(1, 3, blkIndex)).toString();
+    QCOMPARE(dupName, origName + "_COPY");
+
+    // Select duplicate register -> fieldsTable shows its fields
+    auto *fieldsTable = window.findChild<QTableView*>("fieldsTableView");
+    QVERIFY(fieldsTable != nullptr);
+    treeView->setCurrentIndex(dupRegIndex);
+    QVERIFY(fieldsTable->model() != nullptr);
+    QVERIFY(fieldsTable->model()->rowCount(fieldsTable->rootIndex()) > 0);
+
+    // Verify Undo
+    auto *actUndo = window.findChild<QAction*>("actionUndo");
+    QVERIFY(actUndo != nullptr);
+    actUndo->trigger();
+    QCOMPARE(treeView->model()->rowCount(blkIndex), initialRegCount);
+
+    // Verify Redo
+    auto *actRedo = window.findChild<QAction*>("actionRedo");
+    QVERIFY(actRedo != nullptr);
+    actRedo->trigger();
+    QCOMPARE(treeView->model()->rowCount(blkIndex), newRegCount);
+
+    qDebug() << "--- END testRegisterDuplicationAction ---";
 }
 
 void TestRegMapWindow::testExportAction()

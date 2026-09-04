@@ -54,37 +54,37 @@ class RegBusDriver(uvm_driver):
 
     async def run_phase(self):
         # Default idle bus state
-        self.dut.wr_en_i.value = 0
-        self.dut.rd_en_i.value = 0
-        self.dut.addr_i.value = 0
-        self.dut.wdata_i.value = 0
-        self.dut.wstrb_i.value = 0
+        self.dut.bus_wr_en_i.value = 0
+        self.dut.bus_rd_en_i.value = 0
+        self.dut.bus_addr_i.value = 0
+        self.dut.bus_wdata_i.value = 0
+        self.dut.bus_wstrb_i.value = 0
 
         while True:
             item = await self.seq_item_port.get_next_item()
             await RisingEdge(self.dut.clk_i)
 
             if item.is_read:
-                self.dut.rd_en_i.value = 1
-                self.dut.wr_en_i.value = 0
-                self.dut.addr_i.value = item.addr
-                self.dut.wstrb_i.value = 0
+                self.dut.bus_rd_en_i.value = 1
+                self.dut.bus_wr_en_i.value = 0
+                self.dut.bus_addr_i.value = item.addr
+                self.dut.bus_wstrb_i.value = 0
                 await RisingEdge(self.dut.clk_i)
-                while int(self.dut.ready_o.value) == 0:
+                while int(self.dut.bus_ready_o.value) == 0:
                     await RisingEdge(self.dut.clk_i)
-                item.rdata = int(self.dut.rdata_o.value)
-                self.dut.rd_en_i.value = 0
+                item.rdata = int(self.dut.bus_rdata_o.value)
+                self.dut.bus_rd_en_i.value = 0
             else:
-                self.dut.wr_en_i.value = 1
-                self.dut.rd_en_i.value = 0
-                self.dut.addr_i.value = item.addr
-                self.dut.wdata_i.value = item.data
-                self.dut.wstrb_i.value = item.strb
+                self.dut.bus_wr_en_i.value = 1
+                self.dut.bus_rd_en_i.value = 0
+                self.dut.bus_addr_i.value = item.addr
+                self.dut.bus_wdata_i.value = item.data
+                self.dut.bus_wstrb_i.value = item.strb
                 await RisingEdge(self.dut.clk_i)
-                while int(self.dut.ready_o.value) == 0:
+                while int(self.dut.bus_ready_o.value) == 0:
                     await RisingEdge(self.dut.clk_i)
-                self.dut.wr_en_i.value = 0
-                self.dut.wstrb_i.value = 0
+                self.dut.bus_wr_en_i.value = 0
+                self.dut.bus_wstrb_i.value = 0
 
             self.seq_item_port.item_done()
 
@@ -104,17 +104,17 @@ class RegBusMonitor(uvm_monitor):
     async def run_phase(self):
         while True:
             await RisingEdge(self.dut.clk_i)
-            if int(self.dut.ready_o.value) == 1:
+            if int(self.dut.bus_ready_o.value) == 1:
                 item = RegBusItem("mon_item")
-                item.addr = int(self.dut.addr_i.value)
-                if int(self.dut.wr_en_i.value) == 1:
+                item.addr = int(self.dut.bus_addr_i.value)
+                if int(self.dut.bus_wr_en_i.value) == 1:
                     item.is_read = False
-                    item.data = int(self.dut.wdata_i.value)
-                    item.strb = int(self.dut.wstrb_i.value)
+                    item.data = int(self.dut.bus_wdata_i.value)
+                    item.strb = int(self.dut.bus_wstrb_i.value)
                     self.ap.write(item)
-                elif int(self.dut.rd_en_i.value) == 1:
+                elif int(self.dut.bus_rd_en_i.value) == 1:
                     item.is_read = True
-                    item.rdata = int(self.dut.rdata_o.value)
+                    item.rdata = int(self.dut.bus_rdata_o.value)
                     self.ap.write(item)
 
 

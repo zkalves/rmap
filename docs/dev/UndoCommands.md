@@ -20,6 +20,7 @@ Build Requirements:
 | `EditCellCommand` | Single-cell value modification | Restores `oldVal` to model cell. | Re-applies `newVal` to model cell. |
 | `InsertItemCommand` | Inserting a new block, register, field, or memory | Calls `removeRows()` to delete the item. | Calls `insertRows()` to re-create the item. |
 | `DeleteItemCommand` | Deleting a node and its entire subtree | Calls `insertRows()` and recursively restores all captured child nodes and column attributes. | Calls `removeRows()` to delete the item again. |
+| `DuplicateItemCommand` | Duplicating a register or field (`Ctrl+D`) with all children | Calls `removeRows()` to delete duplicated item. | Calls `insertRows()` and restores all captured properties and children. |
 
 ### 4. Auxiliary Data Structures
 
@@ -66,6 +67,15 @@ Recreates the deleted root node and recursively restores all captured children.
 
 #### void DeleteItemCommand::redo() [override]
 Deletes the row from the model.
+
+#### DuplicateItemCommand::DuplicateItemCommand(RegMapTreeModel *model, int row, const QModelIndex &parentIndex, const DeleteItemCommand::StoredNode &data, QUndoCommand *parent = nullptr)
+Constructs the item duplication command with serialized `StoredNode` payload, naming the command (e.g. `"Duplicate CTRL"`).
+
+#### void DuplicateItemCommand::undo() [override]
+Removes the duplicated item row from the model.
+
+#### void DuplicateItemCommand::redo() [override]
+Inserts a new row under `m_parentIndex` and recursively restores all captured properties and descendant child items.
 
 ### 6. Ownership and Lifecycle
 

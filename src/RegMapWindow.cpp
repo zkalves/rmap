@@ -26,6 +26,18 @@
 #include "PathUtils.hpp"
 #include "format/FormatManager.hpp"
 
+// Helper to convert QVariant numbers (hex/dec/bin string) to uint64_t
+static uint64_t parseNumericValue(const QVariant& var)
+{
+    QString str = var.toString().trimmed();
+    if (str.startsWith("0x", Qt::CaseInsensitive)) {
+        return str.mid(2).toULongLong(nullptr, 16);
+    } else if (str.startsWith("0b", Qt::CaseInsensitive)) {
+        return str.mid(2).toULongLong(nullptr, 2);
+    }
+    return str.toULongLong(nullptr, 10);
+}
+
 // Helper to pad hex offset string written in hex (0x format)
 static QString padHexOffsetString(const QString &input, int minDigits = 4)
 {
@@ -595,7 +607,14 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     connect(actionAddRegField,  &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::fld); });
     connect(actionAddRegMap,    &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::map); });
     connect(actionAddReg,       &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::reg); });
+    connect(actionDuplicate,    &QAction::triggered, this, &RegMapWindow::duplicateSelectedRegister);
     connect(actionDeleteItem,   &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
+
+    // Ergonomic power-user shortcuts
+    actionAddReg->setShortcuts({QKeySequence("Ctrl+Shift+R"), QKeySequence("Ctrl+Return"), QKeySequence("Ctrl+Enter")});
+    actionAddRegField->setShortcuts({QKeySequence("Ctrl+Shift+F"), QKeySequence("Ctrl+Shift+Return"), QKeySequence("Ctrl+Shift+Enter")});
+    actionDeleteItem->setShortcuts({QKeySequence::Delete, QKeySequence("Del")});
+    actionDuplicate->setShortcut(QKeySequence("Ctrl+D"));
     connect(actionCheck,        &QAction::triggered, this, &RegMapWindow::btnCheck);
     connect(actionExport,       &QAction::triggered, this, &RegMapWindow::btnExport);
     connect(actionQuit,         &QAction::triggered, this, &RegMapWindow::btnQuitButton);
@@ -889,8 +908,9 @@ void RegMapWindow::btnKeyBindings(void)
         "<tr><td>Edit</td><td><kbd>Ctrl+Y</kbd></td><td>Redo Last Action</td></tr>"
         "<tr><td colspan='3' style='padding-top:8px;'><b>Hardware Structure Elements</b></td></tr>"
         "<tr><td>Structure</td><td><kbd>Ctrl+Shift+B</kbd></td><td>Add Register Block (blk)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+R</kbd></td><td>Add Register (reg)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+F</kbd></td><td>Add Bitfield (fld)</td></tr>"
+        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+R</kbd> / <kbd>Ctrl+Return</kbd></td><td>Add Register (reg)</td></tr>"
+        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+F</kbd> / <kbd>Ctrl+Shift+Return</kbd></td><td>Add Bitfield (fld)</td></tr>"
+        "<tr><td>Structure</td><td><kbd>Ctrl+D</kbd></td><td>Duplicate Selected Register &amp; Bitfields</td></tr>"
         "<tr><td>Structure</td><td><kbd>Ctrl+Shift+M</kbd></td><td>Add Memory Region (mem)</td></tr>"
         "<tr><td>Structure</td><td><kbd>Ctrl+M</kbd></td><td>Add Address Map (map)</td></tr>"
         "<tr><td>Structure</td><td><kbd>Delete</kbd></td><td>Delete Selected Item</td></tr>"
@@ -1732,40 +1752,74 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
     menu.exec(globalPos);
 }
 
+void RegMapWindow::duplicateSelectedRegister(void)
+{
+    QModelIndex proxyIndex = this->treeView->currentIndex();
+    if (!proxyIndex.isValid() && m_fieldsTableView && m_fieldsTableView->hasFocus()) {
+        QModelIndex fieldProxyIdx = m_fieldsTableView->currentIndex();
+        if (fieldProxyIdx.isValid()) {
+            QModelIndex srcFldIdx = m_fieldProxy->mapToSource(fieldProxyIdx);
+            proxyIndex = m_treeProxy->mapFromSource(srcFldIdx);
+        }
+    }
+    if (!proxyIndex.isValid() && m_currentRegItem) {
+        RegMapTreeItem *blk = m_currentRegItem->parentItem();
+        if (blk) {
+            QModelIndex blkIdx = (blk->parentItem() == m_model->getRootItem())
+                ? m_model->index(blk->row(), 0, QModelIndex())
+                : QModelIndex();
+            QModelIndex regSrcIdx = m_model->index(m_currentRegItem->row(), 0, blkIdx);
+            proxyIndex = m_treeProxy->mapFromSource(regSrcIdx);
+        }
+    }
+
+    if (proxyIndex.isValid()) {
+        duplicateItem(proxyIndex);
+    }
+}
+
 void RegMapWindow::duplicateItem(const QModelIndex &index)
 {
     QModelIndex source_index = m_treeProxy->mapToSource(index);
     RegMapTreeItem* item = m_model->getItem(source_index);
     if (!item || item->kindString() == "root") return;
 
-    QVariantMap rootSerial;
-    SerializationContext context;
-    item->serialize(rootSerial, &context);
+    DeleteItemCommand::StoredNode storedData;
+    DeleteItemCommand::captureItem(item, storedData);
+
+    protormap::Config* cfg = m_config_window->serialize();
+    uint32_t regWidth = (cfg && cfg->reg_width() > 0) ? cfg->reg_width() : 32;
+    delete cfg;
+    uint64_t regBytes = (regWidth > 0 ? regWidth : 32) / 8;
+    if (regBytes == 0) regBytes = 4;
+
+    QString oldName = storedData.colData.value("Name").toString();
+    storedData.colData["Name"] = oldName + "_COPY";
+
+    if (item->kindString() == "reg") {
+        uint64_t offset = parseNumericValue(storedData.colData.value("Offset/LSB"));
+        uint64_t newOff = offset + regBytes;
+        storedData.colData["Offset/LSB"] = padHexOffsetString(QString("0x") + QString("%1").arg(newOff, 4, 16, QChar('0')).toUpper());
+    } else if (item->kindString() == "fld") {
+        uint64_t lsb = parseNumericValue(storedData.colData.value("Offset/LSB"));
+        uint64_t width = parseNumericValue(storedData.colData.value("Size/Width"));
+        storedData.colData["Offset/LSB"] = QString::number(lsb + width);
+    }
 
     int row = source_index.row() + 1;
     QModelIndex parent = source_index.parent();
 
-    m_model->insertRows(row, 1, item->kind(), parent);
+    m_undoStack->push(new DuplicateItemCommand(m_model, row, parent, storedData));
+
     QModelIndex new_source = m_model->index(row, 0, parent);
-    RegMapTreeItem* newItem = m_model->getItem(new_source);
-
-    newItem->deserialize(rootSerial, &context);
-
-    QString oldName = item->data("Name").toString();
-    newItem->setData("Name", oldName + "_copy");
-
-    bool ok1, ok2;
-    uint64_t offset = item->data("Offset/LSB").toString().toULongLong(&ok1, 16);
-    if (!ok1) offset = item->data("Offset/LSB").toString().toULongLong(&ok1, 10);
-    uint64_t size = item->data("Size/Width").toString().toULongLong(&ok2, 10);
-    if (item->kindString() == "reg") {
-        size = 4;
+    QModelIndex new_proxy = m_treeProxy->mapFromSource(new_source);
+    if (new_proxy.isValid()) {
+        this->treeView->setCurrentIndex(new_proxy);
+        this->treeView->scrollTo(new_proxy);
+        if (this->treeView->selectionModel()) {
+            this->treeView->selectionModel()->select(new_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        }
     }
-    if (ok1 && ok2) {
-        QString newOff = QString("0x%1").arg(offset + size, 0, 16);
-        newItem->setData("Offset/LSB", newOff);
-    }
-
     this->treeView->viewport()->update();
 }
 

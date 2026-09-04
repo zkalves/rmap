@@ -377,11 +377,12 @@ void TestCodeGenerator::testFullGenerationGenericRtl()
     QVERIFY(content.contains("module spi_core_reg_file"));
     QVERIFY(content.contains("input  logic                      clk_i"));
     QVERIFY(content.contains("input  logic                      rst_ni"));
-    QVERIFY(content.contains("input  logic                      wr_en_i"));
-    QVERIFY(content.contains("input  logic                      rd_en_i"));
-    QVERIFY(content.contains("input  logic [ADDR_WIDTH-1:0]     addr_i"));
-    QVERIFY(content.contains("output logic [DATA_WIDTH-1:0]     rdata_o"));
-    QVERIFY(content.contains("output logic                      ready_o"));
+    QVERIFY(content.contains("input  logic                      bus_wr_en_i"));
+    QVERIFY(content.contains("input  logic                      bus_rd_en_i"));
+    QVERIFY(content.contains("input  logic [ADDR_WIDTH-1:0]     bus_addr_i"));
+    QVERIFY(content.contains("output logic [DATA_WIDTH-1:0]     bus_rdata_o"));
+    QVERIFY(content.contains("output logic                      bus_ready_o"));
+    QVERIFY(content.contains("output logic                      bus_error_o"));
     QVERIFY(content.contains("ADDR_CTRL = 0x0;"));
     QVERIFY(content.contains("sw_ctrl_wr_strobe_o"));
     QVERIFY(content.contains("hw_ctrl_enable_o"));

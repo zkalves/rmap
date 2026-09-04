@@ -15,6 +15,7 @@ private slots:
     void test64BitWideRegisters();
     void testInvalidCellsTracking();
     void testCrc32AndMemoryGapPadding();
+    void testAsicLinterDrc();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders()
@@ -284,6 +285,78 @@ void TestRegMapTreeModel::testCrc32AndMemoryGapPadding()
     json extractedRestored = model.extractJsonData(32);
     uint32_t crc3 = extractedRestored["regmap_crc32"].get<uint32_t>();
     QCOMPARE(crc1, crc3);
+}
+
+void TestRegMapTreeModel::testAsicLinterDrc()
+{
+    RegMapTreeModel model;
+
+    // 1. Reserved Keyword Check
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.setData(model.index(0, 3, QModelIndex()), "BLK_TEST", Qt::EditRole);
+
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    model.setData(model.index(0, 1, blkIndex), "0x00", Qt::EditRole);
+    model.setData(model.index(0, 3, blkIndex), "logic", Qt::EditRole); // SystemVerilog keyword
+
+    QStringList errKw = model.checkData(32);
+    QVERIFY(!errKw.isEmpty());
+    QVERIFY(errKw.join("\n").contains("uses reserved keyword 'logic'"));
+    QVERIFY(model.isIndexInvalid(model.index(0, 3, blkIndex)));
+
+    // Fix register name, test field keyword
+    model.setData(model.index(0, 3, blkIndex), "REG_CFG", Qt::EditRole);
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+    QModelIndex fldIndex = model.index(0, 0, regIndex);
+    model.setData(model.index(0, 1, regIndex), "0", Qt::EditRole);
+    model.setData(model.index(0, 2, regIndex), "4", Qt::EditRole);
+    model.setData(model.index(0, 3, regIndex), "wire", Qt::EditRole); // Verilog keyword
+
+    QStringList errFldKw = model.checkData(32);
+    QVERIFY(!errFldKw.isEmpty());
+    QVERIFY(errFldKw.join("\n").contains("uses reserved keyword 'wire'"));
+    QVERIFY(model.isIndexInvalid(model.index(0, 3, regIndex)));
+
+    // Fix field name
+    model.setData(model.index(0, 3, regIndex), "FIELD_A", Qt::EditRole);
+
+    // 2. Field Reset Value Overflow Check (width 4 -> max 15 / 0x0F, set to 0x20)
+    model.setData(model.index(0, 6, regIndex), "0x20", Qt::EditRole);
+    QStringList errReset = model.checkData(32);
+    QVERIFY(!errReset.isEmpty());
+    QVERIFY(errReset.join("\n").contains("overflows bit width 4"));
+    QVERIFY(model.isIndexInvalid(model.index(0, 6, regIndex))); // Reset Value cell marked invalid
+
+    // Fix reset value
+    model.setData(model.index(0, 6, regIndex), "0x0A", Qt::EditRole);
+    QVERIFY(model.checkData(32).isEmpty());
+
+    // 3. Contradictory Policies (SW=WO && HW=WO)
+    model.setData(model.index(0, 4, regIndex), "WO", Qt::EditRole);
+    model.setData(model.index(0, 5, regIndex), "WO", Qt::EditRole);
+    QStringList errContradict = model.checkData(32);
+    QVERIFY(!errContradict.isEmpty());
+    QVERIFY(errContradict.join("\n").contains("both SW and HW are Write-Only"));
+    QVERIFY(model.isIndexInvalid(model.index(0, 4, regIndex)));
+    QVERIFY(model.isIndexInvalid(model.index(0, 5, regIndex)));
+
+    // Fix HW access to RO
+    model.setData(model.index(0, 5, regIndex), "RO", Qt::EditRole);
+    QVERIFY(model.checkData(32).isEmpty());
+
+    // 4. Reset Consistency (Has Reset = false but Reset Value != 0)
+    model.setData(model.index(0, 9, regIndex), "false", Qt::EditRole);
+    QStringList errResetConsist = model.checkData(32);
+    QVERIFY(!errResetConsist.isEmpty());
+    QVERIFY(errResetConsist.join("\n").contains("specifies non-zero reset value"));
+    QVERIFY(model.isIndexInvalid(model.index(0, 6, regIndex)));
+    QVERIFY(model.isIndexInvalid(model.index(0, 9, regIndex)));
+
+    // Fix: reset value = 0 or Has Reset = true
+    model.setData(model.index(0, 9, regIndex), "true", Qt::EditRole);
+    QVERIFY(model.checkData(32).isEmpty());
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

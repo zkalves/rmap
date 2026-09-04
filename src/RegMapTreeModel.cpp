@@ -1,7 +1,50 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <unordered_set>
 #include "RegMapTreeModel.hpp"
+
+// Reserved SystemVerilog and C keywords to prevent identifier collisions
+static const std::unordered_set<std::string> kReservedKeywords = {
+    // Verilog / SystemVerilog keywords (IEEE 1800)
+    "accept_on", "alias", "always", "always_comb", "always_ff", "always_latch", "and", "assert",
+    "assign", "assume", "automatic", "before", "begin", "bind", "bins", "binsof",
+    "bit", "break", "buf", "bufif0", "bufif1", "byte", "case", "casex",
+    "casez", "cell", "chandle", "checker", "class", "clocking", "cmos",
+    "const", "constraint", "context", "continue", "cover", "covergroup", "coverpoint", "cross",
+    "deassign", "default", "defparam", "design", "disable", "dist", "do", "edge",
+    "else", "end", "endcase", "endchecker", "endclass", "endclocking", "endconfig", "endfunction",
+    "endgenerate", "endgroup", "endinterface", "endmodule", "endpackage", "endprimitive", "endprogram", "endproperty",
+    "endspecify", "endsequence", "endtable", "endtask", "enum", "event", "eventually", "expect",
+    "export", "extends", "extern", "final", "first_match", "for", "force", "foreach",
+    "forever", "fork", "forkjoin", "function", "generate", "genvar", "global", "highz0",
+    "highz1", "if", "iff", "ifnone", "ignore_bins", "illegal_bins", "implements", "implies",
+    "import", "incdir", "include", "initial", "inout", "input", "inside", "instance",
+    "int", "integer", "interconnect", "interface", "intersect", "join", "join_any", "join_none",
+    "large", "let", "liblist", "library", "local", "localparam", "logic", "longint",
+    "macromodule", "matches", "medium", "modport", "module", "nand", "negedge", "nettype",
+    "new", "nexttime", "nmos", "nor", "noshowcancelled", "not", "notif0", "notif1",
+    "null", "or", "output", "package", "packed", "parameter", "pmos", "posedge",
+    "primitive", "priority", "program", "property", "protected", "pull0", "pull1", "pulldown",
+    "pullup", "pulsestyle_ondetect", "pulsestyle_onevent", "pure", "rand", "randc", "randcase", "randsequence",
+    "rcmos", "real", "realtime", "ref", "reg", "reject_on", "release", "repeat",
+    "restrict", "return", "rnmos", "rpmos", "rtran", "rtranif0", "rtranif1", "s_always",
+    "s_eventually", "s_nexttime", "s_until", "s_until_with", "scalared", "sequence", "shortint", "shortreal",
+    "showcancelled", "signed", "small", "soft", "solve", "specify", "specparam", "static",
+    "string", "strong", "strong0", "strong1", "struct", "super", "supply0", "supply1",
+    "sync_accept_on", "sync_reject_on", "table", "task", "this", "throughout", "time", "timeprecision",
+    "timeunit", "tran", "tranif0", "tranif1", "tri", "tri0", "tri1", "triand",
+    "trior", "trireg", "type", "typedef", "union", "unique", "unique0", "unsigned",
+    "until", "until_with", "untyped", "use", "uwire", "var", "vectored", "virtual",
+    "void", "wait", "wait_order", "wand", "weak", "weak0", "weak1", "while",
+    "wildcard", "wire", "with", "within", "wor", "xnor", "xor",
+    // C / C++ keywords
+    "auto", "char", "double", "float", "goto", "inline", "long",
+    "register", "short", "sizeof", "switch", "volatile", "asm", "catch",
+    "delete", "explicit", "friend", "mutable", "namespace", "operator", "private",
+    "protected", "public", "reinterpret_cast", "static_cast", "template", "throw", "try",
+    "typename", "using"
+};
 
 // Helper to convert QVariant numbers (hex/dec/bin string) to uint64_t
 static uint64_t parseNumericValue(const QVariant& var)
@@ -366,6 +409,13 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
     if (kind != "root" && nodeName.trimmed().isEmpty()) {
         m_invalidCells.insert(std::make_pair(node, 3)); // Name column
         errors.append(tr("Found %1 node with an empty Name").arg(QString::fromStdString(kind).toUpper()));
+    } else if (kind != "root" && !nodeName.trimmed().isEmpty()) {
+        std::string lowerName = nodeName.trimmed().toLower().toStdString();
+        if (kReservedKeywords.find(lowerName) != kReservedKeywords.end()) {
+            m_invalidCells.insert(std::make_pair(node, 3)); // Name column
+            errors.append(tr("%1 '%2' uses reserved keyword '%3' as identifier")
+                .arg(QString::fromStdString(kind).toUpper(), nodeName, nodeName));
+        }
     }
 
     // 1. Validate Register Overlaps inside a Block
@@ -427,6 +477,37 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
                     errors.append(tr("Field '%1' in Register '%2' exceeds register width (%3 bits): bit [%4:%5]")
                         .arg(fldName, nodeName, QString::number(reg_width), QString::number(msb), QString::number(lsb)));
                 }
+
+                // Check field reset value overflow
+                uint64_t reset_val = parseNumericValue(child->data("Reset Value"));
+                if (width > 0 && width < 64) {
+                    uint64_t max_val = (1ULL << width) - 1ULL;
+                    if (reset_val > max_val) {
+                        m_invalidCells.insert(std::make_pair(child, 6)); // Reset Value column
+                        errors.append(tr("Field '%1' in Register '%2' reset value 0x%3 overflows bit width %4 (max allowed is 0x%5)")
+                            .arg(fldName, nodeName, QString::number(reset_val, 16).toUpper(), QString::number(width), QString::number(max_val, 16).toUpper()));
+                    }
+                }
+
+                // Check contradictory access policy (SW=WO and HW=WO)
+                QString swAccess = child->data("Access Policy").toString().toUpper().trimmed();
+                QString hwAccess = child->data("HW Access").toString().toUpper().trimmed();
+                if (swAccess == "WO" && hwAccess == "WO") {
+                    m_invalidCells.insert(std::make_pair(child, 4)); // Access Policy
+                    m_invalidCells.insert(std::make_pair(child, 5)); // HW Access
+                    errors.append(tr("Field '%1' in Register '%2' has contradictory access policy: both SW and HW are Write-Only")
+                        .arg(fldName, nodeName));
+                }
+
+                // Check reset consistency
+                bool hasReset = (child->data("Has Reset").toString().toLower() == "true");
+                if (!hasReset && reset_val != 0) {
+                    m_invalidCells.insert(std::make_pair(child, 6)); // Reset Value
+                    m_invalidCells.insert(std::make_pair(child, 9)); // Has Reset
+                    errors.append(tr("Field '%1' in Register '%2' specifies non-zero reset value (0x%3) but 'Has Reset' is disabled")
+                        .arg(fldName, nodeName, QString::number(reset_val, 16).toUpper()));
+                }
+
                 fields.push_back({child, lsb, msb, width, fldName});
             }
         }
@@ -443,6 +524,15 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
                                  nodeName));
                     }
                 }
+            }
+        }
+
+        if (node->getChildItems().isEmpty()) {
+            uint64_t reg_reset = parseNumericValue(node->data("Reset Value"));
+            if (reg_width < 64 && reg_reset > ((1ULL << reg_width) - 1ULL)) {
+                m_invalidCells.insert(std::make_pair(node, 6));
+                errors.append(tr("Register '%1' reset value 0x%2 overflows register width (%3 bits)")
+                    .arg(nodeName, QString::number(reg_reset, 16).toUpper(), QString::number(reg_width)));
             }
         }
     }

@@ -16,34 +16,36 @@ module {{ lower(blk.name) }}_reg_file #(
   input  logic                      clk_i,
   input  logic                      rst_ni,
 
-  // Generic Bus Slave Interface
-  input  logic                      wr_en_i,
-  input  logic                      rd_en_i,
-  input  logic [ADDR_WIDTH-1:0]     addr_i,
-  input  logic [DATA_WIDTH-1:0]     wdata_i,
-  input  logic [STRB_WIDTH-1:0]     wstrb_i,
-  output logic [DATA_WIDTH-1:0]     rdata_o,
-  output logic                      ready_o,
-
-  // Hardware Sideband Signals
+  // Hardware Core Sideband Signals
 {% for reg in blk.registers %}
   // --- Register: {{ reg.name }} (Offset: {{ reg.offset_hex }}) ---
   output logic                      sw_{{ lower(reg.name) }}_wr_strobe_o,
   output logic                      sw_{{ lower(reg.name) }}_rd_strobe_o,
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i,
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
-{% else %}
+{% else if upper(fld.access) != "RO" %}
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+  input  logic                      hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i,
+  input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i,
 {% endif %}
 {% endfor %}
 
 {% endfor %}
-  // Interrupt Output
-  output logic                      irq_o
+  // Protocol Bus Slave Interface (Protocol-Independent)
+  input  logic                      bus_wr_en_i,
+  input  logic                      bus_rd_en_i,
+  input  logic [ADDR_WIDTH-1:0]     bus_addr_i,
+  input  logic [DATA_WIDTH-1:0]     bus_wdata_i,
+  input  logic [STRB_WIDTH-1:0]     bus_wstrb_i,
+  output logic [DATA_WIDTH-1:0]     bus_rdata_o,
+  output logic                      bus_ready_o,
+  output logic                      bus_error_o
 );
 
   // =========================================================================
@@ -67,8 +69,8 @@ module {{ lower(blk.name) }}_reg_file #(
   // SW Read / Write Strobe Generation
   // =========================================================================
 {% for reg in blk.registers %}
-  assign sw_{{ lower(reg.name) }}_wr_strobe_o = wr_en_i && (addr_i == ADDR_{{ upper(reg.name) }});
-  assign sw_{{ lower(reg.name) }}_rd_strobe_o = rd_en_i && (addr_i == ADDR_{{ upper(reg.name) }});
+  assign sw_{{ lower(reg.name) }}_wr_strobe_o = bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }});
+  assign sw_{{ lower(reg.name) }}_rd_strobe_o = bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }});
 {% endfor %}
 
   // =========================================================================
@@ -83,11 +85,11 @@ module {{ lower(blk.name) }}_reg_file #(
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RW" or upper(fld.access) == "WO" %}
       for (int b = 0; b < STRB_WIDTH; b++) begin
-        if (wstrb_i[b]) begin
+        if (bus_wstrb_i[b]) begin
           // Byte-enabled write update
           for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
             if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
-              reg_{{ lower(reg.name) }}_d[bit_idx] = wdata_i[bit_idx];
+              reg_{{ lower(reg.name) }}_d[bit_idx] = bus_wdata_i[bit_idx];
             end
           end
         end
@@ -95,10 +97,10 @@ module {{ lower(blk.name) }}_reg_file #(
 {% else if upper(fld.access) == "W1C" %}
       // Write-1-to-Clear update with byte-strobe qualification
       for (int b = 0; b < STRB_WIDTH; b++) begin
-        if (wstrb_i[b]) begin
+        if (bus_wstrb_i[b]) begin
           for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
             if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
-              if (wdata_i[bit_idx]) begin
+              if (bus_wdata_i[bit_idx]) begin
                 reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b0;
               end
             end
@@ -108,10 +110,10 @@ module {{ lower(blk.name) }}_reg_file #(
 {% else if upper(fld.access) == "W1S" %}
       // Write-1-to-Set update with byte-strobe qualification
       for (int b = 0; b < STRB_WIDTH; b++) begin
-        if (wstrb_i[b]) begin
+        if (bus_wstrb_i[b]) begin
           for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
             if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
-              if (wdata_i[bit_idx]) begin
+              if (bus_wdata_i[bit_idx]) begin
                 reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b1;
               end
             end
@@ -136,6 +138,11 @@ module {{ lower(blk.name) }}_reg_file #(
 {% if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
     if (|hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i) begin
       reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] |= hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
+    end
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+    if (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i) begin
+      reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i;
     end
 {% endif %}
 {% endfor %}
@@ -166,25 +173,32 @@ module {{ lower(blk.name) }}_reg_file #(
   // Bus Read Decode Logic
   // =========================================================================
   always_comb begin : proc_read_decode
-    rdata_o = '0;
-    ready_o = wr_en_i | rd_en_i; // Single-cycle response
-    if (rd_en_i) begin
-      case (addr_i)
+    bus_rdata_o = '0;
+    bus_ready_o = bus_wr_en_i | bus_rd_en_i; // Single-cycle response
+    bus_error_o = 1'b0;
+
+    if (bus_rd_en_i || bus_wr_en_i) begin
+      case (bus_addr_i)
 {% for reg in blk.registers %}
         ADDR_{{ upper(reg.name) }}: begin
+          if (bus_rd_en_i) begin
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
-          rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
+{% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
+            bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ fld.reset_hex }};
+{% else if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+            bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" %}
-          rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
+            bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
 {% else %}
-          rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}];
+            bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}];
 {% endif %}
 {% endfor %}
+          end
         end
 {% endfor %}
         default: begin
-          rdata_o = '0;
+          bus_rdata_o = '0;
+          bus_error_o = 1'b1;
         end
       endcase
     end
@@ -198,8 +212,6 @@ module {{ lower(blk.name) }}_reg_file #(
 {% endif %}
 {% endfor %}
 {% endfor %}
-
-  assign irq_o = 1'b0;
 
 endmodule
 {% endfor %}

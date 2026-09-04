@@ -166,6 +166,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         void navigateToRegister(int childRow, RegMapTreeItem *regItem);
         void showTreeContextMenu(const QPoint &pos);
         void duplicateItem(const QModelIndex &index);
+        void duplicateSelectedRegister(void);
         void onSearchTextChanged(const QString &text);
         void onToggleColorBlindMode(bool checked);
         void setupThemeMenu(void);

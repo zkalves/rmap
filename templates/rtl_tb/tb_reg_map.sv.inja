@@ -17,28 +17,32 @@ module tb_{{ lower(blk.name) }}_reg_file;
   logic                    clk_i;
   logic                    rst_ni;
 
-  // Generic Bus Master Interface
-  logic                    wr_en_i;
-  logic                    rd_en_i;
-  logic [ADDR_WIDTH-1:0]   addr_i;
-  logic [DATA_WIDTH-1:0]   wdata_i;
-  logic [STRB_WIDTH-1:0]   wstrb_i;
-  logic [DATA_WIDTH-1:0]   rdata_o;
-  logic                    ready_o;
-  logic                    irq_o;
+  // Protocol Bus Master Interface
+  logic                    bus_wr_en_i;
+  logic                    bus_rd_en_i;
+  logic [ADDR_WIDTH-1:0]   bus_addr_i;
+  logic [DATA_WIDTH-1:0]   bus_wdata_i;
+  logic [STRB_WIDTH-1:0]   bus_wstrb_i;
+  logic [DATA_WIDTH-1:0]   bus_rdata_o;
+  logic                    bus_ready_o;
+  logic                    bus_error_o;
 
   // Sideband Hardware Signals
 {% for reg in blk.registers %}
   logic                    sw_{{ lower(reg.name) }}_wr_strobe_o;
   logic                    sw_{{ lower(reg.name) }}_rd_strobe_o;
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
-{% else %}
+{% else if upper(fld.access) != "RO" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+  logic                            hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = 1'b0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i = '0;
 {% endif %}
 {% endfor %}
 {% endfor %}
@@ -60,29 +64,32 @@ module tb_{{ lower(blk.name) }}_reg_file;
   ) dut (
     .clk_i                     (clk_i),
     .rst_ni                    (rst_ni),
-    .wr_en_i                   (wr_en_i),
-    .rd_en_i                   (rd_en_i),
-    .addr_i                    (addr_i),
-    .wdata_i                   (wdata_i),
-    .wstrb_i                   (wstrb_i),
-    .rdata_o                   (rdata_o),
-    .ready_o                   (ready_o),
-    .irq_o                     (irq_o),
 {% for reg in blk.registers %}
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe_o),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe_o),
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
+{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else %}
+{% else if upper(fld.access) != "RO" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i  (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i),
 {% endif %}
 {% endfor %}
 {% endfor %}
-    .irq_o                     (irq_o)
+    .bus_wr_en_i               (bus_wr_en_i),
+    .bus_rd_en_i               (bus_rd_en_i),
+    .bus_addr_i                (bus_addr_i),
+    .bus_wdata_i               (bus_wdata_i),
+    .bus_wstrb_i               (bus_wstrb_i),
+    .bus_rdata_o               (bus_rdata_o),
+    .bus_ready_o               (bus_ready_o),
+    .bus_error_o               (bus_error_o)
   );
 
   // =========================================================================
@@ -94,15 +101,15 @@ module tb_{{ lower(blk.name) }}_reg_file;
     input [STRB_WIDTH-1:0] strb
   );
     @(posedge clk_i);
-    wr_en_i <= 1'b1;
-    rd_en_i <= 1'b0;
-    addr_i  <= addr;
-    wdata_i <= data;
-    wstrb_i <= strb;
+    bus_wr_en_i <= 1'b1;
+    bus_rd_en_i <= 1'b0;
+    bus_addr_i  <= addr;
+    bus_wdata_i <= data;
+    bus_wstrb_i <= strb;
     @(posedge clk_i);
-    while (!ready_o) @(posedge clk_i);
-    wr_en_i <= 1'b0;
-    wstrb_i <= '0;
+    while (!bus_ready_o) @(posedge clk_i);
+    bus_wr_en_i <= 1'b0;
+    bus_wstrb_i <= '0;
   endtask
 
   task automatic bus_read(
@@ -110,13 +117,13 @@ module tb_{{ lower(blk.name) }}_reg_file;
     output [DATA_WIDTH-1:0] data
   );
     @(posedge clk_i);
-    wr_en_i <= 1'b0;
-    rd_en_i <= 1'b1;
-    addr_i  <= addr;
+    bus_wr_en_i <= 1'b0;
+    bus_rd_en_i <= 1'b1;
+    bus_addr_i  <= addr;
     @(posedge clk_i);
-    while (!ready_o) @(posedge clk_i);
-    data = rdata_o;
-    rd_en_i <= 1'b0;
+    while (!bus_ready_o) @(posedge clk_i);
+    data = bus_rdata_o;
+    bus_rd_en_i <= 1'b0;
   endtask
 
   task automatic check_val(
@@ -145,19 +152,23 @@ module tb_{{ lower(blk.name) }}_reg_file;
     $display("=======================================================");
 
     // Initialize Bus Signals
-    wr_en_i = 1'b0;
-    rd_en_i = 1'b0;
-    addr_i  = '0;
-    wdata_i = '0;
-    wstrb_i = '0;
+    bus_wr_en_i = 1'b0;
+    bus_rd_en_i = 1'b0;
+    bus_addr_i  = '0;
+    bus_wdata_i = '0;
+    bus_wstrb_i = '0;
 
     // Initialize Sideband Inputs
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = '0;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = '0;
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = 1'b0;
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i = '0;
 {% endif %}
 {% endfor %}
 {% endfor %}
@@ -228,7 +239,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
     $display("\n[Phase 4] Hardware Sideband Interaction Verification");
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     // Hardware drives RO input: {{ reg.name }}.{{ fld.name }}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = {({{ fld.size_width }}){1'b1}};
     @(posedge clk_i);
@@ -248,8 +259,31 @@ module tb_{{ lower(blk.name) }}_reg_file;
     bus_read({{ reg.offset_hex }}, rdata);
     check_val("{{ reg.name }}.{{ fld.name }}_sw_clear_after_hw", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), 0, '1);
 {% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+    // Hardware updates storage via sideband write: {{ reg.name }}.{{ fld.name }}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = 1'b1;
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i = {({{ fld.size_width }}){1'b1}};
+    @(posedge clk_i);
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = 1'b0;
+    @(posedge clk_i);
+    bus_read({{ reg.offset_hex }}, rdata);
+    check_val("{{ reg.name }}.{{ fld.name }}_hw_write", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), (1 << {{ fld.size_width }}) - 1, '1);
+{% endif %}
 {% endfor %}
 {% endfor %}
+
+    // -----------------------------------------------------------------------
+    // Phase 5: Unmapped Address Decode Error Verification
+    // -----------------------------------------------------------------------
+    $display("\n[Phase 5] Unmapped Address Decode Error Verification");
+    bus_read(32'hFFFF_FFF0, rdata);
+    if (bus_error_o === 1'b1) begin
+      pass_count++;
+      $display("  [PASS] Unmapped address 0xFFFFFFF0 correctly asserted bus_error_o");
+    end else begin
+      fail_count++;
+      $display("  [FAIL] Unmapped address 0xFFFFFFF0 did not assert bus_error_o");
+    end
 
     // -----------------------------------------------------------------------
     // Final Summary & Exit

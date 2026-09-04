@@ -8,6 +8,7 @@
 #include <QString>
 #include <QMap>
 #include <QVector>
+#include <QDebug>
 #include "RegMapTreeModel.hpp"
 #include "RegMapTreeItem.hpp"
 
@@ -138,6 +139,33 @@ private:
     RegMapTreeItem::e_rmmKind m_kind;
     QString m_name;
     StoredNode m_storedData;
+};
+
+class DuplicateItemCommand : public QUndoCommand
+{
+public:
+    DuplicateItemCommand(RegMapTreeModel *model, int row, const QModelIndex &parentIndex, const DeleteItemCommand::StoredNode &data, QUndoCommand *parent = nullptr)
+        : QUndoCommand(parent), m_model(model), m_row(row), m_parentIndex(parentIndex), m_storedData(data)
+    {
+        QString name = m_storedData.colData.value("Name").toString();
+        setText(QObject::tr("Duplicate %1").arg(name.isEmpty() ? "Item" : name));
+    }
+
+    void undo() override {
+        m_model->removeRows(m_row, 1, m_parentIndex);
+    }
+
+    void redo() override {
+        m_model->insertRows(m_row, 1, m_storedData.kind, m_parentIndex);
+        QModelIndex restoredIdx = m_model->index(m_row, 0, m_parentIndex);
+        DeleteItemCommand::restoreItem(m_model, restoredIdx, m_storedData);
+    }
+
+private:
+    RegMapTreeModel *m_model;
+    int m_row;
+    QPersistentModelIndex m_parentIndex;
+    DeleteItemCommand::StoredNode m_storedData;
 };
 
 #endif // UNDOCOMMANDS_HPP

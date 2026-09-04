@@ -263,11 +263,20 @@ rmap/
    - **Access Policy Colour Palette**: Matches the table cell badges identically (`RW` Green `#A5D6A7`, `RO` Blue `#BBDEFB`, `WO` Orange `#FFCC80`, `W1C` Yellow `#FFF59D`).
    - **Colour-Blind Accessible Mode (`Ctrl+Alt+C`)**: Okabe-Ito / Wong high-contrast CVD barrier-free palette with explicit textual bracket tags (`[RW]`, `[RO]`, `[WO]`, `[W1C]`).
    - **Bidirectional Sync**: Clicking a slice selects its row in the fields table; selecting a row in the table highlights its bit slice in the bar.
-2. **Fast 1-Click Table Editing**:
+2. **Fast 1-Click Table Editing & Keyboard Ergonomics**:
    - Single-click on SW Access cycles `RW` &rarr; `RO` &rarr; `WO` &rarr; `W1C` &rarr; `RW`.
    - Single-click on HW Access cycles `RO` &rarr; `RW` &rarr; `WO` &rarr; `NA` &rarr; `RO`.
    - Single-click on booleans toggles `true` &harr; `false`.
-3. **Key Bindings Help (`F1`)**:
+   - **`Ctrl+D`**: Duplicate selected register or field (automatically computes sequential offset/LSB with `_COPY` suffix and full Undo/Redo).
+   - **`Ctrl+Return`**: Rapidly add new register under active block.
+   - **`Ctrl+Shift+Return`**: Rapidly add new bitfield under active register.
+3. **ASIC Linter & Design Rule Check (DRC)**:
+   - Automated real-time checking during editing and batch validation via `--lint`:
+     - **Reserved Keywords**: Flags identifiers colliding with SystemVerilog/Verilog and C/C++ keywords (`logic`, `wire`, `reg`, `module`, `assign`, etc.).
+     - **Reset Value Capacity Overflow**: Flags reset values exceeding `(1ULL << width) - 1`.
+     - **Contradictory Access Policies**: Flags black hole fields (`SW=WO && HW=WO`).
+     - **Reset Value Consistency**: Flags non-zero reset values when `Has Reset` is false.
+4. **Key Bindings Help (`F1`)**:
    - Built-in interactive shortcut cheatsheet accessible via `F1` or **Help &rarr; Key Bindings**.
 
 ---
@@ -315,9 +324,13 @@ Output paths support meaningful variables for flexible SoC repository organizati
 *(e.g., `{output_folder}/{category}/{block_name}_regs.{file_extension}`).*
 
 ### Deterministic CRC32 & Hardware Safety
+- **Protocol-Agnostic Bus Interface (`bus_*`)**: Standardized prefix on all bus slave interface signals (`bus_wr_en_i`, `bus_rd_en_i`, `bus_addr_i`, `bus_wdata_i`, `bus_wstrb_i`, `bus_rdata_o`, `bus_ready_o`, `bus_error_o`), easily integrated with APB, AXI, TileLink, or Wishbone protocol wrappers.
+- **Unmapped Address Error (`bus_error_o`)**: Synthesizable RTL pulses `bus_error_o` on read or write requests to unmapped address space.
+- **Hardware Priority & Sidebands**: Dynamic HW write ports (`hw_*_we_i`, `hw_*_wdata_i`) implement hardware priority over software writes when simultaneous updates occur.
+- **Parameter & Constant Registers**: Fields with `SW=RO` and `HW=NA` bypass flip-flop instantiation and directly read back constant reset values (`fld.reset_hex`), saving silicon area.
 - `RegMapTreeModel::extractJsonData()` computes deterministic IEEE 802.3 CRC32 checksums (`regmap_crc32`, `regmap_crc32_hex`, `blk.crc32`, `blk.crc32_hex`) available for optional hardware version/fingerprint registers.
 - Non-contiguous register gaps are automatically calculated (`pad_words_before`, `pad_bytes_before`), and `c/reg_map.h.inja` emits `uint32_t _reserved_[...]` words for exact memory-mapped struct alignment.
-- Synthesizable RTL (`rtl/reg_map.sv.inja`) qualifies `W1C` and `W1S` write updates with `wstrb_i` byte-lane strobes and supports `RC` (Read Clears) next-state logic.
+- Synthesizable RTL (`rtl/reg_map.sv.inja`) qualifies `W1C` and `W1S` write updates with `bus_wstrb_i` byte-lane strobes and supports `RC` (Read Clears) next-state logic.
 - UVM models (`uvm/reg_model.sv.inja`) register backdoor HDL paths (`add_hdl_path_slice`) for direct simulation access.
 
 ---

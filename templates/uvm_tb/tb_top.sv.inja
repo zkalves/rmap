@@ -44,17 +44,20 @@ module tb_top;
   logic sw_{{ lower(reg.name) }}_wr_strobe;
   logic sw_{{ lower(reg.name) }}_rd_strobe;
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in = '0;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set = '0;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
-{% else %}
+{% else if upper(fld.access) != "RO" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+  logic                            hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_in = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_in = '0;
 {% endif %}
 {% endfor %}
 {% endfor %}
-  logic irq_out;
 
   // DUT Instantiation
   {{ lower(blk.name) }}_reg_file #(
@@ -63,29 +66,32 @@ module tb_top;
   ) dut (
     .clk_i                     (clk),
     .rst_ni                    (rst_n),
-    .wr_en_i                   (bus_if.wr_en),
-    .rd_en_i                   (bus_if.rd_en),
-    .addr_i                    (bus_if.addr),
-    .wdata_i                   (bus_if.wdata),
-    .wstrb_i                   (bus_if.wstrb),
-    .rdata_o                   (bus_if.rdata),
-    .ready_o                   (bus_if.ready),
-    .irq_o                     (irq_out),
 {% for reg in blk.registers %}
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe),
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in),
+{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in),
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
-{% else %}
+{% else if upper(fld.access) != "RO" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
+{% endif %}
+{% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i  (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_in),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_in),
 {% endif %}
 {% endfor %}
 {% endfor %}
-    .irq_o                     (irq_out)
+    .bus_wr_en_i               (bus_if.wr_en),
+    .bus_rd_en_i               (bus_if.rd_en),
+    .bus_addr_i                (bus_if.addr),
+    .bus_wdata_i               (bus_if.wdata),
+    .bus_wstrb_i               (bus_if.wstrb),
+    .bus_rdata_o               (bus_if.rdata),
+    .bus_ready_o               (bus_if.ready),
+    .bus_error_o               ()
   );
 
   // UVM Test Execution
