@@ -26,6 +26,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
   logic [DATA_WIDTH-1:0]   bus_rdata_o;
   logic                    bus_ready_o;
   logic                    bus_error_o;
+  logic                    last_bus_error;
 
   // Sideband Hardware Signals
 {% for reg in blk.registers %}
@@ -148,6 +149,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
     bus_wstrb_i <= strb;
     @(posedge clk_i);
     while (!bus_ready_o) @(posedge clk_i);
+    last_bus_error = bus_error_o;
     bus_wr_en_i <= 1'b0;
     bus_wstrb_i <= '0;
   endtask
@@ -163,6 +165,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
     @(posedge clk_i);
     while (!bus_ready_o) @(posedge clk_i);
     data = bus_rdata_o;
+    last_bus_error = bus_error_o;
     bus_rd_en_i <= 1'b0;
   endtask
 
@@ -258,19 +261,45 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endfor %}
 
     // -----------------------------------------------------------------------
-    // Phase 3: Byte Strobe Qualification Verification
+    // Phase 3: Byte Strobe Masking Verification
     // -----------------------------------------------------------------------
     $display("\n[Phase 3] Byte Strobe Masking Verification");
 {% if length(blk.registers) > 0 %}
-    // Write byte lane 0 only
-    bus_write({{ blk.registers.0.offset_hex }}, 32'hA5A5A5A5, 4'b0001);
+    // 1. Zero-strobe write: writes with strb=0 must not modify storage
+    bus_write({{ blk.registers.0.offset_hex }}, 32'hFFFFFFFF, '0);
     bus_read({{ blk.registers.0.offset_hex }}, rdata);
-    check_val("{{ blk.registers.0.name }}_byte0_strobe", rdata & 32'h000000FF, 32'h000000A5, 32'h000000FF);
+{% for fld in blk.registers.0.fields %}
+{% if upper(fld.access) == "RW" %}
+    check_val("{{ blk.registers.0.name }}.{{ fld.name }}_zero_strobe_masked", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), 0, '1);
+{% endif %}
+{% endfor %}
 
-    // Write byte lane 1 only
-    bus_write({{ blk.registers.0.offset_hex }}, 32'h5A5A5A5A, 4'b0010);
+    // 2. Byte lane 0 write: write all 1s with strobe for byte 0 only
+    bus_write({{ blk.registers.0.offset_hex }}, 32'hFFFFFFFF, 4'b0001);
     bus_read({{ blk.registers.0.offset_hex }}, rdata);
-    check_val("{{ blk.registers.0.name }}_byte1_strobe", rdata & 32'h0000FF00, 32'h00005A00, 32'h0000FF00);
+{% for fld in blk.registers.0.fields %}
+{% if upper(fld.access) == "RW" and fld.offset_lsb < 8 %}
+    check_val("{{ blk.registers.0.name }}.{{ fld.name }}_byte0_strobe", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), (1 << {{ fld.size_width }}) - 1, '1);
+{% endif %}
+{% endfor %}
+
+    // 3. Byte lane 1 write: write 0s to byte lane 1 only; byte lane 0 must remain 1s
+    bus_write({{ blk.registers.0.offset_hex }}, 32'h00000000, 4'b0010);
+    bus_read({{ blk.registers.0.offset_hex }}, rdata);
+{% for fld in blk.registers.0.fields %}
+{% if upper(fld.access) == "RW" and fld.offset_lsb < 8 %}
+    check_val("{{ blk.registers.0.name }}.{{ fld.name }}_byte0_preserved", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), (1 << {{ fld.size_width }}) - 1, '1);
+{% endif %}
+{% endfor %}
+
+    // 4. Clear byte lane 0
+    bus_write({{ blk.registers.0.offset_hex }}, 32'h00000000, 4'b0001);
+    bus_read({{ blk.registers.0.offset_hex }}, rdata);
+{% for fld in blk.registers.0.fields %}
+{% if upper(fld.access) == "RW" and fld.offset_lsb < 8 %}
+    check_val("{{ blk.registers.0.name }}.{{ fld.name }}_byte0_cleared", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), 0, '1);
+{% endif %}
+{% endfor %}
 {% endif %}
 
     // -----------------------------------------------------------------------
@@ -317,7 +346,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
     // -----------------------------------------------------------------------
     $display("\n[Phase 5] Unmapped Address Decode Error Verification");
     bus_read(32'hFFFF_FFF0, rdata);
-    if (bus_error_o === 1'b1) begin
+    if (last_bus_error === 1'b1) begin
       pass_count++;
       $display("  [PASS] Unmapped address 0xFFFFFFF0 correctly asserted bus_error_o");
     end else begin
@@ -334,7 +363,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
     bus_write({{ mem.offset_hex }}, 32'hDEAD_BEEF, '1);
     bus_read({{ mem.offset_hex }}, rdata);
     check_val("Memory Passthrough {{ mem.name }} @ {{ mem.offset_hex }}", rdata, 32'hDEAD_BEEF, '1);
-    if (bus_error_o === 1'b0) begin
+    if (last_bus_error === 1'b0) begin
       pass_count++;
       $display("  [PASS] Memory {{ mem.name }} access correctly asserted no bus_error_o");
     end else begin

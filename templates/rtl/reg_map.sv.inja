@@ -11,7 +11,7 @@ timeprecision 1ps;
 module {{ lower(blk.name) }}_reg_file #(
   parameter int ADDR_WIDTH = 32,
   parameter int DATA_WIDTH = {{ reg_width }},
-  localparam int STRB_WIDTH = DATA_WIDTH / 8
+  parameter int STRB_WIDTH = DATA_WIDTH / 8
 )(
   input  logic                      clk_i,
   input  logic                      rst_ni,
@@ -115,46 +115,37 @@ module {{ lower(blk.name) }}_reg_file #(
 
     // SW Write Update
     if (sw_{{ lower(reg.name) }}_wr_strobe_o) begin
-{% for fld in reg.fields %}
-{% if upper(fld.access) == "RW" or upper(fld.access) == "WO" %}
       for (int b = 0; b < STRB_WIDTH; b++) begin
         if (bus_wstrb_i[b]) begin
-          // Byte-enabled write update
           for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "RW" or upper(fld.access) == "WO" %}
             if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
               reg_{{ lower(reg.name) }}_d[bit_idx] = bus_wdata_i[bit_idx];
             end
-          end
-        end
-      end
 {% else if upper(fld.access) == "W1C" %}
-      // Write-1-to-Clear update with byte-strobe qualification
-      for (int b = 0; b < STRB_WIDTH; b++) begin
-        if (bus_wstrb_i[b]) begin
-          for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
             if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
               if (bus_wdata_i[bit_idx]) begin
                 reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b0;
               end
             end
-          end
-        end
-      end
 {% else if upper(fld.access) == "W1S" %}
-      // Write-1-to-Set update with byte-strobe qualification
-      for (int b = 0; b < STRB_WIDTH; b++) begin
-        if (bus_wstrb_i[b]) begin
-          for (int bit_idx = b * 8; bit_idx < (b + 1) * 8; bit_idx++) begin
             if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
               if (bus_wdata_i[bit_idx]) begin
                 reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b1;
               end
             end
+{% else if upper(fld.access) == "W0C" %}
+            if (bit_idx >= {{ fld.offset_lsb }} && bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }})) begin
+              if (!bus_wdata_i[bit_idx]) begin
+                reg_{{ lower(reg.name) }}_d[bit_idx] = 1'b0;
+              end
+            end
+{% endif %}
+{% endfor %}
           end
         end
       end
-{% endif %}
-{% endfor %}
     end
 
     // Read-Clears (RC) Update

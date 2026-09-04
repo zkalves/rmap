@@ -774,7 +774,12 @@ def test_rtl_tb(rmap_bin, work_dir):
     verilator_bin = shutil.which("verilator")
     if verilator_bin:
         rtl_file = os.path.join(comp_out, "rtl", "reg_map.sv")
-        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", f"-I{os.path.dirname(rtl_file)}", rtl_file, tb_comp])
+        ver_cmd = [verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME"]
+        help_out = subprocess.run([verilator_bin, "--help"], capture_output=True, text=True).stdout
+        if "--timing" in help_out:
+            ver_cmd.append("--timing")
+        ver_cmd.extend([f"-I{os.path.dirname(rtl_file)}", rtl_file, tb_comp])
+        run_command(ver_cmd)
         print("  ✓ Verilator lint check passed on RTL testbench.")
 
     print("✓ RTL Testbench template verified successfully.\n")
