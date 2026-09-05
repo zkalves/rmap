@@ -1,0 +1,25 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
+#ifndef CSV_HANDLER_HPP
+#define CSV_HANDLER_HPP
+
+#include "IFormatHandler.hpp"
+
+class CsvHandler : public IFormatHandler {
+public:
+    QString formatName() const override { return "CSV Spreadsheet"; }
+    QStringList supportedExtensions() const override { return {"csv", "tsv"}; }
+    QString fileFilter() const override {
+        return "CSV Table (*.csv *.tsv)";
+    }
+
+    FormatResult read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
+    FormatResult write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
+};
+
+#endif // CSV_HANDLER_HPP

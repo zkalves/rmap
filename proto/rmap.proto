@@ -1,0 +1,62 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
+syntax = "proto3";
+
+package protormap;
+
+import "google/protobuf/timestamp.proto";
+
+
+message Config {
+    enum FileType {
+        TEXT = 0;
+        BINARY = 1;
+    }
+    message TemplateOutput {
+        string        template_filename = 1;
+        string        output_filepath   = 2;
+        optional bool enabled           = 3;
+    }
+
+    FileType                filetype           = 1;
+    string                  pythonScript       = 2;
+    string                  templateFolder     = 3;
+    string                  outputFolder       = 4;
+    repeated TemplateOutput template_outputs   = 5;
+    uint32                  reg_width          = 6;
+
+    // Project Configuration Fields
+    string                  project_name       = 7;
+    string                  project_version    = 8;
+    bool                    strict_validation  = 9;
+    map<string, string>     custom_parameters  = 10;
+    repeated string         template_folders   = 11;
+}
+
+message RegItem {
+    enum Kind {
+        ROOT = 0;
+        BLK  = 1;
+        REG  = 2;
+        FLD  = 3;
+        MEM  = 4;
+        MAP  = 5;
+    }
+    Kind            kind         = 1;
+    uint32          id           = 2;
+    uint32          parent_id    = 3;
+    repeated uint32 child_id     = 4;
+    map<string, string> itemData = 5;
+}
+
+message RegModel {
+
+    Config config = 1;
+    repeated RegItem item   = 2;
+    google.protobuf.Timestamp last_updated = 3;
+}

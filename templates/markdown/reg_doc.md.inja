@@ -1,0 +1,44 @@
+# {{ name }} — Register Map Specification
+
+**Version:** 1.0  
+**Register Width:** {{ reg_width }}-bit  
+**Description:** {{ description }}
+
+---
+
+## Summary of Register Blocks
+
+| Block Name | Base Offset | Description |
+| :--- | :--- | :--- |
+{% for blk in blocks %}
+| [{{ blk.name }}](#block-{{ lower(blk.name) }}) | `{{ blk.offset_hex }}` | {{ blk.description }} |
+{% endfor %}
+
+---
+
+{% for blk in blocks %}
+<a id="block-{{ lower(blk.name) }}"></a>
+## Block: {{ blk.name }}
+
+- **Base Offset:** `{{ blk.offset_hex }}`
+- **Description:** {{ blk.description }}
+
+### Registers
+
+{% for reg in blk.registers %}
+#### `{{ reg.name }}` (Offset: `{{ reg.offset_hex }}`)
+
+- **Description:** {{ reg.description }}
+- **Default SW Access:** `{{ reg.access }}`
+- **Reset Value:** `{{ reg.reset_hex }}`
+
+| Bits | Field Name | SW Access | HW Access | Reset | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+{% for fld in reg.fields %}
+| `[{{ msb(fld.size_width, fld.offset_lsb) }}:{{ fld.offset_lsb }}]` | **{{ fld.name }}** | `{{ fld.access }}` | `{{ fld.hw_access }}` | `{{ fld.reset_hex }}` | {{ fld.description }} |
+{% endfor %}
+
+{% endfor %}
+
+---
+{% endfor %}

@@ -1,0 +1,109 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  reg_width: 32
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "ERR_BLOCK"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Name"
+    value: "REG_A"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "FLD_OVERLAP_1"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "FLD_OVERLAP_2"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "4"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "REG_B_COLLIDE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Name"
+    value: "FLD_EXCEED_WIDTH"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "28"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

@@ -1,3 +1,10 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
 #ifndef OBJECTFACTORY_HPP
 #define OBJECTFACTORY_HPP
 
@@ -18,18 +25,6 @@ public:
 template<typename T>
 T* ObjectFactory::createObject(void)
 {
-    T* instance = nullptr;
-
-    //if(name == "T")
-    //    instance = new T();
-
-    //if(name == "two")
-    //    instance = new DerivedClassTwo();
-
-    instance = new T();
-    if(instance != nullptr)
-        return instance;
-    else
-        return nullptr;
+    return new T();
 }
 #endif // OBJECTFACTORY_HPP

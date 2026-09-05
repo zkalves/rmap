@@ -1,0 +1,39 @@
+<RCC>
+  <qresource prefix="toolbar">
+    <file alias="config-512.png">images/config-512.png</file>
+    <file alias="about.png">images/about.png</file>
+    <file alias="exit.png">images/exit.png</file>
+    <file alias="folder_new.png">images/folder_new.png</file>
+    <file alias="folder_save.png">images/folder_save.png</file>
+    <file alias="checkmark-512.png">images/checkmark-512.png</file>
+    <file alias="export.png">images/export.png</file>
+    <file alias="folder_open.png">images/folder_open.png</file>
+    <file alias="folder_close.png">images/folder_close.png</file>
+    <file alias="uvm_map.png">images/uvm_map.png</file>
+    <file alias="uvm_mem.png">images/uvm_mem.png</file>
+    <file alias="uvm_reg_block.png">images/uvm_reg_block.png</file>
+    <file alias="uvm_reg_field.png">images/uvm_reg_field.png</file>
+    <file alias="uvm_reg.png">images/uvm_reg.png</file>
+    <file alias="delete-2-xxl.png">images/delete-2-xxl.png</file>
+  </qresource>
+  <qresource prefix="icons">
+    <file alias="app_icon.png">images/app_icon.png</file>
+    <file alias="app_icon_16.png">images/app_icon_16.png</file>
+    <file alias="app_icon_32.png">images/app_icon_32.png</file>
+    <file alias="app_icon_48.png">images/app_icon_48.png</file>
+    <file alias="app_icon_64.png">images/app_icon_64.png</file>
+    <file alias="app_icon_128.png">images/app_icon_128.png</file>
+    <file alias="app_icon_256.png">images/app_icon_256.png</file>
+    <file alias="app_icon_512.png">images/app_icon_512.png</file>
+    <file alias="rmap_icon.jpeg">images/icon/rmap_icon.jpeg</file>
+    <file alias="uvm_map_small.png">images/uvm_map_small.png</file>
+    <file alias="uvm_mem_small.png">images/uvm_mem_small.png</file>
+    <file alias="uvm_reg_block_small.png">images/uvm_reg_block_small.png</file>
+    <file alias="uvm_reg_field_small.png">images/uvm_reg_field_small.png</file>
+    <file alias="uvm_reg_small.png">images/uvm_reg_small.png</file>
+  </qresource>
+  <qresource prefix="branding">
+    <file alias="app_icon.png">images/app_icon.png</file>
+    <file alias="rmap_icon.jpeg">images/icon/rmap_icon.jpeg</file>
+  </qresource>
+</RCC>

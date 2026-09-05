@@ -1,0 +1,110 @@
+{
+  "name": "SENSOR_HUB",
+  "project_name": "IoT_Sensor_Platform",
+  "project_version": "1.0.0",
+  "reg_width": 32,
+  "reg_width_bytes": 4,
+  "blocks": [
+    {
+      "name": "SENSOR_CORE",
+      "registers": [
+        {
+          "name": "CONFIG",
+          "offset_lsb": 0,
+          "offset_hex": "0x0",
+          "size_width": 32,
+          "access": "RW",
+          "reset_val": 0,
+          "reset_hex": "0x0",
+          "description": "Sensor Hub Configuration Register",
+          "fields": [
+            {
+              "name": "ENABLE",
+              "offset_lsb": 0,
+              "size_width": 1,
+              "access": "RW",
+              "reset_val": 0,
+              "reset_hex": "0x0",
+              "is_rand": true,
+              "volatile": false,
+              "has_reset": true,
+              "description": "Enable Sensor Hub Core"
+            },
+            {
+              "name": "SAMPLE_RATE",
+              "offset_lsb": 4,
+              "size_width": 4,
+              "access": "RW",
+              "reset_val": 1,
+              "reset_hex": "0x1",
+              "is_rand": true,
+              "volatile": false,
+              "has_reset": true,
+              "description": "Sampling Rate: 0=10Hz, 1=50Hz, 2=100Hz, 3=500Hz"
+            },
+            {
+              "name": "FIFO_THRESH",
+              "offset_lsb": 8,
+              "size_width": 8,
+              "access": "RW",
+              "reset_val": 16,
+              "reset_hex": "0x10",
+              "is_rand": true,
+              "volatile": false,
+              "has_reset": true,
+              "description": "FIFO Watermark Interrupt Threshold"
+            }
+          ]
+        },
+        {
+          "name": "TEMPERATURE",
+          "offset_lsb": 4,
+          "offset_hex": "0x4",
+          "size_width": 32,
+          "access": "RO",
+          "reset_val": 0,
+          "reset_hex": "0x0",
+          "description": "Calibrated Temperature Reading",
+          "fields": [
+            {
+              "name": "TEMP_DATA",
+              "offset_lsb": 0,
+              "size_width": 16,
+              "access": "RO",
+              "reset_val": 0,
+              "reset_hex": "0x0",
+              "is_rand": false,
+              "volatile": true,
+              "has_reset": true,
+              "description": "Signed Q8.8 Fixed-Point Temperature (Celsius)"
+            }
+          ]
+        },
+        {
+          "name": "PRESSURE",
+          "offset_lsb": 8,
+          "offset_hex": "0x8",
+          "size_width": 32,
+          "access": "RO",
+          "reset_val": 101325,
+          "reset_hex": "0x18BDD",
+          "description": "Barometric Pressure Reading",
+          "fields": [
+            {
+              "name": "PRESSURE_PASCALS",
+              "offset_lsb": 0,
+              "size_width": 24,
+              "access": "RO",
+              "reset_val": 101325,
+              "reset_hex": "0x18BDD",
+              "is_rand": false,
+              "volatile": true,
+              "has_reset": true,
+              "description": "Atmospheric Pressure in Pascals"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

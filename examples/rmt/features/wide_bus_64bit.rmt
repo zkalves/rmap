@@ -1,0 +1,291 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/wide_bus_reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/wide_bus_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm/reg_model.sv.inja"
+    output_filepath: "./work/uvm/wide_bus_reg_model.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rust/reg_map.rs.inja"
+    output_filepath: "./work/rust/wide_bus_reg_map.rs"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/wide_bus_reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/html/reg_doc.html.inja"
+    output_filepath: "./work/html/wide_bus_reg_doc.html"
+  }
+  template_outputs {
+    template_filename: "./templates/markdown/reg_doc.md.inja"
+    output_filepath: "./work/markdown/wide_bus_reg_doc.md"
+  }
+  template_outputs {
+    template_filename: "./templates/systemrdl/reg_map.rdl.inja"
+    output_filepath: "./work/systemrdl/wide_bus_reg_map.rdl"
+  }
+  template_outputs {
+    template_filename: "./templates/ipxact/reg_map.xml.inja"
+    output_filepath: "./work/ipxact/wide_bus_reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/svd/reg_map.xml.inja"
+    output_filepath: "./work/svd/wide_bus_reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/wide_bus_reg_map.json"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl_tb/tb_reg_map.sv.inja"
+    output_filepath: "./work/sim/tb_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/pyuvm_tb/tb_pyuvm.py.inja"
+    output_filepath: "./work/sim/tb_pyuvm.py"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_if.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_if.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_pkg.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_pkg.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_env.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_env.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_tests.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_tests.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/tb_top.sv.inja"
+    output_filepath: "./work/sim/uvm/tb_top.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/sim/Makefile.inja"
+    output_filepath: "./work/sim/Makefile"
+  }
+  reg_width: 64
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "WIDE_BUS_TOP"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "DMA_SRC_ADDR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "64"
+  }
+  itemData {
+    key: "Description"
+    value: "64-bit DMA Source Address Register"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "LOW_ADDR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x00000000"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "HIGH_ADDR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "32"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "28"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0000000"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 5
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "FLAGS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "60"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: REG
+  id: 6
+  parent_id: 1
+  child_id: 7
+  itemData {
+    key: "Name"
+    value: "DMA_CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x08"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "64"
+  }
+  itemData {
+    key: "Description"
+    value: "64-bit DMA Control"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "START"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

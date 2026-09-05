@@ -1,9 +1,16 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
 #ifndef SERIALIZATIONCONTEXT_HPP
 #define SERIALIZATIONCONTEXT_HPP
 
 #include <QVariant>
-#include <Serializable.hpp>
-#include <ObjectFactory.hpp>
+#include "Serializable.hpp"
+#include "ObjectFactory.hpp"
 #include <QDebug>
 #include "rmap.pb.h"
 
@@ -19,6 +26,8 @@ public:
     template<typename T>
     void append_record( T* object, QVariantMap data );
 
+    void clear() { m_records.clear(); m_map.clear(); }
+
     friend QDebug               operator <<( QDebug  stream, const SerializationContext& context );
     friend protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
     friend protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
@@ -26,7 +35,7 @@ public:
 private:
     struct Record
     {
-        QObject* m_object;
+        QObject* m_object = nullptr;
         QVariantMap m_data;
     };
 
@@ -38,7 +47,7 @@ private:
 template<typename T>
 QVariant SerializationContext::serialize( T* ptr )
 {
-    if ( ptr == NULL )
+    if ( ptr == nullptr )
         return QVariant();
 
     QObject* object = static_cast<QObject*>( ptr );
@@ -48,11 +57,10 @@ QVariant SerializationContext::serialize( T* ptr )
     if ( it != m_map.end() )
         return QVariant( it.value() );
 
-    int index = m_records.count();
+    int index = static_cast<int>(m_records.size());
 
     Record record;
     record.m_object = object;
-    //record.m_type = object->metaObject()->className();
     m_records.append( record );
 
     m_map.insert( object, index );
@@ -71,13 +79,15 @@ template<typename T>
 T* SerializationContext::deserialize( const QVariant& handle )
 {
     if ( !handle.isValid() )
-        return NULL;
+        return nullptr;
 
     int index = handle.toInt();
+    if ( index < 0 || index >= static_cast<int>(m_records.size()) )
+        return nullptr;
 
     Record& record = m_records[ index ];
 
-    if ( record.m_object != NULL )
+    if ( record.m_object != nullptr )
         return static_cast<T*>( record.m_object );
 
 
