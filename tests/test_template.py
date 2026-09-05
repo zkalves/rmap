@@ -46,6 +46,20 @@ def find_rmap_binary():
     return bin_path
 
 
+def find_verilator():
+    v = shutil.which("verilator")
+    if v:
+        return v
+    for candidate in [
+        "/opt/verilator/v5.050/bin/verilator",
+        "/home/runner/verilator-5.050/bin/verilator",
+        os.path.expanduser("~/work/src/verilator/bin/verilator")
+    ]:
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
 def run_command(cmd, check=True, cwd=None, env=None):
     merged_env = os.environ.copy()
     merged_env["QT_QPA_PLATFORM"] = "offscreen"
@@ -233,8 +247,8 @@ def test_rtl(rmap_bin, work_dir):
     assert "hw_status_flags_irq_pending_o" in content
 
     # Address localparams
-    assert "localparam logic [ADDR_WIDTH-1:0] ADDR_CONTROL = 0x0000;" in content
-    assert "localparam logic [ADDR_WIDTH-1:0] ADDR_STATUS_FLAGS = 0x0004;" in content
+    assert "localparam logic [ADDR_WIDTH-1:0] ADDR_CONTROL = 32'h0000;" in content
+    assert "localparam logic [ADDR_WIDTH-1:0] ADDR_STATUS_FLAGS = 32'h0004;" in content
 
     # Byte-strobe qualified next-state logic
     assert "wstrb_i[b]" in content
@@ -243,7 +257,7 @@ def test_rtl(rmap_bin, work_dir):
     assert "always_ff @(posedge clk_i or negedge rst_ni)" in content
 
     # Verilator lint if installed
-    verilator_bin = shutil.which("verilator")
+    verilator_bin = find_verilator()
     if verilator_bin:
         ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
         print(f"  Verilator: {ver_info}")
@@ -773,7 +787,7 @@ def test_rtl_tb(rmap_bin, work_dir):
         print("  ✓ Icarus Verilog simulation executed and all assertions passed.")
 
     # If verilator is installed, run lint check
-    verilator_bin = shutil.which("verilator")
+    verilator_bin = find_verilator()
     if verilator_bin:
         ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
         print(f"  Verilator: {ver_info}")

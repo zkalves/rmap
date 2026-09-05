@@ -162,6 +162,55 @@ void CodeGenerator::registerHelpers(Environment &env) {
         uint64_t m = (arg0 + arg1 > 0) ? (arg0 + arg1 - 1) : 0;
         return std::to_string(m);
     });
+
+    // Helper: {{ sv_hex(val, width) }} or {{ sv_hex(val) }} -> SystemVerilog hex literal (e.g. 32'h0000, 32'h4D87A9DC, 1'h0)
+    auto sv_hex_fn = [](Arguments& args) {
+        uint64_t val = 0;
+        int width = 32;
+        if (args.at(0)->is_number()) {
+            val = args.at(0)->get<uint64_t>();
+        } else if (args.at(0)->is_string()) {
+            std::string s = args.at(0)->get<std::string>();
+            if (s.size() >= 2 && s.front() == '"' && s.back() == '"') {
+                s = s.substr(1, s.size() - 2);
+            }
+            try {
+                val = std::stoull(s, nullptr, 0);
+            } catch (...) {
+                val = 0;
+            }
+        }
+
+        if (args.size() > 1) {
+            if (args.at(1)->is_number()) {
+                width = args.at(1)->get<int>();
+            } else if (args.at(1)->is_string()) {
+                try {
+                    width = std::stoi(args.at(1)->get<std::string>());
+                } catch (...) {
+                    width = 32;
+                }
+            }
+        }
+
+        if (width > 0 && width < 64) {
+            val &= ((1ULL << width) - 1ULL);
+        }
+
+        std::stringstream ss;
+        if (width <= 0) {
+            ss << "'h" << std::hex << std::uppercase << val;
+        } else {
+            int digits = (width + 3) / 4;
+            if (width >= 32 && val < 0x10000ULL) {
+                digits = 4;
+            }
+            ss << width << "'h" << std::hex << std::uppercase << std::setfill('0') << std::setw(digits) << val;
+        }
+        return ss.str();
+    };
+    env.add_callback("sv_hex", 1, sv_hex_fn);
+    env.add_callback("sv_hex", 2, sv_hex_fn);
 }
 
 std::string CodeGenerator::resolveTemplatePath(

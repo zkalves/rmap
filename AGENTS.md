@@ -119,7 +119,7 @@ rmap/
 ├── CMakeLists.txt              # CMake build configuration with FetchContent, rmap_core, rmap, & CTest
 ├── Makefile                    # Make convenience wrapper (all, run, test, clean, rebuild)
 ├── .github/workflows/
-│   └── ci.yml                  # GitHub Actions CI matrix workflow (build + 11 unit test jobs + 15 template test jobs with Verilator 5.050)
+│   └── ci.yml                  # GitHub Actions CI matrix workflow (build + build-verilator + 11 unit test jobs + 15 template test jobs)
 ├── README.md                   # Project overview, badges, features, and quickstart guide
 ├── docs/                       # Project documentation portal (Pelican)
 │   ├── dev/                    # Developer documentation & C++ architecture Markdown references
@@ -313,6 +313,7 @@ The code generation system uses **Pantor Inja** to render output files from JSON
 - `{{ to_hex(val, width) }}`: Formats a number as zero-padded hex with `0x` prefix (e.g. `to_hex(15, 4)` &rarr; `0x000F`).
 - `{{ to_dec(val) }}`: Formats an unsigned integer as decimal.
 - `{{ bitmask(width, lsb) }}`: Computes bitmask in hex `((1 << width) - 1) << lsb`.
+- `{{ sv_hex(val, width) }}`: Formats a number or hex string into a SystemVerilog hex literal (e.g. `sv_hex(0, 32)` &rarr; `32'h0000`, `sv_hex(1, 1)` &rarr; `1'h1`, `sv_hex("0x4D87A9DC", 32)` &rarr; `32'h4D87A9DC`).
 ### Dynamic Path Variables in Output Destinations
 Output paths support meaningful variables for flexible SoC repository organization:
 - `{output_folder}` / `{output_dir}`: Configured global default output folder.

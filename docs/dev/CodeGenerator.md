@@ -85,6 +85,7 @@ Legacy compatibility wrapper for mapping-based generation.
 | `to_dec` | `{{ to_dec(val) }}` | Formats unsigned integers as decimal. | `to_dec(16)` → `"16"` |
 | `bitmask` | `{{ bitmask(width, lsb) }}` | Computes bitmask in hex format. | `bitmask(4, 0)` → `"0x000F"` |
 | `pad_zero` | `{{ pad_zero(val, width) }}` | Formats integers with leading zero padding. | `pad_zero(7, 4)` → `"0007"` |
+| `sv_hex` | `{{ sv_hex(val, width) }}` | Formats numbers or hex strings as SystemVerilog hex literals. | `sv_hex(0, 32)` → `"32'h0000"` |
 
 ### 7. Ownership and Lifecycle
 

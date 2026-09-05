@@ -86,9 +86,45 @@ jobs:
       - name: Run Test
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build -R "^${{ matrix.test_name }}$" --output-on-failure
 
+  build-verilator:
+    name: Prepare Verilator 5.050
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Cache Verilator 5.050
+        id: cache-verilator
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/verilator-5.050
+          key: verilator-5.050-${{ runner.os }}
+
+      - name: Install & Compile Verilator 5.050
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            git help2man perl python3 make autoconf g++ flex bison ccache \
+            libfl2 libfl-dev zlib1g zlib1g-dev liblz4-dev
+          git clone --depth 1 --branch v5.050 https://github.com/verilator/verilator.git /tmp/verilator
+          cd /tmp/verilator
+          autoconf
+          ./configure --prefix=/home/runner/verilator-5.050
+          make -j$(nproc)
+          make install
+          rm -rf /tmp/verilator
+
+      - name: Package Verilator
+        run: tar -czf /tmp/verilator-5.050.tar.gz -C /home/runner verilator-5.050
+
+      - name: Upload Verilator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: verilator-artifact
+          path: /tmp/verilator-5.050.tar.gz
+
   test-templates:
     name: Template Test (${{ matrix.template }})
-    needs: build
+    needs: [build, build-verilator]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -126,38 +162,19 @@ jobs:
             python3-venv \
             jq
 
-      - name: Cache Verilator 5.050
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'uvm' || matrix.template == 'uvm_tb'
-        id: cache-verilator
-        uses: actions/cache@v4
+      - name: Download Verilator artifact
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb'
+        uses: actions/download-artifact@v4
         with:
-          path: /home/runner/verilator-5.050
-          key: verilator-5.050-${{ runner.os }}
+          name: verilator-artifact
+          path: /tmp
 
-      - name: Install Verilator 5.050
-        if: (matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'uvm' || matrix.template == 'uvm_tb') && steps.cache-verilator.outputs.cache-hit != 'true'
+      - name: Extract Verilator and Add to PATH
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb'
         run: |
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-            git help2man perl python3 make autoconf g++ flex bison ccache \
-            libfl2 libfl-dev zlib1g zlib1g-dev liblz4-dev
-          git clone --depth 1 --branch v5.050 https://github.com/verilator/verilator.git /tmp/verilator
-          cd /tmp/verilator
-          autoconf
-          ./configure --prefix=/home/runner/verilator-5.050
-          make -j$(nproc)
-          make install
-          rm -rf /tmp/verilator
-
-      - name: Add Verilator 5.050 to PATH
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'uvm' || matrix.template == 'uvm_tb'
-        run: |
+          tar -xzf /tmp/verilator-5.050.tar.gz -C /home/runner
           echo "/home/runner/verilator-5.050/bin" >> $GITHUB_PATH
-
-      - name: Verify Verilator Version
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'uvm' || matrix.template == 'uvm_tb'
-        run: |
-          verilator --version
+          /home/runner/verilator-5.050/bin/verilator --version
 
       - name: Install Template-Specific Toolchain
         run: |
@@ -167,9 +184,6 @@ jobs:
               ;;
             rtl|rtl_tb)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iverilog
-              ;;
-            uvm|uvm_tb)
-              echo "Verilator 5.050 configured"
               ;;
             pyuvm_tb)
               python3 -m pip install --break-system-packages cocotb pyuvm || true

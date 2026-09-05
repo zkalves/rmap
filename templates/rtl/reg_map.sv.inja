@@ -66,15 +66,15 @@ module {{ lower(blk.name) }}_reg_file #(
   // Register & Memory Address Offsets
   // =========================================================================
 {% for reg in blk.registers %}
-  localparam logic [ADDR_WIDTH-1:0] ADDR_{{ upper(reg.name) }} = {{ reg.offset_hex }};
+  localparam logic [ADDR_WIDTH-1:0] ADDR_{{ upper(reg.name) }} = {{ sv_hex(reg.offset_hex, 32) }};
 {% endfor %}
 {% if existsIn(blk, "crc32_hex") %}
-  localparam logic [31:0] REGMAP_CRC32 = {{ blk.crc32_hex }};
+  localparam logic [31:0] REGMAP_CRC32 = {{ sv_hex(blk.crc32_hex, 32) }};
 {% endif %}
 {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
   // Memory Window Address Parameters
 {% for mem in blk.memories %}
-  localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_START = {{ mem.offset_hex }};
+  localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_START = {{ sv_hex(mem.offset_hex, 32) }};
   localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_SIZE  = {{ mem.size_width }};
   localparam logic [ADDR_WIDTH-1:0] MEM_{{ upper(mem.name) }}_END   = MEM_{{ upper(mem.name) }}_START + MEM_{{ upper(mem.name) }}_SIZE;
 {% endfor %}
@@ -181,7 +181,7 @@ module {{ lower(blk.name) }}_reg_file #(
     if (!rst_ni) begin
 {% for reg in blk.registers %}
 {% if existsIn(reg, "reset_hex") %}
-      reg_{{ lower(reg.name) }}_q <= {{ reg.reset_hex }};
+      reg_{{ lower(reg.name) }}_q <= {{ sv_hex(reg.reset_val, reg_width) }};
 {% else %}
       reg_{{ lower(reg.name) }}_q <= '0;
 {% endif %}
@@ -219,7 +219,7 @@ module {{ lower(blk.name) }}_reg_file #(
               if (bus_rd_en_i) begin
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
-                bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ fld.reset_hex }};
+                bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ sv_hex(fld.reset_val, fld.size_width) }};
 {% else if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
                 bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" %}
@@ -248,7 +248,7 @@ module {{ lower(blk.name) }}_reg_file #(
           if (bus_rd_en_i) begin
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
-            bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ fld.reset_hex }};
+            bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ sv_hex(fld.reset_val, fld.size_width) }};
 {% else if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
             bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" %}

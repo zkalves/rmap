@@ -74,6 +74,7 @@ When templates are executed, the full register map model is exposed as a JSON st
 | `to_dec` | `{{ to_dec(reg.size_width) }}` | `"32"` |
 | `bitmask` | `{{ bitmask(fld.size_width, fld.offset_lsb) }}` | `0x00000001` |
 | `pad_zero`| `{{ pad_zero(fld.offset_lsb, 2) }}` | `"00"` |
+| `sv_hex`  | `{{ sv_hex(fld.reset_val, 32) }}` | `32'h0000` |
 
 ---
 

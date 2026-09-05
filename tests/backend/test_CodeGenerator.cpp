@@ -20,6 +20,7 @@ private slots:
     void testHelperToHexAndToDec();
     void testHelperBitmask();
     void testHelperPadZero();
+    void testHelperSvHex();
     void testFullGenerationCHeader();
     void testFullGenerationUvmModel();
     void testMultiSourceTemplateMappings();
@@ -168,6 +169,59 @@ void TestCodeGenerator::testHelperPadZero()
     out.close();
 
     QCOMPARE(content.trimmed(), QString("PAD: 0007"));
+}
+
+void TestCodeGenerator::testHelperSvHex()
+{
+    CodeGenerator cg;
+    json data;
+    data["offset_hex_zero"] = "0x0000";
+    data["offset_hex_four"] = "0x0004";
+    data["crc32_hex"] = "0x4D87A9DC";
+    data["num_zero"] = 0;
+    data["num_four"] = 4;
+    data["fld_reset_0"] = 0;
+    data["fld_reset_1"] = 1;
+    data["fld_reset_5"] = 5;
+
+    QDir().mkpath("work/test_tmpl");
+    QFile f("work/test_tmpl/sv_hex.inja");
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write("A: {{ sv_hex(offset_hex_zero, 32) }}\n"
+                "B: {{ sv_hex(offset_hex_four, 32) }}\n"
+                "C: {{ sv_hex(crc32_hex, 32) }}\n"
+                "D: {{ sv_hex(num_zero, 32) }}\n"
+                "E: {{ sv_hex(num_four, 32) }}\n"
+                "F: {{ sv_hex(fld_reset_0, 1) }}\n"
+                "G: {{ sv_hex(fld_reset_1, 1) }}\n"
+                "H: {{ sv_hex(fld_reset_5, 4) }}\n"
+                "I: {{ sv_hex(offset_hex_four) }}\n"
+                "J: {{ sv_hex(num_four, 0) }}\n");
+        f.close();
+    }
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"work/test_tmpl/sv_hex.inja", "work/test_tmpl/sv_hex.txt"});
+
+    GenerationReport report = cg.generate(data, "work/test_tmpl", "work/test_tmpl", mappings);
+    QVERIFY(!report.has_errors());
+
+    QFile out("work/test_tmpl/sv_hex.txt");
+    const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
+    QVERIFY(outOpened);
+    QString content = out.readAll();
+    out.close();
+
+    QVERIFY(content.contains("A: 32'h0000"));
+    QVERIFY(content.contains("B: 32'h0004"));
+    QVERIFY(content.contains("C: 32'h4D87A9DC"));
+    QVERIFY(content.contains("D: 32'h0000"));
+    QVERIFY(content.contains("E: 32'h0004"));
+    QVERIFY(content.contains("F: 1'h0"));
+    QVERIFY(content.contains("G: 1'h1"));
+    QVERIFY(content.contains("H: 4'h5"));
+    QVERIFY(content.contains("I: 32'h0004"));
+    QVERIFY(content.contains("J: 'h4"));
 }
 
 void TestCodeGenerator::testFullGenerationCHeader()
@@ -384,7 +438,7 @@ void TestCodeGenerator::testFullGenerationGenericRtl()
     QVERIFY(content.contains("output logic [DATA_WIDTH-1:0]     bus_rdata_o"));
     QVERIFY(content.contains("output logic                      bus_ready_o"));
     QVERIFY(content.contains("output logic                      bus_error_o"));
-    QVERIFY(content.contains("ADDR_CTRL = 0x0;"));
+    QVERIFY(content.contains("ADDR_CTRL = 32'h0000;"));
     QVERIFY(content.contains("sw_ctrl_wr_strobe_o"));
     QVERIFY(content.contains("hw_ctrl_enable_o"));
     QVERIFY(content.contains("always_ff @(posedge clk_i or negedge rst_ni)"));
@@ -458,7 +512,7 @@ void TestCodeGenerator::testFullGenerationRtlWithMemories()
     QVERIFY(rtlContent.contains("output logic [STRB_WIDTH-1:0]     mem_buffer_ram_wstrb_o"));
     QVERIFY(rtlContent.contains("input  logic [DATA_WIDTH-1:0]     mem_buffer_ram_rdata_i"));
     QVERIFY(rtlContent.contains("input  logic                      mem_buffer_ram_ready_i"));
-    QVERIFY(rtlContent.contains("localparam logic [ADDR_WIDTH-1:0] MEM_BUFFER_RAM_START = 0x1000;"));
+    QVERIFY(rtlContent.contains("localparam logic [ADDR_WIDTH-1:0] MEM_BUFFER_RAM_START = 32'h1000;"));
     QVERIFY(rtlContent.contains("localparam logic [ADDR_WIDTH-1:0] MEM_BUFFER_RAM_SIZE  = 1024;"));
     QVERIFY(rtlContent.contains("logic mem_buffer_ram_hit;"));
     QVERIFY(rtlContent.contains("mem_buffer_ram_hit: begin"));
@@ -1188,7 +1242,7 @@ void TestCodeGenerator::testRtlStrobeAndCrcGeneration()
     outFile.close();
 
     // Verify REGMAP_CRC32 localparam
-    QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 0xCAFE1234;"));
+    QVERIFY(content.contains("localparam logic [31:0] REGMAP_CRC32 = 32'hCAFE1234;"));
     // Verify byte-strobe qualified W1C update
     QVERIFY(content.contains("wstrb_i[b]"));
 }
