@@ -1,1 +1,32 @@
-designer ../ui/*.ui
+#!/bin/bash
+
+# This file is part of rmap.
+#
+# rmap is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# rmap is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with rmap.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if command -v designer >/dev/null 2>&1; then
+    designer "$PROJECT_ROOT"/src/ui/*.ui &
+elif command -v designer-qt6 >/dev/null 2>&1; then
+    designer-qt6 "$PROJECT_ROOT"/src/ui/*.ui &
+elif command -v qt6-designer >/dev/null 2>&1; then
+    qt6-designer "$PROJECT_ROOT"/src/ui/*.ui &
+else
+    echo "Qt Designer not found. Please install qt6-tools or designer." >&2
+    exit 1
+fi

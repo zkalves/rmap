@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# This file is part of rmap.
+#
+# rmap is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# rmap is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with rmap.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+OUT_DIR="${1:-$PROJECT_ROOT/_site}"
+
+echo "=========================================="
+echo "Rendering rmap Documentation Portal (Pelican)"
+echo "=========================================="
+echo "Source:      $PROJECT_ROOT/docs"
+echo "Destination: $OUT_DIR"
+
+export PYTHONPATH="$PROJECT_ROOT/.python_packages:${PYTHONPATH}"
+
+if python3 -m pelican --version >/dev/null 2>&1; then
+    cd "$PROJECT_ROOT/docs"
+    python3 -m pelican . -s pelicanconf.py -o "$OUT_DIR"
+    echo "Documentation successfully rendered at: $OUT_DIR"
+elif command -v pelican >/dev/null 2>&1; then
+    cd "$PROJECT_ROOT/docs"
+    pelican . -s pelicanconf.py -o "$OUT_DIR"
+    echo "Documentation successfully rendered at: $OUT_DIR"
+else
+    echo "Note: Pelican is not installed locally. To install Pelican and Markdown:"
+    echo "  pip install pelican markdown"
+    echo "Markdown documentation files remain accessible in $PROJECT_ROOT/docs"
+    exit 1
+fi

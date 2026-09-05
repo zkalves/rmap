@@ -1,0 +1,52 @@
+
+…./templates"./work*.
+./templates/reg_map.h.inja./work/reg_map.h*<
+!./templates/uvm_reg_model.sv.inja./work/uvm_reg_model.sv0 ""*
+NameSPI_Top_"*
+NameCTRL*
+
+Size/Width32*
+
+Offset/LSB0x00*
+DescriptionControl Register¯*
+Description
+Enable SPI*
+	Has Resettrue*
+
+Size/Width1*
+
+Offset/LSB0*
+
+NameEN*
+Is Randtrue*
+Volatilefalse*
+Reset Value0x0*
+Access PolicyRW¯*
+DescriptionSPI Mode*
+Volatilefalse*
+
+Size/Width2*
+Access PolicyRW*
+NameMODE*
+
+Offset/LSB1*
+Is Randtrue*
+	Has Resettrue*
+Reset Value0x3_"*
+NameSTATUS*
+DescriptionStatus Register*
+
+Size/Width32*
+
+Offset/LSB0x04¸*
+DescriptionTX FIFO Empty*
+
+Offset/LSB0*
+Access PolicyRO*
+
+Size/Width1*
+	Has Resettrue*
+Reset Value0x1*
+Is Randfalse*
+Volatiletrue*
+NameTX_EMPTYª™ÒÔ

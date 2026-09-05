@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{% block html_lang %}{{ DEFAULT_LANG }}{% endblock html_lang %}">
+<head>
+    {% block head %}
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content="Pelican" />
+    <title>{% block title %}{{ SITENAME|striptags }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ SITEURL }}/{{ THEME_STATIC_DIR }}/css/{{ CSS_FILE }}" />
+    {% endblock head %}
+</head>
+
+<body id="index" class="home">
+    <header id="banner" class="body">
+        <h1><a href="{{ SITEURL }}/index.html">{{ SITENAME }}</a></h1>
+        <nav>
+            <ul>
+                <li><a href="{{ SITEURL }}/index.html">Portal Home</a></li>
+                {% for title, link in MENUITEMS %}
+                <li><a href="{{ SITEURL }}/{{ link }}">{{ title }}</a></li>
+                {% endfor %}
+                <li><a href="https://github.com/zkalves/rmap" target="_blank" rel="noopener">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="content" class="body">
+        {% block content %}{% endblock %}
+    </section>
+
+    <footer id="contentinfo" class="body">
+        <address id="about" class="vcard body">
+            <strong>rmap</strong> &mdash; Modern Hardware Register Map Designer & Register Model Generator.
+        </address>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device schemaVersion="1.3" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd">
+    <vendor>rmap</vendor>
+    <name>{{ name }}</name>
+    <version>1.0</version>
+    <description>{{ description }}</description>
+    <addressUnitBits>8</addressUnitBits>
+    <width>{{ reg_width }}</width>
+    <size>{{ reg_width }}</size>
+    <resetValue>0x00000000</resetValue>
+    <resetMask>0xFFFFFFFF</resetMask>
+    <peripherals>
+{% for blk in blocks %}
+        <peripheral>
+            <name>{{ blk.name }}</name>
+            <description>{{ blk.description }}</description>
+            <baseAddress>{{ blk.offset_hex }}</baseAddress>
+            <addressBlock>
+                <offset>0x0</offset>
+                <size>0x1000</size>
+                <usage>registers</usage>
+            </addressBlock>
+            <registers>
+{% for reg in blk.registers %}
+                <register>
+                    <name>{{ reg.name }}</name>
+                    <description>{{ reg.description }}</description>
+                    <addressOffset>{{ reg.offset_hex }}</addressOffset>
+                    <size>{{ reg_width }}</size>
+                    <access>{{ reg.access }}</access>
+                    <resetValue>{{ reg.reset_hex }}</resetValue>
+                    <fields>
+{% for fld in reg.fields %}
+                        <field>
+                            <name>{{ fld.name }}</name>
+                            <description>{{ fld.description }}</description>
+                            <bitOffset>{{ fld.offset_lsb }}</bitOffset>
+                            <bitWidth>{{ fld.size_width }}</bitWidth>
+                            <access>{{ fld.access }}</access>
+                        </field>
+{% endfor %}
+                    </fields>
+                </register>
+{% endfor %}
+            </registers>
+        </peripheral>
+{% endfor %}
+    </peripherals>
+</device>

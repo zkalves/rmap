@@ -1,6 +1,27 @@
+/* This file is part of rmap.
+ *
+ * rmap is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * rmap is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with rmap.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
 #ifndef REGMAPTREEVIEW_HPP
 #define REGMAPTREEVIEW_HPP
-#include <QtWidgets>
+
+#include <QTreeView>
+#include <QMouseEvent>
+
 namespace Ui {
 class RegMapTreeView;
 }
@@ -8,12 +29,15 @@ class RegMapTreeView;
 class RegMapTreeView : public QTreeView
 {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(RegMapTreeView)
 
 public:
-    explicit RegMapTreeView(QWidget* parent = 0);
+    explicit RegMapTreeView(QWidget* parent = nullptr);
+    ~RegMapTreeView() override = default;
 
 protected:
-    void mousePressEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event) override;
 };
-#endif
+
+#endif // REGMAPTREEVIEW_HPP
 

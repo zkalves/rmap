@@ -1,9 +1,27 @@
+/* This file is part of rmap.
+ *
+ * rmap is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * rmap is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with rmap.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
 #ifndef SERIALIZATIONCONTEXT_HPP
 #define SERIALIZATIONCONTEXT_HPP
 
 #include <QVariant>
-#include <Serializable.hpp>
-#include <ObjectFactory.hpp>
+#include "Serializable.hpp"
+#include "ObjectFactory.hpp"
 #include <QDebug>
 #include "rmap.pb.h"
 
@@ -19,6 +37,8 @@ public:
     template<typename T>
     void append_record( T* object, QVariantMap data );
 
+    void clear() { m_records.clear(); m_map.clear(); }
+
     friend QDebug               operator <<( QDebug  stream, const SerializationContext& context );
     friend protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
     friend protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
@@ -26,7 +46,7 @@ public:
 private:
     struct Record
     {
-        QObject* m_object;
+        QObject* m_object = nullptr;
         QVariantMap m_data;
     };
 
@@ -38,7 +58,7 @@ private:
 template<typename T>
 QVariant SerializationContext::serialize( T* ptr )
 {
-    if ( ptr == NULL )
+    if ( ptr == nullptr )
         return QVariant();
 
     QObject* object = static_cast<QObject*>( ptr );
@@ -48,11 +68,10 @@ QVariant SerializationContext::serialize( T* ptr )
     if ( it != m_map.end() )
         return QVariant( it.value() );
 
-    int index = m_records.count();
+    int index = static_cast<int>(m_records.size());
 
     Record record;
     record.m_object = object;
-    //record.m_type = object->metaObject()->className();
     m_records.append( record );
 
     m_map.insert( object, index );
@@ -71,13 +90,15 @@ template<typename T>
 T* SerializationContext::deserialize( const QVariant& handle )
 {
     if ( !handle.isValid() )
-        return NULL;
+        return nullptr;
 
     int index = handle.toInt();
+    if ( index < 0 || index >= static_cast<int>(m_records.size()) )
+        return nullptr;
 
     Record& record = m_records[ index ];
 
-    if ( record.m_object != NULL )
+    if ( record.m_object != nullptr )
         return static_cast<T*>( record.m_object );
 
 

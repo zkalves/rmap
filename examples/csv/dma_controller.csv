@@ -1,0 +1,17 @@
+Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description
+reg,DMA_CONTROLLER,DMA_CTRL,,0x00,32,RW,0x0,false,false,true,Global DMA Control
+fld,DMA_CONTROLLER,DMA_CTRL,ENABLE,0,1,RW,0x0,true,false,true,Enable DMA Channel
+fld,DMA_CONTROLLER,DMA_CTRL,CIRCULAR_MODE,1,1,RW,0x0,true,false,true,Enable Circular Ring-Buffer Mode
+fld,DMA_CONTROLLER,DMA_CTRL,PRIORITY,2,2,RW,0x0,true,false,true,Channel Priority
+fld,DMA_CONTROLLER,DMA_CTRL,MEM_SIZE,8,2,RW,0x2,true,false,true,Memory Data Width
+fld,DMA_CONTROLLER,DMA_CTRL,PERIPH_SIZE,10,2,RW,0x2,true,false,true,Peripheral Data Width
+reg,DMA_CONTROLLER,DMA_SRC_ADDR,,0x04,32,RW,0x0,false,false,true,Source Memory Address
+fld,DMA_CONTROLLER,DMA_SRC_ADDR,SRC_ADDR,0,32,RW,0x0,true,false,true,Source Pointer
+reg,DMA_CONTROLLER,DMA_DST_ADDR,,0x08,32,RW,0x0,false,false,true,Destination Memory Address
+fld,DMA_CONTROLLER,DMA_DST_ADDR,DST_ADDR,0,32,RW,0x0,true,false,true,Destination Pointer
+reg,DMA_CONTROLLER,DMA_LEN,,0x0C,32,RW,0x0,false,false,true,Transfer Length
+fld,DMA_CONTROLLER,DMA_LEN,NUM_ELEMENTS,0,16,RW,0x0,true,false,true,Number of data words
+reg,DMA_CONTROLLER,DMA_STATUS,,0x10,32,RO,0x1,false,true,true,DMA Channel Status
+fld,DMA_CONTROLLER,DMA_STATUS,IDLE,0,1,RO,0x1,false,true,true,DMA Channel is Idle
+fld,DMA_CONTROLLER,DMA_STATUS,TRANSFER_COMPLETE,1,1,W1C,0x0,false,true,true,Transfer Complete
+fld,DMA_CONTROLLER,DMA_STATUS,BUS_ERROR,2,1,W1C,0x0,false,true,true,Bus Error Encountered

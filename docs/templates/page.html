@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block html_lang %}{{ page.lang }}{% endblock %}
+{% block title %}{{ page.title|striptags }} | {{ SITENAME|striptags }}{% endblock %}
+
+{% block content %}
+<article class="page-content">
+    <div class="entry-content">
+        {{ page.content }}
+    </div>
+</article>
+{% endblock %}

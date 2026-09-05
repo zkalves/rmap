@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*- #
+
+# This file is part of rmap.
+#
+# rmap is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# rmap is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with rmap.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
+from pelicanconf import *
+
+# Production settings
+SITEURL = 'https://zkalves.github.io/rmap'
+RELATIVE_URLS = False
+
+DELETE_OUTPUT_DIRECTORY = True

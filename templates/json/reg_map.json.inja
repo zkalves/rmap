@@ -1,0 +1,46 @@
+{
+  "name": "{{ name }}",
+  "description": "{{ description }}",
+  "reg_width": {{ reg_width }},
+  "blocks": [
+{% for blk in blocks %}
+    {
+      "name": "{{ blk.name }}",
+      "offset_hex": "{{ blk.offset_hex }}",
+      "description": "{{ blk.description }}",
+      "registers": [
+{% for reg in blk.registers %}
+        {
+          "name": "{{ reg.name }}",
+          "offset_hex": "{{ reg.offset_hex }}",
+          "offset_lsb": {{ reg.offset_lsb }},
+          "size_width": {{ reg.size_width }},
+          "access": "{{ reg.access }}",
+          "sw_access": "{{ reg.sw_access }}",
+          "hw_access": "{{ reg.hw_access }}",
+          "reset_hex": "{{ reg.reset_hex }}",
+          "description": "{{ reg.description }}",
+          "fields": [
+{% for fld in reg.fields %}
+            {
+              "name": "{{ fld.name }}",
+              "offset_lsb": {{ fld.offset_lsb }},
+              "size_width": {{ fld.size_width }},
+              "access": "{{ fld.access }}",
+              "sw_access": "{{ fld.sw_access }}",
+              "hw_access": "{{ fld.hw_access }}",
+              "reset_hex": "{{ fld.reset_hex }}",
+              "is_rand": {{ fld.is_rand }},
+              "volatile": {{ fld.volatile }},
+              "has_reset": {{ fld.has_reset }},
+              "description": "{{ fld.description }}"
+            }{% if not loop.is_last %},{% endif %}
+{% endfor %}
+          ]
+        }{% if not loop.is_last %},{% endif %}
+{% endfor %}
+      ]
+    }{% if not loop.is_last %},{% endif %}
+{% endfor %}
+  ]
+}

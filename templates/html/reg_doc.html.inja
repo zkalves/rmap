@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ name }} — Hardware Register Map Specification</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #0d47a1;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --border: #e0e0e0;
+            --text: #212121;
+            --text-muted: #666666;
+            --rw-bg: #e8f5e9; --rw-border: #2e7d32;
+            --ro-bg: #e3f2fd; --ro-border: #1565c0;
+            --wo-bg: #fff3e0; --wo-border: #e65100;
+            --w1c-bg: #fffde7; --w1c-border: #f57f17;
+            --rsvd-bg: #f5f5f5; --rsvd-border: #9e9e9e;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; line-height: 1.5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { background: var(--card-bg); padding: 24px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 24px; }
+        h1 { margin: 0 0 8px 0; color: var(--primary-dark); }
+        .meta { color: var(--text-muted); font-size: 14px; }
+        .search-box { width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; margin-bottom: 24px; }
+        .block-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
+        .block-header { background: #f0f4f8; padding: 16px 24px; border-bottom: 1px solid var(--border); font-size: 20px; font-weight: bold; }
+        .reg-card { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+        .reg-card:last-child { border-bottom: none; }
+        .reg-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+        .reg-name { font-size: 18px; font-weight: bold; color: var(--primary); }
+        .reg-offset { font-family: monospace; background: #eee; padding: 4px 8px; border-radius: 4px; font-size: 14px; }
+        .reg-desc { color: var(--text-muted); margin-bottom: 16px; }
+        .bit-bar { display: flex; width: 100%; height: 50px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+        .bit-slice { display: flex; flex-direction: column; justify-content: center; align-items: center; border-right: 1px solid rgba(0,0,0,0.1); font-size: 12px; padding: 2px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bit-slice:last-child { border-right: none; }
+        .slice-name { font-weight: bold; font-size: 11px; }
+        .slice-bits { font-size: 10px; color: var(--text-muted); }
+        .slice-RW { background: var(--rw-bg); border-top: 3px solid var(--rw-border); }
+        .slice-RO { background: var(--ro-bg); border-top: 3px solid var(--ro-border); }
+        .slice-WO { background: var(--wo-bg); border-top: 3px solid var(--wo-border); }
+        .slice-W1C { background: var(--w1c-bg); border-top: 3px solid var(--w1c-border); }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+        th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+        th { background: #fafafa; font-weight: 600; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; }
+        .badge-RW { background: var(--rw-bg); color: var(--rw-border); }
+        .badge-RO { background: var(--ro-bg); color: var(--ro-border); }
+        .badge-WO { background: var(--wo-bg); color: var(--wo-border); }
+        .badge-W1C { background: var(--w1c-bg); color: var(--w1c-border); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>{{ name }} Register Map</h1>
+        <div class="meta">Data Width: {{ reg_width }} bits | Register Blocks: {{ length(blocks) }}</div>
+    </header>
+
+    <input type="text" class="search-box" id="searchBox" placeholder="Search registers, bitfields, or hex offsets (e.g. 0x04)..." onkeyup="filterRegs()">
+
+{% for blk in blocks %}
+    <div class="block-card">
+        <div class="block-header">Block: {{ blk.name }}</div>
+{% for reg in blk.registers %}
+        <div class="reg-card" data-search="{{ lower(blk.name) }} {{ lower(reg.name) }} {{ lower(reg.offset_hex) }} {{ lower(reg.description) }}">
+            <div class="reg-header">
+                <span class="reg-name">{{ reg.name }}</span>
+                <span class="reg-offset">{{ reg.offset_hex }}</span>
+            </div>
+            <div class="reg-desc">{{ reg.description }}</div>
+
+            <!-- Bitfields Table -->
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Bits</th>
+                        <th>Field Name</th>
+                        <th style="width: 80px;">Access</th>
+                        <th style="width: 100px;">Reset</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+{% for fld in reg.fields %}
+                    <tr>
+                        <td><strong>[{{ fld.offset_lsb + fld.size_width - 1 }}:{{ fld.offset_lsb }}]</strong></td>
+                        <td><strong>{{ fld.name }}</strong></td>
+                        <td><span class="badge badge-{{ upper(fld.access) }}">{{ upper(fld.access) }}</span></td>
+                        <td><code>{{ fld.reset_hex }}</code></td>
+                        <td>{{ fld.description }}</td>
+                    </tr>
+{% endfor %}
+                </tbody>
+            </table>
+        </div>
+{% endfor %}
+    </div>
+{% endfor %}
+</div>
+
+<script>
+function filterRegs() {
+    let q = document.getElementById("searchBox").value.toLowerCase();
+    let cards = document.querySelectorAll(".reg-card");
+    cards.forEach(c => {
+        let text = c.getAttribute("data-search");
+        c.style.display = text.includes(q) ? "block" : "none";
+    });
+}
+</script>
+</body>
+</html>
