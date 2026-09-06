@@ -6,9 +6,12 @@
 
 .PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all
 
+# Parallel build jobs (defaults to number of processor cores)
+JOBS ?= $(shell nproc 2>/dev/null || echo 4)
+
 # Default target: compile using existing build files
 all: build/Makefile
-	@cmake --build build
+	@cmake --build build --parallel $(JOBS)
 
 # Only run CMake configuration if build/Makefile doesn't exist
 build/Makefile: CMakeLists.txt
@@ -17,7 +20,7 @@ build/Makefile: CMakeLists.txt
 
 # Build only application binary
 rmap: build/Makefile
-	@cmake --build build --target rmap
+	@cmake --build build --target rmap --parallel $(JOBS)
 
 # Run executable (builds rmap binary only)
 run: rmap
