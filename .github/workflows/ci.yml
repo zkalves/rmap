@@ -245,20 +245,30 @@ jobs:
           path: _site/
 
   docs-deploy:
-    name: Deploy Documentation to GitHub Pages (Prepared)
+    name: Deploy Documentation to GitHub Pages
     needs: docs-build
     runs-on: ubuntu-24.04
-    # Disabled by default: Change to `if: github.ref == 'refs/heads/main'` when GitHub Pages permissions are enabled in repository settings
-    if: false
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
     permissions:
+      contents: read
       pages: write
       id-token: write
+      actions: read
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
+      - name: Download Documentation Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: _site/
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
