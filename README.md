@@ -115,11 +115,11 @@ Run code generation, linting, or diffing directly in Makefiles, CI/CD pipelines,
 
 Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap/):
 
-- [Getting Started Guide](https://zkalves.github.io/rmap/getting-started.html)
-- [GUI & Register Design](https://zkalves.github.io/rmap/gui-guide.html)
-- [CLI Reference & Automation](https://zkalves.github.io/rmap/cli-reference.html)
-- [Templates & Code Generation](https://zkalves.github.io/rmap/templates-and-codegen.html)
-- [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/architecture.html)
+- [Getting Started Guide](https://zkalves.github.io/rmap/user/getting-started.html)
+- [GUI & Register Design](https://zkalves.github.io/rmap/user/gui-guide.html)
+- [CLI Reference & Automation](https://zkalves.github.io/rmap/user/cli-reference.html)
+- [Templates & Code Generation](https://zkalves.github.io/rmap/user/templates-and-codegen.html)
+- [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/user/architecture.html)
 
 ---
 
