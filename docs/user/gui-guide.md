@@ -202,7 +202,20 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 
 ---
 
-## 8. Multi-Format Loading & Format-Aware Saving
+## 8. Project Configuration & Generation Settings (`Ctrl+P`)
+
+Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctrl+P`:
+
+- **Project Metadata**: Set **Project Name**, **Project Version**, and global **Register Bus Width** (8, 16, 32, 64 bits).
+- **Default Output Folder**: Destination directory for generated artifacts with dynamic path variable expansion.
+- **Python Script (Optional)**: Path to a custom Python post-generation script (browse with **Browse...**). The script runs automatically upon export whenever this field contains a non-empty path, receiving the full Inja JSON data model and context. Leaving this field empty disables Python script execution.
+- **Template Search Folders**: Configure multiple directories searched for Inja templates.
+- **Template Mappings Table**: Granular control to enable/disable specific templates, scan folders, override destination paths, and synchronize output folders.
+- **Custom Parameters**: Key-value pairs exposed directly to Inja templates and Python post-generation scripts.
+
+---
+
+## 9. Multi-Format Loading & Format-Aware Saving
 
 - **Universal Format Import (`Ctrl+O`)**:
   - **ARM CMSIS-SVD** (`.svd`)
@@ -218,7 +231,7 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 
 ---
 
-## 9. Colour Schemes, Preferences & User Home Configuration
+## 10. Colour Schemes, Preferences & User Home Configuration
 
 **rmap** includes a built-in multi-theme appearance engine with **Solarized 8 (Dark)** active by default:
 
@@ -241,7 +254,7 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 
 ---
 
-## 10. Help Menu & About Window
+## 11. Help Menu & About Window
 
 Access application assistance and information from the **Help** pull-down menu:
 

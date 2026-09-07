@@ -50,6 +50,7 @@ private slots:
     void testRtlStrobeAndCrcGeneration();
     void testDynamicSimulationPathResolution();
     void testComprehensiveTemplateVerification();
+    void testPythonScriptExecutionOnGeneration();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -1344,6 +1345,149 @@ void TestCodeGenerator::testComprehensiveTemplateVerification()
         qWarning() << "Template verification failed output:\n" << output.constData();
     }
     QCOMPARE(proc.exitCode(), 0);
+}
+
+void TestCodeGenerator::testPythonScriptExecutionOnGeneration()
+{
+    QDir("work/test_python_exec").removeRecursively();
+    QDir().mkpath("work/test_python_exec");
+
+    // 1. Create a Python script that asserts all Inja template variables are available
+    QString scriptPath = "work/test_python_exec/verify_vars.py";
+    QFile scriptFile(scriptPath);
+    QVERIFY(scriptFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&scriptFile);
+    out << "import sys, os, json\n";
+    out << "import rmap\n";
+    out << "\n";
+    out << "# 1. Verify global variables match Inja template context\n";
+    out << "assert name == 'spi', f'Expected name spi, got {name}'\n";
+    out << "assert project_name == 'SPI_Controller', f'Expected project_name SPI_Controller, got {project_name}'\n";
+    out << "assert project_version == '2.1.0', f'Expected project_version 2.1.0, got {project_version}'\n";
+    out << "assert reg_width == 32, f'Expected reg_width 32, got {reg_width}'\n";
+    out << "assert reg_width_bytes == 4, f'Expected reg_width_bytes 4, got {reg_width_bytes}'\n";
+    out << "assert custom_key == 'custom_val', f'Expected custom_val, got {custom_key}'\n";
+    out << "assert len(blocks) == 1, f'Expected 1 block, got {len(blocks)}'\n";
+    out << "assert blocks[0]['name'] == 'SPI0', f'Expected SPI0, got {blocks[0][\"name\"]}'\n";
+    out << "assert len(blocks[0]['registers']) == 1, 'Expected 1 register'\n";
+    out << "assert blocks[0]['registers'][0]['name'] == 'CR', 'Expected CR'\n";
+    out << "\n";
+    out << "# 2. Verify dictionary containers (data, context, rmap, regmap)\n";
+    out << "assert data['name'] == 'spi'\n";
+    out << "assert context['project_name'] == 'SPI_Controller'\n";
+    out << "assert rmap.name == 'spi'\n";
+    out << "assert regmap['reg_width'] == 32\n";
+    out << "\n";
+    out << "# 3. Verify helper functions\n";
+    out << "assert to_hex(16, 4) == '0x0010'\n";
+    out << "assert to_dec('0x10') == '16'\n";
+    out << "assert bitmask(8, 0) == '0xFF'\n";
+    out << "\n";
+    out << "# 4. Verify sys.argv[1] has JSON context file\n";
+    out << "assert len(sys.argv) >= 2\n";
+    out << "assert os.path.exists(sys.argv[1])\n";
+    out << "with open(sys.argv[1], 'r', encoding='utf-8') as f:\n";
+    out << "    loaded = json.load(f)\n";
+    out << "    assert loaded['name'] == 'spi'\n";
+    out << "\n";
+    out << "# 5. Verify environment variables\n";
+    out << "assert os.environ.get('RMAP_NAME') == 'spi'\n";
+    out << "assert os.environ.get('RMAP_PROJECT_NAME') == 'SPI_Controller'\n";
+    out << "assert os.environ.get('RMAP_JSON_FILE') is not None\n";
+    out << "\n";
+    out << "# 6. Write success marker\n";
+    out << "with open('work/test_python_exec/success.marker', 'w') as f:\n";
+    out << "    f.write(f'PASS: {name}_{project_name}')\n";
+    scriptFile.close();
+
+    // Prepare JSON data identical to Inja template input
+    json testJson;
+    testJson["name"] = "spi";
+    testJson["project_name"] = "SPI_Controller";
+    testJson["project_version"] = "2.1.0";
+    testJson["reg_width"] = 32;
+    testJson["custom_key"] = "custom_val";
+
+    json reg;
+    reg["name"] = "CR";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x00";
+    reg["description"] = "Control Register";
+
+    json blk;
+    blk["name"] = "SPI0";
+    blk["offset"] = 0;
+    blk["offset_hex"] = "0x0000";
+    blk["registers"] = json::array({reg});
+    testJson["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/c/reg_map.h.inja", "work/test_python_exec/reg_map.h"});
+
+    CodeGenerator cg;
+    GenerationReport report = cg.generate(
+        testJson,
+        "templates",
+        "work/test_python_exec",
+        mappings,
+        QDir::currentPath().toStdString(),
+        scriptPath.toStdString()
+    );
+
+    QVERIFY2(!report.has_errors(), report.errors.empty() ? "" : report.errors[0].second.c_str());
+    QVERIFY(QFile::exists("work/test_python_exec/reg_map.h"));
+    QVERIFY(QFile::exists("work/test_python_exec/success.marker"));
+
+    QFile marker("work/test_python_exec/success.marker");
+    QVERIFY(marker.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString markerContent = QString::fromUtf8(marker.readAll());
+    marker.close();
+    QCOMPARE(markerContent, QString("PASS: spi_SPI_Controller"));
+
+    // Also verify report includes Python script in success_files
+    bool foundPySuccess = false;
+    for (const auto &f : report.success_files) {
+        if (f.find("verify_vars.py") != std::string::npos) {
+            foundPySuccess = true;
+            break;
+        }
+    }
+    QVERIFY(foundPySuccess);
+
+    // 2. Test failure handling when script exits with error
+    QString failScriptPath = "work/test_python_exec/fail_script.py";
+    QFile failFile(failScriptPath);
+    QVERIFY(failFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream failOut(&failFile);
+    failOut << "import sys\n";
+    failOut << "sys.stderr.write('Intentional script failure test\\n')\n";
+    failOut << "sys.exit(42)\n";
+    failFile.close();
+
+    GenerationReport failReport = cg.generate(
+        testJson,
+        "templates",
+        "work/test_python_exec",
+        mappings,
+        QDir::currentPath().toStdString(),
+        failScriptPath.toStdString()
+    );
+
+    QVERIFY(failReport.has_errors());
+    QCOMPARE(failReport.errors.size(), (size_t)1);
+    QVERIFY(QString::fromStdString(failReport.errors[0].second).contains("Intentional script failure test"));
+
+    // 3. Test error handling when script file does not exist
+    GenerationReport missingReport = cg.generate(
+        testJson,
+        "templates",
+        "work/test_python_exec",
+        mappings,
+        QDir::currentPath().toStdString(),
+        "work/test_python_exec/does_not_exist.py"
+    );
+    QVERIFY(missingReport.has_errors());
+    QVERIFY(QString::fromStdString(missingReport.errors[0].second).contains("does not exist"));
 }
 
 QTEST_MAIN(TestCodeGenerator)

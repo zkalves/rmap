@@ -136,6 +136,16 @@ target_include_directories(rmap_core PUBLIC
 
 target_compile_options(rmap_core PRIVATE -Wfatal-errors)
 
+# Installation Directories
+include(GNUInstallDirs)
+
+target_compile_definitions(rmap_core PUBLIC
+    RMAP_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap"
+    RMAP_INSTALL_TEMPLATES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/templates"
+    RMAP_INSTALL_EXAMPLES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/examples"
+    RMAP_INSTALL_DOCDIR="${CMAKE_INSTALL_FULL_DOCDIR}"
+)
+
 target_link_libraries(rmap_core PUBLIC
     Qt6::Core
     Qt6::Widgets
@@ -152,12 +162,27 @@ qt_add_executable(rmap
 target_compile_options(rmap PRIVATE -Wfatal-errors)
 target_link_libraries(rmap PRIVATE rmap_core)
 
-# Installation
-include(GNUInstallDirs)
-
+# Installation Targets & Assets
 install(TARGETS rmap
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     BUNDLE DESTINATION .
+)
+
+install(DIRECTORY templates/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/rmap/templates
+    PATTERN ".*" EXCLUDE
+)
+
+install(DIRECTORY examples/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/rmap/examples
+    PATTERN ".*" EXCLUDE
+)
+
+install(DIRECTORY docs/
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+    PATTERN ".*" EXCLUDE
+    PATTERN "*.pyc" EXCLUDE
+    PATTERN "__pycache__" EXCLUDE
 )
 
 # Tests Subdirectory

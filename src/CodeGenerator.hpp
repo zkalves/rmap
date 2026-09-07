@@ -48,7 +48,8 @@ class CodeGenerator
             const std::string &default_template_folder,
             const std::string &default_output_folder,
             const std::vector<TemplateMapping> &mappings,
-            const std::string &base_dir = ""
+            const std::string &base_dir = "",
+            const std::string &python_script = ""
         );
 
         // Generation for all templates found in a single folder
@@ -56,7 +57,17 @@ class CodeGenerator
             const json &json_data,
             const std::string &template_folder,
             const std::string &output_folder,
-            const std::string &base_dir = ""
+            const std::string &base_dir = "",
+            const std::string &python_script = ""
+        );
+
+        // Standalone Python script execution with injected register map context variables
+        bool runPythonScript(
+            const std::string &python_script,
+            const json &json_data,
+            const std::string &base_dir = "",
+            std::string *stdout_str = nullptr,
+            std::string *stderr_str = nullptr
         );
 
         // Legacy compatibility methods

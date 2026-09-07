@@ -83,6 +83,15 @@ Sets the project version string.
 #### QString projectVersion() const
 Returns the project version.
 
+#### void setPythonScript(const QString &script)
+Sets the file path for the post-generation Python script.
+
+#### QString pythonScript() const
+Returns the configured Python script path.
+
+#### bool isPythonScriptEnabled() const
+Returns `true` if a non-empty Python script path is configured, matching the behavior of `outputFolder` and `projectName`.
+
 #### void setBaseDir(const QString &baseDir)
 Sets the base directory used for resolving relative template and output paths.
 

@@ -47,8 +47,19 @@ Constructs a code generator instance.
 #### ~CodeGenerator()
 Destructor.
 
-#### GenerationReport generate(const json &json_data, const std::string &default_template_folder, const std::string &default_output_folder, const std::vector<TemplateMapping> &mappings, const std::string &base_dir = "")
-Main generation entry point. Iterates through `mappings`, resolves template paths against `default_template_folder` and `base_dir`, expands dynamic path variables and environment variables, executes Inja rendering with custom helpers, creates target directories, and writes generated code to disk. Returns a detailed `GenerationReport`.
+#### GenerationReport generate(const json &json_data, const std::string &default_template_folder, const std::string &default_output_folder, const std::vector<TemplateMapping> &mappings, const std::string &base_dir = "", const std::string &python_script = "")
+Main generation entry point. Iterates through `mappings`, resolves template paths against `default_template_folder` and `base_dir`, expands dynamic path variables and environment variables, executes Inja rendering with custom helpers, creates target directories, and writes generated code to disk. If `python_script` is non-empty, executes the post-generation Python script via `runPythonScript()`. Returns a detailed `GenerationReport`.
+
+#### bool runPythonScript(const std::string &script_path, const json &json_data, const std::string &base_dir, std::string &error_message)
+Executes a post-generation Python script using `QProcess` and the system Python interpreter (`RMAP_PYTHON`, `PYTHON`, `python3`, or `python`). The exact register map JSON structure is passed to the script through multiple complementary channels:
+- **Global Variables**: All root JSON keys (`name`, `project_name`, `project_version`, `reg_width`, `reg_width_bytes`, `blocks`, and custom parameters) are injected directly into the script's global namespace.
+- **Virtual Module**: An in-memory module named `rmap` (and `data`, `context`, `regmap`) is made available (`import rmap; rmap.name`).
+- **Helper Functions**: Custom bitwise and formatting helpers (`to_hex`, `to_dec`, `bitmask`) are injected into globals and the `rmap` module.
+- **CLI Argument**: `sys.argv[1]` points to a temporary JSON file containing the full register map model.
+- **Standard Input**: The JSON data is piped to `sys.stdin` (parseable via `json.load(sys.stdin)`).
+- **Environment Variables**: Context values are exported to the child process environment (`RMAP_NAME`, `RMAP_PROJECT_NAME`, `RMAP_PROJECT_VERSION`, `RMAP_REG_WIDTH`, `RMAP_JSON_FILE`, `RMAP_JSON_DATA`).
+
+If the script fails (non-zero exit code or uncaught exception), standard error and traceback are captured in `error_message` and recorded in `GenerationReport.errors`.
 
 #### Dynamic Path Variables
 Output destination paths support meaningful dynamic path variables for flexible SoC repo organization:
@@ -59,8 +70,8 @@ Output destination paths support meaningful dynamic path variables for flexible 
 - `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl`).
 - `{template_name}` / `{filename}`: Base template name.
 
-#### GenerationReport parseDirectory(const json &json_data, const std::string &template_folder, const std::string &output_folder, const std::string &base_dir = "")
-Discovers all `.inja` templates inside `template_folder`, derives output filenames by stripping the `.inja` extension, and renders all templates into `output_folder`.
+#### GenerationReport parseDirectory(const json &json_data, const std::string &template_folder, const std::string &output_folder, const std::string &base_dir = "", const std::string &python_script = "")
+Discovers all `.inja` templates inside `template_folder`, derives output filenames by stripping the `.inja` extension, renders all templates into `output_folder`, and executes `python_script` if provided.
 
 #### void parse(json json_data, const std::string &template_folder = "./templates/", const std::string &output_folder = "./work/")
 Legacy compatibility wrapper for directory generation.

@@ -30,18 +30,22 @@ rmap: build/Makefile
 run: rmap
 	@./build/bin/rmap
 
-# Install rmap executable (builds rmap binary first)
+# Install rmap executable, templates, examples, and documentation
 install: rmap
 	@DESTDIR="$(DESTDIR)" cmake --install build --prefix "$(PREFIX)"
 
-# Uninstall rmap executable
+# Uninstall rmap executable and installed assets
 uninstall:
 	@if [ -f build/install_manifest.txt ]; then \
 		xargs rm -f < build/install_manifest.txt; \
+		rm -rf "$(DESTDIR)$(PREFIX)/share/rmap" 2>/dev/null || true; \
+		rm -rf "$(DESTDIR)$(PREFIX)/share/doc/rmap" 2>/dev/null || true; \
 		echo "Uninstalled files listed in build/install_manifest.txt"; \
 	else \
 		rm -f "$(DESTDIR)$(PREFIX)/bin/rmap"; \
-		echo "Uninstalled $(DESTDIR)$(PREFIX)/bin/rmap"; \
+		rm -rf "$(DESTDIR)$(PREFIX)/share/rmap" 2>/dev/null || true; \
+		rm -rf "$(DESTDIR)$(PREFIX)/share/doc/rmap" 2>/dev/null || true; \
+		echo "Uninstalled $(DESTDIR)$(PREFIX)/bin/rmap and assets"; \
 	fi
 
 # Run C++ unit test suites (backend and frontend)

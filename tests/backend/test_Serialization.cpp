@@ -33,6 +33,7 @@ private slots:
     void testParseSensorHubRmt();
     void testRoundTripTextAndBinary();
     void testConfigTemplateFoldersAndEnabled();
+    void testConfigPythonScriptEnabled();
 };
 
 void TestSerialization::testParseSpiRmt()
@@ -279,6 +280,31 @@ void TestSerialization::testConfigTemplateFoldersAndEnabled()
     QCOMPARE(restoredCfg.template_outputs(0).enabled(), true);
     QVERIFY(restoredCfg.template_outputs(1).has_enabled());
     QCOMPARE(restoredCfg.template_outputs(1).enabled(), false);
+}
+
+void TestSerialization::testConfigPythonScriptEnabled()
+{
+    protormap::Config cfg;
+    cfg.set_pythonscript("./scripts/post_gen.py");
+    cfg.set_python_script_enabled(true);
+
+    std::string textOutput;
+    google::protobuf::TextFormat::PrintToString(cfg, &textOutput);
+    QVERIFY(!textOutput.empty());
+
+    protormap::Config restoredCfg;
+    QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg));
+    QCOMPARE(QString::fromStdString(restoredCfg.pythonscript()), QString("./scripts/post_gen.py"));
+    QVERIFY(restoredCfg.has_python_script_enabled());
+    QCOMPARE(restoredCfg.python_script_enabled(), true);
+
+    // Also test explicitly disabled
+    cfg.set_python_script_enabled(false);
+    google::protobuf::TextFormat::PrintToString(cfg, &textOutput);
+    protormap::Config restoredCfg2;
+    QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg2));
+    QVERIFY(restoredCfg2.has_python_script_enabled());
+    QCOMPARE(restoredCfg2.python_script_enabled(), false);
 }
 
 QTEST_MAIN(TestSerialization)

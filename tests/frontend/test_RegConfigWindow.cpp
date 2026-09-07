@@ -29,6 +29,7 @@ private slots:
     void testTemplateFoldersListAndScanning();
     void testEnableDisableToggles();
     void testDynamicOutputFolderSync();
+    void testPythonScriptField();
 };
 
 void TestRegConfigWindow::testConfigDialogDefaults()
@@ -394,6 +395,66 @@ void TestRegConfigWindow::testDynamicOutputFolderSync()
     btnSyncOutputs->click();
     QCOMPARE(table->item(0, 2)->text(), QString("build/generated/rtl/reg_map.sv"));
     QCOMPARE(table->item(1, 2)->text(), QString("build/generated/c/reg_map.h"));
+}
+
+void TestRegConfigWindow::testPythonScriptField()
+{
+    RegConfigWindow cfgWin;
+
+    auto *pyEdit = cfgWin.findChild<QLineEdit*>("pythonScript");
+    auto *browseBtn = cfgWin.findChild<QPushButton*>("btnBrowsePythonScript");
+
+    QVERIFY(pyEdit != nullptr);
+    QVERIFY(browseBtn != nullptr);
+
+    // Initial default: empty field, disabled / inactive
+    QCOMPARE(pyEdit->text(), QString(""));
+    QCOMPARE(pyEdit->isEnabled(), true);
+    QCOMPARE(browseBtn->isEnabled(), true);
+    QCOMPARE(cfgWin.isPythonScriptEnabled(), false);
+
+    // Entering a script path enables the python script execution upon serialization
+    pyEdit->setText("./scripts/post_generate.py");
+    protormap::Config *cfg = cfgWin.serialize();
+    QCOMPARE(cfgWin.pythonScript(), QString("./scripts/post_generate.py"));
+    QCOMPARE(cfgWin.isPythonScriptEnabled(), true);
+    QCOMPARE(cfg->pythonscript(), std::string("./scripts/post_generate.py"));
+    QCOMPARE(cfg->python_script_enabled(), true);
+    delete cfg;
+
+    // Clearing the field disables python script execution
+    pyEdit->setText("   ");
+    protormap::Config *cfgDisabled = cfgWin.serialize();
+    QCOMPARE(cfgWin.pythonScript(), QString(""));
+    QCOMPARE(cfgWin.isPythonScriptEnabled(), false);
+    QCOMPARE(cfgDisabled->pythonscript(), std::string(""));
+    QCOMPARE(cfgDisabled->python_script_enabled(), false);
+    delete cfgDisabled;
+
+    // Deserialize a config with a python script into a clean dialog
+    protormap::Config cfgWithPy;
+    cfgWithPy.set_pythonscript("./scripts/post_generate.py");
+    cfgWithPy.set_python_script_enabled(true);
+
+    RegConfigWindow cfgWin2;
+    cfgWin2.deserialize(cfgWithPy);
+
+    auto *pyEdit2 = cfgWin2.findChild<QLineEdit*>("pythonScript");
+    QVERIFY(pyEdit2 != nullptr);
+    QCOMPARE(pyEdit2->text(), QString("./scripts/post_generate.py"));
+    QCOMPARE(cfgWin2.pythonScript(), QString("./scripts/post_generate.py"));
+    QCOMPARE(cfgWin2.isPythonScriptEnabled(), true);
+
+    // Test helper methods
+    cfgWin2.setPythonScript("./scripts/new_script.py");
+    QCOMPARE(cfgWin2.pythonScript(), QString("./scripts/new_script.py"));
+    QCOMPARE(pyEdit2->text(), QString("./scripts/new_script.py"));
+    QCOMPARE(cfgWin2.isPythonScriptEnabled(), true);
+
+    cfgWin2.setPythonScript("");
+    QCOMPARE(cfgWin2.pythonScript(), QString(""));
+    QCOMPARE(pyEdit2->text(), QString(""));
+    QCOMPARE(cfgWin2.isPythonScriptEnabled(), false);
 }
 
 QTEST_MAIN(TestRegConfigWindow)

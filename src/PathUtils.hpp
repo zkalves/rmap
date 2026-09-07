@@ -31,9 +31,26 @@ constexpr const char* DEFAULT_TEMPLATES_DIR = "./templates";
 inline QString defaultOutputDir() { return QString::fromUtf8(DEFAULT_OUTPUT_DIR); }
 
 /**
- * @brief Returns the application default templates directory ("./templates").
+ * @brief Returns the application default templates directory.
+ *
+ * Resolves in order of priority:
+ * 1. RMAP_TEMPLATES_DIR environment variable (if non-empty).
+ * 2. Local "./templates" if it exists and contains template subfolders.
+ * 3. Application-relative relocatable directory (<bin_dir>/../share/rmap/templates).
+ * 4. Configured compile-time installation path (RMAP_INSTALL_TEMPLATES_DIR).
+ * 5. Fallback relative "./templates".
  */
-inline QString defaultTemplatesDir() { return QString::fromUtf8(DEFAULT_TEMPLATES_DIR); }
+QString defaultTemplatesDir();
+
+/**
+ * @brief Returns the application default examples directory.
+ */
+QString defaultExamplesDir();
+
+/**
+ * @brief Returns the application default documentation directory.
+ */
+QString defaultDocsDir();
 
 /**
  * @brief Expands environment variables ($VAR, ${VAR}, %VAR%) and tilde (~) in the given path.
