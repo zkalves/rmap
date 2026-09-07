@@ -6,7 +6,13 @@
 
 cmake_minimum_required(VERSION 3.15)
 
-project(rmap LANGUAGES CXX)
+# Semantic Versioning Determination
+include(cmake/Version.cmake)
+rmap_determine_version()
+
+project(rmap VERSION ${RMAP_VERSION_SEMVER} LANGUAGES CXX)
+
+rmap_generate_version_header()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -120,6 +126,7 @@ target_include_directories(rmap_core PUBLIC
     src
     ${CMAKE_CURRENT_SOURCE_DIR}/proto
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/proto
     ${CMAKE_CURRENT_BINARY_DIR}/rmap_core_autogen/include
     ${inja_SOURCE_DIR}/single_include/inja

@@ -143,6 +143,27 @@ Run code generation, linting, or diffing directly in Makefiles, CI/CD pipelines,
 
 ---
 
+## Semantic Versioning & Releases
+
+`rmap` adheres to [Semantic Versioning 2.0.0](https://semver.org/) (`MAJOR.MINOR.PATCH`). Releases and version bumps are managed **completely automatically**:
+
+- **Conventional Commits**: Commits using `feat:` trigger minor version bumps, `fix:` triggers patch bumps, and `BREAKING CHANGE:` or `feat!:` triggers major bumps.
+- **Automated GitHub Releases**: Google's `release-please` automatically maintains release PRs, generates `CHANGELOG.md`, and creates Git tags on merge to `main`.
+- **Dynamic Build Injection**: CMake extracts Git describe tags and commit hashes at compile time into `RmapVersion.hpp`. The binary version (`rmap --version`) always matches the Git revision with zero manual intervention.
+- **Local Automation**:
+  ```bash
+  # Check active version
+  make version
+
+  # Auto-bump version based on commits since last release
+  make bump-auto
+
+  # Install Conventional Commits git hook to prevent non-conforming commits
+  make setup-hooks
+  ```
+
+---
+
 ## Documentation
 
 Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap/):

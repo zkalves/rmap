@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all install uninstall
+.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -95,4 +95,35 @@ docs-serve:
 		pelican -l docs -s docs/pelicanconf.py -o _site; \
 	else \
 		echo "Pelican not found. Install with: pip install pelican markdown"; \
+	fi
+
+# Semantic Versioning Automation
+version:
+	@python3 script/bump_version.py --current
+
+bump-patch:
+	@python3 script/bump_version.py --patch
+
+bump-minor:
+	@python3 script/bump_version.py --minor
+
+bump-major:
+	@python3 script/bump_version.py --major
+
+bump-auto:
+	@python3 script/bump_version.py --auto
+
+release:
+	@python3 script/bump_version.py --auto --tag
+	@echo "Release prepared. Push commit and tag with: git push origin main --tags"
+
+setup-hooks:
+	@chmod +x script/git-hooks/commit-msg
+	@if git config core.hooksPath script/git-hooks 2>/dev/null; then \
+		echo "Configured git core.hooksPath -> script/git-hooks"; \
+	elif [ -d .git/hooks ] && cp script/git-hooks/commit-msg .git/hooks/commit-msg 2>/dev/null; then \
+		chmod +x .git/hooks/commit-msg; \
+		echo "Installed Conventional Commits commit-msg hook into .git/hooks/commit-msg"; \
+	else \
+		echo "Note: .git configuration is read-only in this environment. Run 'git config core.hooksPath script/git-hooks' in your terminal."; \
 	fi
