@@ -87,6 +87,7 @@ set(core_sources
     src/ThemeManager.cpp
     src/AppSettings.cpp
     src/PreferencesWindow.cpp
+    src/AboutWindow.cpp
 )
 
 set(core_headers
@@ -103,6 +104,7 @@ set(core_headers
     src/RegMapDelegate.hpp
     src/RegConfigWindow.hpp
     src/PreferencesWindow.hpp
+    src/AboutWindow.hpp
     src/RegBitfieldBarWidget.hpp
     src/BlockMemoryMapWidget.hpp
     src/CodeGenerator.hpp
@@ -118,7 +120,7 @@ set(core_headers
     src/format/CsvHandler.hpp
 )
 
-set(project_ui src/ui/config.ui src/ui/preferences.ui src/ui/rmap.ui)
+set(project_ui src/ui/config.ui src/ui/preferences.ui src/ui/about.ui src/ui/rmap.ui)
 set(project_qrc res/resources.qrc)
 
 # Core Static Library

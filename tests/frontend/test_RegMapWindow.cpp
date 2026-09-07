@@ -76,6 +76,7 @@ private slots:
     void testKeyBindingsDialog();
     void testConfigWindowAction();
     void testPreferencesWindowAction();
+    void testAboutWindowAction();
     void testMenuStructure();
     void testColorSchemeSwitching();
     void testMainWindowSizePersistence();
@@ -1063,6 +1064,26 @@ void TestRegMapWindow::testPreferencesWindowAction()
     QVERIFY(!prefWin->isVisible());
 }
 
+void TestRegMapWindow::testAboutWindowAction()
+{
+    QString file = "examples/rmt/peripherals/spi.rmt";
+    RegMapWindow window(file);
+    window.show();
+
+    auto *actAbout = window.findChild<QAction*>("actionAbout");
+    QVERIFY(actAbout != nullptr);
+    actAbout->trigger();
+
+    auto *aboutWin = window.findChild<AboutWindow*>();
+    QVERIFY(aboutWin != nullptr);
+    QVERIFY(aboutWin->isVisible());
+    QVERIFY(!aboutWin->isModal());
+    QCOMPARE(window.aboutWindow(), aboutWin);
+
+    aboutWin->accept();
+    QVERIFY(!aboutWin->isVisible());
+}
+
 void TestRegMapWindow::testMenuStructure()
 {
     QString file = "examples/rmt/peripherals/spi.rmt";
@@ -1071,15 +1092,19 @@ void TestRegMapWindow::testMenuStructure()
 
     auto *menuEdit = window.findChild<QMenu*>("menuEdit");
     auto *menuView = window.findChild<QMenu*>("menuView");
+    auto *menuHelp = window.findChild<QMenu*>("menuHelp");
     auto *actColorBlind = window.findChild<QAction*>("actionColorBlindMode");
     auto *actConfig = window.findChild<QAction*>("actionConfig");
     auto *actPref = window.findChild<QAction*>("actionPreferences");
+    auto *actAbout = window.findChild<QAction*>("actionAbout");
 
     QVERIFY(menuEdit != nullptr);
     QVERIFY(menuView != nullptr);
+    QVERIFY(menuHelp != nullptr);
     QVERIFY(actColorBlind != nullptr);
     QVERIFY(actConfig != nullptr);
     QVERIFY(actPref != nullptr);
+    QVERIFY(actAbout != nullptr);
 
     // Verify colour blind mode only appears in View menu, not Edit menu
     QVERIFY(!menuEdit->actions().contains(actColorBlind));
@@ -1088,6 +1113,9 @@ void TestRegMapWindow::testMenuStructure()
     // Verify configuration and preferences appear in Edit menu
     QVERIFY(menuEdit->actions().contains(actConfig));
     QVERIFY(menuEdit->actions().contains(actPref));
+
+    // Verify about action appears in Help menu
+    QVERIFY(menuHelp->actions().contains(actAbout));
 }
 
 void TestRegMapWindow::testColorSchemeSwitching()
