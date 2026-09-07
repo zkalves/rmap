@@ -60,7 +60,6 @@ make run
 ```
 
 ### Direct CMake Commands
-If you prefer direct CMake commands:
 ```bash
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 cmake --build build -j$(nproc)
@@ -69,21 +68,62 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 
 ---
 
-## 3. Launching the Application
+## 3. Installing rmap
+
+You can install the `rmap` executable to a system path or choose a custom user-defined location.
+
+### Using Make
+
+The `Makefile` supports the standard `PREFIX` variable (defaults to `/usr/local`) and `DESTDIR` for staging:
+
+```bash
+# Default installation (/usr/local/bin/rmap)
+sudo make install
+
+# Install to custom directory (e.g. ~/.local/bin/rmap)
+make install PREFIX=$HOME/.local
+
+# Staged installation for packaging
+make install DESTDIR=/tmp/staging PREFIX=/usr
+
+# Uninstall
+sudo make uninstall
+# or for a custom prefix:
+make uninstall PREFIX=$HOME/.local
+```
+
+### Using CMake
+
+Choose the installation directory either during CMake configuration or at install time:
+
+```bash
+# Option A: Set installation directory during configuration
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local
+cmake --build build -j$(nproc)
+cmake --install build
+
+# Option B: Override destination prefix directly during installation
+cmake --install build --prefix $HOME/.local
+```
+
+---
+
+## 4. Launching the Application
 
 ### Interactive GUI
 ```bash
-# Launch fresh workspace
-./build/bin/rmap
+# Launch fresh workspace (from build tree or PATH)
+rmap
+# or: ./build/bin/rmap
 
 # Open sample SPI register map
-./build/bin/rmap -f examples/rmt/peripherals/spi.rmt
+rmap -f examples/rmt/peripherals/spi.rmt
 ```
 
-### 3. Batch Headless Code Generation
+### Batch Headless Code Generation
 
 ```bash
-./build/bin/rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
+rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```
 
 [Next: GUI User Guide &rarr;](gui-guide.md)

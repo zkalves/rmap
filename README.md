@@ -74,6 +74,38 @@ make test
 make test-templates
 ```
 
+### Installation
+
+Install the `rmap` executable to your preferred directory using either Make or CMake:
+
+#### With Make
+```bash
+# Default system-wide installation (/usr/local/bin/rmap)
+sudo make install
+
+# Custom install prefix (e.g. user home directory)
+make install PREFIX=$HOME/.local
+
+# Custom staging directory for packagers
+make install DESTDIR=/tmp/staging PREFIX=/usr
+
+# Uninstall
+sudo make uninstall
+# Or for a custom prefix:
+make uninstall PREFIX=$HOME/.local
+```
+
+#### With CMake
+```bash
+# Configure installation prefix during setup
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local
+cmake --build build -j$(nproc)
+cmake --install build
+
+# Or override installation prefix at install time
+cmake --install build --prefix $HOME/.local
+```
+
 ---
 
 ## Usage
@@ -108,6 +140,27 @@ Run code generation, linting, or diffing directly in Makefiles, CI/CD pipelines,
 # 4. Semantic Diff Between Revisions
 ./build/bin/rmap -f base.rmt --diff updated.rmt --report-format markdown --out diff.md
 ```
+
+---
+
+## Semantic Versioning & Releases
+
+`rmap` adheres to [Semantic Versioning 2.0.0](https://semver.org/) (`MAJOR.MINOR.PATCH`). Releases and version bumps are managed **completely automatically**:
+
+- **Conventional Commits**: Commits using `feat:` trigger minor version bumps, `fix:` triggers patch bumps, and `BREAKING CHANGE:` or `feat!:` triggers major bumps.
+- **Automated GitHub Releases**: Google's `release-please` automatically maintains release PRs, generates `CHANGELOG.md`, and creates Git tags on merge to `main`.
+- **Dynamic Build Injection**: CMake extracts Git describe tags and commit hashes at compile time into `RmapVersion.hpp`. The binary version (`rmap --version`) always matches the Git revision with zero manual intervention.
+- **Local Automation**:
+  ```bash
+  # Check active version
+  make version
+
+  # Auto-bump version based on commits since last release
+  make bump-auto
+
+  # Install Conventional Commits git hook to prevent non-conforming commits
+  make setup-hooks
+  ```
 
 ---
 
