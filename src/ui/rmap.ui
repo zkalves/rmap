@@ -369,6 +369,9 @@
    <property name="text">
     <string>About</string>
    </property>
+   <property name="toolTip">
+    <string>Display application information, version, and license</string>
+   </property>
    <property name="shortcut">
     <string>Ctrl+I</string>
    </property>

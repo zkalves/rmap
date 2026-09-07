@@ -227,6 +227,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
 
     m_config_window = new RegConfigWindow(this);
     m_pref_window = new PreferencesWindow(this);
+    m_about_window = new AboutWindow(this);
 
     m_undoStack = new QUndoStack(this);
 
@@ -880,12 +881,11 @@ void RegMapWindow::moveEvent(QMoveEvent *event)
 
 void RegMapWindow::btnAbout(void)
 {
-    QMessageBox::information(this,
-            tr("About"),
-            tr("Version: %1\n"
-               "rmap — Hardware Register Map Designer & Model Generator\n"
-               "Designed for ASIC, FPGA, Verification, and Embedded Engineers.\n").arg(RMAP_VERSION_STRING),
-            QMessageBox::Ok);
+    if (m_about_window) {
+        m_about_window->show();
+        m_about_window->raise();
+        m_about_window->activateWindow();
+    }
 }
 
 void RegMapWindow::btnKeyBindings(void)
