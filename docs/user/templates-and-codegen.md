@@ -161,7 +161,58 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
 
 ---
 
-## 5. Automated Template Testing & Verification
+## 5. Post-Generation Python Script Execution
+
+In addition to Inja templates, **rmap** can automatically launch a custom Python script upon code generation (both in interactive GUI export `Ctrl+E` and headless batch export `--export`).
+
+### Configuration
+In the **Configuration Dialog** (`Ctrl+P`), set the **Python Script (Optional)** field (or click **Browse...** to pick a `.py` file). Like the output folder and project name fields, the Python script execution is **active whenever the field has content**. To disable it, simply leave the field empty.
+
+### Available Variables & Context
+The Python script has full access to the exact same data model and variables available to Inja templates through multiple ergonomic interfaces:
+
+1. **Global Variables**:
+   All root template variables are directly injected into the script's global namespace:
+   - `name`: Register map / peripheral block name (e.g. `"spi"`).
+   - `project_name`: Project name string from configuration.
+   - `project_version`: Project version string.
+   - `reg_width`: Register bit width (e.g. `32` or `64`).
+   - `reg_width_bytes`: Register width in bytes (`reg_width / 8`).
+   - `blocks`: Full list of register blocks with all registers, fields, memories, and CRC32 checksums.
+   - Any user-defined custom key-value parameters.
+
+2. **`rmap` Module & Aliases**:
+   You can also access the data through `import rmap` or the predefined `data`, `context`, and `regmap` objects:
+   ```python
+   import rmap
+
+   print(f"Generating for block: {rmap.name}")
+   for block in rmap.blocks:
+       for reg in block["registers"]:
+           print(f"Register: {reg['name']} @ {reg['offset_hex']}")
+   ```
+
+3. **Built-in Helpers**:
+   Bitwise and formatting helpers matching Inja templates are readily available:
+   - `to_hex(val, width=8)`: Formats number as zero-padded hex (e.g. `to_hex(15, 4)` &rarr; `"0x000F"`).
+   - `to_dec(val)`: Formats number as decimal string.
+   - `bitmask(width, lsb)`: Computes bitmask integer.
+
+4. **Command-Line Argument & Standard Input**:
+   - `sys.argv[1]`: Absolute path to a temporary JSON file containing the full register map model.
+   - `sys.stdin`: Full register model JSON data piped via standard input (loadable via `json.load(sys.stdin)`).
+
+5. **Environment Variables**:
+   - `RMAP_NAME`: Name of the register map.
+   - `RMAP_PROJECT_NAME`: Configured project name.
+   - `RMAP_PROJECT_VERSION`: Configured project version.
+   - `RMAP_REG_WIDTH`: Register width.
+   - `RMAP_JSON_FILE`: Temporary JSON file path.
+   - `RMAP_JSON_DATA`: Complete JSON string of the register model.
+
+---
+
+## 6. Automated Template Testing & Verification
 
 Every template in `templates/` is validated through automated test pipelines in CI/CD and locally:
 

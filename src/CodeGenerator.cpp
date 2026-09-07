@@ -6,6 +6,10 @@
  */
 
 #include <QDirIterator>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QTemporaryFile>
+#include <QStandardPaths>
 #include "CodeGenerator.hpp"
 
 void CodeGenerator::registerHelpers(Environment &env) {
@@ -366,14 +370,10 @@ GenerationReport CodeGenerator::generate(
     const std::string &default_template_folder,
     const std::string &default_output_folder,
     const std::vector<TemplateMapping> &mappings,
-    const std::string &base_dir)
+    const std::string &base_dir,
+    const std::string &python_script)
 {
     GenerationReport report;
-
-    // If no specific template mappings are defined, scan the default template folder
-    if (mappings.empty()) {
-        return parseDirectory(json_data, default_template_folder, default_output_folder, base_dir);
-    }
 
     // Ensure memory gap padding is present if raw json data didn't go through model extraction
     json preparedJson = json_data;
@@ -401,10 +401,14 @@ GenerationReport CodeGenerator::generate(
         }
     }
 
-    // Pre-scan mappings to identify output paths for RTL, UVM, and SIM directory
-    QString resolvedRtlOut;
-    QString resolvedUvmOut;
-    QString resolvedSimDir;
+    // If no specific template mappings are defined, scan the default template folder
+    if (mappings.empty()) {
+        report = parseDirectory(preparedJson, default_template_folder, default_output_folder, base_dir, "");
+    } else {
+        // Pre-scan mappings to identify output paths for RTL, UVM, and SIM directory
+        QString resolvedRtlOut;
+        QString resolvedUvmOut;
+        QString resolvedSimDir;
 
     for (const auto &m : mappings) {
         QString tmplPath = PathUtils::normalizeSeparators(QString::fromStdString(m.template_file));
@@ -491,6 +495,23 @@ GenerationReport CodeGenerator::generate(
             report.errors.push_back({mapping.template_file, err});
         }
     }
+    }
+
+    // Launch Python script if configured
+    if (!python_script.empty()) {
+        std::string pyOut, pyErr;
+        bool ok = runPythonScript(python_script, preparedJson, base_dir, &pyOut, &pyErr);
+        if (ok) {
+            report.success_files.push_back("Python Script: " + python_script);
+            if (!pyOut.empty()) {
+                qDebug() << "[CodeGenerator] Python script output:\n" << pyOut.c_str();
+            }
+        } else {
+            std::string errMsg = "Python script execution failed: " + (pyErr.empty() ? pyOut : pyErr);
+            qWarning() << "[CodeGenerator]" << errMsg.c_str();
+            report.errors.push_back({python_script, errMsg});
+        }
+    }
 
     return report;
 }
@@ -499,7 +520,8 @@ GenerationReport CodeGenerator::parseDirectory(
     const json &json_data,
     const std::string &template_folder,
     const std::string &output_folder,
-    const std::string &base_dir)
+    const std::string &base_dir,
+    const std::string &python_script)
 {
     GenerationReport report;
     std::string rawTmplFolder = template_folder.empty() ? PathUtils::DEFAULT_TEMPLATES_DIR : template_folder;
@@ -533,10 +555,13 @@ GenerationReport CodeGenerator::parseDirectory(
 
     if (mappings.empty()) {
         qDebug() << "[CodeGenerator] No template files matching pattern found in directory:" << resolvedTmplFolder.c_str();
+        if (!python_script.empty()) {
+            return generate(json_data, resolvedTmplFolder, outFolder, mappings, base_dir, python_script);
+        }
         return report;
     }
 
-    return generate(json_data, resolvedTmplFolder, outFolder, mappings, base_dir);
+    return generate(json_data, resolvedTmplFolder, outFolder, mappings, base_dir, python_script);
 }
 
 void CodeGenerator::parse(json json_data, const std::string &template_folder, const std::string &output_folder) {
@@ -545,4 +570,168 @@ void CodeGenerator::parse(json json_data, const std::string &template_folder, co
 
 void CodeGenerator::parseCustom(json json_data, const std::string &template_folder, const std::vector<TemplateMapping>& mappings) {
     generate(json_data, template_folder, "", mappings);
+}
+
+bool CodeGenerator::runPythonScript(
+    const std::string &python_script,
+    const json &json_data,
+    const std::string &base_dir,
+    std::string *stdout_str,
+    std::string *stderr_str)
+{
+    if (python_script.empty()) {
+        if (stderr_str) *stderr_str = "No Python script specified.";
+        return false;
+    }
+
+    QString resolvedScript = PathUtils::resolvePath(QString::fromStdString(python_script), QString::fromStdString(base_dir));
+    QFileInfo scriptInfo(resolvedScript);
+    if (!scriptInfo.exists() || !scriptInfo.isFile()) {
+        if (stderr_str) *stderr_str = "Python script file does not exist: " + resolvedScript.toStdString();
+        return false;
+    }
+
+    QString pythonExe = PathUtils::expandEnvVars(QString::fromStdString(qgetenv("RMAP_PYTHON").toStdString()));
+    if (pythonExe.trimmed().isEmpty()) {
+        pythonExe = PathUtils::expandEnvVars(QString::fromStdString(qgetenv("PYTHON").toStdString()));
+    }
+    if (pythonExe.trimmed().isEmpty()) {
+        pythonExe = QStandardPaths::findExecutable("python3");
+    }
+    if (pythonExe.trimmed().isEmpty()) {
+        pythonExe = QStandardPaths::findExecutable("python");
+    }
+    if (pythonExe.trimmed().isEmpty()) {
+        if (stderr_str) *stderr_str = "Python interpreter ('python3' or 'python') not found in system PATH.";
+        return false;
+    }
+
+    std::string jsonDump = json_data.dump(2);
+
+    QTemporaryFile tempJsonFile(QDir::tempPath() + "/rmap_context_XXXXXX.json");
+    if (!tempJsonFile.open()) {
+        if (stderr_str) *stderr_str = "Failed to create temporary file for register map JSON context.";
+        return false;
+    }
+    tempJsonFile.write(jsonDump.data(), static_cast<qint64>(jsonDump.size()));
+    tempJsonFile.flush();
+    QString tempJsonPath = tempJsonFile.fileName();
+    tempJsonFile.close();
+
+    const char* launcherCode = 
+R"(import sys, json, os, types
+
+json_path = sys.argv[1]
+script_path = os.path.abspath(sys.argv[2])
+
+with open(json_path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+sys.argv = [script_path, json_path] + sys.argv[3:]
+
+script_dir = os.path.dirname(script_path)
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
+def to_hex(val, width=8):
+    if isinstance(val, str):
+        val = int(val, 0)
+    return f"0x{int(val):0{width}X}"
+
+def to_dec(val):
+    if isinstance(val, str):
+        return str(int(val, 0))
+    return str(val)
+
+def bitmask(width, lsb):
+    mask = ((1 << int(width)) - 1) << int(lsb)
+    return f"0x{mask:X}"
+
+rmap_mod = types.ModuleType('rmap')
+rmap_mod.__file__ = script_path
+for k, v in data.items():
+    setattr(rmap_mod, k, v)
+setattr(rmap_mod, 'data', data)
+setattr(rmap_mod, 'context', data)
+setattr(rmap_mod, 'to_hex', to_hex)
+setattr(rmap_mod, 'to_dec', to_dec)
+setattr(rmap_mod, 'bitmask', bitmask)
+sys.modules['rmap'] = rmap_mod
+
+script_globals = {
+    '__name__': '__main__',
+    '__file__': script_path,
+    '__doc__': None,
+    '__builtins__': __builtins__,
+    'sys': sys,
+    'json': json,
+    'os': os,
+    'data': data,
+    'context': data,
+    'rmap': data,
+    'regmap': data,
+    'to_hex': to_hex,
+    'to_dec': to_dec,
+    'bitmask': bitmask,
+}
+
+for k, v in data.items():
+    script_globals[k] = v
+
+with open(script_path, 'r', encoding='utf-8') as f:
+    code = compile(f.read(), script_path, 'exec')
+    exec(code, script_globals)
+)";
+
+    QProcess process;
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("RMAP_JSON_FILE", tempJsonPath);
+    env.insert("RMAP_JSON_DATA", QString::fromUtf8(jsonDump.c_str()));
+    if (json_data.contains("name") && json_data["name"].is_string()) {
+        env.insert("RMAP_NAME", QString::fromStdString(json_data["name"]));
+    }
+    if (json_data.contains("project_name") && json_data["project_name"].is_string()) {
+        env.insert("RMAP_PROJECT_NAME", QString::fromStdString(json_data["project_name"]));
+    }
+    if (json_data.contains("project_version") && json_data["project_version"].is_string()) {
+        env.insert("RMAP_PROJECT_VERSION", QString::fromStdString(json_data["project_version"]));
+    }
+    if (json_data.contains("reg_width") && json_data["reg_width"].is_number()) {
+        env.insert("RMAP_REG_WIDTH", QString::number(json_data.value("reg_width", 32U)));
+    }
+    process.setProcessEnvironment(env);
+
+    QString workDir = QString::fromStdString(base_dir);
+    if (workDir.isEmpty() || !QDir(workDir).exists()) {
+        workDir = scriptInfo.dir().absolutePath();
+    }
+    process.setWorkingDirectory(workDir);
+
+    QStringList args;
+    args << "-c" << launcherCode << tempJsonPath << scriptInfo.absoluteFilePath();
+
+    process.start(pythonExe, args);
+    if (!process.waitForStarted(5000)) {
+        if (stderr_str) *stderr_str = "Failed to start Python interpreter: " + pythonExe.toStdString();
+        return false;
+    }
+
+    process.write(jsonDump.data(), static_cast<qint64>(jsonDump.size()));
+    process.closeWriteChannel();
+
+    bool finished = process.waitForFinished(60000);
+    if (!finished) {
+        process.kill();
+        process.waitForFinished(1000);
+        if (stderr_str) *stderr_str = "Python script execution timed out (60 seconds).";
+        return false;
+    }
+
+    QByteArray outBytes = process.readAllStandardOutput();
+    QByteArray errBytes = process.readAllStandardError();
+    if (stdout_str) *stdout_str = QString::fromUtf8(outBytes).toStdString();
+    if (stderr_str) *stderr_str = QString::fromUtf8(errBytes).toStdString();
+
+    int exitCode = process.exitCode();
+    return (process.exitStatus() == QProcess::NormalExit && exitCode == 0);
 }

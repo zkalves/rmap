@@ -372,7 +372,7 @@ void RegConfigWindow::onBrowseOutputFolder()
 
 void RegConfigWindow::onBrowsePythonScript()
 {
-    QString initial = this->pythonScript->text().trimmed();
+    QString initial = this->Ui_config::pythonScript->text().trimmed();
     if (initial.isEmpty()) initial = baseDir();
     else initial = PathUtils::resolvePath(initial, baseDir());
     QString file = QFileDialog::getOpenFileName(
@@ -382,7 +382,7 @@ void RegConfigWindow::onBrowsePythonScript()
         tr("Python Files (*.py);;All Files (*.*)")
     );
     if (!file.isEmpty()) {
-        this->pythonScript->setText(PathUtils::toRelativePath(file, baseDir()));
+        this->Ui_config::pythonScript->setText(PathUtils::toRelativePath(file, baseDir()));
     }
 }
 
@@ -579,7 +579,7 @@ void RegConfigWindow::onRemoveParameterRow()
 
 void RegConfigWindow::saveStateFromUi()
 {
-    m_pythonScript = this->pythonScript->text().trimmed();
+    m_pythonScript = this->Ui_config::pythonScript->text().trimmed();
     m_outputFolder = this->outputFolder->text().trimmed();
     m_regWidth = this->regWidthSpinBox->value();
 
@@ -611,7 +611,7 @@ void RegConfigWindow::saveStateFromUi()
 
 void RegConfigWindow::updateUiFromState()
 {
-    this->pythonScript->setText(m_pythonScript);
+    this->Ui_config::pythonScript->setText(m_pythonScript);
     this->outputFolder->setText(m_outputFolder);
     this->regWidthSpinBox->setValue(m_regWidth > 0 ? m_regWidth : 32);
 
@@ -645,6 +645,7 @@ protormap::Config* RegConfigWindow::serialize(void)
     saveStateFromUi();
     protormap::Config* config = new protormap::Config;
     config->set_pythonscript(m_pythonScript.toStdString());
+    config->set_python_script_enabled(!m_pythonScript.isEmpty());
     config->set_outputfolder(m_outputFolder.toStdString());
     config->set_reg_width(m_regWidth > 0 ? m_regWidth : 32);
 
@@ -672,7 +673,11 @@ protormap::Config* RegConfigWindow::serialize(void)
 
 void RegConfigWindow::deserialize(const protormap::Config &config)
 {
-    m_pythonScript = QString::fromStdString(config.pythonscript());
+    if (config.has_python_script_enabled() && !config.python_script_enabled()) {
+        m_pythonScript.clear();
+    } else {
+        m_pythonScript = QString::fromStdString(config.pythonscript()).trimmed();
+    }
     m_outputFolder = QString::fromStdString(config.outputfolder());
     m_regWidth = config.reg_width() > 0 ? config.reg_width() : 32;
 
@@ -824,3 +829,20 @@ QString RegConfigWindow::projectVersion() const
     return m_projectVersion;
 }
 
+void RegConfigWindow::setPythonScript(const QString &script)
+{
+    m_pythonScript = script.trimmed();
+    if (this->Ui_config::pythonScript) {
+        this->Ui_config::pythonScript->setText(m_pythonScript);
+    }
+}
+
+QString RegConfigWindow::pythonScript() const
+{
+    return m_pythonScript;
+}
+
+bool RegConfigWindow::isPythonScriptEnabled() const
+{
+    return !m_pythonScript.isEmpty();
+}

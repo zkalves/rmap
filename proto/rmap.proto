@@ -36,6 +36,7 @@ message Config {
     bool                    strict_validation  = 9;
     map<string, string>     custom_parameters  = 10;
     repeated string         template_folders   = 11;
+    optional bool           python_script_enabled = 12;
 }
 
 message RegItem {

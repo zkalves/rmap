@@ -164,23 +164,30 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_pythonScript">
-         <property name="text">
-          <string>Python Script (Optional):</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="1">
-        <widget class="QLineEdit" name="pythonScript" />
-       </item>
-       <item row="3" column="2">
-        <widget class="QPushButton" name="btnBrowsePythonScript">
-         <property name="text">
-          <string>Browse...</string>
-         </property>
-        </widget>
-       </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_pythonScript">
+          <property name="text">
+           <string>Python Script (Optional):</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QLineEdit" name="pythonScript">
+          <property name="placeholderText">
+           <string>e.g. scripts/post_generate.py</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
+         <widget class="QPushButton" name="btnBrowsePythonScript">
+          <property name="text">
+           <string>Browse...</string>
+          </property>
+          <property name="toolTip">
+           <string>Browse for a Python script to execute upon generation</string>
+          </property>
+         </widget>
+        </item>
       </layout>
      </widget>
     </item><item><widget class="QGroupBox" name="groupParams"><property name="title"><string>Custom Parameters (Inja Template Variables)</string></property><layout class="QVBoxLayout" name="vlayoutParams"><item><widget class="QTableWidget" name="customParametersTable"><property name="minimumSize"><size><width>0</width><height>80</height></size></property><property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property><property name="alternatingRowColors"><bool>true</bool></property><column><property name="text"><string>Key</string></property></column><column><property name="text"><string>Value</string></property></column></widget></item><item><layout class="QHBoxLayout"><item><widget class="QPushButton" name="btnAddParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Add Parameter</string></property></widget></item><item><widget class="QPushButton" name="btnRemoveParameter"><property name="minimumSize"><size><width>0</width><height>26</height></size></property><property name="text"><string>Remove Selected</string></property></widget></item><item><spacer name="spacerParams" /></item></layout></item></layout></widget></item><item>

@@ -48,6 +48,10 @@ class RegConfigWindow : public QDialog, private Ui::config
         QString projectName() const;
         QString projectVersion() const;
 
+        void setPythonScript(const QString &script);
+        QString pythonScript() const;
+        bool isPythonScriptEnabled() const;
+
         void setBaseDir(const QString &baseDir);
         QString baseDir() const;
 

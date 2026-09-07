@@ -55,6 +55,8 @@ private slots:
     void testRegisterDuplicationAction();
     void testExportAction();
     void testExportSkipsDisabledTemplates();
+    void testExportLaunchesPythonScriptWhenEnabled();
+    void testExportSkipsPythonScriptWhenDisabled();
     void testBitfieldBarWidgetSync();
     void testSearchBarFiltering();
     void testUndoRedoStack();
@@ -713,6 +715,128 @@ void TestRegMapWindow::testExportSkipsDisabledTemplates()
     QVERIFY(!QFile::exists("work/uvm/reg_model.sv"));
 
     dismissTimer->stop();
+}
+
+void TestRegMapWindow::testExportLaunchesPythonScriptWhenEnabled()
+{
+    QString file = "examples/rmt/peripherals/spi.rmt";
+    RegMapWindow window(file);
+
+    QDir().mkpath("work/test_fe_py");
+    QString scriptPath = "work/test_fe_py/post_script.py";
+    QString markerPath = "work/test_fe_py/script_ran.marker";
+    QFile::remove(markerPath);
+
+    QFile pyFile(scriptPath);
+    QVERIFY(pyFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&pyFile);
+    out << "import os\n";
+    out << "with open('work/test_fe_py/script_ran.marker', 'w') as f:\n";
+    out << "    f.write(f'LAUNCHED:{name}:{reg_width}')\n";
+    pyFile.close();
+
+    window.configWindow()->setBaseDir(QDir::currentPath());
+    protormap::Config cfg;
+    cfg.set_templatefolder("./templates");
+    cfg.set_outputfolder("./work/test_fe_py");
+    cfg.set_pythonscript(scriptPath.toStdString());
+    cfg.set_python_script_enabled(true);
+
+    auto *entry1 = cfg.add_template_outputs();
+    entry1->set_template_filename("templates/c/reg_map.h.inja");
+    entry1->set_output_filepath("work/test_fe_py/reg_map.h");
+    entry1->set_enabled(true);
+
+    window.configWindow()->deserialize(cfg);
+
+    QTimer *dismissTimer = new QTimer(&window);
+    QObject::connect(dismissTimer, &QTimer::timeout, []() {
+        QWidget* modal = QApplication::activeModalWidget();
+        if (modal) {
+            modal->close();
+        }
+    });
+    dismissTimer->start(50);
+
+    auto *actExport = window.findChild<QAction*>("actionExport");
+    QVERIFY(actExport != nullptr);
+    actExport->trigger();
+
+    QVERIFY(QFile::exists("work/test_fe_py/reg_map.h"));
+    QVERIFY(QFile::exists(markerPath));
+
+    QFile marker(markerPath);
+    QVERIFY(marker.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = QString::fromUtf8(marker.readAll());
+    marker.close();
+    QCOMPARE(content, QString("LAUNCHED:spi:32"));
+
+    dismissTimer->stop();
+
+    // Also test headless export with python script enabled
+    QFile::remove(markerPath);
+    bool headlessSuccess = window.headlessExport("work/test_fe_py");
+    QVERIFY(headlessSuccess);
+    QVERIFY(QFile::exists(markerPath));
+}
+
+void TestRegMapWindow::testExportSkipsPythonScriptWhenDisabled()
+{
+    QString file = "examples/rmt/peripherals/spi.rmt";
+    RegMapWindow window(file);
+
+    QDir().mkpath("work/test_fe_py_dis");
+    QString scriptPath = "work/test_fe_py_dis/disabled_script.py";
+    QString markerPath = "work/test_fe_py_dis/should_not_exist.marker";
+    QFile::remove(markerPath);
+
+    QFile pyFile(scriptPath);
+    QVERIFY(pyFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    QTextStream out(&pyFile);
+    out << "import os\n";
+    out << "with open('work/test_fe_py_dis/should_not_exist.marker', 'w') as f:\n";
+    out << "    f.write('ERROR')\n";
+    pyFile.close();
+
+    window.configWindow()->setBaseDir(QDir::currentPath());
+    protormap::Config cfg;
+    cfg.set_templatefolder("./templates");
+    cfg.set_outputfolder("./work/test_fe_py_dis");
+    cfg.set_pythonscript(scriptPath.toStdString());
+    cfg.set_python_script_enabled(false); // Explicitly DISABLED in configuration
+
+    auto *entry1 = cfg.add_template_outputs();
+    entry1->set_template_filename("templates/c/reg_map.h.inja");
+    entry1->set_output_filepath("work/test_fe_py_dis/reg_map.h");
+    entry1->set_enabled(true);
+
+    window.configWindow()->deserialize(cfg);
+    QCOMPARE(window.configWindow()->isPythonScriptEnabled(), false);
+    QCOMPARE(window.configWindow()->pythonScript(), QString(""));
+
+    QTimer *dismissTimer = new QTimer(&window);
+    QObject::connect(dismissTimer, &QTimer::timeout, []() {
+        QWidget* modal = QApplication::activeModalWidget();
+        if (modal) {
+            modal->close();
+        }
+    });
+    dismissTimer->start(50);
+
+    auto *actExport = window.findChild<QAction*>("actionExport");
+    QVERIFY(actExport != nullptr);
+    actExport->trigger();
+
+    QVERIFY(QFile::exists("work/test_fe_py_dis/reg_map.h"));
+    // Script should NOT have executed
+    QVERIFY(!QFile::exists(markerPath));
+
+    dismissTimer->stop();
+
+    // Also headless export must not execute disabled script
+    bool headlessSuccess = window.headlessExport("work/test_fe_py_dis");
+    QVERIFY(headlessSuccess);
+    QVERIFY(!QFile::exists(markerPath));
 }
 
 void TestRegMapWindow::testBitfieldBarWidgetSync()

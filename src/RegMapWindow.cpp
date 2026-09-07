@@ -1151,7 +1151,13 @@ void RegMapWindow::btnExport(void)
             }
         }
 
-        GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString());
+        std::string pythonScript = "";
+        bool pyEnabled = cfg->has_python_script_enabled() ? cfg->python_script_enabled() : (m_config_window ? m_config_window->isPythonScriptEnabled() : !cfg->pythonscript().empty());
+        if (pyEnabled && !cfg->pythonscript().empty()) {
+            pythonScript = cfg->pythonscript();
+        }
+
+        GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
 
         if (!report.errors.empty()) {
             QString errorMsg = tr("Code generation completed with errors:\n\n");
@@ -1904,7 +1910,13 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
             }
         }
 
-        GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString());
+        std::string pythonScript = "";
+        bool pyEnabled = cfg->has_python_script_enabled() ? cfg->python_script_enabled() : (m_config_window ? m_config_window->isPythonScriptEnabled() : !cfg->pythonscript().empty());
+        if (pyEnabled && !cfg->pythonscript().empty()) {
+            pythonScript = cfg->pythonscript();
+        }
+
+        GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
 
         if (!report.errors.empty()) {
             std::cerr << "Code generation completed with errors:" << std::endl;
