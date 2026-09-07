@@ -35,6 +35,7 @@
 #include "RegMapTreeItem.hpp"
 #include "RegBitfieldBarWidget.hpp"
 #include "PreferencesWindow.hpp"
+#include "AboutWindow.hpp"
 #include "SerializationContext.hpp"
 #include "ProtobufLogCollector.hpp"
 #include "UndoCommands.hpp"
@@ -71,6 +72,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
 
         RegConfigWindow* configWindow() const { return m_config_window; }
         PreferencesWindow* preferencesWindow() const { return m_pref_window; }
+        AboutWindow* aboutWindow() const { return m_about_window; }
         RegBitfieldBarWidget* bitfieldWidget() const { return m_bitfieldBar; }
         BlockMemoryMapWidget* memoryMapWidget() const { return m_blockMemoryMapWidget; }
 
@@ -103,6 +105,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
     private:
         RegConfigWindow       * m_config_window = nullptr;
         PreferencesWindow     * m_pref_window = nullptr;
+        AboutWindow           * m_about_window = nullptr;
         RegMapTreeModel       * m_model = nullptr;
         TreeFilterProxyModel  * m_treeProxy = nullptr;
         FieldSortProxyModel   * m_fieldProxy = nullptr;

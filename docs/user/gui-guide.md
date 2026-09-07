@@ -197,7 +197,8 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | | Open Application Preferences | `Ctrl+,` |
 | **View & Navigation**| Toggle Colour-Blind Mode | `Ctrl+Alt+C` |
 | | Focus Search Bar | `Ctrl+F` |
-| | Show Key Bindings Help | `F1` |
+| **Help & Information**| Show Key Bindings Help | `F1` |
+| | Show About Window | `Ctrl+I` |
 
 ---
 
@@ -237,3 +238,19 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
   - User-specific GUI preferences (selected colour scheme, colour-blind mode, main window size/geometry, configuration window size, preferences window size, and panel splitter positions) are stored in the user's home area in `~/.config/rmap/rmap.conf` (or `$XDG_CONFIG_HOME/rmap/rmap.conf`).
   - Window dimensions and layout states are automatically saved on resize or close and restored on next launch.
   - Register map project files (`.rmt`, `.rdl`, `.svd`, `.json`) remain strictly focused on hardware architecture and register definitions without polluting project files with client-specific GUI state.
+
+---
+
+## 10. Help Menu & About Window
+
+Access application assistance and information from the **Help** pull-down menu:
+
+- **Key Bindings (`F1` / Help &rarr; Key Bindings)**: Opens the interactive keyboard shortcut reference table.
+- **About Window (`Ctrl+I` / Help &rarr; About)**:
+  - Displays version details, application branding, and purpose.
+  - Features tabbed navigation covering:
+    - **About**: Architectural vision, target engineering disciplines, and core workflow.
+    - **Features**: Overview of supported serialization formats and the 15 code generation template targets.
+    - **Libraries & Credits**: Runtime and build dependencies including Qt 6, Pantor Inja, nlohmann/json, and Google Protocol Buffers.
+    - **License**: Mozilla Public License 2.0 (MPL-2.0) terms and repository copyright notices.
+  - Remembers user dialog dimensions and screen positions across sessions in `~/.config/rmap/rmap.conf`.

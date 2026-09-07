@@ -34,6 +34,7 @@ set(FRONTEND_TESTS
     test_RegMapWindow
     test_RegConfigWindow
     test_PreferencesWindow
+    test_AboutWindow
     test_Delegates
 )
 
