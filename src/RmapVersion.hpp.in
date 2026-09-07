@@ -1,0 +1,34 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+ */
+
+#pragma once
+
+#define RMAP_VERSION_MAJOR @RMAP_VERSION_MAJOR@
+#define RMAP_VERSION_MINOR @RMAP_VERSION_MINOR@
+#define RMAP_VERSION_PATCH @RMAP_VERSION_PATCH@
+#define RMAP_VERSION_PRERELEASE "@RMAP_VERSION_PRERELEASE@"
+#define RMAP_VERSION_BUILD "@RMAP_VERSION_BUILD@"
+#define RMAP_VERSION_STRING "@RMAP_VERSION_STRING@"
+#define RMAP_GIT_HASH "@RMAP_GIT_HASH@"
+#define RMAP_GIT_BRANCH "@RMAP_GIT_BRANCH@"
+#define RMAP_BUILD_DATE "@RMAP_BUILD_DATE@"
+
+namespace rmap {
+namespace version {
+
+constexpr int major() noexcept { return RMAP_VERSION_MAJOR; }
+constexpr int minor() noexcept { return RMAP_VERSION_MINOR; }
+constexpr int patch() noexcept { return RMAP_VERSION_PATCH; }
+inline const char* prerelease() noexcept { return RMAP_VERSION_PRERELEASE; }
+inline const char* build() noexcept { return RMAP_VERSION_BUILD; }
+inline const char* string() noexcept { return RMAP_VERSION_STRING; }
+inline const char* gitHash() noexcept { return RMAP_GIT_HASH; }
+inline const char* gitBranch() noexcept { return RMAP_GIT_BRANCH; }
+inline const char* buildDate() noexcept { return RMAP_BUILD_DATE; }
+
+} // namespace version
+} // namespace rmap

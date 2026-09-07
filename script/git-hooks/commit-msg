@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+
+# Conventional Commits commit-msg Git Hook
+# Ensures commit messages follow Conventional Commits standard for automatic semantic versioning.
+
+COMMIT_MSG_FILE="$1"
+FIRST_LINE=$(head -n 1 "$COMMIT_MSG_FILE" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+# Allow empty message (git will abort anyway)
+if [ -z "$FIRST_LINE" ]; then
+    exit 0
+fi
+
+# Allow merge commits and fixups
+if echo "$FIRST_LINE" | grep -qE "^(Merge branch|Merge pull request|fixup!|squash!)"; then
+    exit 0
+fi
+
+# Allow release commits
+if echo "$FIRST_LINE" | grep -qE "^(chore\(release\):|Release v[0-9]+|release:)"; then
+    exit 0
+fi
+
+# Conventional Commits regex: type(scope)!: description
+CONVENTIONAL_REGEX="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-\./]+\))?(!)?: .+$"
+
+# Also allow historical bracketed style: [feat] description
+BRACKET_REGEX="^\[(feat|fix|doc|docs|style|refactor|perf|test|build|ci|chore|revert)\] .+$"
+
+if ! echo "$FIRST_LINE" | grep -qE "$CONVENTIONAL_REGEX" && ! echo "$FIRST_LINE" | grep -qE "$BRACKET_REGEX"; then
+    echo ""
+    echo "================================================================================"
+    echo "❌ COMMIT REJECTED: Invalid commit message format for Semantic Versioning"
+    echo "================================================================================"
+    echo "Commit message was: '$FIRST_LINE'"
+    echo ""
+    echo "To automate semantic versioning, commits must follow Conventional Commits:"
+    echo "  <type>(<optional scope>): <description>"
+    echo ""
+    echo "Types that trigger automatic version bumps:"
+    echo "  feat:      New feature (bumps MINOR, e.g. 0.2.0 -> 0.3.0)"
+    echo "  fix:       Bug fix (bumps PATCH, e.g. 0.2.0 -> 0.2.1)"
+    echo "  feat!:     Breaking change (bumps MAJOR, e.g. 0.2.0 -> 1.0.0)"
+    echo "  fix!:      Breaking bug fix (bumps MAJOR)"
+    echo ""
+    echo "Other recognized types:"
+    echo "  docs:      Documentation changes"
+    echo "  refactor:  Code change that neither fixes a bug nor adds a feature"
+    echo "  perf:      Performance improvement"
+    echo "  test:      Adding or modifying tests"
+    echo "  build:     Changes to build system or dependencies"
+    echo "  ci:        Changes to CI configuration or scripts"
+    echo "  chore:     Maintenance tasks"
+    echo ""
+    echo "Examples:"
+    echo "  feat(gui): add 64-bit register slice visualizer"
+    echo "  fix(parser): resolve SystemRDL address alignment bug"
+    echo "  docs: update CLI user manual"
+    echo ""
+    echo "(Use 'git commit --no-verify' to bypass this check if strictly necessary)"
+    echo "================================================================================"
+    echo ""
+    exit 1
+fi
+
+exit 0

@@ -31,6 +31,7 @@
 #include "ThemeManager.hpp"
 #include "AppSettings.hpp"
 #include "PathUtils.hpp"
+#include "RmapVersion.hpp"
 #include "format/FormatManager.hpp"
 
 // Helper to convert QVariant numbers (hex/dec/bin string) to uint64_t
@@ -881,9 +882,9 @@ void RegMapWindow::btnAbout(void)
 {
     QMessageBox::information(this,
             tr("About"),
-            tr("Version: 0.2.0\n"
+            tr("Version: %1\n"
                "rmap — Hardware Register Map Designer & Model Generator\n"
-               "Designed for ASIC, FPGA, Verification, and Embedded Engineers.\n"),
+               "Designed for ASIC, FPGA, Verification, and Embedded Engineers.\n").arg(RMAP_VERSION_STRING),
             QMessageBox::Ok);
 }
 
@@ -1983,7 +1984,7 @@ bool RegMapWindow::headlessLint(bool strict, const QString &format, const QStrin
         QJsonObject tool;
         QJsonObject driver;
         driver["name"] = "rmap-lint";
-        driver["version"] = "0.2.0";
+        driver["version"] = RMAP_VERSION_STRING;
         tool["driver"] = driver;
         run["tool"] = tool;
 

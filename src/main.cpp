@@ -8,11 +8,12 @@
 #include "rmap.hpp"
 #include "ThemeManager.hpp"
 #include "PathUtils.hpp"
+#include "RmapVersion.hpp"
 
 int main(int argc, char *argv[])
 {
     Q_INIT_RESOURCE(resources);
-    const QString version("v0.2.0");
+    const QString version = QStringLiteral("v") + QString::fromLatin1(RMAP_VERSION_STRING);
 
     bool headless_mode = false;
     const char* disp = std::getenv("DISPLAY");
