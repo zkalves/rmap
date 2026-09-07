@@ -60,6 +60,17 @@ make
 
 # Or build only application binary
 make rmap
+
+# Install to default location (/usr/local/bin)
+sudo make install
+
+# Install to a custom directory (e.g. user home directory)
+make install PREFIX=$HOME/.local
+
+# Or configure with CMake custom prefix
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local
+cmake --build build -j$(nproc)
+cmake --install build
 ```
 
 ### 3. Running Automated Tests

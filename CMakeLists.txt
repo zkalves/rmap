@@ -19,6 +19,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 include(FetchContent)
 set(INJA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "" FORCE)
+set(INJA_INSTALL OFF CACHE BOOL "" FORCE)
+set(INJA_EXPORT OFF CACHE BOOL "" FORCE)
 
 option(BUILD_BENCHMARK "" OFF)
 
@@ -140,6 +142,14 @@ qt_add_executable(rmap
 
 target_compile_options(rmap PRIVATE -Wfatal-errors)
 target_link_libraries(rmap PRIVATE rmap_core)
+
+# Installation
+include(GNUInstallDirs)
+
+install(TARGETS rmap
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    BUNDLE DESTINATION .
+)
 
 # Tests Subdirectory
 if(BUILD_TESTING)

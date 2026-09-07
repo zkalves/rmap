@@ -74,6 +74,38 @@ make test
 make test-templates
 ```
 
+### Installation
+
+Install the `rmap` executable to your preferred directory using either Make or CMake:
+
+#### With Make
+```bash
+# Default system-wide installation (/usr/local/bin/rmap)
+sudo make install
+
+# Custom install prefix (e.g. user home directory)
+make install PREFIX=$HOME/.local
+
+# Custom staging directory for packagers
+make install DESTDIR=/tmp/staging PREFIX=/usr
+
+# Uninstall
+sudo make uninstall
+# Or for a custom prefix:
+make uninstall PREFIX=$HOME/.local
+```
+
+#### With CMake
+```bash
+# Configure installation prefix during setup
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local
+cmake --build build -j$(nproc)
+cmake --install build
+
+# Or override installation prefix at install time
+cmake --install build --prefix $HOME/.local
+```
+
 ---
 
 ## Usage
