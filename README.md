@@ -77,11 +77,11 @@ make test-templates
 
 ### Installation
 
-Install the `rmap` executable to your preferred directory using either Make or CMake:
+Install the `rmap` executable, code generation templates (`<prefix>/share/rmap/templates`), sample models (`<prefix>/share/rmap/examples`), and documentation (`<prefix>/share/doc/rmap`) to your preferred directory using either Make or CMake. The application automatically discovers installed templates without requiring manual configuration:
 
 #### With Make
 ```bash
-# Default system-wide installation (/usr/local/bin/rmap)
+# Default system-wide installation (/usr/local/bin/rmap and /usr/local/share/rmap)
 sudo make install
 
 # Custom install prefix (e.g. user home directory)

@@ -1124,7 +1124,10 @@ void RegMapWindow::btnExport(void)
     }
 
     CodeGenerator cg;
-    std::string template_folder = cfg->templatefolder().empty() ? PathUtils::DEFAULT_TEMPLATES_DIR : cfg->templatefolder();
+    std::string template_folder = cfg->templatefolder();
+    if (template_folder.empty() || (template_folder == PathUtils::DEFAULT_TEMPLATES_DIR && !QDir("./templates").exists())) {
+        template_folder = PathUtils::defaultTemplatesDir().toStdString();
+    }
     std::string default_output  = cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder();
 
     try {
@@ -1858,7 +1861,10 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
     }
 
     CodeGenerator cg;
-    std::string template_folder = cfg->templatefolder().empty() ? PathUtils::DEFAULT_TEMPLATES_DIR : cfg->templatefolder();
+    std::string template_folder = cfg->templatefolder();
+    if (template_folder.empty() || (template_folder == PathUtils::DEFAULT_TEMPLATES_DIR && !QDir("./templates").exists())) {
+        template_folder = PathUtils::defaultTemplatesDir().toStdString();
+    }
     std::string default_output = out_dir.isEmpty() ? (cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder()) : PathUtils::expandEnvVars(out_dir).toStdString();
 
     try {

@@ -27,6 +27,8 @@ private slots:
     void testResolvePathWithBaseDirs();
     void testResolvePathWithEnvVars();
     void testDefaultPathConstants();
+    void testDefaultDirectoryDiscovery();
+    void testResolvePathWithTemplatesSubdir();
 };
 
 void TestPathUtils::initTestCase()
@@ -164,6 +166,52 @@ void TestPathUtils::testDefaultPathConstants()
     QCOMPARE(PathUtils::DEFAULT_TEMPLATES_DIR, "./templates");
     QCOMPARE(PathUtils::defaultOutputDir(), QString("./work"));
     QCOMPARE(PathUtils::defaultTemplatesDir(), QString("./templates"));
+}
+
+void TestPathUtils::testDefaultDirectoryDiscovery()
+{
+    // 1. In source repository, defaultTemplatesDir() resolves to ./templates
+    QCOMPARE(PathUtils::defaultTemplatesDir(), QString("./templates"));
+    QCOMPARE(PathUtils::defaultExamplesDir(), QString("./examples"));
+    QCOMPARE(PathUtils::defaultDocsDir(), QString("./docs"));
+
+    // 2. Environment variable overrides take precedence
+    qputenv("RMAP_TEMPLATES_DIR", "/custom/installed/templates");
+    QCOMPARE(PathUtils::defaultTemplatesDir(), QString("/custom/installed/templates"));
+    qunsetenv("RMAP_TEMPLATES_DIR");
+
+    qputenv("RMAP_EXAMPLES_DIR", "/custom/installed/examples");
+    QCOMPARE(PathUtils::defaultExamplesDir(), QString("/custom/installed/examples"));
+    qunsetenv("RMAP_EXAMPLES_DIR");
+
+    qputenv("RMAP_DOCS_DIR", "/custom/installed/docs");
+    QCOMPARE(PathUtils::defaultDocsDir(), QString("/custom/installed/docs"));
+    qunsetenv("RMAP_DOCS_DIR");
+}
+
+void TestPathUtils::testResolvePathWithTemplatesSubdir()
+{
+    // When secondary base dir is a templates folder (e.g. /opt/share/rmap/templates)
+    // and path starts with "templates/c/reg_map.h.inja", it should resolve correctly to
+    // /opt/share/rmap/templates/c/reg_map.h.inja (stripping redundant "templates/" prefix)
+    QDir().mkpath("work/test_path_utils/share_tmpl/c");
+    QFile f("work/test_path_utils/share_tmpl/c/reg_map.h.inja");
+    if (f.open(QIODevice::WriteOnly)) { f.write("tmpl"); f.close(); }
+
+    QString tmplDir = QDir("work/test_path_utils/share_tmpl").absolutePath();
+    // Rename/simulate ending with templates
+    QDir().mkpath("work/test_path_utils/templates/c");
+    QFile f2("work/test_path_utils/templates/c/reg_map.h.inja");
+    if (f2.open(QIODevice::WriteOnly)) { f2.write("tmpl2"); f2.close(); }
+    QString shareTmplDir = QDir("work/test_path_utils/templates").absolutePath();
+
+    QString resolved = PathUtils::resolvePath("templates/c/reg_map.h.inja", "", shareTmplDir);
+    QVERIFY(QFile::exists(resolved));
+    QCOMPARE(resolved, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
+
+    QString resolvedRel = PathUtils::resolvePath("./templates/c/reg_map.h.inja", "", shareTmplDir);
+    QVERIFY(QFile::exists(resolvedRel));
+    QCOMPARE(resolvedRel, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
 }
 
 QTEST_MAIN(TestPathUtils)

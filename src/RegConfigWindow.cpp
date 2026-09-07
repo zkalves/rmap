@@ -656,7 +656,7 @@ protormap::Config* RegConfigWindow::serialize(void)
     for (const QString &f : m_templateFolders) {
         config->add_template_folders(f.toStdString());
     }
-    config->set_templatefolder(m_templateFolders.isEmpty() ? PathUtils::DEFAULT_TEMPLATES_DIR : m_templateFolders.first().toStdString());
+    config->set_templatefolder(m_templateFolders.isEmpty() ? PathUtils::defaultTemplatesDir().toStdString() : m_templateFolders.first().toStdString());
 
     for (const auto &pair : m_customParameters) {
         (*config->mutable_custom_parameters())[pair.first.toStdString()] = pair.second.toStdString();

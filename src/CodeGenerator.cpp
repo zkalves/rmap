@@ -235,7 +235,21 @@ std::string CodeGenerator::resolveTemplatePath(
     std::string expDefault = PathUtils::expandEnvVars(default_folder);
     std::string expBase = PathUtils::expandEnvVars(base_dir);
 
-    return PathUtils::resolvePath(expTmpl, expBase, expDefault);
+    std::string resolved = PathUtils::resolvePath(expTmpl, expBase, expDefault);
+    if (QFile::exists(QString::fromStdString(resolved))) {
+        return resolved;
+    }
+
+    // Fallback: check global/installed default templates directory
+    QString defTmplDir = PathUtils::defaultTemplatesDir();
+    if (!defTmplDir.isEmpty() && defTmplDir != "./templates") {
+        std::string resFallback = PathUtils::resolvePath(expTmpl, defTmplDir.toStdString(), expBase);
+        if (QFile::exists(QString::fromStdString(resFallback))) {
+            return resFallback;
+        }
+    }
+
+    return resolved;
 }
 
 std::string CodeGenerator::resolveOutputPath(

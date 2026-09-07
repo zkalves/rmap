@@ -8,6 +8,7 @@
 #include "PathUtils.hpp"
 #include <QRegularExpression>
 #include <QProcessEnvironment>
+#include <QCoreApplication>
 #include <cstdlib>
 
 namespace PathUtils {
@@ -163,6 +164,22 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
         if (fi.exists()) {
             return normalizeSeparators(fi.canonicalFilePath());
         }
+        // If pBase ends with "templates" and expanded begins with "templates/" or "./templates/"
+        QString normP = normalizeSeparators(pBase);
+        if (normP.endsWith("/templates", Qt::CaseInsensitive) || normP == "templates") {
+            QString subTmpl = expanded;
+            if (subTmpl.startsWith("./templates/", Qt::CaseInsensitive)) {
+                subTmpl = subTmpl.mid(12);
+            } else if (subTmpl.startsWith("templates/", Qt::CaseInsensitive)) {
+                subTmpl = subTmpl.mid(10);
+            }
+            if (subTmpl != expanded) {
+                QFileInfo fiSub(QDir(pBase).filePath(subTmpl));
+                if (fiSub.exists()) {
+                    return normalizeSeparators(fiSub.canonicalFilePath());
+                }
+            }
+        }
     }
 
     // 3. Check secondary base directory (e.g. default templates folder or project root)
@@ -170,6 +187,22 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
         QFileInfo fi(QDir(sBase).filePath(expanded));
         if (fi.exists()) {
             return normalizeSeparators(fi.canonicalFilePath());
+        }
+        // If sBase ends with "templates" and expanded begins with "templates/" or "./templates/"
+        QString normS = normalizeSeparators(sBase);
+        if (normS.endsWith("/templates", Qt::CaseInsensitive) || normS == "templates") {
+            QString subTmpl = expanded;
+            if (subTmpl.startsWith("./templates/", Qt::CaseInsensitive)) {
+                subTmpl = subTmpl.mid(12);
+            } else if (subTmpl.startsWith("templates/", Qt::CaseInsensitive)) {
+                subTmpl = subTmpl.mid(10);
+            }
+            if (subTmpl != expanded) {
+                QFileInfo fiSub(QDir(sBase).filePath(subTmpl));
+                if (fiSub.exists()) {
+                    return normalizeSeparators(fiSub.canonicalFilePath());
+                }
+            }
         }
     }
 
@@ -184,6 +217,12 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
         return normalizeSeparators(QDir(pBase).filePath(expanded));
     }
     if (!sBase.isEmpty()) {
+        QString normS = normalizeSeparators(sBase);
+        if ((normS.endsWith("/templates", Qt::CaseInsensitive) || normS == "templates") &&
+            (expanded.startsWith("templates/", Qt::CaseInsensitive) || expanded.startsWith("./templates/", Qt::CaseInsensitive))) {
+            QString subTmpl = expanded.startsWith("./templates/", Qt::CaseInsensitive) ? expanded.mid(12) : expanded.mid(10);
+            return normalizeSeparators(QDir(sBase).filePath(subTmpl));
+        }
         return normalizeSeparators(QDir(sBase).filePath(expanded));
     }
     return normalizeSeparators(QDir::current().filePath(expanded));
@@ -192,6 +231,117 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
 std::string resolvePath(const std::string &path, const std::string &primaryBaseDir, const std::string &secondaryBaseDir)
 {
     return resolvePath(QString::fromStdString(path), QString::fromStdString(primaryBaseDir), QString::fromStdString(secondaryBaseDir)).toStdString();
+}
+
+QString defaultTemplatesDir()
+{
+    // 1. Explicit environment variable override
+    if (qEnvironmentVariableIsSet("RMAP_TEMPLATES_DIR")) {
+        QString envDir = QString::fromLocal8Bit(qgetenv("RMAP_TEMPLATES_DIR")).trimmed();
+        if (!envDir.isEmpty()) {
+            return normalizeSeparators(expandEnvVars(envDir));
+        }
+    }
+
+    // 2. Local "./templates" if it exists and contains template subfolders or files
+    QDir localTmpl("./templates");
+    if (localTmpl.exists() && (localTmpl.exists("rtl") || localTmpl.exists("c") || localTmpl.exists("uvm") || !localTmpl.isEmpty())) {
+        return QString::fromUtf8(DEFAULT_TEMPLATES_DIR);
+    }
+
+    // 3. Application-relative relocatable directory: <bin_dir>/../share/rmap/templates
+    QString appDir = QCoreApplication::applicationDirPath();
+    if (!appDir.isEmpty()) {
+        QDir relShare(appDir + "/../share/rmap/templates");
+        if (relShare.exists()) {
+            return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+        }
+    }
+
+    // 4. Configured compile-time installation path (e.g. /usr/local/share/rmap/templates)
+#ifdef RMAP_INSTALL_TEMPLATES_DIR
+    QString installDir = QString::fromUtf8(RMAP_INSTALL_TEMPLATES_DIR).trimmed();
+    if (!installDir.isEmpty() && QDir(installDir).exists()) {
+        return normalizeSeparators(installDir);
+    }
+#endif
+
+    // 5. Fallback relative path
+    return QString::fromUtf8(DEFAULT_TEMPLATES_DIR);
+}
+
+QString defaultExamplesDir()
+{
+    // 1. Explicit environment variable override
+    if (qEnvironmentVariableIsSet("RMAP_EXAMPLES_DIR")) {
+        QString envDir = QString::fromLocal8Bit(qgetenv("RMAP_EXAMPLES_DIR")).trimmed();
+        if (!envDir.isEmpty()) {
+            return normalizeSeparators(expandEnvVars(envDir));
+        }
+    }
+
+    // 2. Local "./examples" if it exists
+    QDir localEx("./examples");
+    if (localEx.exists() && (localEx.exists("rmt") || !localEx.isEmpty())) {
+        return QString("./examples");
+    }
+
+    // 3. Application-relative relocatable directory: <bin_dir>/../share/rmap/examples
+    QString appDir = QCoreApplication::applicationDirPath();
+    if (!appDir.isEmpty()) {
+        QDir relShare(appDir + "/../share/rmap/examples");
+        if (relShare.exists()) {
+            return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+        }
+    }
+
+    // 4. Configured compile-time installation path
+#ifdef RMAP_INSTALL_EXAMPLES_DIR
+    QString installDir = QString::fromUtf8(RMAP_INSTALL_EXAMPLES_DIR).trimmed();
+    if (!installDir.isEmpty() && QDir(installDir).exists()) {
+        return normalizeSeparators(installDir);
+    }
+#endif
+
+    // 5. Fallback relative path
+    return QString("./examples");
+}
+
+QString defaultDocsDir()
+{
+    // 1. Explicit environment variable override
+    if (qEnvironmentVariableIsSet("RMAP_DOCS_DIR")) {
+        QString envDir = QString::fromLocal8Bit(qgetenv("RMAP_DOCS_DIR")).trimmed();
+        if (!envDir.isEmpty()) {
+            return normalizeSeparators(expandEnvVars(envDir));
+        }
+    }
+
+    // 2. Local "./docs" if it exists
+    QDir localDocs("./docs");
+    if (localDocs.exists() && !localDocs.isEmpty()) {
+        return QString("./docs");
+    }
+
+    // 3. Application-relative relocatable directory: <bin_dir>/../share/doc/rmap
+    QString appDir = QCoreApplication::applicationDirPath();
+    if (!appDir.isEmpty()) {
+        QDir relDoc(appDir + "/../share/doc/rmap");
+        if (relDoc.exists()) {
+            return normalizeSeparators(relDoc.canonicalPath().isEmpty() ? relDoc.absolutePath() : relDoc.canonicalPath());
+        }
+    }
+
+    // 4. Configured compile-time installation path
+#ifdef RMAP_INSTALL_DOCDIR
+    QString installDir = QString::fromUtf8(RMAP_INSTALL_DOCDIR).trimmed();
+    if (!installDir.isEmpty() && QDir(installDir).exists()) {
+        return normalizeSeparators(installDir);
+    }
+#endif
+
+    // 5. Fallback relative path
+    return QString("./docs");
 }
 
 } // namespace PathUtils
