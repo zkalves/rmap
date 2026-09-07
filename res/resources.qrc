@@ -1,3 +1,10 @@
+<!--
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+-->
 <RCC>
   <qresource prefix="toolbar">
     <file alias="config-512.png">images/config-512.png</file>
@@ -35,5 +42,24 @@
   <qresource prefix="branding">
     <file alias="app_icon.png">images/app_icon.png</file>
     <file alias="rmap_icon.jpeg">images/icon/rmap_icon.jpeg</file>
+  </qresource>
+  <qresource prefix="translations">
+    <file alias="rmap_es.json">../translations/rmap_es.json</file>
+    <file alias="rmap_de.json">../translations/rmap_de.json</file>
+    <file alias="rmap_fr.json">../translations/rmap_fr.json</file>
+    <file alias="rmap_zh_CN.json">../translations/rmap_zh_CN.json</file>
+    <file alias="rmap_ja.json">../translations/rmap_ja.json</file>
+    <file alias="rmap_pt_BR.json">../translations/rmap_pt_BR.json</file>
+  </qresource>
+  <qresource prefix="themes">
+    <file alias="solarized8.json">../themes/solarized8.json</file>
+    <file alias="solarized8_light.json">../themes/solarized8_light.json</file>
+    <file alias="nord.json">../themes/nord.json</file>
+    <file alias="dracula.json">../themes/dracula.json</file>
+    <file alias="monokai.json">../themes/monokai.json</file>
+    <file alias="classic.json">../themes/classic.json</file>
+    <file alias="high_contrast_dark.json">../themes/high_contrast_dark.json</file>
+    <file alias="high_contrast_light.json">../themes/high_contrast_light.json</file>
+    <file alias="template.json">../themes/template.json</file>
   </qresource>
 </RCC>

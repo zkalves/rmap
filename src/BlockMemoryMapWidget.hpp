@@ -13,6 +13,7 @@
 #include <QString>
 #include <QRectF>
 #include <cstdint>
+#include "ThemeManager.hpp"
 #include "RegMapTreeItem.hpp"
 
 struct MemoryMapBlock {
@@ -45,7 +46,9 @@ public:
     const QVector<MemoryMapBlock>& blocks() const { return m_blocks; }
 
     void setColorBlindMode(bool enabled);
-    bool isColorBlindMode() const { return m_colorBlindMode; }
+    void setColorBlindMode(ColorBlindMode mode);
+    bool isColorBlindMode() const { return m_colorBlindMode != ColorBlindMode::None; }
+    ColorBlindMode colorBlindMode() const { return m_colorBlindMode; }
 
 signals:
     void registerClicked(int childRow, RegMapTreeItem *regItem);
@@ -64,7 +67,7 @@ private:
 
     RegMapTreeItem *m_blkItem = nullptr;
     uint32_t m_globalRegWidthBits = 32;
-    bool m_colorBlindMode = false;
+    ColorBlindMode m_colorBlindMode = ColorBlindMode::None;
     QVector<MemoryMapBlock> m_blocks;
     QVector<QRectF> m_blockRects;
     int m_hoveredIndex = -1;

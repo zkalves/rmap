@@ -7,6 +7,7 @@
 
 #include "rmap.hpp"
 #include "ThemeManager.hpp"
+#include "LanguageManager.hpp"
 #include "PathUtils.hpp"
 #include "RmapVersion.hpp"
 
@@ -62,6 +63,7 @@ int main(int argc, char *argv[])
     QCommandLineOption fmt_opt("report-format", "Report format for linting (text, json, sarif, junit) or diff (text, markdown)", "format", "text");
     QCommandLineOption diff_opt({"d","diff"}, "Compare loaded register map against another file", "compare_file");
     QCommandLineOption theme_opt({"t","theme","colour-scheme","color-scheme"}, "Set active colour scheme (solarized8, solarized8_light, nord, dracula, monokai, classic)", "scheme", "solarized8");
+    QCommandLineOption lang_opt({"lang","language"}, "Set application language (e.g. en, es, de, fr, zh_CN, ja, pt_BR)", "language");
 
     parser.setApplicationDescription("rmap — Hardware Register Map Designer & Model Generator");
     parser.addHelpOption();
@@ -75,6 +77,7 @@ int main(int argc, char *argv[])
     parser.addOption(fmt_opt);
     parser.addOption(diff_opt);
     parser.addOption(theme_opt);
+    parser.addOption(lang_opt);
     parser.process(app);
 
     QString regmap_file = PathUtils::expandEnvVars(parser.value("file"));
@@ -90,6 +93,9 @@ int main(int argc, char *argv[])
     RegMapWindow * mainWin = new RegMapWindow(regmap_file);
     if (parser.isSet(theme_opt)) {
         mainWin->setColourScheme(parser.value(theme_opt));
+    }
+    if (parser.isSet(lang_opt)) {
+        mainWin->setLanguage(parser.value(lang_opt));
     }
 
     if (parser.isSet(l_opt)) {

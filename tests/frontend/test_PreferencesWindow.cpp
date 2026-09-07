@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include "PreferencesWindow.hpp"
 #include "ThemeManager.hpp"
+#include "LanguageManager.hpp"
 #include "AppSettings.hpp"
 
 class TestPreferencesWindow : public QObject
@@ -23,6 +24,8 @@ private slots:
     void testColourBlindModeToggle();
     void testApplyAndReject();
     void testWindowSizePersistence();
+    void testLanguageSelection();
+    void testThemesFolderButton();
 };
 
 void TestPreferencesWindow::testPreferencesDefaults()
@@ -30,10 +33,13 @@ void TestPreferencesWindow::testPreferencesDefaults()
     PreferencesWindow prefWin;
     auto *combo = prefWin.findChild<QComboBox*>("colourSchemeCombo");
     auto *cb = prefWin.findChild<QCheckBox*>("colourBlindMode");
+    auto *cbCombo = prefWin.findChild<QComboBox*>("colourBlindCombo");
 
     QVERIFY(combo != nullptr);
     QVERIFY(cb != nullptr);
-    QVERIFY(combo->count() >= 6);
+    QVERIFY(cbCombo != nullptr);
+    QVERIFY(combo->count() >= 8);
+    QCOMPARE(cbCombo->count(), 5);
 
     QVERIFY(!prefWin.isModal());
     QVERIFY(!prefWin.isSizeGripEnabled());
@@ -61,15 +67,27 @@ void TestPreferencesWindow::testColourSchemeChange()
 void TestPreferencesWindow::testColourBlindModeToggle()
 {
     PreferencesWindow prefWin;
+    auto *cbCombo = prefWin.findChild<QComboBox*>("colourBlindCombo");
+    QVERIFY(cbCombo != nullptr);
+
     prefWin.setColourBlindMode(true);
     QCOMPARE(prefWin.isColourBlindMode(), true);
+    QVERIFY(cbCombo->isEnabled());
+
+    prefWin.setColourBlindType(ColorBlindMode::Deuteranopia);
+    QCOMPARE(prefWin.colourBlindType(), ColorBlindMode::Deuteranopia);
 
     prefWin.accept();
     QCOMPARE(AppSettings::instance().colourBlindMode(), true);
+    QCOMPARE(AppSettings::instance().colorBlindType(), ColorBlindMode::Deuteranopia);
+    QCOMPARE(ThemeManager::instance().colorBlindMode(), ColorBlindMode::Deuteranopia);
 
     prefWin.setColourBlindMode(false);
+    QCOMPARE(prefWin.isColourBlindMode(), false);
+    QVERIFY(!cbCombo->isEnabled());
     prefWin.accept();
     QCOMPARE(AppSettings::instance().colourBlindMode(), false);
+    QCOMPARE(ThemeManager::instance().colorBlindMode(), ColorBlindMode::None);
 }
 
 void TestPreferencesWindow::testApplyAndReject()
@@ -116,6 +134,40 @@ void TestPreferencesWindow::testWindowSizePersistence()
     }
 
     AppSettings::instance().setConfigFilePath(origPath);
+}
+
+void TestPreferencesWindow::testLanguageSelection()
+{
+    PreferencesWindow prefWin;
+    auto *langCombo = prefWin.findChild<QComboBox*>("languageCombo");
+    QVERIFY(langCombo != nullptr);
+    QVERIFY(langCombo->count() >= 7);
+
+    // Change to Spanish
+    prefWin.setLanguage("es");
+    QCOMPARE(prefWin.language(), QString("es"));
+
+    prefWin.accept();
+    QCOMPARE(AppSettings::instance().language(), QString("es"));
+    QCOMPARE(LanguageManager::instance().currentLanguage(), QString("es"));
+
+    // Reset back to English
+    prefWin.setLanguage("en");
+    prefWin.accept();
+    QCOMPARE(AppSettings::instance().language(), QString("en"));
+    QCOMPARE(LanguageManager::instance().currentLanguage(), QString("en"));
+}
+
+void TestPreferencesWindow::testThemesFolderButton()
+{
+    PreferencesWindow prefWin;
+    auto *btn = prefWin.findChild<QPushButton*>("btnOpenThemesFolder");
+    QVERIFY(btn != nullptr);
+    QVERIFY(!btn->text().isEmpty());
+
+    QString themesDir = ThemeManager::userThemesDir();
+    QVERIFY(!themesDir.isEmpty());
+    QVERIFY(themesDir.endsWith("themes"));
 }
 
 QTEST_MAIN(TestPreferencesWindow)

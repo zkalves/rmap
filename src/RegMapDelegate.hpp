@@ -59,6 +59,7 @@ public:
 };
 
 AccessColors getAccessPolicyColors(const QString &access, bool colorBlind);
+AccessColors getAccessPolicyColors(const QString &access, ColorBlindMode mode);
 
 // Delegate for UVM / SW Access Policies (RW, RO, WO, W1C, etc.)
 class RegAccessPolicyDelegate : public QStyledItemDelegate

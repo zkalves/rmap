@@ -29,6 +29,7 @@
 #include "RegMapWindow.hpp"
 #include "BlockMemoryMapWidget.hpp"
 #include "ThemeManager.hpp"
+#include "LanguageManager.hpp"
 #include "AppSettings.hpp"
 #include "PathUtils.hpp"
 #include "RmapVersion.hpp"
@@ -640,8 +641,11 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     connect(m_fieldsTableView, &QWidget::customContextMenuRequested, this, &RegMapWindow::showTreeContextMenu);
 
     setupThemeMenu();
+    setupColorBlindMenu();
+    setupLanguageMenu();
     setColourBlindMode(AppSettings::instance().colorBlindMode());
     setColourScheme(AppSettings::instance().colorScheme());
+    setLanguage(AppSettings::instance().language());
 
     restoreWindowStateFromSettings();
 
@@ -719,17 +723,26 @@ void RegMapWindow::onToggleColorBlindMode(bool checked)
 {
     this->setProperty("colorBlindMode", checked);
     AppSettings::instance().setColorBlindMode(checked);
+    ColorBlindMode mode = checked ? AppSettings::instance().colorBlindType() : ColorBlindMode::None;
+    ThemeManager::instance().setColorBlindMode(mode);
     if (m_bitfieldBar) {
-        m_bitfieldBar->setColorBlindMode(checked);
+        m_bitfieldBar->setColorBlindMode(mode);
     }
     if (m_blockMemoryMapWidget) {
-        m_blockMemoryMapWidget->setColorBlindMode(checked);
+        m_blockMemoryMapWidget->setColorBlindMode(mode);
     }
     if (m_pref_window) {
         m_pref_window->setColourBlindMode(checked);
+        m_pref_window->setColourBlindType(AppSettings::instance().colorBlindType());
     }
     if (actionColorBlindMode && actionColorBlindMode->isChecked() != checked) {
         actionColorBlindMode->setChecked(checked);
+    }
+    if (m_colorBlindActionGroup) {
+        QString curType = AppSettings::instance().colorBlindTypeString();
+        for (auto *act : m_colorBlindActionGroup->actions()) {
+            act->setChecked(checked && (act->data().toString() == curType));
+        }
     }
     if (this->treeView) {
         this->treeView->viewport()->update();
@@ -739,7 +752,7 @@ void RegMapWindow::onToggleColorBlindMode(bool checked)
     }
     if (this->statusBar()) {
         this->statusBar()->showMessage(
-            checked ? tr("Colour-Blind Mode (Barrier-Free CVD Palette) Enabled")
+            checked ? tr("Colour-Blind Mode (%1) Enabled").arg(colorBlindModeToString(AppSettings::instance().colorBlindType()))
                     : tr("Standard Colour Palette Active"),
             3000
         );
@@ -756,29 +769,168 @@ bool RegMapWindow::isColourBlindMode() const
     return m_bitfieldBar ? m_bitfieldBar->isColorBlindMode() : false;
 }
 
+void RegMapWindow::setColourBlindType(ColorBlindMode mode)
+{
+    if (mode == ColorBlindMode::None) {
+        onToggleColorBlindMode(false);
+        return;
+    }
+    AppSettings::instance().setColorBlindType(mode);
+    if (!isColourBlindMode()) {
+        onToggleColorBlindMode(true);
+    } else {
+        ThemeManager::instance().setColorBlindMode(mode);
+        if (m_bitfieldBar) {
+            m_bitfieldBar->setColorBlindMode(mode);
+        }
+        if (m_blockMemoryMapWidget) {
+            m_blockMemoryMapWidget->setColorBlindMode(mode);
+        }
+        if (m_pref_window) {
+            m_pref_window->setColourBlindType(mode);
+        }
+        if (m_colorBlindActionGroup) {
+            QString curType = colorBlindModeToString(mode);
+            for (auto *act : m_colorBlindActionGroup->actions()) {
+                act->setChecked(act->data().toString() == curType);
+            }
+        }
+        if (this->treeView) {
+            this->treeView->viewport()->update();
+        }
+        if (m_fieldsTableView) {
+            m_fieldsTableView->viewport()->update();
+        }
+        if (this->statusBar()) {
+            this->statusBar()->showMessage(
+                tr("Colour-Blind Profile: %1").arg(colorBlindModeToString(mode)),
+                3000
+            );
+        }
+    }
+}
+
+ColorBlindMode RegMapWindow::colourBlindType() const
+{
+    return AppSettings::instance().colorBlindType();
+}
+
+void RegMapWindow::setupColorBlindMenu(void)
+{
+    if (!menuView) return;
+
+    m_colorBlindMenu = new QMenu(tr("Colour-&Blind Profile"), menuView);
+    m_colorBlindMenu->setObjectName("menuColorBlindProfile");
+
+    rebuildColorBlindMenu();
+
+    connect(m_colorBlindMenu, &QMenu::aboutToShow, this, [this]() {
+        bool isCb = isColourBlindMode();
+        QString activeType = AppSettings::instance().colorBlindTypeString();
+        if (m_colorBlindActionGroup) {
+            for (auto *act : m_colorBlindActionGroup->actions()) {
+                act->setChecked(isCb && act->data().toString() == activeType);
+            }
+        }
+    });
+
+    connect(&ThemeManager::instance(), &ThemeManager::colorBlindModeChanged, this, [this](ColorBlindMode mode) {
+        if (m_colorBlindActionGroup) {
+            QString curType = colorBlindModeToString(mode);
+            for (auto *act : m_colorBlindActionGroup->actions()) {
+                act->setChecked(mode != ColorBlindMode::None && act->data().toString() == curType);
+            }
+        }
+    });
+
+    menuView->addMenu(m_colorBlindMenu);
+}
+
+void RegMapWindow::rebuildColorBlindMenu(void)
+{
+    if (!m_colorBlindMenu) return;
+
+    m_colorBlindMenu->clear();
+    delete m_colorBlindActionGroup;
+    m_colorBlindActionGroup = new QActionGroup(m_colorBlindMenu);
+    m_colorBlindActionGroup->setExclusive(true);
+
+    bool isCb = isColourBlindMode();
+    QString activeType = AppSettings::instance().colorBlindTypeString();
+
+    for (const auto &info : availableColorBlindModes()) {
+        QAction *act = m_colorBlindMenu->addAction(info.name);
+        act->setCheckable(true);
+        act->setData(info.id);
+        m_colorBlindActionGroup->addAction(act);
+        if (isCb && info.id == activeType) {
+            act->setChecked(true);
+        }
+
+        connect(act, &QAction::triggered, this, [this, mode = info.mode]() {
+            setColourBlindType(mode);
+        });
+    }
+}
+
 void RegMapWindow::setupThemeMenu(void)
 {
     if (!menuView) return;
 
-    QMenu* themeMenu = new QMenu(tr("&Colour Scheme"), this);
-    themeMenu->setObjectName("menuColourScheme");
-    m_themeActionGroup = new QActionGroup(this);
+    m_themeMenu = new QMenu(tr("&Colour Scheme"), menuView);
+    m_themeMenu->setObjectName("menuColourScheme");
+
+    rebuildThemeMenu();
+
+    connect(m_themeMenu, &QMenu::aboutToShow, this, [this]() {
+        ThemeManager::instance().scanThemes();
+        QString cur = ThemeManager::instance().currentThemeId();
+        if (m_themeActionGroup) {
+            for (auto *act : m_themeActionGroup->actions()) {
+                act->setChecked(act->data().toString() == cur);
+            }
+        }
+    });
+
+    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const ColorScheme &theme) {
+        if (m_themeActionGroup) {
+            for (auto *act : m_themeActionGroup->actions()) {
+                act->setChecked(act->data().toString() == theme.id);
+            }
+        }
+    });
+
+    connect(&ThemeManager::instance(), &ThemeManager::themesUpdated, this, [this]() {
+        rebuildThemeMenu();
+    });
+
+    menuView->addMenu(m_themeMenu);
+}
+
+void RegMapWindow::rebuildThemeMenu(void)
+{
+    if (!m_themeMenu) return;
+
+    m_themeMenu->clear();
+    delete m_themeActionGroup;
+    m_themeActionGroup = new QActionGroup(m_themeMenu);
     m_themeActionGroup->setExclusive(true);
 
+    QString currentTheme = ThemeManager::instance().currentThemeId();
+
     for (const auto& t : ThemeManager::instance().availableThemes()) {
-        QAction* act = themeMenu->addAction(t.name);
+        QAction* act = m_themeMenu->addAction(t.name);
         act->setCheckable(true);
         act->setData(t.id);
-        if (t.id == ThemeManager::instance().currentThemeId()) {
+        m_themeActionGroup->addAction(act);
+        if (t.id == currentTheme) {
             act->setChecked(true);
         }
-        m_themeActionGroup->addAction(act);
+
         connect(act, &QAction::triggered, this, [this, id = t.id]() {
             setColourScheme(id);
         });
     }
-
-    menuView->addMenu(themeMenu);
 }
 
 void RegMapWindow::setColourScheme(const QString &scheme)
@@ -789,11 +941,9 @@ void RegMapWindow::setColourScheme(const QString &scheme)
         m_pref_window->setColourScheme(scheme);
     }
     if (m_themeActionGroup) {
+        QString cur = ThemeManager::instance().currentThemeId();
         for (auto *act : m_themeActionGroup->actions()) {
-            if (act->data().toString() == ThemeManager::instance().currentThemeId()) {
-                act->setChecked(true);
-                break;
-            }
+            act->setChecked(act->data().toString() == cur);
         }
     }
     if (this->treeView) {
@@ -819,6 +969,135 @@ void RegMapWindow::setColourScheme(const QString &scheme)
 QString RegMapWindow::colourScheme() const
 {
     return ThemeManager::instance().currentThemeId();
+}
+
+void RegMapWindow::setupLanguageMenu(void)
+{
+    if (!menuView) return;
+
+    m_languageMenu = new QMenu(tr("&Language"), menuView);
+    m_languageMenu->setObjectName("menuLanguage");
+    m_languageActionGroup = new QActionGroup(m_languageMenu);
+    m_languageActionGroup->setExclusive(true);
+
+    QString currentLang = LanguageManager::instance().currentLanguage();
+
+    for (const auto &lang : LanguageManager::instance().availableLanguages()) {
+        QString displayName = lang.displayName();
+
+        QAction *act = m_languageMenu->addAction(displayName);
+        act->setCheckable(true);
+        act->setData(lang.code);
+        m_languageActionGroup->addAction(act);
+        if (lang.code.compare(currentLang, Qt::CaseInsensitive) == 0) {
+            act->setChecked(true);
+        }
+
+        connect(act, &QAction::triggered, this, [this, code = lang.code]() {
+            setLanguage(code);
+        });
+    }
+
+    // Always keep checkmarks perfectly synchronized when menu is opened
+    connect(m_languageMenu, &QMenu::aboutToShow, this, [this]() {
+        QString cur = LanguageManager::instance().currentLanguage();
+        if (m_languageActionGroup) {
+            for (auto *act : m_languageActionGroup->actions()) {
+                act->setChecked(act->data().toString().compare(cur, Qt::CaseInsensitive) == 0);
+            }
+        }
+    });
+
+    // Synchronize checkmarks whenever language changes from anywhere
+    connect(&LanguageManager::instance(), &LanguageManager::languageChanged, this, [this](const QString &code) {
+        if (m_languageActionGroup) {
+            for (auto *act : m_languageActionGroup->actions()) {
+                act->setChecked(act->data().toString().compare(code, Qt::CaseInsensitive) == 0);
+            }
+        }
+        if (m_pref_window) {
+            m_pref_window->setLanguage(code);
+        }
+        if (this->statusBar()) {
+            this->statusBar()->showMessage(
+                tr("Language: %1").arg(LanguageManager::instance().currentLanguageName()),
+                3000
+            );
+        }
+    });
+
+    menuView->addMenu(m_languageMenu);
+}
+
+void RegMapWindow::setLanguage(const QString &code)
+{
+    LanguageManager::instance().setLanguage(code);
+    AppSettings::instance().setLanguage(code);
+    if (m_pref_window) {
+        m_pref_window->setLanguage(code);
+    }
+
+    QString currentLang = LanguageManager::instance().currentLanguage();
+    if (m_languageActionGroup) {
+        for (auto *act : m_languageActionGroup->actions()) {
+            act->setChecked(act->data().toString().compare(currentLang, Qt::CaseInsensitive) == 0);
+        }
+    }
+
+    if (this->statusBar()) {
+        this->statusBar()->showMessage(
+            tr("Language: %1").arg(LanguageManager::instance().currentLanguageName()),
+            3000
+        );
+    }
+}
+
+QString RegMapWindow::language() const
+{
+    return LanguageManager::instance().currentLanguage();
+}
+
+void RegMapWindow::updateDynamicTranslations(void)
+{
+    if (m_languageMenu) {
+        m_languageMenu->setTitle(tr("&Language"));
+        QString currentLang = LanguageManager::instance().currentLanguage();
+        if (m_languageActionGroup) {
+            for (auto *act : m_languageActionGroup->actions()) {
+                act->setChecked(act->data().toString().compare(currentLang, Qt::CaseInsensitive) == 0);
+            }
+        }
+    }
+    if (m_themeMenu) {
+        m_themeMenu->setTitle(tr("&Colour Scheme"));
+        QString currentTheme = ThemeManager::instance().currentThemeId();
+        if (m_themeActionGroup) {
+            for (auto *act : m_themeActionGroup->actions()) {
+                act->setChecked(act->data().toString() == currentTheme);
+            }
+        }
+    }
+    if (m_colorBlindMenu) {
+        m_colorBlindMenu->setTitle(tr("Colour-&Blind Profile"));
+        rebuildColorBlindMenu();
+    }
+    if (m_model) {
+        m_model->refreshHeaderData();
+    }
+    if (m_rmap_filename.isEmpty()) {
+        setWindowTitle(tr("Register Map Generation Tool"));
+    } else {
+        setWindowTitle(QString("%1 — %2").arg(QFileInfo(m_rmap_filename).fileName(), tr("Register Map Generation Tool")));
+    }
+}
+
+void RegMapWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi(this);
+        updateDynamicTranslations();
+    }
+    QMainWindow::changeEvent(event);
 }
 
 void RegMapWindow::restoreWindowStateFromSettings()

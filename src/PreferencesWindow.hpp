@@ -10,6 +10,7 @@
 
 #include <QDialog>
 #include <QString>
+#include "ThemeManager.hpp"
 #include "ui_preferences.h"
 
 namespace Ui {
@@ -33,6 +34,14 @@ public:
     bool isColourBlindMode() const;
     bool colorBlindMode() const { return isColourBlindMode(); }
 
+    void setColourBlindType(ColorBlindMode mode);
+    ColorBlindMode colourBlindType() const;
+    void setColorBlindType(ColorBlindMode mode) { setColourBlindType(mode); }
+    ColorBlindMode colorBlindType() const { return colourBlindType(); }
+
+    void setLanguage(const QString &lang);
+    QString language() const;
+
     void saveWindowStateToSettings();
     void restoreWindowStateFromSettings();
 
@@ -40,18 +49,26 @@ public slots:
     void accept() override;
     void reject() override;
     void apply();
+    void onOpenThemesFolder();
 
 protected:
+    void showEvent(QShowEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void moveEvent(QMoveEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
 private:
     QString m_colourScheme = QStringLiteral("solarized8");
     bool m_colourBlindMode = false;
+    ColorBlindMode m_colourBlindType = ColorBlindMode::Universal;
+    QString m_language = QStringLiteral("en");
 
     void updateUiFromState();
     void saveStateFromUi();
+    void populateThemes();
+    void populateLanguages();
+    void populateColorBlindModes();
 };
 
 #endif // PREFERENCESWINDOW_HPP

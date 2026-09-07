@@ -22,6 +22,7 @@ rmap [OPTIONS]
 | | `--report-format <fmt>`| Report format for `--lint` (`text`, `json`, `sarif`, `junit`) or `--diff` (`text`, `markdown`). |
 | `-d <file2>` | `--diff <file2>` | Perform semantic register map diff against another file. |
 | `-t <scheme>`| `--theme, --colour-scheme <scheme>` | Set active colour scheme (`solarized8`, `solarized8_light`, `nord`, `dracula`, `monokai`, `classic`). |
+| | `--lang, --language <lang>` | Set application language (`en`, `es`, `de`, `fr`, `zh_CN`, `ja`, `pt_BR`). |
 | `-o <path>` | `--out <path>` | Override output destination directory for code generation, or output file path for lint/diff reports. |
 | `-h` | `--help` | Display command-line help and usage. |
 | `-v` | `--version` | Display application version. |

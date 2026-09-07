@@ -7,6 +7,7 @@
 
 #include "RegBitfieldBarWidget.hpp"
 #include "RegMapDelegate.hpp"
+#include "AppSettings.hpp"
 #include <QPainter>
 #include <QPaintEvent>
 #include <QMouseEvent>
@@ -181,8 +182,17 @@ void RegBitfieldBarWidget::computeSlices()
 
 void RegBitfieldBarWidget::setColorBlindMode(bool enabled)
 {
-    if (m_colorBlindMode != enabled) {
-        m_colorBlindMode = enabled;
+    ColorBlindMode mode = enabled ? AppSettings::instance().colorBlindType() : ColorBlindMode::None;
+    if (mode == ColorBlindMode::None && enabled) {
+        mode = ColorBlindMode::Universal;
+    }
+    setColorBlindMode(mode);
+}
+
+void RegBitfieldBarWidget::setColorBlindMode(ColorBlindMode mode)
+{
+    if (m_colorBlindMode != mode) {
+        m_colorBlindMode = mode;
         update();
     }
 }
@@ -208,6 +218,7 @@ void RegBitfieldBarWidget::paintEvent(QPaintEvent *event)
     const double usableWidth = totalWidth - 2 * marginX;
 
     const ColorScheme &theme = ThemeManager::instance().currentTheme();
+    bool cbActive = (m_colorBlindMode != ColorBlindMode::None);
 
     if (!m_regItem || m_slices.isEmpty() || m_regWidth == 0) {
         p.setPen(theme.textMuted);
@@ -251,9 +262,9 @@ void RegBitfieldBarWidget::paintEvent(QPaintEvent *event)
         if (slice.isReserved) {
             // Reserved slice background & stripes from theme
             p.save();
-            QColor resBg = m_colorBlindMode ? QColor(95, 100, 108) : theme.rsvdBg;
-            QColor resBorder = m_colorBlindMode ? QColor(65, 70, 78) : theme.rsvdBorder;
-            QColor resStripe = m_colorBlindMode ? QColor(80, 85, 92) : theme.rsvdStripe;
+            QColor resBg = cbActive ? QColor(95, 100, 108) : theme.rsvdBg;
+            QColor resBorder = cbActive ? QColor(65, 70, 78) : theme.rsvdBorder;
+            QColor resStripe = cbActive ? QColor(80, 85, 92) : theme.rsvdStripe;
 
             p.setPen(QPen(resBorder, 1.0, Qt::SolidLine));
             p.setBrush(QBrush(resBg));
@@ -275,17 +286,18 @@ void RegBitfieldBarWidget::paintEvent(QPaintEvent *event)
                 f.setPointSize(sliceW > 60 ? 8 : 7);
                 f.setBold(true);
                 p.setFont(f);
-                p.setPen(m_colorBlindMode ? QColor(235, 238, 242) : theme.rsvdText);
+                p.setPen(cbActive ? QColor(235, 238, 242) : theme.rsvdText);
                 p.drawText(sliceRect, Qt::AlignCenter, sliceW > 60 ? "RESERVED" : "RSVD");
             }
         } else {
             // Active field slice
-            QColor bgColor = getAccessColor(slice.access, true);
-            QColor borderColor = getAccessColor(slice.access, false);
+            AccessColors ac = getAccessPolicyColors(slice.access, m_colorBlindMode);
+            QColor bgColor = ac.bg;
+            QColor borderColor = ac.border;
 
             if (isSelected) {
                 bgColor = bgColor.lighter(theme.isDark ? 125 : 105);
-                borderColor = m_colorBlindMode ? QColor(0, 60, 150) : (theme.isDark ? theme.selectionText : QColor(0, 120, 215));
+                borderColor = cbActive ? QColor(0, 60, 150) : (theme.isDark ? theme.selectionText : QColor(0, 120, 215));
             } else if (isHovered) {
                 bgColor = bgColor.lighter(theme.isDark ? 120 : 110);
             }
@@ -305,7 +317,7 @@ void RegBitfieldBarWidget::paintEvent(QPaintEvent *event)
                 nameFont.setPointSize(sliceW < 40 ? 7 : (sliceW < 80 ? 8 : 9));
                 nameFont.setBold(true);
                 p.setFont(nameFont);
-                p.setPen(isSelected ? (theme.isDark ? theme.selectionText : QColor(0, 60, 150)) : (theme.isDark ? theme.textColor : borderColor.darker(150)));
+                p.setPen(isSelected ? (theme.isDark ? theme.selectionText : QColor(0, 60, 150)) : (cbActive ? ac.text : (theme.isDark ? theme.textColor : borderColor.darker(150))));
 
                 QFontMetrics fm(nameFont);
                 QString elidedName = fm.elidedText(slice.name, Qt::ElideRight, static_cast<int>(sliceW - 4));
@@ -325,7 +337,7 @@ void RegBitfieldBarWidget::paintEvent(QPaintEvent *event)
                 if (sliceW >= 35) {
                     QRectF accessRect(sliceRect.x() + 2, sliceRect.y() + sliceRect.height() * 0.72, sliceW - 4, sliceRect.height() * 0.25);
                     p.setPen(borderColor);
-                    QString accessText = m_colorBlindMode ? QString("[%1]").arg(slice.access) : slice.access;
+                    QString accessText = cbActive ? QString("[%1]").arg(slice.access) : slice.access;
                     p.drawText(accessRect, Qt::AlignCenter, accessText);
                 }
 

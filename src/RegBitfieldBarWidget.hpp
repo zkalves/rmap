@@ -13,6 +13,7 @@
 #include <QString>
 #include <QRectF>
 #include <cstdint>
+#include "ThemeManager.hpp"
 #include "RegMapTreeItem.hpp"
 
 struct BitfieldSlice {
@@ -46,7 +47,9 @@ public:
     const QVector<BitfieldSlice>& slices() const { return m_slices; }
 
     void setColorBlindMode(bool enabled);
-    bool isColorBlindMode() const { return m_colorBlindMode; }
+    void setColorBlindMode(ColorBlindMode mode);
+    bool isColorBlindMode() const { return m_colorBlindMode != ColorBlindMode::None; }
+    ColorBlindMode colorBlindMode() const { return m_colorBlindMode; }
 
 signals:
     void fieldClicked(int childRow);
@@ -66,7 +69,7 @@ private:
 
     RegMapTreeItem *m_regItem = nullptr;
     uint32_t m_regWidth = 32;
-    bool m_colorBlindMode = false;
+    ColorBlindMode m_colorBlindMode = ColorBlindMode::None;
     QVector<BitfieldSlice> m_slices;
     int m_hoveredSlice = -1;
     int m_selectedSlice = -1;

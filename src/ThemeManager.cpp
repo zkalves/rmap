@@ -6,16 +6,90 @@
  */
 
 #include "ThemeManager.hpp"
+#include "AppSettings.hpp"
 #include <QApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QCoreApplication>
+#include <cstdlib>
 
-AccessColors ColorScheme::getAccessColors(const QString &access, bool colorBlind) const
+QString colorBlindModeToString(ColorBlindMode mode)
+{
+    switch (mode) {
+    case ColorBlindMode::Universal:    return QStringLiteral("universal");
+    case ColorBlindMode::Protanopia:   return QStringLiteral("protanopia");
+    case ColorBlindMode::Deuteranopia: return QStringLiteral("deuteranopia");
+    case ColorBlindMode::Tritanopia:   return QStringLiteral("tritanopia");
+    case ColorBlindMode::Achromatopsia: return QStringLiteral("achromatopsia");
+    case ColorBlindMode::None:
+    default:
+        return QStringLiteral("none");
+    }
+}
+
+ColorBlindMode stringToColorBlindMode(const QString &str)
+{
+    QString s = str.trimmed().toLower();
+    if (s == "universal" || s == "okabe_ito" || s == "barrier_free" || s == "cvd" || s == "true" || s == "1") {
+        return ColorBlindMode::Universal;
+    } else if (s == "protanopia" || s == "protan" || s == "red_blind") {
+        return ColorBlindMode::Protanopia;
+    } else if (s == "deuteranopia" || s == "deutan" || s == "green_blind") {
+        return ColorBlindMode::Deuteranopia;
+    } else if (s == "tritanopia" || s == "tritan" || s == "blue_blind") {
+        return ColorBlindMode::Tritanopia;
+    } else if (s == "achromatopsia" || s == "monochrome" || s == "grayscale") {
+        return ColorBlindMode::Achromatopsia;
+    }
+    return ColorBlindMode::None;
+}
+
+const QList<ColorBlindModeInfo>& availableColorBlindModes()
+{
+    static const QList<ColorBlindModeInfo> modes = {
+        { ColorBlindMode::Universal, QStringLiteral("universal"), QStringLiteral("Universal (Barrier-Free Okabe-Ito)"), QStringLiteral("Universally distinguishable across all cone deficiencies") },
+        { ColorBlindMode::Deuteranopia, QStringLiteral("deuteranopia"), QStringLiteral("Deuteranopia (Green-Blind / Weak)"), QStringLiteral("Optimized for medium-wavelength cone deficiency (~6% of males)") },
+        { ColorBlindMode::Protanopia, QStringLiteral("protanopia"), QStringLiteral("Protanopia (Red-Blind / Weak)"), QStringLiteral("Optimized for long-wavelength cone deficiency (~2% of males)") },
+        { ColorBlindMode::Tritanopia, QStringLiteral("tritanopia"), QStringLiteral("Tritanopia (Blue-Blind / Weak)"), QStringLiteral("Optimized for short-wavelength cone deficiency") },
+        { ColorBlindMode::Achromatopsia, QStringLiteral("achromatopsia"), QStringLiteral("Achromatopsia (Monochrome / Grayscale)"), QStringLiteral("High-contrast luminance steps for complete color blindness") }
+    };
+    return modes;
+}
+
+AccessColors ColorScheme::getAccessColors(const QString &access, ColorBlindMode mode) const
 {
     QString a = access.toUpper().trimmed();
+
+    if (mode == ColorBlindMode::None) {
+        if (a == "RW") return rwColors;
+        if (a == "RO") return roColors;
+        if (a == "WO") return woColors;
+        if (a.startsWith("W1C") || a == "W1C" || a.startsWith("W0C") || a == "W0C" || a == "WC") return w1cColors;
+        if (a.startsWith("W1S") || a == "W1S" || a.startsWith("W0S") || a == "WS") return w1cColors;
+        if (a == "RC" || a == "RS") return rcColors;
+        return naColors;
+    }
+
     AccessColors c;
 
-    if (colorBlind) {
-        // High-Contrast CVD Barrier-Free Palette (Okabe-Ito / Wong)
-        if (a == "RO" || a == "RC" || a == "RS") {
+    // Check custom color-blind overrides first if available (for universal mode)
+    if (hasCustomColorBlind && mode == ColorBlindMode::Universal) {
+        if (a == "RO" || a == "RC" || a == "RS") return cbRo;
+        if (a == "WO") return cbWo;
+        if (a.startsWith("W1") || a.startsWith("W0") || a == "WC" || a == "WS") return cbW1c;
+        if (a == "RW") return cbRw;
+        return cbNa;
+    }
+
+    switch (mode) {
+    case ColorBlindMode::Universal: {
+        // Universal Okabe-Ito / Wong barrier-free palette
+        if (a == "RW") {
+            c.bg = QColor(128, 222, 234);
+            c.border = QColor(0, 96, 100);
+            c.text = QColor(0, 50, 60);
+        } else if (a == "RO") {
             c.bg = QColor(159, 168, 218);
             c.border = QColor(26, 35, 126);
             c.text = QColor(15, 20, 80);
@@ -23,34 +97,172 @@ AccessColors ColorScheme::getAccessColors(const QString &access, bool colorBlind
             c.bg = QColor(206, 147, 216);
             c.border = QColor(74, 20, 140);
             c.text = QColor(50, 10, 80);
-        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC" || a == "WS") {
+        } else if (a == "W1S" || a == "W0S" || a == "WS") {
+            c.bg = QColor(255, 224, 130);
+            c.border = QColor(183, 129, 3);
+            c.text = QColor(74, 48, 0);
+        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
             c.bg = QColor(255, 138, 101);
             c.border = QColor(191, 54, 12);
             c.text = QColor(100, 20, 0);
-        } else if (a == "RW") {
-            c.bg = QColor(128, 222, 234);
-            c.border = QColor(0, 96, 100);
-            c.text = QColor(0, 50, 60);
+        } else if (a == "RC" || a == "RS") {
+            c.bg = QColor(179, 157, 219);
+            c.border = QColor(49, 27, 146);
+            c.text = QColor(26, 0, 75);
         } else {
             c.bg = QColor(207, 216, 220);
             c.border = QColor(55, 71, 79);
             c.text = QColor(40, 40, 40);
         }
-        return c;
+        break;
     }
 
-    if (a == "RW") {
-        return rwColors;
-    } else if (a == "RO") {
-        return roColors;
-    } else if (a == "WO") {
-        return woColors;
-    } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC" || a == "WS") {
-        return w1cColors;
-    } else if (a == "RC" || a == "RS") {
-        return rcColors;
+    case ColorBlindMode::Protanopia: {
+        // Protanopia: Red-blind / Red-weak (L-cone deficiency)
+        if (a == "RW") {
+            c.bg = QColor(147, 197, 253); // Sky Blue
+            c.border = QColor(29, 78, 216);
+            c.text = QColor(23, 37, 84);
+        } else if (a == "RO") {
+            c.bg = QColor(165, 243, 252); // Pale Cyan
+            c.border = QColor(8, 145, 178);
+            c.text = QColor(22, 78, 99);
+        } else if (a == "WO") {
+            c.bg = QColor(254, 240, 138); // Yellow
+            c.border = QColor(161, 98, 7);
+            c.text = QColor(69, 26, 3);
+        } else if (a == "W1S" || a == "W0S" || a == "WS") {
+            c.bg = QColor(254, 249, 195);
+            c.border = QColor(133, 77, 14);
+            c.text = QColor(66, 32, 6);
+        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
+            c.bg = QColor(254, 215, 170); // Warm Peach
+            c.border = QColor(194, 65, 12);
+            c.text = QColor(67, 20, 7);
+        } else if (a == "RC" || a == "RS") {
+            c.bg = QColor(199, 210, 254); // Indigo
+            c.border = QColor(67, 56, 202);
+            c.text = QColor(30, 27, 75);
+        } else {
+            c.bg = QColor(226, 232, 240);
+            c.border = QColor(71, 85, 105);
+            c.text = QColor(15, 23, 42);
+        }
+        break;
     }
-    return naColors;
+
+    case ColorBlindMode::Deuteranopia: {
+        // Deuteranopia: Green-blind / Green-weak (M-cone deficiency)
+        if (a == "RW") {
+            c.bg = QColor(153, 246, 228); // Teal
+            c.border = QColor(15, 118, 110);
+            c.text = QColor(19, 78, 74);
+        } else if (a == "RO") {
+            c.bg = QColor(191, 219, 254); // Blue
+            c.border = QColor(30, 64, 175);
+            c.text = QColor(23, 37, 84);
+        } else if (a == "WO") {
+            c.bg = QColor(253, 224, 71); // Amber Yellow
+            c.border = QColor(161, 98, 7);
+            c.text = QColor(66, 32, 6);
+        } else if (a == "W1S" || a == "W0S" || a == "WS") {
+            c.bg = QColor(254, 240, 138);
+            c.border = QColor(180, 83, 9);
+            c.text = QColor(69, 26, 3);
+        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
+            c.bg = QColor(251, 146, 60); // Tangerine
+            c.border = QColor(154, 52, 18);
+            c.text = QColor(67, 20, 7);
+        } else if (a == "RC" || a == "RS") {
+            c.bg = QColor(221, 214, 254); // Violet
+            c.border = QColor(109, 40, 217);
+            c.text = QColor(46, 16, 101);
+        } else {
+            c.bg = QColor(226, 232, 240);
+            c.border = QColor(71, 85, 105);
+            c.text = QColor(15, 23, 42);
+        }
+        break;
+    }
+
+    case ColorBlindMode::Tritanopia: {
+        // Tritanopia: Blue-blind / Blue-weak (S-cone deficiency)
+        if (a == "RW") {
+            c.bg = QColor(204, 251, 241); // Mint Cyan
+            c.border = QColor(15, 118, 110);
+            c.text = QColor(19, 78, 74);
+        } else if (a == "RO") {
+            c.bg = QColor(254, 205, 211); // Rose Red
+            c.border = QColor(190, 18, 60);
+            c.text = QColor(76, 5, 25);
+        } else if (a == "WO") {
+            c.bg = QColor(254, 215, 170); // Warm Peach
+            c.border = QColor(194, 65, 12);
+            c.text = QColor(67, 20, 7);
+        } else if (a == "W1S" || a == "W0S" || a == "WS") {
+            c.bg = QColor(255, 228, 230);
+            c.border = QColor(159, 18, 57);
+            c.text = QColor(76, 5, 25);
+        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
+            c.bg = QColor(251, 207, 232); // Magenta
+            c.border = QColor(157, 23, 77);
+            c.text = QColor(80, 7, 36);
+        } else if (a == "RC" || a == "RS") {
+            c.bg = QColor(245, 208, 254); // Fuchsia
+            c.border = QColor(134, 25, 143);
+            c.text = QColor(74, 4, 78);
+        } else {
+            c.bg = QColor(226, 232, 240);
+            c.border = QColor(51, 65, 85);
+            c.text = QColor(15, 23, 42);
+        }
+        break;
+    }
+
+    case ColorBlindMode::Achromatopsia: {
+        // Achromatopsia: Complete color blindness (Distinct luminance steps)
+        if (a == "RW") {
+            c.bg = QColor(224, 224, 224); // 88% luminance
+            c.border = QColor(0, 0, 0);
+            c.text = QColor(0, 0, 0);
+        } else if (a == "RO") {
+            c.bg = QColor(255, 255, 255); // 100% luminance
+            c.border = QColor(0, 0, 0);
+            c.text = QColor(0, 0, 0);
+        } else if (a == "WO") {
+            c.bg = QColor(34, 34, 34); // 13% luminance
+            c.border = QColor(255, 255, 255);
+            c.text = QColor(255, 255, 255);
+        } else if (a == "W1S" || a == "W0S" || a == "WS") {
+            c.bg = QColor(136, 136, 136); // 53% luminance
+            c.border = QColor(0, 0, 0);
+            c.text = QColor(255, 255, 255);
+        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
+            c.bg = QColor(85, 85, 85); // 33% luminance
+            c.border = QColor(255, 255, 255);
+            c.text = QColor(255, 255, 255);
+        } else if (a == "RC" || a == "RS") {
+            c.bg = QColor(170, 170, 170); // 67% luminance
+            c.border = QColor(0, 0, 0);
+            c.text = QColor(0, 0, 0);
+        } else {
+            c.bg = QColor(51, 51, 51); // 20% luminance
+            c.border = QColor(119, 119, 119);
+            c.text = QColor(204, 204, 204);
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+
+    return c;
+}
+
+AccessColors ColorScheme::getAccessColors(const QString &access, bool colorBlind) const
+{
+    return getAccessColors(access, colorBlind ? ColorBlindMode::Universal : ColorBlindMode::None);
 }
 
 QPalette ColorScheme::generatePalette() const
@@ -145,21 +357,194 @@ QString ColorScheme::generateStyleSheet() const
     return qss;
 }
 
-ThemeManager& ThemeManager::instance()
+static QColor parseColor(const QJsonValue &val, const QColor &fallback)
 {
-    static ThemeManager mgr;
-    return mgr;
+    if (val.isString()) {
+        QString s = val.toString().trimmed();
+        if (!s.isEmpty()) {
+            QColor c(s);
+            if (c.isValid()) {
+                return c;
+            }
+        }
+    }
+    return fallback;
 }
 
-ThemeManager::ThemeManager()
+bool ColorScheme::fromJson(const QJsonObject &obj)
 {
-    registerThemes();
-    m_currentIndex = 0; // Default to Solarized 8 (Dark)
+    QString schemeId = obj.value("id").toString().trimmed();
+    if (schemeId.isEmpty()) {
+        return false;
+    }
+
+    *this = ColorScheme::createDefault(schemeId);
+    this->id = schemeId;
+
+    if (obj.contains("name") && obj["name"].isString()) {
+        this->name = obj["name"].toString().trimmed();
+    }
+    if (obj.contains("isDark")) {
+        this->isDark = obj["isDark"].toBool(this->isDark);
+    }
+
+    QJsonObject baseObj = obj.value("base").toObject();
+    auto getBaseColor = [&](const QString &key, const QColor &def) -> QColor {
+        if (baseObj.contains(key)) return parseColor(baseObj.value(key), def);
+        if (obj.contains(key)) return parseColor(obj.value(key), def);
+        return def;
+    };
+
+    windowBg      = getBaseColor("windowBg", windowBg);
+    panelBg       = getBaseColor("panelBg", panelBg);
+    altRowBg      = getBaseColor("altRowBg", altRowBg);
+    textColor     = getBaseColor("textColor", textColor);
+    textMuted     = getBaseColor("textMuted", textMuted);
+    headerBg      = getBaseColor("headerBg", headerBg);
+    headerText    = getBaseColor("headerText", headerText);
+    border        = getBaseColor("border", border);
+    selectionBg   = getBaseColor("selectionBg", selectionBg);
+    selectionText = getBaseColor("selectionText", selectionText);
+    buttonBg      = getBaseColor("buttonBg", buttonBg);
+    buttonHover   = getBaseColor("buttonHover", buttonHover);
+    inputBg       = getBaseColor("inputBg", inputBg);
+    inputBorder   = getBaseColor("inputBorder", inputBorder);
+    errorBg       = getBaseColor("errorBg", errorBg);
+    errorBorder   = getBaseColor("errorBorder", errorBorder);
+    errorText     = getBaseColor("errorText", errorText);
+
+    QJsonObject rsvdObj = obj.value("reserved").toObject();
+    auto getRsvdColor = [&](const QString &key, const QString &flatKey, const QColor &def) -> QColor {
+        if (rsvdObj.contains(key)) return parseColor(rsvdObj.value(key), def);
+        if (obj.contains(flatKey)) return parseColor(obj.value(flatKey), def);
+        return def;
+    };
+
+    rsvdBg     = getRsvdColor("bg", "rsvdBg", rsvdBg);
+    rsvdBorder = getRsvdColor("border", "rsvdBorder", rsvdBorder);
+    rsvdStripe = getRsvdColor("stripe", "rsvdStripe", rsvdStripe);
+    rsvdText   = getRsvdColor("text", "rsvdText", rsvdText);
+    rulerText  = getRsvdColor("rulerText", "rulerText", rulerText);
+
+    QJsonObject apObj = obj.value("accessPolicies").toObject();
+    auto getAccess = [&](const QString &key, const AccessColors &def) -> AccessColors {
+        QJsonObject o = apObj.value(key).toObject();
+        if (o.isEmpty() && obj.contains(key) && obj.value(key).isObject()) {
+            o = obj.value(key).toObject();
+        }
+        if (o.isEmpty()) return def;
+        AccessColors res = def;
+        if (o.contains("bg")) res.bg = parseColor(o.value("bg"), def.bg);
+        if (o.contains("border")) res.border = parseColor(o.value("border"), def.border);
+        if (o.contains("text")) res.text = parseColor(o.value("text"), def.text);
+        return res;
+    };
+
+    rwColors  = getAccess("rw", rwColors);
+    roColors  = getAccess("ro", roColors);
+    woColors  = getAccess("wo", woColors);
+    w1cColors = getAccess("w1c", w1cColors);
+    rcColors  = getAccess("rc", rcColors);
+    naColors  = getAccess("na", naColors);
+
+    if (obj.contains("colorBlind") && obj.value("colorBlind").isObject()) {
+        QJsonObject cbObj = obj.value("colorBlind").toObject();
+        auto getCb = [&](const QString &key, const AccessColors &def) -> AccessColors {
+            QJsonObject o = cbObj.value(key).toObject();
+            if (o.isEmpty()) return def;
+            AccessColors res = def;
+            if (o.contains("bg")) res.bg = parseColor(o.value("bg"), def.bg);
+            if (o.contains("border")) res.border = parseColor(o.value("border"), def.border);
+            if (o.contains("text")) res.text = parseColor(o.value("text"), def.text);
+            return res;
+        };
+        hasCustomColorBlind = true;
+        AccessColors defRo  = { QColor(159, 168, 218), QColor(26, 35, 126), QColor(15, 20, 80) };
+        AccessColors defWo  = { QColor(206, 147, 216), QColor(74, 20, 140), QColor(50, 10, 80) };
+        AccessColors defW1c = { QColor(255, 138, 101), QColor(191, 54, 12), QColor(100, 20, 0) };
+        AccessColors defRw  = { QColor(128, 222, 234), QColor(0, 96, 100), QColor(0, 50, 60) };
+        AccessColors defNa  = { QColor(207, 216, 220), QColor(55, 71, 79), QColor(40, 40, 40) };
+
+        cbRo  = getCb("ro", defRo);
+        cbWo  = getCb("wo", defWo);
+        cbW1c = getCb("w1c", defW1c);
+        cbRw  = getCb("rw", defRw);
+        cbRc  = getCb("rc", cbRo);
+        cbNa  = getCb("na", defNa);
+    }
+
+    return true;
 }
 
-void ThemeManager::registerThemes()
+QJsonObject ColorScheme::toJson() const
 {
-    m_themes.clear();
+    QJsonObject root;
+    root["id"] = id;
+    root["name"] = name;
+    root["isDark"] = isDark;
+
+    QJsonObject base;
+    base["windowBg"]      = windowBg.name();
+    base["panelBg"]       = panelBg.name();
+    base["altRowBg"]      = altRowBg.name();
+    base["textColor"]     = textColor.name();
+    base["textMuted"]     = textMuted.name();
+    base["headerBg"]      = headerBg.name();
+    base["headerText"]    = headerText.name();
+    base["border"]        = border.name();
+    base["selectionBg"]   = selectionBg.name();
+    base["selectionText"] = selectionText.name();
+    base["buttonBg"]      = buttonBg.name();
+    base["buttonHover"]   = buttonHover.name();
+    base["inputBg"]       = inputBg.name();
+    base["inputBorder"]   = inputBorder.name();
+    base["errorBg"]       = errorBg.name();
+    base["errorBorder"]   = errorBorder.name();
+    base["errorText"]     = errorText.name();
+    root["base"] = base;
+
+    QJsonObject rsvd;
+    rsvd["bg"]        = rsvdBg.name();
+    rsvd["border"]    = rsvdBorder.name();
+    rsvd["stripe"]    = rsvdStripe.name();
+    rsvd["text"]      = rsvdText.name();
+    rsvd["rulerText"] = rulerText.name();
+    root["reserved"] = rsvd;
+
+    auto accessToJson = [](const AccessColors &c) {
+        QJsonObject o;
+        o["bg"] = c.bg.name();
+        o["border"] = c.border.name();
+        o["text"] = c.text.name();
+        return o;
+    };
+
+    QJsonObject ap;
+    ap["rw"]  = accessToJson(rwColors);
+    ap["ro"]  = accessToJson(roColors);
+    ap["wo"]  = accessToJson(woColors);
+    ap["w1c"] = accessToJson(w1cColors);
+    ap["rc"]  = accessToJson(rcColors);
+    ap["na"]  = accessToJson(naColors);
+    root["accessPolicies"] = ap;
+
+    if (hasCustomColorBlind) {
+        QJsonObject cb;
+        cb["ro"]  = accessToJson(cbRo);
+        cb["wo"]  = accessToJson(cbWo);
+        cb["w1c"] = accessToJson(cbW1c);
+        cb["rw"]  = accessToJson(cbRw);
+        cb["rc"]  = accessToJson(cbRc);
+        cb["na"]  = accessToJson(cbNa);
+        root["colorBlind"] = cb;
+    }
+
+    return root;
+}
+
+QList<ColorScheme> ColorScheme::builtInDefaults()
+{
+    QList<ColorScheme> list;
 
     // 1. Solarized 8 (Dark) — Ethan Schoonover / Lifepillar (Default!)
     {
@@ -168,38 +553,38 @@ void ThemeManager::registerThemes()
         s.name = "Solarized 8 (Dark)";
         s.isDark = true;
 
-        s.windowBg       = QColor("#002b36"); // Base03
-        s.panelBg        = QColor("#002b36"); // Base03
-        s.altRowBg       = QColor("#073642"); // Base02
-        s.textColor      = QColor("#839496"); // Base0
-        s.textMuted      = QColor("#586e75"); // Base01
-        s.headerBg       = QColor("#073642"); // Base02
-        s.headerText     = QColor("#93a1a1"); // Base1
-        s.border         = QColor("#0d4857"); // Base02/01 mid
-        s.selectionBg    = QColor("#1e5666"); // Solarized highlight
-        s.selectionText  = QColor("#fdf6e3"); // Base3
-        s.buttonBg       = QColor("#073642"); // Base02
+        s.windowBg       = QColor("#002b36");
+        s.panelBg        = QColor("#002b36");
+        s.altRowBg       = QColor("#073642");
+        s.textColor      = QColor("#839496");
+        s.textMuted      = QColor("#586e75");
+        s.headerBg       = QColor("#073642");
+        s.headerText     = QColor("#93a1a1");
+        s.border         = QColor("#0d4857");
+        s.selectionBg    = QColor("#1e5666");
+        s.selectionText  = QColor("#fdf6e3");
+        s.buttonBg       = QColor("#073642");
         s.buttonHover    = QColor("#0e4654");
-        s.inputBg        = QColor("#073642"); // Base02
-        s.inputBorder    = QColor("#586e75"); // Base01
-        s.errorBg        = QColor("#42161b"); // Soft dark red
-        s.errorBorder    = QColor("#dc322f"); // Red
-        s.errorText      = QColor("#fdf6e3"); // Base3
+        s.inputBg        = QColor("#073642");
+        s.inputBorder    = QColor("#586e75");
+        s.errorBg        = QColor("#42161b");
+        s.errorBorder    = QColor("#dc322f");
+        s.errorText      = QColor("#fdf6e3");
 
-        s.rsvdBg         = QColor("#073642"); // Base02
-        s.rsvdBorder     = QColor("#586e75"); // Base01
-        s.rsvdStripe     = QColor("#002b36"); // Base03
-        s.rsvdText       = QColor("#839496"); // Base0
-        s.rulerText      = QColor("#586e75"); // Base01
+        s.rsvdBg         = QColor("#073642");
+        s.rsvdBorder     = QColor("#586e75");
+        s.rsvdStripe     = QColor("#002b36");
+        s.rsvdText       = QColor("#839496");
+        s.rulerText      = QColor("#586e75");
 
-        s.rwColors       = { QColor("#103e2e"), QColor("#859900"), QColor("#859900") }; // Green
-        s.roColors       = { QColor("#0e3c54"), QColor("#268bd2"), QColor("#268bd2") }; // Blue
-        s.woColors       = { QColor("#44281e"), QColor("#cb4b16"), QColor("#cb4b16") }; // Orange
-        s.w1cColors      = { QColor("#3e3518"), QColor("#b58900"), QColor("#b58900") }; // Yellow
-        s.rcColors       = { QColor("#2d274c"), QColor("#6c71c4"), QColor("#6c71c4") }; // Violet
-        s.naColors       = { QColor("#073642"), QColor("#586e75"), QColor("#839496") }; // Base01
+        s.rwColors       = { QColor("#103e2e"), QColor("#859900"), QColor("#859900") };
+        s.roColors       = { QColor("#0e3c54"), QColor("#268bd2"), QColor("#268bd2") };
+        s.woColors       = { QColor("#44281e"), QColor("#cb4b16"), QColor("#cb4b16") };
+        s.w1cColors      = { QColor("#3e3518"), QColor("#b58900"), QColor("#b58900") };
+        s.rcColors       = { QColor("#2d274c"), QColor("#6c71c4"), QColor("#6c71c4") };
+        s.naColors       = { QColor("#073642"), QColor("#586e75"), QColor("#839496") };
 
-        m_themes.append(s);
+        list.append(s);
     }
 
     // 2. Solarized 8 (Light)
@@ -209,22 +594,22 @@ void ThemeManager::registerThemes()
         s.name = "Solarized 8 (Light)";
         s.isDark = false;
 
-        s.windowBg       = QColor("#fdf6e3"); // Base3
-        s.panelBg        = QColor("#fdf6e3"); // Base3
-        s.altRowBg       = QColor("#eee8d5"); // Base2
-        s.textColor      = QColor("#657b83"); // Base00
-        s.textMuted      = QColor("#93a1a1"); // Base1
-        s.headerBg       = QColor("#eee8d5"); // Base2
-        s.headerText     = QColor("#586e75"); // Base01
+        s.windowBg       = QColor("#fdf6e3");
+        s.panelBg        = QColor("#fdf6e3");
+        s.altRowBg       = QColor("#eee8d5");
+        s.textColor      = QColor("#657b83");
+        s.textMuted      = QColor("#93a1a1");
+        s.headerBg       = QColor("#eee8d5");
+        s.headerText     = QColor("#586e75");
         s.border         = QColor("#d3cbb7");
-        s.selectionBg    = QColor("#268bd2"); // Blue
-        s.selectionText  = QColor("#fdf6e3"); // Base3
-        s.buttonBg       = QColor("#eee8d5"); // Base2
+        s.selectionBg    = QColor("#268bd2");
+        s.selectionText  = QColor("#fdf6e3");
+        s.buttonBg       = QColor("#eee8d5");
         s.buttonHover    = QColor("#e0d7be");
         s.inputBg        = QColor("#ffffff");
-        s.inputBorder    = QColor("#93a1a1"); // Base1
+        s.inputBorder    = QColor("#93a1a1");
         s.errorBg        = QColor("#fadbd8");
-        s.errorBorder    = QColor("#dc322f"); // Red
+        s.errorBorder    = QColor("#dc322f");
         s.errorText      = QColor("#78281f");
 
         s.rsvdBg         = QColor("#eee8d5");
@@ -240,7 +625,7 @@ void ThemeManager::registerThemes()
         s.rcColors       = { QColor("#e1bee7"), QColor("#6c71c4"), QColor("#4a148c") };
         s.naColors       = { QColor("#eee8d5"), QColor("#93a1a1"), QColor("#657b83") };
 
-        m_themes.append(s);
+        list.append(s);
     }
 
     // 3. Nord (Dark)
@@ -281,7 +666,7 @@ void ThemeManager::registerThemes()
         s.rcColors       = { QColor("#35263d"), QColor("#b48ead"), QColor("#b48ead") };
         s.naColors       = { QColor("#3b4252"), QColor("#4c566a"), QColor("#d8dee9") };
 
-        m_themes.append(s);
+        list.append(s);
     }
 
     // 4. Dracula (Dark)
@@ -322,7 +707,7 @@ void ThemeManager::registerThemes()
         s.rcColors       = { QColor("#352542"), QColor("#bd93f9"), QColor("#bd93f9") };
         s.naColors       = { QColor("#343746"), QColor("#6272a4"), QColor("#f8f8f2") };
 
-        m_themes.append(s);
+        list.append(s);
     }
 
     // 5. Monokai (Dark)
@@ -363,7 +748,7 @@ void ThemeManager::registerThemes()
         s.rcColors       = { QColor("#322045"), QColor("#ae81ff"), QColor("#ae81ff") };
         s.naColors       = { QColor("#383830"), QColor("#75715e"), QColor("#f8f8f2") };
 
-        m_themes.append(s);
+        list.append(s);
     }
 
     // 6. Classic Light
@@ -404,8 +789,163 @@ void ThemeManager::registerThemes()
         s.rcColors       = { QColor("#d1c4e9"), QColor("#512da8"), QColor("#311b92") };
         s.naColors       = { QColor("#e4e7eb"), QColor("#757575"), QColor("#606060") };
 
+        list.append(s);
+    }
+
+    // 7. High Contrast (Dark)
+    {
+        ColorScheme s;
+        s.id = "high_contrast_dark";
+        s.name = "High Contrast (Dark)";
+        s.isDark = true;
+
+        s.windowBg       = QColor("#000000");
+        s.panelBg        = QColor("#000000");
+        s.altRowBg       = QColor("#121212");
+        s.textColor      = QColor("#ffffff");
+        s.textMuted      = QColor("#ffff00");
+        s.headerBg       = QColor("#1a1a1a");
+        s.headerText     = QColor("#ffffff");
+        s.border         = QColor("#ffffff");
+        s.selectionBg    = QColor("#0055d4");
+        s.selectionText  = QColor("#ffffff");
+        s.buttonBg       = QColor("#1f1f1f");
+        s.buttonHover    = QColor("#333333");
+        s.inputBg        = QColor("#000000");
+        s.inputBorder    = QColor("#ffffff");
+        s.errorBg        = QColor("#550000");
+        s.errorBorder    = QColor("#ff0000");
+        s.errorText      = QColor("#ffffff");
+
+        s.rsvdBg         = QColor("#1a1a1a");
+        s.rsvdBorder     = QColor("#ffffff");
+        s.rsvdStripe     = QColor("#000000");
+        s.rsvdText       = QColor("#ffff00");
+        s.rulerText      = QColor("#ffffff");
+
+        s.rwColors       = { QColor("#003300"), QColor("#00ff00"), QColor("#00ff00") };
+        s.roColors       = { QColor("#002244"), QColor("#00ffff"), QColor("#00ffff") };
+        s.woColors       = { QColor("#442200"), QColor("#ff8800"), QColor("#ff8800") };
+        s.w1cColors      = { QColor("#444400"), QColor("#ffff00"), QColor("#ffff00") };
+        s.rcColors       = { QColor("#440044"), QColor("#ff00ff"), QColor("#ff00ff") };
+        s.naColors       = { QColor("#222222"), QColor("#aaaaaa"), QColor("#ffffff") };
+
+        list.append(s);
+    }
+
+    // 8. High Contrast (Light)
+    {
+        ColorScheme s;
+        s.id = "high_contrast_light";
+        s.name = "High Contrast (Light)";
+        s.isDark = false;
+
+        s.windowBg       = QColor("#ffffff");
+        s.panelBg        = QColor("#ffffff");
+        s.altRowBg       = QColor("#f0f0f0");
+        s.textColor      = QColor("#000000");
+        s.textMuted      = QColor("#000000");
+        s.headerBg       = QColor("#e0e0e0");
+        s.headerText     = QColor("#000000");
+        s.border         = QColor("#000000");
+        s.selectionBg    = QColor("#000088");
+        s.selectionText  = QColor("#ffffff");
+        s.buttonBg       = QColor("#e6e6e6");
+        s.buttonHover    = QColor("#cccccc");
+        s.inputBg        = QColor("#ffffff");
+        s.inputBorder    = QColor("#000000");
+        s.errorBg        = QColor("#ffcccc");
+        s.errorBorder    = QColor("#cc0000");
+        s.errorText      = QColor("#000000");
+
+        s.rsvdBg         = QColor("#cccccc");
+        s.rsvdBorder     = QColor("#000000");
+        s.rsvdStripe     = QColor("#ffffff");
+        s.rsvdText       = QColor("#000000");
+        s.rulerText      = QColor("#000000");
+
+        s.rwColors       = { QColor("#c8f7c5"), QColor("#006600"), QColor("#004d00") };
+        s.roColors       = { QColor("#cce5ff"), QColor("#0000aa"), QColor("#000088") };
+        s.woColors       = { QColor("#ffe0cc"), QColor("#cc4400"), QColor("#993300") };
+        s.w1cColors      = { QColor("#fff2b3"), QColor("#997a00"), QColor("#665200") };
+        s.rcColors       = { QColor("#edd4ff"), QColor("#660099"), QColor("#4d0073") };
+        s.naColors       = { QColor("#e0e0e0"), QColor("#000000"), QColor("#000000") };
+
+        list.append(s);
+    }
+
+    return list;
+}
+
+ColorScheme ColorScheme::createDefault(const QString &id)
+{
+    QString key = id.trimmed().toLower();
+    if (key.isEmpty() || key == "solarized" || key == "solarized8" || key == "solarized8_dark" || key == "solarized_dark" || key == "default" || key == "dark") {
+        key = "solarized8";
+    } else if (key == "solarized8_light" || key == "solarized_light" || key == "light") {
+        key = "solarized8_light";
+    } else if (key == "high_contrast" || key == "high_contrast_dark" || key == "high-contrast" || key == "high-contrast-dark") {
+        key = "high_contrast_dark";
+    } else if (key == "high_contrast_light" || key == "high-contrast-light") {
+        key = "high_contrast_light";
+    }
+
+    for (const auto &s : builtInDefaults()) {
+        if (s.id.toLower() == key) {
+            return s;
+        }
+    }
+
+    ColorScheme fallback = builtInDefaults().first();
+    fallback.id = id;
+    fallback.name = id;
+    return fallback;
+}
+
+ThemeManager& ThemeManager::instance()
+{
+    static ThemeManager mgr;
+    return mgr;
+}
+
+ThemeManager::ThemeManager()
+{
+    registerThemes();
+    m_currentIndex = 0; // Default to Solarized 8 (Dark)
+}
+
+void ThemeManager::registerThemes()
+{
+    m_themes.clear();
+
+    // 1. Built-in C++ hardcoded defaults
+    for (const auto &s : ColorScheme::builtInDefaults()) {
         m_themes.append(s);
     }
+
+    // 2. Embedded Qt resource files :/themes/*.json
+    QDir qrcDir(":/themes");
+    if (qrcDir.exists()) {
+        for (const QFileInfo &fi : qrcDir.entryInfoList(QStringList() << "*.json", QDir::Files)) {
+            if (fi.fileName().compare("template.json", Qt::CaseInsensitive) == 0) {
+                continue;
+            }
+            loadThemeFromJson(fi.absoluteFilePath());
+        }
+    }
+
+    // 3. Scan user and local search directories
+    for (const QString &path : searchPaths()) {
+        scanThemesDir(path);
+    }
+}
+
+void ThemeManager::resetToDefaults()
+{
+    QString curId = currentThemeId();
+    registerThemes();
+    setTheme(curId);
+    emit themesUpdated();
 }
 
 const QList<ColorScheme>& ThemeManager::availableThemes() const
@@ -451,15 +991,38 @@ QString ThemeManager::currentThemeName() const
 
 bool ThemeManager::setTheme(const QString &idOrName)
 {
-    QString key = idOrName.trimmed().toLower();
-    if (key.isEmpty() || key == "solarized" || key == "solarized8" || key == "solarized8_dark" || key == "solarized_dark" || key == "default" || key == "dark") {
+    QString key = idOrName.trimmed();
+    if (key.isEmpty() || key.compare("solarized", Qt::CaseInsensitive) == 0 ||
+        key.compare("solarized8", Qt::CaseInsensitive) == 0 ||
+        key.compare("solarized8_dark", Qt::CaseInsensitive) == 0 ||
+        key.compare("solarized_dark", Qt::CaseInsensitive) == 0 ||
+        key.compare("default", Qt::CaseInsensitive) == 0 ||
+        key.compare("dark", Qt::CaseInsensitive) == 0) {
         key = "solarized8";
-    } else if (key == "solarized8_light" || key == "solarized_light" || key == "light") {
+    } else if (key.compare("solarized8_light", Qt::CaseInsensitive) == 0 ||
+               key.compare("solarized_light", Qt::CaseInsensitive) == 0 ||
+               key.compare("light", Qt::CaseInsensitive) == 0) {
         key = "solarized8_light";
     }
 
+    // If key points to an existing JSON file, load it
+    if (key.endsWith(".json", Qt::CaseInsensitive) && QFile::exists(key)) {
+        QFile f(key);
+        if (f.open(QIODevice::ReadOnly)) {
+            QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+            if (doc.isObject()) {
+                ColorScheme scheme;
+                if (scheme.fromJson(doc.object())) {
+                    registerTheme(scheme);
+                    key = scheme.id;
+                }
+            }
+        }
+    }
+
     for (int i = 0; i < m_themes.size(); ++i) {
-        if (m_themes[i].id.toLower() == key || m_themes[i].name.toLower() == key) {
+        if (m_themes[i].id.compare(key, Qt::CaseInsensitive) == 0 ||
+            m_themes[i].name.compare(key, Qt::CaseInsensitive) == 0) {
             m_currentIndex = i;
             if (qApp) {
                 qApp->setPalette(m_themes[i].generatePalette());
@@ -472,7 +1035,194 @@ bool ThemeManager::setTheme(const QString &idOrName)
     return false;
 }
 
+ColorBlindMode ThemeManager::colorBlindMode() const
+{
+    return m_colorBlindMode;
+}
+
+QString ThemeManager::colorBlindModeId() const
+{
+    return colorBlindModeToString(m_colorBlindMode);
+}
+
+void ThemeManager::setColorBlindMode(ColorBlindMode mode)
+{
+    if (m_colorBlindMode != mode) {
+        m_colorBlindMode = mode;
+        emit colorBlindModeChanged(m_colorBlindMode);
+    }
+}
+
+void ThemeManager::setColorBlindMode(const QString &modeId)
+{
+    setColorBlindMode(stringToColorBlindMode(modeId));
+}
+
+void ThemeManager::setColorBlindMode(bool enabled)
+{
+    setColorBlindMode(enabled ? ColorBlindMode::Universal : ColorBlindMode::None);
+}
+
+AccessColors ThemeManager::getAccessColors(const QString &access, ColorBlindMode mode) const
+{
+    return currentTheme().getAccessColors(access, mode);
+}
+
 AccessColors ThemeManager::getAccessColors(const QString &access, bool colorBlind) const
 {
-    return currentTheme().getAccessColors(access, colorBlind);
+    return currentTheme().getAccessColors(access, colorBlind ? ColorBlindMode::Universal : ColorBlindMode::None);
 }
+
+bool ThemeManager::registerTheme(const ColorScheme &scheme)
+{
+    if (scheme.id.isEmpty()) {
+        return false;
+    }
+
+    for (int i = 0; i < m_themes.size(); ++i) {
+        if (m_themes[i].id.compare(scheme.id, Qt::CaseInsensitive) == 0) {
+            m_themes[i] = scheme;
+            if (m_currentIndex == i && qApp) {
+                qApp->setPalette(m_themes[i].generatePalette());
+                qApp->setStyleSheet(m_themes[i].generateStyleSheet());
+            }
+            emit themesUpdated();
+            return true;
+        }
+    }
+
+    m_themes.append(scheme);
+    emit themesUpdated();
+    return true;
+}
+
+bool ThemeManager::loadThemeFromJson(const QString &jsonPathOrContent)
+{
+    QByteArray data;
+    QFileInfo fi(jsonPathOrContent);
+    if (fi.exists() && fi.isFile()) {
+        QFile f(jsonPathOrContent);
+        if (!f.open(QIODevice::ReadOnly)) {
+            return false;
+        }
+        data = f.readAll();
+    } else {
+        data = jsonPathOrContent.toUtf8();
+    }
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return false;
+    }
+
+    ColorScheme scheme;
+    if (!scheme.fromJson(doc.object())) {
+        return false;
+    }
+
+    return registerTheme(scheme);
+}
+
+int ThemeManager::scanThemesDir(const QString &dirPath)
+{
+    QDir dir(dirPath);
+    if (!dir.exists()) {
+        return 0;
+    }
+
+    QStringList filters;
+    filters << "*.json";
+    QFileInfoList files = dir.entryInfoList(filters, QDir::Files | QDir::Readable, QDir::Name);
+
+    int loadedCount = 0;
+    for (const QFileInfo &fi : files) {
+        if (fi.fileName().compare("template.json", Qt::CaseInsensitive) == 0) {
+            continue;
+        }
+        if (loadThemeFromJson(fi.absoluteFilePath())) {
+            loadedCount++;
+        }
+    }
+    return loadedCount;
+}
+
+void ThemeManager::scanThemes()
+{
+    bool updated = false;
+    for (const QString &path : searchPaths()) {
+        if (scanThemesDir(path) > 0) {
+            updated = true;
+        }
+    }
+    if (updated) {
+        emit themesUpdated();
+    }
+}
+
+QString ThemeManager::userThemesDir()
+{
+    QString configDir = QFileInfo(AppSettings::instance().configFilePath()).path();
+    return QDir(configDir).filePath("themes");
+}
+
+QString ThemeManager::localThemesDir()
+{
+    return QDir::current().filePath("themes");
+}
+
+QStringList ThemeManager::searchPaths() const
+{
+    QStringList paths;
+
+    // 1. RMAP_THEMES_PATH or RMAP_THEME_DIR environment variable
+    const char *envThemes = std::getenv("RMAP_THEMES_PATH");
+    if (!envThemes || envThemes[0] == '\0') {
+        envThemes = std::getenv("RMAP_THEME_DIR");
+    }
+    if (envThemes && envThemes[0] != '\0') {
+        for (const QString &p : QString::fromUtf8(envThemes).split(QDir::listSeparator(), Qt::SkipEmptyParts)) {
+            if (!paths.contains(p)) paths.append(p);
+        }
+    }
+
+    // 2. Custom search paths registered via addSearchPath
+    for (const QString &p : m_customSearchPaths) {
+        if (!paths.contains(p)) paths.append(p);
+    }
+
+    // 3. Installed system paths
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString installPath = QDir(appDir + "/../share/rmap/themes").canonicalPath();
+    if (!installPath.isEmpty() && !paths.contains(installPath)) {
+        paths.append(installPath);
+    }
+    if (QDir("/usr/local/share/rmap/themes").exists() && !paths.contains("/usr/local/share/rmap/themes")) {
+        paths.append("/usr/local/share/rmap/themes");
+    }
+    if (QDir("/usr/share/rmap/themes").exists() && !paths.contains("/usr/share/rmap/themes")) {
+        paths.append("/usr/share/rmap/themes");
+    }
+
+    // 4. Current working directory themes
+    QString localPath = localThemesDir();
+    if (QDir(localPath).exists() && !paths.contains(localPath)) {
+        paths.append(localPath);
+    }
+
+    // 5. User config directory themes (~/.config/rmap/themes)
+    QString userPath = userThemesDir();
+    if (!paths.contains(userPath)) {
+        paths.append(userPath);
+    }
+
+    return paths;
+}
+
+void ThemeManager::addSearchPath(const QString &path)
+{
+    if (!path.isEmpty() && !m_customSearchPaths.contains(path)) {
+        m_customSearchPaths.append(path);
+    }
+}
+

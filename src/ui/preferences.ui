@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+-->
 <ui version="4.0">
  <class>preferences</class>
  <widget class="QDialog" name="preferences">
@@ -38,7 +45,21 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QComboBox" name="colourSchemeCombo"/>
+       <layout class="QHBoxLayout" name="colourSchemeLayout">
+        <item>
+         <widget class="QComboBox" name="colourSchemeCombo"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnOpenThemesFolder">
+          <property name="text">
+           <string>Themes Folder...</string>
+          </property>
+          <property name="toolTip">
+           <string>Open custom themes directory to add or edit custom JSON themes</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_colourBlindMode">
@@ -48,14 +69,35 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QCheckBox" name="colourBlindMode">
+       <layout class="QHBoxLayout" name="colourBlindLayout">
+        <item>
+         <widget class="QCheckBox" name="colourBlindMode">
+          <property name="text">
+           <string>Enable</string>
+          </property>
+          <property name="toolTip">
+           <string>Enable barrier-free high-contrast palette with explicit textual access policy tags</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="colourBlindCombo">
+          <property name="toolTip">
+           <string>Select Colour Vision Deficiency (CVD) profile</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_language">
         <property name="text">
-         <string>Barrier-Free CVD Palette</string>
-        </property>
-        <property name="toolTip">
-         <string>Enable high-contrast barrier-free palette with explicit textual access policy tags</string>
+         <string>Language:</string>
         </property>
        </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="languageCombo"/>
       </item>
      </layout>
     </widget>

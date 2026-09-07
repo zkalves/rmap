@@ -35,7 +35,7 @@ BlockMemoryMapWidget::BlockMemoryMapWidget(QWidget *parent)
     setMouseTracking(true);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
     setMinimumWidth(260);
-    m_colorBlindMode = AppSettings::instance().colorBlindMode();
+    m_colorBlindMode = AppSettings::instance().colorBlindMode() ? AppSettings::instance().colorBlindType() : ColorBlindMode::None;
 
     connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this, [this]() {
         update();
@@ -44,8 +44,19 @@ BlockMemoryMapWidget::BlockMemoryMapWidget(QWidget *parent)
 
 void BlockMemoryMapWidget::setColorBlindMode(bool enabled)
 {
-    m_colorBlindMode = enabled;
-    update();
+    ColorBlindMode mode = enabled ? AppSettings::instance().colorBlindType() : ColorBlindMode::None;
+    if (mode == ColorBlindMode::None && enabled) {
+        mode = ColorBlindMode::Universal;
+    }
+    setColorBlindMode(mode);
+}
+
+void BlockMemoryMapWidget::setColorBlindMode(ColorBlindMode mode)
+{
+    if (m_colorBlindMode != mode) {
+        m_colorBlindMode = mode;
+        update();
+    }
 }
 
 void BlockMemoryMapWidget::setBlock(RegMapTreeItem *blkItem, uint32_t regWidthBits)
@@ -342,7 +353,7 @@ void BlockMemoryMapWidget::paintEvent(QPaintEvent *event)
 
             // Access Policy & Width Badges on right side of block
             int badgeRight = contentRect.right();
-            QString accessBadge = m_colorBlindMode ? QString("[%1]").arg(b.access) : b.access;
+            QString accessBadge = (m_colorBlindMode != ColorBlindMode::None) ? QString("[%1]").arg(b.access) : b.access;
             QFont badgeFont = font();
             badgeFont.setPointSize(8);
             badgeFont.setBold(true);

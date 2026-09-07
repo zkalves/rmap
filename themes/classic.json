@@ -1,0 +1,90 @@
+{
+  "id": "classic",
+  "name": "Classic Light",
+  "isDark": false,
+  "base": {
+    "windowBg": "#f5f6f8",
+    "panelBg": "#ffffff",
+    "altRowBg": "#f0f2f5",
+    "textColor": "#212121",
+    "textMuted": "#757575",
+    "headerBg": "#e9ecef",
+    "headerText": "#212121",
+    "border": "#dcdfe4",
+    "selectionBg": "#1976d2",
+    "selectionText": "#ffffff",
+    "buttonBg": "#e9ecef",
+    "buttonHover": "#dde1e5",
+    "inputBg": "#ffffff",
+    "inputBorder": "#cccccc",
+    "errorBg": "#ffc8c8",
+    "errorBorder": "#d32f2f",
+    "errorText": "#5f1313"
+  },
+  "reserved": {
+    "bg": "#666666",
+    "border": "#484848",
+    "stripe": "#555555",
+    "text": "#ebeef2",
+    "rulerText": "#646464"
+  },
+  "accessPolicies": {
+    "rw": {
+      "bg": "#a5d6a7",
+      "border": "#1b5e20",
+      "text": "#1b5e20"
+    },
+    "ro": {
+      "bg": "#bbdefb",
+      "border": "#0d47a1",
+      "text": "#0d47a1"
+    },
+    "wo": {
+      "bg": "#ffcc80",
+      "border": "#e65100",
+      "text": "#bf360c"
+    },
+    "w1c": {
+      "bg": "#fff59d",
+      "border": "#f57f17",
+      "text": "#e65100"
+    },
+    "rc": {
+      "bg": "#d1c4e9",
+      "border": "#512da8",
+      "text": "#311b92"
+    },
+    "na": {
+      "bg": "#e4e7eb",
+      "border": "#757575",
+      "text": "#606060"
+    }
+  },
+  "colorBlind": {
+    "ro": {
+      "bg": "#9fa8da",
+      "border": "#1a237e",
+      "text": "#0f1450"
+    },
+    "wo": {
+      "bg": "#ce93d8",
+      "border": "#4a148c",
+      "text": "#320a50"
+    },
+    "w1c": {
+      "bg": "#ff8a65",
+      "border": "#bf360c",
+      "text": "#641400"
+    },
+    "rw": {
+      "bg": "#80deea",
+      "border": "#006064",
+      "text": "#00323c"
+    },
+    "na": {
+      "bg": "#cfd8dc",
+      "border": "#37474f",
+      "text": "#282828"
+    }
+  }
+}

@@ -13,6 +13,7 @@
 #include <QTableWidget>
 #include "RegMapWindow.hpp"
 #include "BlockMemoryMapWidget.hpp"
+#include "LanguageManager.hpp"
 #include "AppSettings.hpp"
 #include "format/FormatManager.hpp"
 
@@ -71,6 +72,8 @@ private slots:
     void testMenuStructure();
     void testColorSchemeSwitching();
     void testMainWindowSizePersistence();
+    void testLanguageMenuStructure();
+    void testLanguageSwitching();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen()
@@ -1289,6 +1292,101 @@ void TestRegMapWindow::testMainWindowSizePersistence()
     }
 
     AppSettings::instance().setConfigFilePath(origPath);
+}
+
+void TestRegMapWindow::testLanguageMenuStructure()
+{
+    QString file = "examples/rmt/peripherals/spi.rmt";
+    RegMapWindow window(file);
+    window.show();
+
+    // Verify Language menu is inside View menu only
+    auto *menuView = window.findChild<QMenu*>("menuView");
+    QVERIFY(menuView != nullptr);
+
+    auto *menuLang = window.findChild<QMenu*>("menuLanguage");
+    QVERIFY(menuLang != nullptr);
+    QVERIFY(menuView->actions().contains(menuLang->menuAction()));
+
+    // Verify exact build-time configured languages (7 languages)
+    QCOMPARE(menuLang->actions().size(), 7);
+
+    // Verify runtime addition/removal actions do NOT exist
+    auto *actAdd = window.findChild<QAction*>("actionAddTranslationFile");
+    auto *actReload = window.findChild<QAction*>("actionReloadTranslations");
+    QVERIFY(actAdd == nullptr);
+    QVERIFY(actReload == nullptr);
+}
+
+void TestRegMapWindow::testLanguageSwitching()
+{
+    QString file = "examples/rmt/peripherals/spi.rmt";
+    RegMapWindow window(file);
+    window.show();
+
+    // Default is English
+    // Verify menu checkmarks
+    auto *menuLang = window.findChild<QMenu*>("menuLanguage");
+    QVERIFY(menuLang != nullptr);
+
+    auto verifyOnlyThisLanguageChecked = [menuLang](const QString &code) -> bool {
+        int checkedCount = 0;
+        QString checkedCode;
+        for (auto *act : menuLang->actions()) {
+            if (act->isChecked()) {
+                checkedCount++;
+                checkedCode = act->data().toString();
+            }
+        }
+        return (checkedCount == 1 && checkedCode.compare(code, Qt::CaseInsensitive) == 0);
+    };
+
+    QVERIFY(verifyOnlyThisLanguageChecked("en"));
+
+    // Switch to Spanish via action trigger
+    QAction *actEs = nullptr;
+    for (auto *act : menuLang->actions()) {
+        if (act->data().toString() == "es") {
+            actEs = act;
+            break;
+        }
+    }
+    QVERIFY(actEs != nullptr);
+    actEs->trigger();
+
+    QCOMPARE(window.language(), QString("es"));
+    QCOMPARE(LanguageManager::instance().currentLanguage(), QString("es"));
+    QVERIFY(verifyOnlyThisLanguageChecked("es"));
+
+    // Verify model header translations
+    auto *model = window.getModel();
+    QVERIFY(model != nullptr);
+    QCOMPARE(model->headerData(1, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Desplazamiento"));
+    QCOMPARE(model->headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Tamaño"));
+
+    // Switch to German via setLanguage
+    window.setLanguage("de");
+    QCOMPARE(window.language(), QString("de"));
+    QVERIFY(verifyOnlyThisLanguageChecked("de"));
+    QCOMPARE(model->headerData(1, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Offset"));
+    QCOMPARE(model->headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Größe"));
+
+    // Switch back to English
+    window.setLanguage("en");
+    QCOMPARE(window.language(), QString("en"));
+    QVERIFY(verifyOnlyThisLanguageChecked("en"));
+    QCOMPARE(model->headerData(1, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Offset"));
+    QCOMPARE(model->headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Size"));
+
+    // Switch via LanguageManager directly (as Preferences dialog does)
+    LanguageManager::instance().setLanguage("fr");
+    QCOMPARE(window.language(), QString("fr"));
+    QVERIFY(verifyOnlyThisLanguageChecked("fr"));
+
+    // Reset back to English
+    window.setLanguage("en");
+    QCOMPARE(window.language(), QString("en"));
+    QVERIFY(verifyOnlyThisLanguageChecked("en"));
 }
 
 QTEST_MAIN(TestRegMapWindow)
