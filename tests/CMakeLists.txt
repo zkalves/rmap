@@ -38,6 +38,7 @@ set(FRONTEND_TESTS
     test_PreferencesWindow
     test_AboutWindow
     test_Delegates
+    test_RegBitfieldBarWidget
 )
 
 foreach(test_name ${FRONTEND_TESTS})

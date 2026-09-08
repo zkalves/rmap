@@ -8,8 +8,10 @@
 #include <QtTest>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QSortFilterProxyModel>
 #include "RegMapDelegate.hpp"
 #include "RegMapTreeModel.hpp"
+#include "ThemeManager.hpp"
 
 class TestDelegates : public QObject
 {
@@ -27,6 +29,10 @@ private slots:
     void testHwAccessDelegate();
     void testBoolDelegate();
     void testStrDelegate();
+    void testRegIntDelegate();
+    void testRegMapDelegatePaintValidationAndProxy();
+    void testDelegateColorBlindModeAndBadgeEdges();
+    void testDelegateEventsEdgeCases();
 };
 
 void TestDelegates::testHexDecBinDelegateValidation()
@@ -369,6 +375,201 @@ void TestDelegates::testDelegateBadgePainting()
     hwDelegate.paint(&painter, option, fldHwIndex);
 
     QVERIFY(!image.isNull());
+}
+
+void TestDelegates::testRegIntDelegate()
+{
+    QWidget parent;
+    RegIntDelegate delegate(&parent);
+    QStyleOptionViewItem option;
+    QModelIndex index;
+
+    QWidget *editor = delegate.createEditor(&parent, option, index);
+    QLineEdit *lineEdit = qobject_cast<QLineEdit*>(editor);
+    QVERIFY(lineEdit != nullptr);
+
+    const QValidator *validator = lineEdit->validator();
+    int pos = 0;
+    QString validNum = "987654";
+    QCOMPARE(validator->validate(validNum, pos), QValidator::Acceptable);
+
+    QString invalidNum = "12abc";
+    pos = 0;
+    QCOMPARE(validator->validate(invalidNum, pos), QValidator::Invalid);
+
+    delete editor;
+}
+
+void TestDelegates::testRegMapDelegatePaintValidationAndProxy()
+{
+    QImage image(200, 30, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+
+    QStyleOptionViewItem option;
+    option.rect = QRect(0, 0, 200, 30);
+
+    RegMapTreeModel model;
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+
+    QModelIndex fldOffset = model.index(0, 1, regIndex);
+    model.setData(fldOffset, "0x10", Qt::EditRole);
+
+    RegHexDecBinDelegate hexDelegate;
+
+    // 1. Paint valid regex value
+    hexDelegate.paint(&painter, option, fldOffset);
+
+    // 2. Paint value "NA" (regex check bypassed)
+    model.setData(fldOffset, "NA", Qt::EditRole);
+    hexDelegate.paint(&painter, option, fldOffset);
+
+    // 3. Paint regex-invalid value
+    model.setData(fldOffset, "INVALID_HEX_XYZ", Qt::EditRole);
+    hexDelegate.paint(&painter, option, fldOffset);
+
+    // 4. Paint via QSortFilterProxyModel unwrapping
+    QSortFilterProxyModel proxy;
+    proxy.setSourceModel(&model);
+    QModelIndex proxyBlk = proxy.index(0, 0, QModelIndex());
+    QModelIndex proxyReg = proxy.index(0, 0, proxyBlk);
+    QModelIndex proxyFldOffset = proxy.index(0, 1, proxyReg);
+
+    hexDelegate.paint(&painter, option, proxyFldOffset);
+
+    // 5. Model-level invalid check highlighted via proxy
+    model.setData(model.index(0, 3, QModelIndex()), "", Qt::EditRole); // Empty name -> invalid
+    model.checkData(32);
+    QModelIndex proxyBlkName = proxy.index(0, 3, QModelIndex());
+    RegStrDelegate strDelegate;
+    strDelegate.paint(&painter, option, proxyBlkName);
+
+    QVERIFY(!image.isNull());
+}
+
+void TestDelegates::testDelegateColorBlindModeAndBadgeEdges()
+{
+    QImage image(300, 40, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::white);
+    QPainter painter(&image);
+
+    QStyleOptionViewItem option;
+    option.rect = QRect(0, 0, 300, 40); // Wide badge triggers badgeRect width adjustment
+
+    RegMapTreeModel model;
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+
+    QModelIndex fldAccessIndex = model.index(0, 4, regIndex);
+    QModelIndex fldHwIndex = model.index(0, 5, regIndex);
+
+    // 1. Paint access "NA" or empty string
+    model.setData(fldAccessIndex, "NA", Qt::EditRole);
+    RegAccessPolicyDelegate swDelegate;
+    swDelegate.paint(&painter, option, fldAccessIndex);
+
+    model.setData(fldAccessIndex, "", Qt::EditRole);
+    swDelegate.paint(&painter, option, fldAccessIndex);
+
+    // 2. Paint with parent property "colorBlindMode" set to true
+    QWidget parentWidget;
+    parentWidget.setProperty("colorBlindMode", true);
+    RegAccessPolicyDelegate swDelegateParent(&parentWidget);
+    model.setData(fldAccessIndex, "RW", Qt::EditRole);
+    swDelegateParent.paint(&painter, option, fldAccessIndex);
+
+    RegHwAccessDelegate hwDelegateParent(&parentWidget);
+    model.setData(fldHwIndex, "RO", Qt::EditRole);
+    hwDelegateParent.paint(&painter, option, fldHwIndex);
+
+    // 3. Paint with global Universal ColorBlindMode
+    ThemeManager::instance().setColorBlindMode(ColorBlindMode::Universal);
+    swDelegate.paint(&painter, option, fldAccessIndex);
+    hwDelegateParent.paint(&painter, option, fldHwIndex);
+
+    // Empty HW access defaults to RO
+    model.setData(fldHwIndex, "", Qt::EditRole);
+    hwDelegateParent.paint(&painter, option, fldHwIndex);
+
+    // Reset back to None
+    ThemeManager::instance().setColorBlindMode(ColorBlindMode::None);
+
+    QVERIFY(!image.isNull());
+}
+
+void TestDelegates::testDelegateEventsEdgeCases()
+{
+    QWidget parent;
+    QStyleOptionViewItem option;
+
+    RegMapTreeModel model;
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+
+    QModelIndex fldAccessIndex = model.index(0, 4, regIndex);
+    QModelIndex fldHwIndex = model.index(0, 5, regIndex);
+    QModelIndex fldBoolIndex = model.index(0, 7, regIndex);
+
+    // 1. Right click event is ignored by all single-click cycling delegates
+    QMouseEvent rightClick(QEvent::MouseButtonRelease, QPointF(10, 10), QPointF(10, 10), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QMouseEvent pressEvent(QEvent::MouseButtonPress, QPointF(10, 10), QPointF(10, 10), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+
+    RegAccessPolicyDelegate swDelegate(&parent);
+    QVERIFY(!swDelegate.editorEvent(&rightClick, &model, option, fldAccessIndex));
+    QVERIFY(!swDelegate.editorEvent(&pressEvent, &model, option, fldAccessIndex));
+
+    RegHwAccessDelegate hwDelegate(&parent);
+    QVERIFY(!hwDelegate.editorEvent(&rightClick, &model, option, fldHwIndex));
+    QVERIFY(!hwDelegate.editorEvent(&pressEvent, &model, option, fldHwIndex));
+
+    RegBoolDelegate boolDelegate(&parent);
+    QVERIFY(!boolDelegate.editorEvent(&rightClick, &model, option, fldBoolIndex));
+    QVERIFY(!boolDelegate.editorEvent(&pressEvent, &model, option, fldBoolIndex));
+
+    // 2. Cycling from unknown / non-standard policy defaults to standard
+    model.setData(fldAccessIndex, "CUSTOM_POLICY", Qt::EditRole);
+    QMouseEvent leftClick(QEvent::MouseButtonRelease, QPointF(10, 10), QPointF(10, 10), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QVERIFY(swDelegate.editorEvent(&leftClick, &model, option, fldAccessIndex));
+    QCOMPARE(model.data(fldAccessIndex, Qt::DisplayRole).toString(), QString("RW"));
+
+    model.setData(fldHwIndex, "CUSTOM_HW", Qt::EditRole);
+    QVERIFY(hwDelegate.editorEvent(&leftClick, &model, option, fldHwIndex));
+    QCOMPARE(model.data(fldHwIndex, Qt::DisplayRole).toString(), QString("RO"));
+
+    // 3. Bool delegate toggle with "1" and other values
+    model.setData(fldBoolIndex, "1", Qt::EditRole);
+    QVERIFY(boolDelegate.editorEvent(&leftClick, &model, option, fldBoolIndex));
+    QCOMPARE(model.data(fldBoolIndex, Qt::DisplayRole).toString(), QString("false"));
+
+    model.setData(fldBoolIndex, "0", Qt::EditRole);
+    QVERIFY(boolDelegate.editorEvent(&leftClick, &model, option, fldBoolIndex));
+    QCOMPARE(model.data(fldBoolIndex, Qt::DisplayRole).toString(), QString("true"));
+
+    // 4. setEditorData with value not in combo box
+    QWidget *editor = swDelegate.createEditor(&parent, option, fldAccessIndex);
+    model.setData(fldAccessIndex, "UNRECOGNIZED", Qt::EditRole);
+    swDelegate.setEditorData(editor, fldAccessIndex);
+    delete editor;
+
+    QWidget *hwEditor = hwDelegate.createEditor(&parent, option, fldHwIndex);
+    model.setData(fldHwIndex, "UNRECOGNIZED", Qt::EditRole);
+    hwDelegate.setEditorData(hwEditor, fldHwIndex);
+    delete hwEditor;
+
+    QWidget *boolEditor = boolDelegate.createEditor(&parent, option, fldBoolIndex);
+    model.setData(fldBoolIndex, "UNRECOGNIZED", Qt::EditRole);
+    boolDelegate.setEditorData(boolEditor, fldBoolIndex);
+    delete boolEditor;
 }
 
 QTEST_MAIN(TestDelegates)

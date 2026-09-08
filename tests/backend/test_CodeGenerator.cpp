@@ -51,6 +51,10 @@ private slots:
     void testDynamicSimulationPathResolution();
     void testComprehensiveTemplateVerification();
     void testPythonScriptExecutionOnGeneration();
+    void testErrorRecoveryAndInvalidTemplates();
+    void testHelpersExtendedEdgeCases();
+    void testLegacyAndDirectoryMethods();
+    void testPythonRunnerEdgeCases();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -1488,6 +1492,168 @@ void TestCodeGenerator::testPythonScriptExecutionOnGeneration()
     );
     QVERIFY(missingReport.has_errors());
     QVERIFY(QString::fromStdString(missingReport.errors[0].second).contains("does not exist"));
+}
+
+void TestCodeGenerator::testErrorRecoveryAndInvalidTemplates()
+{
+    CodeGenerator cg;
+    json data = json::object();
+    data["name"] = "test_block";
+
+    // 1. Template file does not exist in mappings
+    std::vector<TemplateMapping> mappings = {
+        {"templates/non_existent_tmpl.inja", "work/cg_err/out.txt"}
+    };
+    GenerationReport rep = cg.generate(data, "templates", "work/cg_err", mappings);
+    QVERIFY(rep.has_errors());
+    QVERIFY(rep.errors[0].second.find("Template file does not exist") != std::string::npos);
+
+    // 2. Inja syntax error during template parsing / rendering
+    QDir().mkpath("work/cg_err");
+    QFile badTmpl("work/cg_err/bad_syntax.inja");
+    QVERIFY(badTmpl.open(QIODevice::WriteOnly | QIODevice::Text));
+    badTmpl.write("{% if %}\n{{ undefined_fn(1, 2) }}\n");
+    badTmpl.close();
+
+    std::vector<TemplateMapping> badMappings = {
+        {"work/cg_err/bad_syntax.inja", "work/cg_err/bad_out.txt"}
+    };
+    GenerationReport badRep = cg.generate(data, "templates", "work/cg_err", badMappings, QDir::currentPath().toStdString());
+    QVERIFY(badRep.has_errors());
+    QVERIFY(badRep.errors[0].second.find("Template rendering error") != std::string::npos);
+
+    // 3. Empty mappings triggers parseDirectory fallback
+    data["blocks"] = json::array({
+        {
+            {"name", "ctrl_block"},
+            {"offset", 0},
+            {"registers", json::array()}
+        }
+    });
+    GenerationReport emptyMapRep = cg.generate(data, "templates/c", "work/cg_empty_map", {});
+    QVERIFY(!emptyMapRep.has_errors());
+    QVERIFY(!emptyMapRep.success_files.empty());
+}
+
+void TestCodeGenerator::testHelpersExtendedEdgeCases()
+{
+    CodeGenerator cg;
+    json data = json::object();
+    data["name"] = "test_block";
+
+    QDir().mkpath("work/cg_helpers");
+    QFile tmpl("work/cg_helpers/edge.inja");
+    QVERIFY(tmpl.open(QIODevice::WriteOnly | QIODevice::Text));
+    tmpl.write(
+        "upper_q={{ upper(\"quoted\") }}\n"
+        "lower_q={{ lower(\"QUOTED\") }}\n"
+        "hex_str={{ to_hex(\"0x30\", 4) }}\n"
+        "hex_bad={{ to_hex(\"not_a_num\", 4) }}\n"
+        "dec_str={{ to_dec(\"123\") }}\n"
+        "dec_bad={{ to_dec(\"not_a_num\") }}\n"
+        "mask_64={{ bitmask(64, 0) }}\n"
+        "mask_big_lsb={{ bitmask(32, 70) }}\n"
+        "pad_str={{ pad_zero(\"42\", 4) }}\n"
+        "pad_bad={{ pad_zero(\"not_a_num\", 4) }}\n"
+        "snake_dash={{ snake_case(\"foo-bar baz\") }}\n"
+        "snake_camel={{ snake_case(\"camelCaseWord\") }}\n"
+        "sv_hex_str={{ sv_hex(\"0x123\", \"16\") }}\n"
+        "sv_hex_bad={{ sv_hex(\"not_num\", \"invalid\") }}\n"
+        "sv_hex_no_width={{ sv_hex(255) }}\n"
+        "sv_hex_zero_width={{ sv_hex(255, 0) }}\n"
+    );
+    tmpl.close();
+
+    std::vector<TemplateMapping> mappings = {
+        {"work/cg_helpers/edge.inja", "work/cg_helpers/edge.txt"}
+    };
+    GenerationReport rep = cg.generate(data, "templates", "work/cg_helpers", mappings, QDir::currentPath().toStdString());
+    QVERIFY(!rep.has_errors());
+
+    QFile outFile("work/cg_helpers/edge.txt");
+    QVERIFY(outFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = QString::fromUtf8(outFile.readAll());
+    outFile.close();
+
+    QVERIFY(content.contains("upper_q=QUOTED"));
+    QVERIFY(content.contains("lower_q=quoted"));
+    QVERIFY(content.contains("hex_str=0x0030"));
+    QVERIFY(content.contains("hex_bad=0x0000"));
+    QVERIFY(content.contains("dec_str=123"));
+    QVERIFY(content.contains("dec_bad=0"));
+    QVERIFY(content.contains("mask_64=0xFFFFFFFFFFFFFFFF"));
+    QVERIFY(content.contains("mask_big_lsb=0x0"));
+    QVERIFY(content.contains("pad_str=0042"));
+    QVERIFY(content.contains("snake_dash=foo_bar_baz"));
+    QVERIFY(content.contains("snake_camel=camel_case_word"));
+    QVERIFY(content.contains("sv_hex_str=16'h0123"));
+    QVERIFY(content.contains("sv_hex_bad=32'h0000"));
+}
+
+void TestCodeGenerator::testLegacyAndDirectoryMethods()
+{
+    CodeGenerator cg;
+    json data = json::object();
+    data["name"] = "legacy_test";
+
+    // 1. parse() legacy method
+    cg.parse(data, "templates/c", "work/cg_legacy_parse");
+
+    // 2. parseCustom() legacy method
+    std::vector<TemplateMapping> mappings = {
+        {"templates/c/reg_map.h.inja", "work/cg_legacy_custom/reg_map.h"}
+    };
+    cg.parseCustom(data, "templates", mappings);
+
+    // 3. parseDirectory with non-existent directory
+    GenerationReport repNonEx = cg.parseDirectory(data, "non_existent_folder_xyz_123", "work/cg_out");
+    QVERIFY(repNonEx.has_errors());
+    QVERIFY(repNonEx.errors[0].second.find("Template directory does not exist") != std::string::npos);
+
+    // 4. parseDirectory with empty directory
+    QDir().mkpath("work/cg_empty_tmpl_dir");
+    GenerationReport repEmpty = cg.parseDirectory(data, "work/cg_empty_tmpl_dir", "work/cg_out");
+    QVERIFY(!repEmpty.has_errors());
+    QVERIFY(repEmpty.success_files.empty());
+
+    // 5. Template ending in .tmpl
+    QFile tmplFile("work/cg_empty_tmpl_dir/sample.tmpl");
+    QVERIFY(tmplFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    tmplFile.write("Hello {{ name }}!\n");
+    tmplFile.close();
+
+    GenerationReport repTmpl = cg.parseDirectory(data, "work/cg_empty_tmpl_dir", "work/cg_tmpl_out");
+    QVERIFY(!repTmpl.has_errors());
+    QVERIFY(QFile::exists("work/cg_tmpl_out/sample"));
+}
+
+void TestCodeGenerator::testPythonRunnerEdgeCases()
+{
+    CodeGenerator cg;
+    json data = json::object();
+    std::string err;
+
+    // 1. Empty python script path
+    bool okEmpty = cg.runPythonScript("", data, "", nullptr, &err);
+    QVERIFY(!okEmpty);
+    QCOMPARE(err, std::string("No Python script specified."));
+
+    // 2. Non-existent python script file
+    bool okNonEx = cg.runPythonScript("non_existent_script_xyz.py", data, "", nullptr, &err);
+    QVERIFY(!okNonEx);
+    QVERIFY(err.find("Python script file does not exist") != std::string::npos);
+
+    // 3. Invalid python executable
+    qputenv("RMAP_PYTHON", "/non/existent/bin/python_xyz_12345");
+    QDir().mkpath("work/cg_py_test");
+    QFile scriptFile("work/cg_py_test/test.py");
+    QVERIFY(scriptFile.open(QIODevice::WriteOnly | QIODevice::Text));
+    scriptFile.write("print('ok')\n");
+    scriptFile.close();
+
+    bool okBadExe = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", nullptr, &err);
+    QVERIFY(!okBadExe);
+    qunsetenv("RMAP_PYTHON");
 }
 
 QTEST_MAIN(TestCodeGenerator)

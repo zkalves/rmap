@@ -51,6 +51,10 @@ public:
     bool isColorBlindMode() const { return m_colorBlindMode != ColorBlindMode::None; }
     ColorBlindMode colorBlindMode() const { return m_colorBlindMode; }
 
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+    QColor getAccessColor(const QString &access, bool isBackground) const;
+
 signals:
     void fieldClicked(int childRow);
 
@@ -59,13 +63,10 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
-    QSize sizeHint() const override;
-    QSize minimumSizeHint() const override;
 
 private:
     void computeSlices();
     int sliceIndexAt(const QPoint &pos) const;
-    QColor getAccessColor(const QString &access, bool isBackground) const;
 
     RegMapTreeItem *m_regItem = nullptr;
     uint32_t m_regWidth = 32;

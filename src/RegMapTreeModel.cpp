@@ -385,7 +385,7 @@ bool RegMapTreeModel::clear(void)
 
 bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
-    if (role != Qt::EditRole) return false;
+    if (role != Qt::EditRole || !index.isValid()) return false;
 
     RegMapTreeItem* item = getItem(index);
     if (!item) return false;
