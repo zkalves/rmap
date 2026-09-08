@@ -38,8 +38,13 @@ private slots:
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
         QDir().mkpath("work");
+        qputenv("RMAP_CONFIG_FILE", "work/rmap_test.conf");
+        AppSettings::instance().setConfigFilePath("work/rmap_test.conf");
+        AppSettings::instance().setColorBlindMode(false);
+        AppSettings::instance().setColorScheme("solarized8");
     }
     void cleanupTestCase() {
+        AppSettings::instance().setColorBlindMode(false);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
         qInstallMessageHandler(s_originalHandler);

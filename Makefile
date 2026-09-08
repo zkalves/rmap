@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
+.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -74,6 +74,21 @@ test-templates: rmap
 
 # Run complete verification: unit tests and template verification
 test-all: test-unit test-templates
+
+# Run automated unit tests with compiler code coverage and generate multi-metric summary
+coverage:
+	@mkdir -p build
+	@cd build && cmake .. -DCMAKE_INSTALL_PREFIX="$(PREFIX)" -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
+	@cmake --build build --parallel $(JOBS)
+	@rm -rf work
+	@mkdir -p work/coverage
+	@find build -name "*.gcda" -delete 2>/dev/null || true
+	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "unit" --output-on-failure
+	@python3 script/generate_coverage.py --build-dir build --html work/coverage/index.html --markdown work/coverage/coverage.md --json work/coverage/coverage.json --summary
+
+# Run coverage and update the Code Coverage Metrics report on the GitHub main page (README.md)
+coverage-report: coverage
+	@python3 script/generate_coverage.py --build-dir build --update-readme
 
 # Convenience alias for test-unit
 test check: test-unit

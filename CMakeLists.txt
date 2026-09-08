@@ -21,6 +21,25 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# Code Coverage Support
+option(ENABLE_COVERAGE "Enable code coverage metrics instrumentation" OFF)
+
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Enabling code coverage instrumentation across all targets")
+        add_compile_options(--coverage -O0 -g)
+        add_link_options(--coverage)
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag("-fcondition-coverage" COMPILER_SUPPORTS_CONDITION_COVERAGE)
+        if(COMPILER_SUPPORTS_CONDITION_COVERAGE)
+            message(STATUS "Enabling condition coverage (-fcondition-coverage)")
+            add_compile_options(-fcondition-coverage)
+        endif()
+    else()
+        message(WARNING "Code coverage is only supported on GCC and Clang")
+    endif()
+endif()
+
 # Fetch Dependencies
 include(FetchContent)
 set(INJA_BUILD_TESTS OFF CACHE BOOL "" FORCE)

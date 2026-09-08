@@ -55,15 +55,27 @@ make rmap
 # Run the test suite
 make test
 
+# Run unit tests with compiler code coverage and print metrics summary
+make coverage
+
+# Generate HTML, Markdown, and JSON coverage reports
+make coverage-report
+
 # Launch the application
 make run
 ```
 
 ### Direct CMake Commands
 ```bash
+# Build and run tests
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 cmake --build build -j$(nproc)
 QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+
+# Or build with multi-metric code coverage enabled
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
+cmake --build build -j$(nproc)
+python3 script/generate_coverage.py --build-dir build --summary
 ```
 
 ---

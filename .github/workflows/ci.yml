@@ -219,8 +219,55 @@ jobs:
       - name: Run Template Test
         run: QT_QPA_PLATFORM=offscreen python3 tests/test_template.py ${{ matrix.template }}
 
+  coverage:
+    name: Code Coverage Analysis
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            cmake \
+            git \
+            qt6-base-dev \
+            libqt6test6 \
+            libprotobuf-dev \
+            protobuf-compiler \
+            python3
+
+      - name: Configure CMake with Coverage
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
+
+      - name: Build with Coverage Instrumentation
+        run: cmake --build build -j$(nproc)
+
+      - name: Run Tests
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "unit" --output-on-failure
+
+      - name: Generate Multi-Metric Coverage Reports
+        run: |
+          python3 script/generate_coverage.py \
+            --build-dir build \
+            --html work/coverage/index.html \
+            --markdown work/coverage/coverage.md \
+            --json work/coverage/coverage.json \
+            --github-step-summary \
+            --summary
+
+      - name: Upload Coverage Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: work/coverage/
+
   docs-build:
     name: Build & Render Documentation (Pelican)
+    needs: coverage
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -239,6 +286,12 @@ jobs:
       - name: Render Documentation Site
         run: |
           pelican docs -s docs/pelicanconf.py -o _site
+
+      - name: Download Coverage Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: _site/coverage/
 
       - name: Upload Documentation Artifact
         uses: actions/upload-artifact@v4
