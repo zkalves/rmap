@@ -74,6 +74,7 @@ set(core_sources
     src/format/JsonHandler.cpp
     src/format/CsvHandler.cpp
     src/ThemeManager.cpp
+    src/LanguageManager.cpp
     src/AppSettings.cpp
     src/PreferencesWindow.cpp
     src/AboutWindow.cpp
@@ -98,6 +99,7 @@ set(core_headers
     src/BlockMemoryMapWidget.hpp
     src/CodeGenerator.hpp
     src/ThemeManager.hpp
+    src/LanguageManager.hpp
     src/AppSettings.hpp
     src/format/IFormatHandler.hpp
     src/format/FormatManager.hpp
@@ -183,6 +185,16 @@ install(DIRECTORY docs/
     PATTERN ".*" EXCLUDE
     PATTERN "*.pyc" EXCLUDE
     PATTERN "__pycache__" EXCLUDE
+)
+
+install(DIRECTORY translations
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/rmap
+    FILES_MATCHING PATTERN "*.json" PATTERN "*.qm" PATTERN "*.md"
+)
+
+install(DIRECTORY themes
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/rmap
+    FILES_MATCHING PATTERN "*.json" PATTERN "*.md"
 )
 
 # Tests Subdirectory

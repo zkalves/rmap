@@ -18,6 +18,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFileInfo>
+#include "ThemeManager.hpp"
 
 class QWidget;
 
@@ -40,6 +41,14 @@ public:
     void setColourBlindMode(bool enabled) { setColorBlindMode(enabled); }
     bool colorBlindMode() const;
     void setColorBlindMode(bool enabled);
+
+    ColorBlindMode colorBlindType() const;
+    void setColorBlindType(ColorBlindMode mode);
+    QString colorBlindTypeString() const;
+    void setColorBlindTypeString(const QString &type);
+
+    QString language() const;
+    void setLanguage(const QString &lang);
 
     // Main Window Geometry, Pos & Size
     QByteArray mainWindowGeometry() const;
@@ -78,12 +87,16 @@ public:
 signals:
     void colorSchemeChanged(const QString &scheme);
     void colorBlindModeChanged(bool enabled);
+    void colorBlindTypeChanged(ColorBlindMode mode);
+    void languageChanged(const QString &lang);
 
 private:
     AppSettings();
     QString m_configPath;
     QString m_colorScheme = QStringLiteral("solarized8");
     bool m_colorBlindMode = false;
+    ColorBlindMode m_colorBlindType = ColorBlindMode::Universal;
+    QString m_language = QStringLiteral("en");
 
     QByteArray m_mainWindowGeometry;
     QByteArray m_mainWindowState;

@@ -13,6 +13,7 @@ set(BACKEND_TESTS
     test_CodeGenerator
     test_Formats
     test_ThemeManager
+    test_LanguageManager
     test_Version
 )
 

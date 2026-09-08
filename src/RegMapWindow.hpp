@@ -29,6 +29,7 @@
 #include "rmap.pb.h"
 #include "CodeGenerator.hpp"
 #include "RegConfigWindow.hpp"
+#include "ThemeManager.hpp"
 #include "RegMapDelegate.hpp"
 #include "RegMapTreeView.hpp"
 #include "RegMapTreeModel.hpp"
@@ -88,11 +89,18 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         bool isColourBlindMode() const;
         void setColorBlindMode(bool enabled) { setColourBlindMode(enabled); }
         bool isColorBlindMode() const { return isColourBlindMode(); }
+        void setColourBlindType(ColorBlindMode mode);
+        ColorBlindMode colourBlindType() const;
+        void setColorBlindType(ColorBlindMode mode) { setColourBlindType(mode); }
+        ColorBlindMode colorBlindType() const { return colourBlindType(); }
 
         void setColourScheme(const QString &scheme);
         QString colourScheme() const;
         void setColorScheme(const QString &scheme) { setColourScheme(scheme); }
         QString colorScheme() const { return colourScheme(); }
+
+        void setLanguage(const QString &code);
+        QString language() const;
 
         void saveWindowStateToSettings();
         void restoreWindowStateFromSettings();
@@ -101,6 +109,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         void closeEvent(QCloseEvent *event) override;
         void resizeEvent(QResizeEvent *event) override;
         void moveEvent(QMoveEvent *event) override;
+        void changeEvent(QEvent *event) override;
 
     private:
         RegConfigWindow       * m_config_window = nullptr;
@@ -180,8 +189,18 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         void onSearchTextChanged(const QString &text);
         void onToggleColorBlindMode(bool checked);
         void setupThemeMenu(void);
+        void rebuildThemeMenu(void);
+        void setupColorBlindMenu(void);
+        void rebuildColorBlindMenu(void);
+        void setupLanguageMenu(void);
+        void updateDynamicTranslations(void);
 
+        QMenu                 * m_themeMenu{nullptr};
         QActionGroup          * m_themeActionGroup{nullptr};
+        QMenu                 * m_colorBlindMenu{nullptr};
+        QActionGroup          * m_colorBlindActionGroup{nullptr};
+        QMenu                 * m_languageMenu{nullptr};
+        QActionGroup          * m_languageActionGroup{nullptr};
 };
 
 #endif // REGMAPWINDOW_HPP

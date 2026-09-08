@@ -776,6 +776,14 @@ void RegConfigWindow::moveEvent(QMoveEvent *event)
     AppSettings::instance().setConfigWindowPos(pos());
 }
 
+void RegConfigWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi(this);
+    }
+    QDialog::changeEvent(event);
+}
+
 void RegConfigWindow::accept(void)
 {
     saveWindowStateToSettings();

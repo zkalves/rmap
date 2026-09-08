@@ -81,6 +81,11 @@ AccessColors getAccessPolicyColors(const QString &access, bool colorBlind)
     return ThemeManager::instance().getAccessColors(access, colorBlind);
 }
 
+AccessColors getAccessPolicyColors(const QString &access, ColorBlindMode mode)
+{
+    return ThemeManager::instance().getAccessColors(access, mode);
+}
+
 // Access Policy Combobox Delegate (Software Access: RW, RO, WO, W1C, etc.)
 RegAccessPolicyDelegate::RegAccessPolicyDelegate(QObject *parent) : QStyledItemDelegate(parent) {}
 
@@ -95,8 +100,14 @@ void RegAccessPolicyDelegate::paint(QPainter *painter, const QStyleOptionViewIte
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
 
-    bool colorBlind = parent() ? parent()->property("colorBlindMode").toBool() : false;
-    AccessColors colors = getAccessPolicyColors(access, colorBlind);
+    ColorBlindMode cbMode = ThemeManager::instance().colorBlindMode();
+    if (cbMode == ColorBlindMode::None && parent()) {
+        QVariant prop = parent()->property("colorBlindMode");
+        if (prop.isValid() && prop.toBool()) {
+            cbMode = ColorBlindMode::Universal;
+        }
+    }
+    AccessColors colors = getAccessPolicyColors(access, cbMode);
 
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing, true);
@@ -122,7 +133,7 @@ void RegAccessPolicyDelegate::paint(QPainter *painter, const QStyleOptionViewIte
     f.setPointSize(8);
     painter->setFont(f);
     painter->setPen(colors.text);
-    QString displayStr = colorBlind ? QString("[%1]").arg(access) : access;
+    QString displayStr = (cbMode != ColorBlindMode::None) ? QString("[%1]").arg(access) : access;
     painter->drawText(badgeRect, Qt::AlignCenter, displayStr);
 
     painter->restore();
@@ -182,8 +193,14 @@ void RegHwAccessDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
 
-    bool colorBlind = parent() ? parent()->property("colorBlindMode").toBool() : false;
-    AccessColors colors = getAccessPolicyColors(hwAccess, colorBlind);
+    ColorBlindMode cbMode = ThemeManager::instance().colorBlindMode();
+    if (cbMode == ColorBlindMode::None && parent()) {
+        QVariant prop = parent()->property("colorBlindMode");
+        if (prop.isValid() && prop.toBool()) {
+            cbMode = ColorBlindMode::Universal;
+        }
+    }
+    AccessColors colors = getAccessPolicyColors(hwAccess, cbMode);
 
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing, true);
@@ -207,7 +224,8 @@ void RegHwAccessDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     f.setPointSize(8);
     painter->setFont(f);
     painter->setPen(colors.text);
-    painter->drawText(badgeRect, Qt::AlignCenter, hwAccess);
+    QString displayStr = (cbMode != ColorBlindMode::None) ? QString("[%1]").arg(hwAccess) : hwAccess;
+    painter->drawText(badgeRect, Qt::AlignCenter, displayStr);
 
     painter->restore();
 }

@@ -153,3 +153,12 @@ void AboutWindow::moveEvent(QMoveEvent *event)
     QDialog::moveEvent(event);
     saveWindowStateToSettings();
 }
+
+void AboutWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi(this);
+        setWindowTitle(tr("About %1").arg(applicationName()));
+    }
+    QDialog::changeEvent(event);
+}

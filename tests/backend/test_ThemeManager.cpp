@@ -18,9 +18,16 @@ private slots:
     void testSetTheme();
     void testAccessColorsPerTheme();
     void testColorBlindMode();
+    void testAllColorBlindModes();
+    void testHighContrastThemes();
     void testPaletteAndStyleSheetGeneration();
     void testAppSettingsConfigFile();
     void testEnsureWindowOnScreen();
+    void testJsonSerializationAndDeserialization();
+    void testLoadCustomThemeFromJson();
+    void testCustomThemesDirScanning();
+    void testThemeOverriding();
+    void cleanupTestCase();
 };
 
 void TestThemeManager::testDefaultThemeIsSolarized8()
@@ -46,9 +53,11 @@ void TestThemeManager::testAvailableThemes()
     QVERIFY(ids.contains("dracula"));
     QVERIFY(ids.contains("monokai"));
     QVERIFY(ids.contains("classic"));
+    QVERIFY(ids.contains("high_contrast_dark"));
+    QVERIFY(ids.contains("high_contrast_light"));
 
-    QCOMPARE(ids.size(), 6);
-    QCOMPARE(names.size(), 6);
+    QCOMPARE(ids.size(), 8);
+    QCOMPARE(names.size(), 8);
 }
 
 void TestThemeManager::testSetTheme()
@@ -155,6 +164,120 @@ void TestThemeManager::testColorBlindMode()
     tm.setTheme("solarized8");
 }
 
+void TestThemeManager::testAllColorBlindModes()
+{
+    ThemeManager &tm = ThemeManager::instance();
+
+    // 1. Verify availableColorBlindModes()
+    const auto &modes = availableColorBlindModes();
+    QCOMPARE(modes.size(), 5);
+    QCOMPARE(modes[0].id, QString("universal"));
+    QCOMPARE(modes[1].id, QString("deuteranopia"));
+    QCOMPARE(modes[2].id, QString("protanopia"));
+    QCOMPARE(modes[3].id, QString("tritanopia"));
+    QCOMPARE(modes[4].id, QString("achromatopsia"));
+
+    // 2. String conversion helpers round-trip
+    QCOMPARE(colorBlindModeToString(ColorBlindMode::Universal), QString("universal"));
+    QCOMPARE(colorBlindModeToString(ColorBlindMode::Deuteranopia), QString("deuteranopia"));
+    QCOMPARE(colorBlindModeToString(ColorBlindMode::Protanopia), QString("protanopia"));
+    QCOMPARE(colorBlindModeToString(ColorBlindMode::Tritanopia), QString("tritanopia"));
+    QCOMPARE(colorBlindModeToString(ColorBlindMode::Achromatopsia), QString("achromatopsia"));
+    QCOMPARE(colorBlindModeToString(ColorBlindMode::None), QString("none"));
+
+    QCOMPARE(stringToColorBlindMode("universal"), ColorBlindMode::Universal);
+    QCOMPARE(stringToColorBlindMode("deuteranopia"), ColorBlindMode::Deuteranopia);
+    QCOMPARE(stringToColorBlindMode("protanopia"), ColorBlindMode::Protanopia);
+    QCOMPARE(stringToColorBlindMode("tritanopia"), ColorBlindMode::Tritanopia);
+    QCOMPARE(stringToColorBlindMode("achromatopsia"), ColorBlindMode::Achromatopsia);
+    QCOMPARE(stringToColorBlindMode("none"), ColorBlindMode::None);
+
+    // 3. Test each CVD mode palette covers RW, RO, WO, W1C, W1S, W0C, RC, RS, NA
+    const QStringList policies = {"RW", "RO", "WO", "W1C", "W1S", "W0C", "RC", "RS", "NA"};
+
+    for (const auto &info : modes) {
+        for (const QString &pol : policies) {
+            AccessColors ac = tm.getAccessColors(pol, info.mode);
+            QVERIFY(ac.bg.isValid());
+            QVERIFY(ac.border.isValid());
+            QVERIFY(ac.text.isValid());
+        }
+    }
+
+    // 4. Test distinct colors for Deuteranopia
+    AccessColors deutRw = tm.getAccessColors("RW", ColorBlindMode::Deuteranopia);
+    AccessColors deutRo = tm.getAccessColors("RO", ColorBlindMode::Deuteranopia);
+    AccessColors deutWo = tm.getAccessColors("WO", ColorBlindMode::Deuteranopia);
+    QVERIFY(deutRw.bg != deutRo.bg);
+    QVERIFY(deutRw.bg != deutWo.bg);
+    QCOMPARE(deutRw.bg, QColor(153, 246, 228)); // Teal
+
+    // 5. Test distinct colors for Protanopia
+    AccessColors protRw = tm.getAccessColors("RW", ColorBlindMode::Protanopia);
+    AccessColors protRo = tm.getAccessColors("RO", ColorBlindMode::Protanopia);
+    AccessColors protWo = tm.getAccessColors("WO", ColorBlindMode::Protanopia);
+    QVERIFY(protRw.bg != protRo.bg);
+    QVERIFY(protRw.bg != protWo.bg);
+    QCOMPARE(protRw.bg, QColor(147, 197, 253)); // Sky Blue
+
+    // 6. Test distinct colors for Tritanopia
+    AccessColors tritRw = tm.getAccessColors("RW", ColorBlindMode::Tritanopia);
+    AccessColors tritRo = tm.getAccessColors("RO", ColorBlindMode::Tritanopia);
+    AccessColors tritWo = tm.getAccessColors("WO", ColorBlindMode::Tritanopia);
+    QVERIFY(tritRw.bg != tritRo.bg);
+    QVERIFY(tritRw.bg != tritWo.bg);
+    QCOMPARE(tritRw.bg, QColor(204, 251, 241)); // Mint Cyan
+
+    // 7. Test Achromatopsia (Luminance steps)
+    AccessColors achrRo = tm.getAccessColors("RO", ColorBlindMode::Achromatopsia); // 100% white
+    AccessColors achrRw = tm.getAccessColors("RW", ColorBlindMode::Achromatopsia); // 88%
+    AccessColors achrWo = tm.getAccessColors("WO", ColorBlindMode::Achromatopsia); // 13% dark
+    QCOMPARE(achrRo.bg, QColor(255, 255, 255));
+    QCOMPARE(achrRw.bg, QColor(224, 224, 224));
+    QCOMPARE(achrWo.bg, QColor(34, 34, 34));
+
+    // 8. ThemeManager active mode manipulation
+    QSignalSpy spy(&tm, &ThemeManager::colorBlindModeChanged);
+    tm.setColorBlindMode(ColorBlindMode::Deuteranopia);
+    QCOMPARE(tm.colorBlindMode(), ColorBlindMode::Deuteranopia);
+    QCOMPARE(tm.colorBlindModeId(), QString("deuteranopia"));
+    QCOMPARE(spy.count(), 1);
+
+    tm.setColorBlindMode(QString("achromatopsia"));
+    QCOMPARE(tm.colorBlindMode(), ColorBlindMode::Achromatopsia);
+    QCOMPARE(spy.count(), 2);
+
+    tm.setColorBlindMode(false);
+    QCOMPARE(tm.colorBlindMode(), ColorBlindMode::None);
+    QCOMPARE(spy.count(), 3);
+}
+
+void TestThemeManager::testHighContrastThemes()
+{
+    ThemeManager &tm = ThemeManager::instance();
+
+    // High Contrast Dark
+    QVERIFY(tm.setTheme("high_contrast_dark"));
+    QCOMPARE(tm.currentThemeId(), QString("high_contrast_dark"));
+    const ColorScheme &darkHc = tm.currentTheme();
+    QVERIFY(darkHc.isDark);
+    QCOMPARE(darkHc.windowBg, QColor("#000000")); // Pure Black
+    QCOMPARE(darkHc.textColor, QColor("#ffffff")); // Pure White Text
+    QCOMPARE(darkHc.border, QColor("#ffffff")); // White Border
+
+    // High Contrast Light
+    QVERIFY(tm.setTheme("high_contrast_light"));
+    QCOMPARE(tm.currentThemeId(), QString("high_contrast_light"));
+    const ColorScheme &lightHc = tm.currentTheme();
+    QVERIFY(!lightHc.isDark);
+    QCOMPARE(lightHc.windowBg, QColor("#ffffff")); // Pure White
+    QCOMPARE(lightHc.textColor, QColor("#000000")); // Pure Black Text
+    QCOMPARE(lightHc.border, QColor("#000000")); // Black Border
+
+    // Reset back to solarized8
+    tm.setTheme("solarized8");
+}
+
 void TestThemeManager::testPaletteAndStyleSheetGeneration()
 {
     ThemeManager &tm = ThemeManager::instance();
@@ -242,6 +365,145 @@ void TestThemeManager::testEnsureWindowOnScreen()
         QVERIFY(widget.x() + widget.width() <= avail.right() + 1);
         QVERIFY(widget.y() + widget.height() <= avail.bottom() + 1);
     }
+}
+
+void TestThemeManager::testJsonSerializationAndDeserialization()
+{
+    ThemeManager &tm = ThemeManager::instance();
+    tm.setTheme("solarized8");
+    const ColorScheme &orig = tm.currentTheme();
+
+    QJsonObject json = orig.toJson();
+    QCOMPARE(json["id"].toString(), QString("solarized8"));
+    QCOMPARE(json["isDark"].toBool(), true);
+    QVERIFY(json.contains("base"));
+    QVERIFY(json.contains("reserved"));
+    QVERIFY(json.contains("accessPolicies"));
+
+    ColorScheme parsed;
+    QVERIFY(parsed.fromJson(json));
+    QCOMPARE(parsed.id, orig.id);
+    QCOMPARE(parsed.name, orig.name);
+    QCOMPARE(parsed.isDark, orig.isDark);
+    QCOMPARE(parsed.windowBg, orig.windowBg);
+    QCOMPARE(parsed.panelBg, orig.panelBg);
+    QCOMPARE(parsed.rsvdBg, orig.rsvdBg);
+    QCOMPARE(parsed.rwColors.border, orig.rwColors.border);
+    QCOMPARE(parsed.roColors.border, orig.roColors.border);
+}
+
+void TestThemeManager::testLoadCustomThemeFromJson()
+{
+    ThemeManager &tm = ThemeManager::instance();
+    QString customJson = QString::fromUtf8(R"json({
+        "id": "cyberpunk_neon",
+        "name": "Cyberpunk Neon",
+        "isDark": true,
+        "base": {
+            "windowBg": "#120024",
+            "panelBg": "#1a0033",
+            "textColor": "#00ffcc",
+            "border": "#ff007f"
+        },
+        "reserved": {
+            "bg": "#2b004a",
+            "text": "#ff77a9"
+        },
+        "accessPolicies": {
+            "rw": { "bg": "#003322", "border": "#00ff99", "text": "#00ff99" },
+            "ro": { "bg": "#002233", "border": "#00ccff", "text": "#00ccff" }
+        }
+    })json");
+
+    QVERIFY(tm.loadThemeFromJson(customJson));
+    QVERIFY(tm.themeIds().contains("cyberpunk_neon"));
+
+    QVERIFY(tm.setTheme("cyberpunk_neon"));
+    QCOMPARE(tm.currentThemeId(), QString("cyberpunk_neon"));
+    QCOMPARE(tm.currentTheme().windowBg, QColor("#120024"));
+    QCOMPARE(tm.currentTheme().border, QColor("#ff007f"));
+    QCOMPARE(tm.getAccessColors("RW", false).border, QColor("#00ff99"));
+
+    // Reset back
+    tm.setTheme("solarized8");
+}
+
+void TestThemeManager::testCustomThemesDirScanning()
+{
+    ThemeManager &tm = ThemeManager::instance();
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    // Write synthwave.json
+    QString synthwaveJson = QString::fromUtf8(R"json({
+        "id": "synthwave_80s",
+        "name": "Synthwave 80s",
+        "isDark": true,
+        "base": {
+            "windowBg": "#241734",
+            "panelBg": "#2e1f42"
+        }
+    })json");
+    QFile f(tempDir.filePath("synthwave.json"));
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(synthwaveJson.toUtf8());
+    f.close();
+
+    // Also write a template.json file which must be skipped
+    QString templateJson = QString::fromUtf8(R"json({
+        "id": "my_template",
+        "name": "My Template",
+        "isDark": true
+    })json");
+    QFile fTpl(tempDir.filePath("template.json"));
+    QVERIFY(fTpl.open(QIODevice::WriteOnly));
+    fTpl.write(templateJson.toUtf8());
+    fTpl.close();
+
+    int loaded = tm.scanThemesDir(tempDir.path());
+    QCOMPARE(loaded, 1);
+    QVERIFY(tm.themeIds().contains("synthwave_80s"));
+    QVERIFY(!tm.themeIds().contains("my_template"));
+
+    // Can set theme
+    QVERIFY(tm.setTheme("synthwave_80s"));
+    QCOMPARE(tm.currentThemeId(), QString("synthwave_80s"));
+    QCOMPARE(tm.currentTheme().windowBg, QColor("#241734"));
+
+    // Reset
+    tm.resetToDefaults();
+    QVERIFY(!tm.themeIds().contains("synthwave_80s"));
+}
+
+void TestThemeManager::testThemeOverriding()
+{
+    ThemeManager &tm = ThemeManager::instance();
+    tm.setTheme("solarized8");
+    QCOMPARE(tm.currentTheme().windowBg, QColor("#002b36"));
+
+    QString overrideJson = QString::fromUtf8(R"json({
+        "id": "solarized8",
+        "name": "Solarized 8 (Dark)",
+        "isDark": true,
+        "base": {
+            "windowBg": "#112233"
+        }
+    })json");
+
+    int origCount = tm.availableThemes().size();
+    QVERIFY(tm.loadThemeFromJson(overrideJson));
+    QCOMPARE(tm.availableThemes().size(), origCount); // Not duplicated
+    QCOMPARE(tm.currentTheme().windowBg, QColor("#112233"));
+
+    // Reset to defaults
+    tm.resetToDefaults();
+    QCOMPARE(tm.currentTheme().windowBg, QColor("#002b36"));
+}
+
+void TestThemeManager::cleanupTestCase()
+{
+    ThemeManager::instance().resetToDefaults();
+    ThemeManager::instance().setTheme("solarized8");
 }
 
 QTEST_MAIN(TestThemeManager)

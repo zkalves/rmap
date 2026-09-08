@@ -80,6 +80,46 @@ void AppSettings::setColorBlindMode(bool enabled)
     }
 }
 
+ColorBlindMode AppSettings::colorBlindType() const
+{
+    return m_colorBlindType;
+}
+
+void AppSettings::setColorBlindType(ColorBlindMode mode)
+{
+    if (m_colorBlindType != mode) {
+        m_colorBlindType = mode;
+        save();
+        emit colorBlindTypeChanged(m_colorBlindType);
+    }
+}
+
+QString AppSettings::colorBlindTypeString() const
+{
+    return colorBlindModeToString(m_colorBlindType);
+}
+
+void AppSettings::setColorBlindTypeString(const QString &type)
+{
+    setColorBlindType(stringToColorBlindMode(type));
+}
+
+QString AppSettings::language() const
+{
+    return m_language;
+}
+
+void AppSettings::setLanguage(const QString &lang)
+{
+    QString l = lang.trimmed();
+    if (l.isEmpty()) l = QStringLiteral("en");
+    if (m_language != l) {
+        m_language = l;
+        save();
+        emit languageChanged(m_language);
+    }
+}
+
 QByteArray AppSettings::mainWindowGeometry() const
 {
     return m_mainWindowGeometry;
@@ -331,6 +371,15 @@ void AppSettings::load()
         m_colorScheme = "solarized8";
     }
     m_colorBlindMode = settings.value("Appearance/ColorBlindMode", false).toBool();
+    QString cbType = settings.value("Appearance/ColorBlindType", "universal").toString();
+    m_colorBlindType = stringToColorBlindMode(cbType);
+    if (m_colorBlindType == ColorBlindMode::None) {
+        m_colorBlindType = ColorBlindMode::Universal;
+    }
+    m_language = settings.value("Appearance/Language", "en").toString();
+    if (m_language.isEmpty()) {
+        m_language = "en";
+    }
 
     m_mainWindowGeometry = settings.value("Geometry/MainWindow").toByteArray();
     m_mainWindowState = settings.value("Geometry/MainWindowState").toByteArray();
@@ -364,6 +413,8 @@ void AppSettings::save()
     QSettings settings(m_configPath, QSettings::IniFormat);
     settings.setValue("Appearance/ColorScheme", m_colorScheme);
     settings.setValue("Appearance/ColorBlindMode", m_colorBlindMode);
+    settings.setValue("Appearance/ColorBlindType", colorBlindModeToString(m_colorBlindType));
+    settings.setValue("Appearance/Language", m_language);
 
     if (!m_mainWindowGeometry.isEmpty()) {
         settings.setValue("Geometry/MainWindow", m_mainWindowGeometry);
