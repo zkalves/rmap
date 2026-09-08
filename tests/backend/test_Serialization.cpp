@@ -34,6 +34,7 @@ private slots:
     void testRoundTripTextAndBinary();
     void testConfigTemplateFoldersAndEnabled();
     void testConfigPythonScriptEnabled();
+    void testParseInvalidRmt();
 };
 
 void TestSerialization::testParseSpiRmt()
@@ -305,6 +306,20 @@ void TestSerialization::testConfigPythonScriptEnabled()
     QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg2));
     QVERIFY(restoredCfg2.has_python_script_enabled());
     QCOMPARE(restoredCfg2.python_script_enabled(), false);
+}
+
+void TestSerialization::testParseInvalidRmt()
+{
+    std::string invalid_proto = "this is totally invalid protobuf { [[[ invalid";
+    google::protobuf::io::ArrayInputStream input(invalid_proto.data(), static_cast<int>(invalid_proto.size()));
+    protormap::RegModel reg_model;
+    google::protobuf::TextFormat::Parser parser;
+    ProtobufLogCollector errorCollector;
+    parser.RecordErrorsTo(&errorCollector);
+    bool success = parser.Parse(&input, &reg_model);
+    QVERIFY(!success);
+    QVERIFY(!errorCollector.string().empty());
+    QVERIFY(errorCollector.string().find("ERROR") != std::string::npos);
 }
 
 QTEST_MAIN(TestSerialization)

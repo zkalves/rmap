@@ -237,6 +237,39 @@ class TestCoverageEngine(unittest.TestCase):
         self.assertEqual(c2.count("<!-- COVERAGE_SECTION_START -->"), 1)
         self.assertEqual(c2.count("## Code Coverage Metrics"), 1)
 
+    def test_throw_branch_filtering(self):
+        mock_data = {
+            "src/Sample.cpp": {
+                "subsystem": "Core Architecture & Model",
+                "lines": {1: 1},
+                "funcs": {"test()": 1},
+                "branches": {
+                    (1, 0): {"count": 5, "throw": False},  # Decision branch, taken
+                    (1, 1): {"count": 0, "throw": False},  # Decision branch, not taken
+                    (1, 2): {"count": 0, "throw": True},   # Compiler unwind branch, not taken
+                },
+                "conds": [],
+                "calls": [],
+                "blocks_total": 1,
+                "blocks_exec": 1,
+            }
+        }
+        # By default, exclude_throw_branches=True
+        m_filtered = compute_metrics(mock_data, exclude_throw_branches=True)
+        s = m_filtered["summary"]
+        self.assertEqual(s["branches"]["total"], 2)
+        self.assertEqual(s["branches"]["covered"], 1)
+        self.assertEqual(s["branches"]["percent"], 50.0)
+        self.assertEqual(s["branches_raw"]["total"], 3)
+        self.assertEqual(s["branches_raw"]["covered"], 1)
+
+        # When include_throw_branches=True
+        m_unfiltered = compute_metrics(mock_data, exclude_throw_branches=False)
+        s_unf = m_unfiltered["summary"]
+        self.assertEqual(s_unf["branches"]["total"], 3)
+        self.assertEqual(s_unf["branches"]["covered"], 1)
+        self.assertEqual(s_unf["branches"]["percent"], 33.33)
+
 
 if __name__ == "__main__":
     unittest.main()

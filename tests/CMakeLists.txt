@@ -15,6 +15,7 @@ set(BACKEND_TESTS
     test_ThemeManager
     test_LanguageManager
     test_Version
+    test_ProtobufLogCollector
 )
 
 foreach(test_name ${BACKEND_TESTS})

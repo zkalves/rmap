@@ -29,6 +29,7 @@ private slots:
     void testDefaultPathConstants();
     void testDefaultDirectoryDiscovery();
     void testResolvePathWithTemplatesSubdir();
+    void testEdgeCasesAndOverloads();
 };
 
 void TestPathUtils::initTestCase()
@@ -212,6 +213,64 @@ void TestPathUtils::testResolvePathWithTemplatesSubdir()
     QString resolvedRel = PathUtils::resolvePath("./templates/c/reg_map.h.inja", "", shareTmplDir);
     QVERIFY(QFile::exists(resolvedRel));
     QCOMPARE(resolvedRel, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
+}
+
+void TestPathUtils::testEdgeCasesAndOverloads()
+{
+    // UNC paths
+    QCOMPARE(PathUtils::normalizeSeparators("//server/share/file.txt"), QString("//server/share/file.txt"));
+    QCOMPARE(PathUtils::normalizeSeparators("///server/share/file.txt"), QString("/server/share/file.txt"));
+
+    // Empty paths
+    QCOMPARE(PathUtils::expandEnvVars(""), QString(""));
+    QCOMPARE(PathUtils::expandEnvVars(std::string("")), std::string(""));
+    QCOMPARE(PathUtils::toRelativePath(""), QString(""));
+    QCOMPARE(PathUtils::toRelativePath(std::string("")), std::string(""));
+    QCOMPARE(PathUtils::resolvePath(""), QString(""));
+    QCOMPARE(PathUtils::resolvePath(std::string("")), std::string(""));
+
+    // Base dir pointing to file
+    QDir().mkpath("work/test_path_utils");
+    QFile tmpFile("work/test_path_utils/base_file.txt");
+    if (tmpFile.open(QIODevice::WriteOnly)) { tmpFile.close(); }
+    QString absBase = QFileInfo("work/test_path_utils/base_file.txt").absoluteFilePath();
+    QString absTarget = QFileInfo("work/test_path_utils/target.txt").absoluteFilePath();
+    QString relFromFile = PathUtils::toRelativePath(absTarget, absBase);
+    QCOMPARE(relFromFile, QString("./target.txt"));
+
+    // resolvePath with absolute path that does not exist
+    QString nonExAbs = "/this/path/does/not/exist/foo.txt";
+    QCOMPARE(PathUtils::resolvePath(nonExAbs), nonExAbs);
+
+    // resolvePath fallback with no base dirs
+    QString cwdFallback = PathUtils::resolvePath("nonexistent_target_123.txt");
+    QCOMPARE(cwdFallback, PathUtils::normalizeSeparators(QDir::current().filePath("nonexistent_target_123.txt")));
+
+    // resolvePath fallback with secondary base dir ending with templates
+    QString shareTmplDir = QDir("work/test_path_utils/templates").absolutePath();
+    QString tmplFallback = PathUtils::resolvePath("templates/sub/new_file.txt", "", shareTmplDir);
+    QCOMPARE(tmplFallback, PathUtils::normalizeSeparators(shareTmplDir + "/sub/new_file.txt"));
+    QString tmplFallback2 = PathUtils::resolvePath("./templates/sub/new_file2.txt", "", shareTmplDir);
+    QCOMPARE(tmplFallback2, PathUtils::normalizeSeparators(shareTmplDir + "/sub/new_file2.txt"));
+
+    // std::string overloads
+    std::string s_in = "foo/bar";
+    QCOMPARE(PathUtils::expandEnvVars(s_in), s_in);
+    QCOMPARE(PathUtils::toRelativePath(s_in, std::string("")), s_in);
+    QCOMPARE(PathUtils::resolvePath(s_in, std::string(""), std::string("")), PathUtils::resolvePath(QString::fromStdString(s_in)).toStdString());
+
+    // const char* inline overloads
+    const char* c_in = "foo/bar";
+    QCOMPARE(PathUtils::expandEnvVars(c_in), QString(c_in));
+    QCOMPARE(PathUtils::toRelativePath(c_in), QString(c_in));
+    QCOMPARE(PathUtils::resolvePath(c_in), PathUtils::resolvePath(QString(c_in)));
+    QCOMPARE(PathUtils::normalizeSeparators(c_in), QString(c_in));
+
+    // const char* null checks
+    QCOMPARE(PathUtils::expandEnvVars(static_cast<const char*>(nullptr)), QString(""));
+    QCOMPARE(PathUtils::toRelativePath(static_cast<const char*>(nullptr)), QString(""));
+    QCOMPARE(PathUtils::resolvePath(static_cast<const char*>(nullptr)), QString(""));
+    QCOMPARE(PathUtils::normalizeSeparators(static_cast<const char*>(nullptr)), QString(""));
 }
 
 QTEST_MAIN(TestPathUtils)

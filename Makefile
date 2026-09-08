@@ -81,9 +81,10 @@ coverage:
 	@cd build && cmake .. -DCMAKE_INSTALL_PREFIX="$(PREFIX)" -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
 	@cmake --build build --parallel $(JOBS)
 	@rm -rf work
-	@mkdir -p work/coverage
+	@mkdir -p work/coverage work/test_templates
 	@find build -name "*.gcda" -delete 2>/dev/null || true
 	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "unit" --output-on-failure
+	@python3 tests/test_template.py all
 	@python3 script/generate_coverage.py --build-dir build --html work/coverage/index.html --markdown work/coverage/coverage.md --json work/coverage/coverage.json --summary
 
 # Run coverage and update the Code Coverage Metrics report on the GitHub main page (README.md)

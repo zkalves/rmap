@@ -152,7 +152,15 @@ def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
                         # Aggregate Branches on this line
                         for bi, b in enumerate(l.get("branches", [])):
                             b_key = (ln, bi)
-                            entry["branches"][b_key] = entry["branches"].get(b_key, 0) + b.get("count", 0)
+                            cnt_br = b.get("count", 0)
+                            is_throw = bool(b.get("throw", False))
+                            if b_key not in entry["branches"]:
+                                entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw}
+                            else:
+                                if isinstance(entry["branches"][b_key], dict):
+                                    entry["branches"][b_key]["count"] += cnt_br
+                                else:
+                                    entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw}
 
                         # Aggregate Conditions
                         entry["conds"].extend(l.get("conditions", []))
@@ -173,13 +181,14 @@ def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
     return all_files_data
 
 
-def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def compute_metrics(all_files_data: Dict[str, Dict[str, Any]], exclude_throw_branches: bool = True) -> Dict[str, Any]:
     """Compute summary statistics for all 6 coverage metrics."""
     file_stats = []
 
     tot_lines_exec = tot_lines = 0
     tot_funcs_exec = tot_funcs = 0
     tot_branches_exec = tot_branches = 0
+    tot_branches_raw_exec = tot_branches_raw = 0
     tot_conds_exec = tot_conds = 0
     tot_calls_exec = tot_calls = 0
     tot_blocks_exec = tot_blocks = 0
@@ -195,8 +204,29 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         fn_tot = len(d["funcs"])
         fn_cov = sum(1 for c in d["funcs"].values() if c > 0)
 
-        br_tot = len(d["branches"])
-        br_cov = sum(1 for c in d["branches"].values() if c > 0)
+        br_tot = 0
+        br_cov = 0
+        raw_br_tot = 0
+        raw_br_cov = 0
+
+        for b_val in d["branches"].values():
+            if isinstance(b_val, dict):
+                cnt = b_val.get("count", 0)
+                is_throw = b_val.get("throw", False)
+            else:
+                cnt = b_val
+                is_throw = False
+
+            raw_br_tot += 1
+            if cnt > 0:
+                raw_br_cov += 1
+
+            if exclude_throw_branches and is_throw:
+                continue
+
+            br_tot += 1
+            if cnt > 0:
+                br_cov += 1
 
         cd_tot = sum(c.get("count", 0) for c in d["conds"])
         cd_cov = sum(c.get("covered", 0) for c in d["conds"])
@@ -213,6 +243,8 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         tot_funcs_exec += fn_cov
         tot_branches += br_tot
         tot_branches_exec += br_cov
+        tot_branches_raw += raw_br_tot
+        tot_branches_raw_exec += raw_br_cov
         tot_conds += cd_tot
         tot_conds_exec += cd_cov
         tot_calls += cl_tot
@@ -226,6 +258,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
                 "lines_tot": 0, "lines_cov": 0,
                 "funcs_tot": 0, "funcs_cov": 0,
                 "branches_tot": 0, "branches_cov": 0,
+                "branches_raw_tot": 0, "branches_raw_cov": 0,
                 "conds_tot": 0, "conds_cov": 0,
                 "calls_tot": 0, "calls_cov": 0,
                 "blocks_tot": 0, "blocks_cov": 0,
@@ -237,6 +270,8 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         sm["funcs_cov"] += fn_cov
         sm["branches_tot"] += br_tot
         sm["branches_cov"] += br_cov
+        sm["branches_raw_tot"] += raw_br_tot
+        sm["branches_raw_cov"] += raw_br_cov
         sm["conds_tot"] += cd_tot
         sm["conds_cov"] += cd_cov
         sm["calls_tot"] += cl_tot
@@ -250,6 +285,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
             "lines": {"total": l_tot, "covered": l_cov, "percent": round((l_cov / l_tot * 100) if l_tot else 0.0, 2)},
             "functions": {"total": fn_tot, "covered": fn_cov, "percent": round((fn_cov / fn_tot * 100) if fn_tot else 0.0, 2)},
             "branches": {"total": br_tot, "covered": br_cov, "percent": round((br_cov / br_tot * 100) if br_tot else 0.0, 2)},
+            "branches_raw": {"total": raw_br_tot, "covered": raw_br_cov, "percent": round((raw_br_cov / raw_br_tot * 100) if raw_br_tot else 0.0, 2)},
             "conditions": {"total": cd_tot, "covered": cd_cov, "percent": round((cd_cov / cd_tot * 100) if cd_tot else 0.0, 2)},
             "calls": {"total": cl_tot, "covered": cl_cov, "percent": round((cl_cov / cl_tot * 100) if cl_tot else 0.0, 2)},
             "blocks": {"total": blk_tot, "covered": blk_cov, "percent": round((blk_cov / blk_tot * 100) if blk_tot else 0.0, 2)},
@@ -262,6 +298,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
             "lines": {"total": sm["lines_tot"], "covered": sm["lines_cov"], "percent": round((sm["lines_cov"] / sm["lines_tot"] * 100) if sm["lines_tot"] else 0.0, 2)},
             "functions": {"total": sm["funcs_tot"], "covered": sm["funcs_cov"], "percent": round((sm["funcs_cov"] / sm["funcs_tot"] * 100) if sm["funcs_tot"] else 0.0, 2)},
             "branches": {"total": sm["branches_tot"], "covered": sm["branches_cov"], "percent": round((sm["branches_cov"] / sm["branches_tot"] * 100) if sm["branches_tot"] else 0.0, 2)},
+            "branches_raw": {"total": sm["branches_raw_tot"], "covered": sm["branches_raw_cov"], "percent": round((sm["branches_raw_cov"] / sm["branches_raw_tot"] * 100) if sm["branches_raw_tot"] else 0.0, 2)},
             "conditions": {"total": sm["conds_tot"], "covered": sm["conds_cov"], "percent": round((sm["conds_cov"] / sm["conds_tot"] * 100) if sm["conds_tot"] else 0.0, 2)},
             "calls": {"total": sm["calls_tot"], "covered": sm["calls_cov"], "percent": round((sm["calls_cov"] / sm["calls_tot"] * 100) if sm["calls_tot"] else 0.0, 2)},
             "blocks": {"total": sm["blocks_tot"], "covered": sm["blocks_cov"], "percent": round((sm["blocks_cov"] / sm["blocks_tot"] * 100) if sm["blocks_tot"] else 0.0, 2)},
@@ -271,6 +308,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         "lines": {"total": tot_lines, "covered": tot_lines_exec, "percent": round((tot_lines_exec / tot_lines * 100) if tot_lines else 0.0, 2)},
         "functions": {"total": tot_funcs, "covered": tot_funcs_exec, "percent": round((tot_funcs_exec / tot_funcs * 100) if tot_funcs else 0.0, 2)},
         "branches": {"total": tot_branches, "covered": tot_branches_exec, "percent": round((tot_branches_exec / tot_branches * 100) if tot_branches else 0.0, 2)},
+        "branches_raw": {"total": tot_branches_raw, "covered": tot_branches_raw_exec, "percent": round((tot_branches_raw_exec / tot_branches_raw * 100) if tot_branches_raw else 0.0, 2)},
         "conditions": {"total": tot_conds, "covered": tot_conds_exec, "percent": round((tot_conds_exec / tot_conds * 100) if tot_conds else 0.0, 2)},
         "calls": {"total": tot_calls, "covered": tot_calls_exec, "percent": round((tot_calls_exec / tot_calls * 100) if tot_calls else 0.0, 2)},
         "blocks": {"total": tot_blocks, "covered": tot_blocks_exec, "percent": round((tot_blocks_exec / tot_blocks * 100) if tot_blocks else 0.0, 2)},
@@ -312,11 +350,13 @@ def render_console_summary(metrics: Dict[str, Any]) -> str:
     metrics_order = [
         ("Lines", s["lines"]),
         ("Functions", s["functions"]),
-        ("Branches", s["branches"]),
+        ("Branches (Decision)", s["branches"]),
         ("Conditions (MC/DC)", s["conditions"]),
         ("Calls", s["calls"]),
         ("Basic Blocks", s["blocks"]),
     ]
+    if "branches_raw" in s and s["branches_raw"]["total"] != s["branches"]["total"]:
+        metrics_order.append(("  ↳ Raw (w/ Unwind)", s["branches_raw"]))
 
     for name, data in metrics_order:
         pct = data["percent"]
@@ -354,7 +394,7 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
     metrics_rows = [
         ("**Lines**", s["lines"]),
         ("**Functions**", s["functions"]),
-        ("**Branches**", s["branches"]),
+        ("**Branches (Decision)**", s["branches"]),
         ("**Conditions (MC/DC)**", s["conditions"]),
         ("**Calls**", s["calls"]),
         ("**Basic Blocks**", s["blocks"]),
@@ -365,6 +405,13 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
         icon = "✅" if pct >= 50.0 else "⚠️"
         md.append(f"| {label} | {data['covered']:,} | {data['total']:,} | **{pct:.2f}%** | {icon} |")
 
+    if "branches_raw" in s and s["branches_raw"]["total"] != s["branches"]["total"]:
+        raw = s["branches_raw"]
+        md.append(f"| *Branches (Raw w/ Unwind)* | {raw['covered']:,} | {raw['total']:,} | *{raw['percent']:.2f}%* | ℹ️ |")
+
+    md.append("")
+    md.append("> [!NOTE]")
+    md.append("> **Branch Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`) are excluded from decision branches and shown transparently in raw metrics.")
     md.append("")
     md.append("### Architectural Subsystems Breakdown")
     md.append("")
@@ -737,6 +784,7 @@ def main():
     parser.add_argument("--fail-under-branches", type=float, default=0.0, help="Fail if branch coverage is below this threshold")
     parser.add_argument("--fail-under-functions", type=float, default=0.0, help="Fail if function coverage is below this threshold")
     parser.add_argument("--fail-under-conditions", type=float, default=0.0, help="Fail if condition coverage is below this threshold")
+    parser.add_argument("--include-throw-branches", action="store_true", help="Include compiler-synthesized exception unwinding landing pads in branch metrics")
 
     args = parser.parse_args()
 
@@ -745,7 +793,7 @@ def main():
         print("No coverage data could be processed.", file=sys.stderr)
         sys.exit(1)
 
-    metrics = compute_metrics(raw_data)
+    metrics = compute_metrics(raw_data, exclude_throw_branches=not args.include_throw_branches)
 
     if args.summary or not any([args.markdown, args.html, args.json, args.github_step_summary, args.update_readme]):
         print(render_console_summary(metrics))
