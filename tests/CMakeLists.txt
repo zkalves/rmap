@@ -51,3 +51,19 @@ foreach(test_name ${FRONTEND_TESTS})
     )
     set_property(TARGET ${test_name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endforeach()
+
+# Automated Python Test Suites (Coverage Engine & Semantic Versioning)
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+    add_test(NAME test_Coverage COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_coverage.py)
+    set_tests_properties(test_Coverage PROPERTIES
+        LABELS "unit;backend;coverage"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+
+    add_test(NAME test_SemVer COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_semver.py)
+    set_tests_properties(test_SemVer PROPERTIES
+        LABELS "unit;backend;version"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+endif()

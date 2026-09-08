@@ -24,6 +24,7 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILE = PROJECT_ROOT / "VERSION"
@@ -53,6 +54,39 @@ def bump_version(ver_str: str, bump_type: str) -> str:
         return f"{major}.{minor}.{patch + 1}"
     else:
         raise ValueError(f"Unknown bump type: {bump_type}")
+
+
+def parse_commit_bump(msg: str) -> Optional[str]:
+    """Parse a single commit message to determine if it requires a major, minor, or patch bump."""
+    msg = msg.strip()
+    if not msg:
+        return None
+    first_line = msg.splitlines()[0].strip()
+
+    # 1. Breaking change checks -> MAJOR
+    # - Conventional Commit breaking markers: feat!: or feat(scope)!:, fix!:, doc!:, etc.
+    # - BREAKING CHANGE: or BREAKING-CHANGE: in subject or body
+    # - Bracketed style: [breaking], [feat!], [fix!], etc.
+    if "BREAKING CHANGE:" in msg or "BREAKING-CHANGE:" in msg:
+        return "major"
+    if re.search(r"^(feat|feature|fix|bugfix|doc|docs|style|refactor|perf|test|tests|build|ci|chore|revert)(\([^)]+\))?!:", first_line, re.IGNORECASE):
+        return "major"
+    if re.search(r"^\[(breaking|feat!|fix!|feature!|bugfix!|doc!|docs!)\]", first_line, re.IGNORECASE):
+        return "major"
+
+    # 2. Feature checks -> MINOR
+    if re.search(r"^(feat|feature)(\([^)]+\))?:", first_line, re.IGNORECASE):
+        return "minor"
+    if re.search(r"^\[(feat|feature)\]", first_line, re.IGNORECASE):
+        return "minor"
+
+    # 3. Patch checks (fix, doc, docs, style, refactor, perf, test, build, ci, chore, revert) -> PATCH
+    if re.search(r"^(fix|bugfix|doc|docs|style|refactor|perf|test|tests|build|ci|chore|revert)(\([^)]+\))?:", first_line, re.IGNORECASE):
+        return "patch"
+    if re.search(r"^\[(fix|bugfix|doc|docs|style|refactor|perf|test|tests|build|ci|chore|revert)\]", first_line, re.IGNORECASE):
+        return "patch"
+
+    return None
 
 
 def detect_auto_bump() -> str:
@@ -88,38 +122,22 @@ def detect_auto_bump() -> str:
 
     has_breaking = False
     has_feat = False
-    has_fix = False
+    has_patch = False
 
     for msg in messages:
-        msg = msg.strip()
-        if not msg:
-            continue
-        first_line = msg.splitlines()[0]
-        # Breaking change checks
-        if "BREAKING CHANGE:" in msg or "BREAKING-CHANGE:" in msg:
+        bump = parse_commit_bump(msg)
+        if bump == "major":
             has_breaking = True
-        if re.search(r"^(feat|fix|refactor|perf|chore|docs)\(?[^)]*\)?!:", first_line):
-            has_breaking = True
-        if re.search(r"^\[breaking\]", first_line, re.IGNORECASE):
-            has_breaking = True
-
-        # Feat checks
-        if re.search(r"^feat(\(?[^)]*\)?)?:", first_line):
+        elif bump == "minor":
             has_feat = True
-        if re.search(r"^\[feat\]", first_line, re.IGNORECASE):
-            has_feat = True
-
-        # Fix checks
-        if re.search(r"^fix(\(?[^)]*\)?)?:", first_line):
-            has_fix = True
-        if re.search(r"^\[fix\]", first_line, re.IGNORECASE):
-            has_fix = True
+        elif bump == "patch":
+            has_patch = True
 
     if has_breaking:
         return "major"
     elif has_feat:
         return "minor"
-    elif has_fix:
+    elif has_patch:
         return "patch"
     else:
         return "patch"
