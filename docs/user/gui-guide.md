@@ -49,8 +49,16 @@ Positioned at the top of the right panel, the bitfield bar provides instant grap
      - **`W1C` / `W1S` / `W0C`**: Amber/Yellow (`#FFF59D` / `#F57F17`)
 2. **Dark Neutral Reserved Slots (40% Gray)**:
    - Unmapped bit ranges are rendered in a distinctive **40% dark gray** (`#666666`) background with subtle 45° diagonal micro-stripes and a bold `RSVD` / `RESERVED` label.
-3. **Colour-Blind Accessible Mode (`Ctrl+Alt+C`)**:
-   - Toggles an Okabe-Ito / Wong barrier-free CVD palette (Cyan for `RW`, Deep Royal Blue for `RO`, Vivid Magenta for `WO`, Flame Vermilion for `W1C`) with explicit textual bracket tags (`[RW]`, `[RO]`, `[WO]`, `[W1C]`). Accessible directly via `View -> Colour-Blind Mode` or `Ctrl+Alt+C`.
+3. **Colour-Blind Accessible Modes & Profiles (`Ctrl+Alt+C`)**:
+   - Offers comprehensive support for all 5 major Colour Vision Deficiency (CVD) profiles:
+     - **Universal (Barrier-Free Okabe-Ito)**: Universally distinguishable across all forms of color blindness.
+     - **Deuteranopia**: Medium-wavelength M-cone deficiency (~6% of males; green-blind/weak).
+     - **Protanopia**: Long-wavelength L-cone deficiency (~2% of males; red-blind/weak).
+     - **Tritanopia**: Short-wavelength S-cone deficiency (blue-blind/weak).
+     - **Achromatopsia**: Complete color blindness with distinct luminance steps (13% to 100%).
+   - All modes render high-contrast borders and explicit textual bracket tags (`[RW]`, `[RO]`, `[WO]`, `[W1C]`, etc.).
+   - Switch profiles via **View &rarr; Colour-Blind Profile** submenu or the Preferences dialog.
+   - Quick toggle on/off via **View &rarr; Colour-Blind Mode** or `Ctrl+Alt+C`.
 4. **Rich Hover Tooltips**:
    - Hovering over any slice displays full inspection details: Field Name, Bit Range `[MSB:LSB]`, Bit Width, Software Access Policy, Hardware Access Policy, Reset Value in hex, and Description.
 5. **Bidirectional Interactive Selection Sync**:
@@ -242,19 +250,55 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
   - **Dracula (Dark)**: High-contrast purple, cyan, green, and pink palette (`#282a36`).
   - **Monokai (Dark)**: Classic vibrant editor theme (`#272822`).
   - **Classic Light**: Standard light desktop theme.
+  - **High Contrast (Dark)**: WCAG AAA compliant ultra-high contrast dark theme (pure `#000000` base, white `#ffffff` outlines, high-luminance badges).
+  - **High Contrast (Light)**: WCAG AAA compliant ultra-high contrast light theme (pure `#ffffff` base, black `#000000` outlines, deep contrast badges).
 
 - **Theme Switching & Preferences**:
   - Change active theme via **View &rarr; Colour Scheme** or through the dedicated **Preferences Window (`Ctrl+,` / Edit &rarr; Preferences...)**.
-  - Pass the `--colour-scheme <name>` (or `--theme <name>`) CLI option when starting `rmap` (e.g. `rmap --colour-scheme nord`).
+  - Pass the `--colour-scheme <name>` (or `--theme <name>`) CLI option when starting `rmap` (e.g. `rmap --colour-scheme nord` or `rmap -t custom_theme.json`).
+
+- **Custom JSON Themes & Colour Customization**:
+  - Colours are fully configurable via declarative JSON files (`themes/*.json`).
+  - Click the **Themes Folder...** button in **Edit &rarr; Preferences...** to open your user themes directory (`~/.config/rmap/themes/`).
+  - A starting template (`template.json`) is automatically seeded with all configurable keys:
+    - `base`: 16 UI surface, text, button, input, header, border, selection, and error colors.
+    - `reserved`: 5 bitfield visualizer reserved slot fill, border, diagonal stripe, text, and ruler colors.
+    - `accessPolicies`: Access policy badge background, border, and text colors (`rw`, `ro`, `wo`, `w1c`, `rc`, `na`).
+    - `colorBlind`: High-contrast CVD barrier-free palette overrides.
+  - Simply copy `template.json` to e.g. `cyberpunk.json`, customize any colors or values, and it will immediately appear in **View &rarr; Colour Scheme** and the Preferences dropdown.
+  - You can also point to a custom directory using the `RMAP_THEMES_PATH` environment variable.
 
 - **User Home Configuration File (`~/.config/rmap/rmap.conf`)**:
-  - User-specific GUI preferences (selected colour scheme, colour-blind mode, main window size/geometry, configuration window size, preferences window size, and panel splitter positions) are stored in the user's home area in `~/.config/rmap/rmap.conf` (or `$XDG_CONFIG_HOME/rmap/rmap.conf`).
+  - User-specific GUI preferences (selected colour scheme, active language, colour-blind mode, main window size/geometry, configuration window size, preferences window size, and panel splitter positions) are stored in the user's home area in `~/.config/rmap/rmap.conf` (or `$XDG_CONFIG_HOME/rmap/rmap.conf`).
   - Window dimensions and layout states are automatically saved on resize or close and restored on next launch.
   - Register map project files (`.rmt`, `.rdl`, `.svd`, `.json`) remain strictly focused on hardware architecture and register definitions without polluting project files with client-specific GUI state.
 
 ---
 
-## 11. Help Menu & About Window
+## 11. Language Selection & Localization
+
+**rmap** provides built-in multi-language internationalization with instant, dynamic retranslation:
+
+- **View &rarr; Language Menu**:
+  - Located under the **View** menu (**View &rarr; Language**).
+  - Displays checkable radio items for all available languages with native and English names:
+    - **English** (Default)
+    - **Español (Spanish)**
+    - **Deutsch (German)**
+    - **Français (French)**
+    - **简体中文 (Chinese)**
+    - **日本語 (Japanese)**
+    - **Português (Portuguese)**
+- **Preferences Dialog Integration**:
+  - Select your preferred language in **Edit &rarr; Preferences... (`Ctrl+,`)** using the **Language:** dropdown.
+- **CLI Flag**:
+  - Launch with `--lang <codeOrName>` (e.g. `rmap --lang es` or `rmap --lang German`).
+- **Build-Time Language Configuration**:
+  - All language configurations are defined strictly at build time (no runtime addition or removal) for deterministic, secure operation. Adding a new language is done by copying `translations/template.json`, registering the file in `res/resources.qrc`, and adding the language descriptor in `src/LanguageManager.cpp` (see `translations/README.md` for full instructions).
+
+---
+
+## 12. Help Menu & About Window
 
 Access application assistance and information from the **Help** pull-down menu:
 

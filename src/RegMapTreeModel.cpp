@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <unordered_set>
+#include <QCoreApplication>
 #include "RegMapTreeModel.hpp"
 
 // Reserved SystemVerilog and C keywords to prevent identifier collisions
@@ -213,10 +214,18 @@ QVariant RegMapTreeModel::headerData(int section, Qt::Orientation orientation, i
     if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
         if (section == 1) return tr("Offset");
         if (section == 2) return tr("Size");
-        return m_displayColumns.value(section);
+        QString col = m_displayColumns.value(section);
+        return QCoreApplication::translate("RegMapTreeModel", col.toUtf8().constData());
     }
 
     return QVariant();
+}
+
+void RegMapTreeModel::refreshHeaderData()
+{
+    if (!m_displayColumns.isEmpty()) {
+        emit headerDataChanged(Qt::Horizontal, 0, m_displayColumns.size() - 1);
+    }
 }
 
 QModelIndex RegMapTreeModel::index(int row, int column, const QModelIndex &parent) const
