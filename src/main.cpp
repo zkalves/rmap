@@ -11,11 +11,17 @@
 #include "PathUtils.hpp"
 #include "RmapVersion.hpp"
 #include <csignal>
+#include <atomic>
+
+static std::atomic<bool> s_interrupted{false};
 
 static void signalHandler(int sig)
 {
     Q_UNUSED(sig);
-    QCoreApplication::quit();
+    s_interrupted.store(true);
+    if (QCoreApplication::instance()) {
+        QMetaObject::invokeMethod(QCoreApplication::instance(), &QCoreApplication::quit, Qt::QueuedConnection);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -130,6 +136,17 @@ int main(int argc, char *argv[])
         return success ? 0 : 1;
     }
 
+    if (s_interrupted.load()) {
+        delete mainWin;
+        return 0;
+    }
+
     mainWin->show();
+
+    if (s_interrupted.load()) {
+        delete mainWin;
+        return 0;
+    }
+
     return app.exec();
 }

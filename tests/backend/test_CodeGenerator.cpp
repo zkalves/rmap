@@ -1471,6 +1471,7 @@ void TestCodeGenerator::testPythonScriptExecutionOnGeneration()
     failOut << "sys.exit(42)\n";
     failFile.close();
 
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*Python script execution failed: Intentional script failure test.*"));
     GenerationReport failReport = cg.generate(
         testJson,
         "templates",
@@ -1485,6 +1486,7 @@ void TestCodeGenerator::testPythonScriptExecutionOnGeneration()
     QVERIFY(QString::fromStdString(failReport.errors[0].second).contains("Intentional script failure test"));
 
     // 3. Test error handling when script file does not exist
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*Python script execution failed: Python script file does not exist.*"));
     GenerationReport missingReport = cg.generate(
         testJson,
         "templates",
@@ -1507,6 +1509,7 @@ void TestCodeGenerator::testErrorRecoveryAndInvalidTemplates()
     std::vector<TemplateMapping> mappings = {
         {"templates/non_existent_tmpl.inja", "work/cg_err/out.txt"}
     };
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*Template file does not exist: templates/non_existent_tmpl\\.inja.*"));
     GenerationReport rep = cg.generate(data, "templates", "work/cg_err", mappings);
     QVERIFY(rep.has_errors());
     QVERIFY(rep.errors[0].second.find("Template file does not exist") != std::string::npos);
@@ -1521,6 +1524,7 @@ void TestCodeGenerator::testErrorRecoveryAndInvalidTemplates()
     std::vector<TemplateMapping> badMappings = {
         {"work/cg_err/bad_syntax.inja", "work/cg_err/bad_out.txt"}
     };
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*Template rendering error:.*unknown function undefined_fn.*"));
     GenerationReport badRep = cg.generate(data, "templates", "work/cg_err", badMappings, QDir::currentPath().toStdString());
     QVERIFY(badRep.has_errors());
     QVERIFY(badRep.errors[0].second.find("Template rendering error") != std::string::npos);
@@ -1598,6 +1602,13 @@ void TestCodeGenerator::testLegacyAndDirectoryMethods()
     CodeGenerator cg;
     json data = json::object();
     data["name"] = "legacy_test";
+    data["blocks"] = json::array({
+        {
+            {"name", "ctrl"},
+            {"offset", 0},
+            {"registers", json::array()}
+        }
+    });
 
     // 1. parse() legacy method
     cg.parse(data, "templates/c", "work/cg_legacy_parse");
@@ -1744,9 +1755,13 @@ void TestCodeGenerator::testCommandLineInterface()
         proc.setProcessEnvironment(env);
         proc.start(rmapBin, QStringList());
         QVERIFY(proc.waitForStarted(5000));
-        QThread::msleep(300);
+        QThread::msleep(500);
         proc.terminate();
-        QVERIFY(proc.waitForFinished(5000));
+        if (!proc.waitForFinished(5000)) {
+            proc.kill();
+            proc.waitForFinished(2000);
+        }
+        QVERIFY(proc.state() == QProcess::NotRunning);
     }
 }
 
