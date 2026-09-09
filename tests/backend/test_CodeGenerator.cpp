@@ -8,6 +8,8 @@
 #include <QtTest>
 #include <QDir>
 #include <QFile>
+#include <QProcess>
+#include <QThread>
 #include "CodeGenerator.hpp"
 
 class TestCodeGenerator : public QObject
@@ -55,6 +57,7 @@ private slots:
     void testHelpersExtendedEdgeCases();
     void testLegacyAndDirectoryMethods();
     void testPythonRunnerEdgeCases();
+    void testCommandLineInterface();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -1654,6 +1657,97 @@ void TestCodeGenerator::testPythonRunnerEdgeCases()
     bool okBadExe = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", nullptr, &err);
     QVERIFY(!okBadExe);
     qunsetenv("RMAP_PYTHON");
+}
+
+void TestCodeGenerator::testCommandLineInterface()
+{
+    QString rmapBin = QDir("build/bin/rmap").absolutePath();
+    if (!QFile::exists(rmapBin)) {
+        rmapBin = QDir("bin/rmap").absolutePath();
+    }
+    if (!QFile::exists(rmapBin)) {
+        rmapBin = QDir("../bin/rmap").absolutePath();
+    }
+    if (!QFile::exists(rmapBin)) {
+        QSKIP("rmap binary not available for CLI tests");
+    }
+
+    auto runRmap = [&](const QStringList &args, const QProcessEnvironment *customEnv = nullptr) -> QPair<int, QString> {
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        QProcessEnvironment env = customEnv ? *customEnv : QProcessEnvironment::systemEnvironment();
+        env.insert("QT_QPA_PLATFORM", "offscreen");
+        proc.setProcessEnvironment(env);
+        proc.start(rmapBin, args);
+        proc.waitForFinished(10000);
+        return {proc.exitCode(), QString::fromUtf8(proc.readAll())};
+    };
+
+    // 1. --help
+    auto [codeHelp, outHelp] = runRmap({"--help"});
+    QCOMPARE(codeHelp, 0);
+    QVERIFY(outHelp.contains("Usage:"));
+
+    // 2. --version
+    auto [codeVer, outVer] = runRmap({"--version"});
+    QCOMPARE(codeVer, 0);
+    QVERIFY(outVer.contains("rmap"));
+
+    // 3. Headless mode auto-detection when neither DISPLAY nor WAYLAND_DISPLAY is set
+    {
+        QProcessEnvironment noDispEnv = QProcessEnvironment::systemEnvironment();
+        noDispEnv.remove("DISPLAY");
+        noDispEnv.remove("WAYLAND_DISPLAY");
+        auto [codeNoDisp, outNoDisp] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &noDispEnv);
+        QCOMPARE(codeNoDisp, 0);
+    }
+
+    // 4. Semantic diff CLI mode (-d)
+    {
+        auto [codeDiff, outDiff] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d", "examples/rmt/peripherals/spi.rmt",
+                                            "--report-format", "markdown", "-o", "work/cli_diff.md"});
+        QCOMPARE(codeDiff, 0);
+        QVERIFY(QFile::exists("work/cli_diff.md"));
+    }
+
+    // 5. Theme and Language options with lint (-t, --lang, -l)
+    {
+        auto [codeThemeLang, outThemeLang] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-t", "dracula", "--lang", "es", "-l"});
+        QCOMPARE(codeThemeLang, 0);
+    }
+
+    // 6. Strict linting mode (--strict)
+    {
+        auto [codeStrictFail, outStrictFail] = runRmap({"-f", "examples/rmt/features/wide_bus_64bit.rmt", "-l", "--strict"});
+        QCOMPARE(codeStrictFail, 1);
+    }
+
+    // 7. Conversion mode (-c)
+    {
+        auto [codeConv, outConv] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/cli_conv.svd"});
+        QCOMPARE(codeConv, 0);
+        QVERIFY(QFile::exists("work/cli_conv.svd"));
+    }
+
+    // 8. Headless export mode (-e, -o)
+    {
+        auto [codeExp, outExp] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-e", "-o", "work/cli_exp_dir"});
+        QCOMPARE(codeExp, 0);
+        QVERIFY(QDir("work/cli_exp_dir").exists());
+    }
+
+    // 9. Interactive GUI startup and clean SIGTERM shutdown (exercises mainWin->show() and app.exec())
+    {
+        QProcess proc;
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("QT_QPA_PLATFORM", "offscreen");
+        proc.setProcessEnvironment(env);
+        proc.start(rmapBin, QStringList());
+        QVERIFY(proc.waitForStarted(5000));
+        QThread::msleep(300);
+        proc.terminate();
+        QVERIFY(proc.waitForFinished(5000));
+    }
 }
 
 QTEST_MAIN(TestCodeGenerator)

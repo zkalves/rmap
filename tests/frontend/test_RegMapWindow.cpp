@@ -11,6 +11,8 @@
 #include <QTreeView>
 #include <QStackedWidget>
 #include <QTableWidget>
+#include <QMessageBox>
+#include <QMenu>
 #include "RegMapWindow.hpp"
 #include "BlockMemoryMapWidget.hpp"
 #include "LanguageManager.hpp"
@@ -79,6 +81,13 @@ private slots:
     void testMainWindowSizePersistence();
     void testLanguageMenuStructure();
     void testLanguageSwitching();
+    void testFileSaveAndSaveAsVariations();
+    void testFileOpenAndReloadVariations();
+    void testWindowLifecycleAndEvents();
+    void testValidationAndExportDialogs();
+    void testContextMenuAndDuplicationVariations();
+    void testSortingAndProxyEdgeCases();
+    void testHeadlessCliExtended();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen()
@@ -951,6 +960,49 @@ void TestRegMapWindow::testUndoRedoStack()
     // Redo
     undoStack->redo();
     QCOMPARE(model->data(blkIndex, Qt::DisplayRole).toString(), QString("SPI_RENAMED"));
+
+    // InsertItemCommand with default/root kind for complete switch branch coverage
+    InsertItemCommand dummyCmd(model, RegMapTreeItem::e_rmmKind::root, 0, QModelIndex());
+    QCOMPARE(dummyCmd.text(), QString("Add Item"));
+
+    // Delete item command push, undo, and redo
+    auto *actDel = window.findChild<QAction*>("actionDeleteItem");
+    QVERIFY(actDel != nullptr);
+    auto *treeView = window.findChild<QTreeView*>("treeView");
+    QVERIFY(treeView != nullptr);
+    auto *treeProxy = qobject_cast<QAbstractProxyModel*>(treeView->model());
+    QVERIFY(treeProxy != nullptr);
+    QModelIndex blkProxy = treeProxy->mapFromSource(model->index(0, 0, QModelIndex()));
+    QModelIndex regProxy = treeProxy->mapFromSource(model->index(0, 0, model->index(0, 0, QModelIndex())));
+    treeView->setCurrentIndex(regProxy);
+    int prevRegCount = model->rowCount(model->index(0, 0, QModelIndex()));
+    actDel->trigger();
+    QCOMPARE(model->rowCount(model->index(0, 0, QModelIndex())), prevRegCount - 1);
+    undoStack->undo();
+    QCOMPARE(model->rowCount(model->index(0, 0, QModelIndex())), prevRegCount);
+    undoStack->redo();
+    QCOMPARE(model->rowCount(model->index(0, 0, QModelIndex())), prevRegCount - 1);
+
+    // Duplicate item command undo and redo
+    treeView->setCurrentIndex(blkProxy);
+    int blkCount = model->rowCount(QModelIndex());
+    auto *actDup = window.findChild<QAction*>("actionDuplicate");
+    QVERIFY(actDup != nullptr);
+    actDup->trigger();
+    QCOMPARE(model->rowCount(QModelIndex()), blkCount + 1);
+    undoStack->undo();
+    QCOMPARE(model->rowCount(QModelIndex()), blkCount);
+    undoStack->redo();
+    QCOMPARE(model->rowCount(QModelIndex()), blkCount + 1);
+
+    // Edit cell command via UI panel
+    auto *blkNameEdit = window.findChild<QLineEdit*>("blkNameEdit");
+    if (blkNameEdit) {
+        blkNameEdit->setText("UI_MOD_NAME");
+        emit blkNameEdit->editingFinished();
+        undoStack->undo();
+        undoStack->redo();
+    }
 }
 
 void TestRegMapWindow::testHeadlessCliMethods()
@@ -1121,6 +1173,19 @@ void TestRegMapWindow::testColorBlindModeToggle()
     actColorBlind->trigger();
     QCOMPARE(window.isColorBlindMode(), false);
     QCOMPARE(bitfieldBar->isColorBlindMode(), false);
+
+    // Exercise menuColorBlindProfile aboutToShow and profile action
+    auto *cbMenu = window.findChild<QMenu*>("menuColorBlindProfile");
+    if (cbMenu) {
+        emit cbMenu->aboutToShow();
+        for (auto *act : cbMenu->actions()) {
+            if (act->data().toString() == "deuteranopia") {
+                act->trigger();
+                break;
+            }
+        }
+        emit cbMenu->aboutToShow();
+    }
 }
 
 void TestRegMapWindow::testKeyBindingsDialog()
@@ -1273,6 +1338,14 @@ void TestRegMapWindow::testColorSchemeSwitching()
     }
     QVERIFY(menuScheme != nullptr);
     QVERIFY(menuScheme->actions().size() >= 6);
+    emit menuScheme->aboutToShow();
+    for (auto *act : menuScheme->actions()) {
+        if (act->data().toString() == "dracula") {
+            act->trigger();
+            break;
+        }
+    }
+    emit ThemeManager::instance().themesUpdated();
 }
 
 void TestRegMapWindow::testMainWindowSizePersistence()
@@ -1387,11 +1460,537 @@ void TestRegMapWindow::testLanguageSwitching()
     LanguageManager::instance().setLanguage("fr");
     QCOMPARE(window.language(), QString("fr"));
     QVERIFY(verifyOnlyThisLanguageChecked("fr"));
+    emit menuLang->aboutToShow();
 
     // Reset back to English
     window.setLanguage("en");
     QCOMPARE(window.language(), QString("en"));
     QVERIFY(verifyOnlyThisLanguageChecked("en"));
+}
+
+void TestRegMapWindow::testFileSaveAndSaveAsVariations()
+{
+    // 1. Save with fresh empty window -> triggers SaveAs
+    {
+        RegMapWindow window;
+        window.show();
+        auto *actSave = window.findChild<QAction*>("actionFileSave");
+        QVERIFY(actSave != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        actSave->trigger();
+    }
+
+    // 2. Save with loaded window -> saves directly
+    {
+        QFile::remove("work/test_save_act.rmt");
+        QVERIFY(QFile::copy("examples/rmt/peripherals/spi.rmt", "work/test_save_act.rmt"));
+        RegMapWindow window("work/test_save_act.rmt");
+        window.show();
+        auto *actSave = window.findChild<QAction*>("actionFileSave");
+        QVERIFY(actSave != nullptr);
+        actSave->trigger();
+    }
+
+    // 3. fileSave(fname) with custom path
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        QVERIFY(window.fileSave("work/test_save_direct.rmt"));
+        QVERIFY(QFile::exists("work/test_save_direct.rmt"));
+
+        // fileSave with write error
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        QVERIFY(!window.fileSave("/proc/invalid_path/cannot_save.rmt"));
+    }
+
+    // 4. SaveAs action with auto-dismiss
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        auto *actSaveAs = window.findChild<QAction*>("actionFileSaveAs");
+        QVERIFY(actSaveAs != nullptr);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        actSaveAs->trigger();
+    }
+
+    // 5. regmap_modified and notModified via cell edit
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        auto *model = window.getModel();
+        QVERIFY(model != nullptr);
+        QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+        QModelIndex regIdx = model->index(0, 0, blkIdx);
+        QModelIndex nameIdx = model->index(0, 3, regIdx);
+        model->setData(nameIdx, "MODIFIED_REG", Qt::EditRole);
+        QVERIFY(window.windowTitle().endsWith('*'));
+
+        window.fileSave("work/test_save_clearmod.rmt");
+        QVERIFY(!window.windowTitle().endsWith('*'));
+    }
+}
+
+void TestRegMapWindow::testFileOpenAndReloadVariations()
+{
+    // 1. File reload on modified model with Cancel vs Ok
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        auto *model = window.getModel();
+        QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+        QModelIndex regIdx = model->index(0, 0, blkIdx);
+        model->setData(model->index(0, 3, regIdx), "NEW_NAME", Qt::EditRole);
+
+        auto *actReload = window.findChild<QAction*>("actionFileReload");
+        QVERIFY(actReload != nullptr);
+
+        // Cancel reload
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Cancel)) btn->click();
+                else box->close();
+            } else if (auto *m = QApplication::activeModalWidget()) m->close();
+        });
+        actReload->trigger();
+
+        // Ok reload
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Ok)) btn->click();
+                else box->close();
+            } else if (auto *m = QApplication::activeModalWidget()) m->close();
+        });
+        actReload->trigger();
+    }
+
+    // 2. File Open on modified model with Cancel vs Ok
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        auto *model = window.getModel();
+        QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+        model->setData(model->index(0, 3, blkIdx), "MOD_BLK", Qt::EditRole);
+
+        auto *actOpen = window.findChild<QAction*>("actionFileOpen");
+        QVERIFY(actOpen != nullptr);
+
+        // Cancel open
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Cancel)) btn->click();
+                else box->close();
+            } else if (auto *m = QApplication::activeModalWidget()) m->close();
+        });
+        actOpen->trigger();
+
+        // Ok open with auto-closing open dialog
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Ok)) btn->click();
+            }
+            QTimer::singleShot(50, []() {
+                if (auto *m = QApplication::activeModalWidget()) m->close();
+            });
+        });
+        actOpen->trigger();
+    }
+
+    // 3. fileOpen with nonexistent file
+    {
+        RegMapWindow window;
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        window.fileOpen("nonexistent_file_path.rmt");
+    }
+
+    // 4. fileOpen with corrupt file
+    {
+        RegMapWindow window;
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        window.fileOpen("CMakeLists.txt");
+    }
+
+    // 5. File New and Close with Save option when modified
+    {
+        QFile::remove("work/temp_save_new.rmt");
+        QVERIFY(QFile::copy("examples/rmt/peripherals/spi.rmt", "work/temp_save_new.rmt"));
+        RegMapWindow window("work/temp_save_new.rmt");
+        auto *model = window.getModel();
+        model->setData(model->index(0, 3, model->index(0, 0, QModelIndex())), "MOD_NAME", Qt::EditRole);
+
+        auto *actNew = window.findChild<QAction*>("actionFileNew");
+        QVERIFY(actNew != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Save)) btn->click();
+                else box->close();
+            } else if (auto *m = QApplication::activeModalWidget()) m->close();
+        });
+        actNew->trigger();
+
+        // After fileNew, window has a fresh model
+        model = window.getModel();
+        QVERIFY(model != nullptr);
+        auto *actAddBlk = window.findChild<QAction*>("actionAddRegBlock");
+        if (actAddBlk) actAddBlk->trigger();
+
+        auto *actClose = window.findChild<QAction*>("actionFileClose");
+        QVERIFY(actClose != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Ok)) btn->click();
+                else box->close();
+            } else if (auto *m = QApplication::activeModalWidget()) m->close();
+        });
+        actClose->trigger();
+    }
+}
+
+void TestRegMapWindow::testWindowLifecycleAndEvents()
+{
+    RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+    window.show();
+    QCoreApplication::processEvents();
+
+    // Exercise deleting destructor
+    delete new RegMapWindow();
+
+    // Close event
+    QCloseEvent closeEv;
+    QApplication::sendEvent(&window, &closeEv);
+
+    // Quit action
+    auto *actQuit = window.findChild<QAction*>("actionQuit");
+    if (actQuit) {
+        actQuit->trigger();
+    }
+
+    // Language change event
+    QEvent langEv(QEvent::LanguageChange);
+    QApplication::sendEvent(&window, &langEv);
+
+    // Color blind mode extended
+    window.setColourBlindType(ColorBlindMode::Protanopia);
+    QCOMPARE(window.colourBlindType(), ColorBlindMode::Protanopia);
+    QCOMPARE(window.colorBlindType(), ColorBlindMode::Protanopia);
+    QVERIFY(window.isColourBlindMode());
+
+    window.setColourBlindType(ColorBlindMode::Tritanopia);
+    QCOMPARE(window.colourBlindType(), ColorBlindMode::Tritanopia);
+
+    window.setColourBlindType(ColorBlindMode::None);
+    QCOMPARE(window.colourBlindType(), ColorBlindMode::None);
+    QVERIFY(!window.isColourBlindMode());
+}
+
+void TestRegMapWindow::testValidationAndExportDialogs()
+{
+    // 1. Check on valid model (spi.rmt)
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        auto *actCheck = window.findChild<QAction*>("actionCheck");
+        QVERIFY(actCheck != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        actCheck->trigger();
+    }
+
+    // 2. Check on invalid model (invalid_overlap.rmt)
+    {
+        RegMapWindow window("examples/rmt/validation/invalid_overlap.rmt");
+        auto *actCheck = window.findChild<QAction*>("actionCheck");
+        QVERIFY(actCheck != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        actCheck->trigger();
+    }
+
+    // 3. Export on invalid model - reply No
+    {
+        RegMapWindow window("examples/rmt/validation/invalid_overlap.rmt");
+        auto *actExport = window.findChild<QAction*>("actionExport");
+        QVERIFY(actExport != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::No)) btn->click();
+                else box->close();
+            } else if (auto *m = QApplication::activeModalWidget()) m->close();
+        });
+        actExport->trigger();
+    }
+
+    // 4. Export on invalid model - reply Yes
+    {
+        RegMapWindow window("examples/rmt/validation/invalid_overlap.rmt");
+        auto *actExport = window.findChild<QAction*>("actionExport");
+        QVERIFY(actExport != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Yes)) btn->click();
+                else box->close();
+            }
+            QTimer::singleShot(100, []() {
+                if (auto *m = QApplication::activeModalWidget()) m->close();
+            });
+        });
+        actExport->trigger();
+    }
+
+    // 5. Export with empty template table
+    {
+        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        auto *cfgWin = window.configWindow();
+        QVERIFY(cfgWin != nullptr);
+        auto *tbl = cfgWin->findChild<QTableWidget*>("templateTable");
+        if (tbl) tbl->setRowCount(0);
+
+        auto *actExport = window.findChild<QAction*>("actionExport");
+        QVERIFY(actExport != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        actExport->trigger();
+    }
+}
+
+void TestRegMapWindow::testContextMenuAndDuplicationVariations()
+{
+    RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+    window.show();
+    QCoreApplication::processEvents();
+
+    auto *treeView = window.findChild<QTreeView*>("treeView");
+    QVERIFY(treeView != nullptr);
+    auto *model = window.getModel();
+    QVERIFY(model != nullptr);
+
+    // 1. Duplicate a field item (fld) via fieldsTableView focus
+    auto *fieldsTable = window.findChild<QTableView*>("fieldsTableView");
+    QVERIFY(fieldsTable != nullptr);
+    if (fieldsTable->model() && fieldsTable->model()->rowCount() > 0) {
+        treeView->setCurrentIndex(QModelIndex());
+        fieldsTable->setFocus();
+        fieldsTable->setCurrentIndex(fieldsTable->model()->index(0, 0));
+        auto *actDup = window.findChild<QAction*>("actionDuplicate");
+        QVERIFY(actDup != nullptr);
+        int prevCount = fieldsTable->model()->rowCount();
+        actDup->trigger();
+        QCOMPARE(fieldsTable->model()->rowCount(), prevCount + 1);
+    }
+
+    auto dismissContextMenu = [&window](bool triggerDup) {
+        auto *menu = window.findChild<QMenu*>("treeContextMenu");
+        if (menu) {
+            if (triggerDup) {
+                for (auto *act : menu->actions()) {
+                    if (act->text().contains("Duplicate")) {
+                        act->trigger();
+                        break;
+                    }
+                }
+            }
+            menu->hide();
+        }
+    };
+
+    // 3. Tree context menu at valid position - trigger duplicate
+    QTimer::singleShot(50, [&dismissContextMenu]() {
+        dismissContextMenu(true);
+    });
+    QModelIndex proxyFirst = treeView->model()->index(0, 0);
+    QRect r = treeView->visualRect(proxyFirst);
+    emit treeView->customContextMenuRequested(r.center());
+
+    // 4. Tree context menu at invalid position
+    QTimer::singleShot(50, [&dismissContextMenu]() {
+        dismissContextMenu(false);
+    });
+    emit treeView->customContextMenuRequested(QPoint(-15, -15));
+
+    // 5. Fields table context menu at valid and invalid positions
+    if (fieldsTable && fieldsTable->model() && fieldsTable->model()->rowCount() > 0) {
+        QTimer::singleShot(50, [&dismissContextMenu]() {
+            dismissContextMenu(true);
+        });
+        QRect fr = fieldsTable->visualRect(fieldsTable->model()->index(0, 0));
+        emit fieldsTable->customContextMenuRequested(fr.center());
+
+        QTimer::singleShot(50, [&dismissContextMenu]() {
+            dismissContextMenu(false);
+        });
+        emit fieldsTable->customContextMenuRequested(QPoint(-15, -15));
+    }
+
+    // 6. Add Address Map action
+    auto *actAddMap = window.findChild<QAction*>("actionAddRegMap");
+    if (actAddMap) {
+        actAddMap->trigger();
+    }
+
+    // 7. Test Undo / Redo with EditCellCommand and InsertItemCommand via GUI actions
+    auto *stack = window.undoStack();
+    QVERIFY(stack != nullptr);
+
+    QModelIndex blkProxy = treeView->model()->index(0, 0);
+    treeView->expand(blkProxy);
+    QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+    QVERIFY(regProxy.isValid());
+
+    // Switch selection to register to populate m_currentRegItem
+    treeView->setCurrentIndex(regProxy);
+    QCoreApplication::processEvents();
+
+    auto *regNameEdit = window.findChild<QLineEdit*>("regNameEdit");
+    QVERIFY(regNameEdit != nullptr);
+    regNameEdit->setText("EDITED_NAME");
+    emit regNameEdit->editingFinished();
+
+    stack->undo();
+    stack->redo();
+    stack->undo();
+
+    auto *regOffsetEdit = window.findChild<QLineEdit*>("regOffsetEdit");
+    if (regOffsetEdit) {
+        regOffsetEdit->setText("0x80");
+        emit regOffsetEdit->editingFinished();
+        stack->undo();
+        stack->redo();
+        stack->undo();
+    }
+
+    auto *regDescEdit = window.findChild<QLineEdit*>("regDescEdit");
+    if (regDescEdit) {
+        regDescEdit->setText("New Description");
+        emit regDescEdit->editingFinished();
+        stack->undo();
+        stack->redo();
+        stack->undo();
+    }
+
+    // Insert new register child into block via insertChild
+    treeView->setCurrentIndex(blkProxy);
+    QCoreApplication::processEvents();
+
+    auto *blkNameEdit = window.findChild<QLineEdit*>("blkNameEdit");
+    if (blkNameEdit) {
+        blkNameEdit->setText("EDITED_BLK");
+        emit blkNameEdit->editingFinished();
+        stack->undo();
+        stack->redo();
+        stack->undo();
+    }
+
+    int countBefore = treeView->model()->rowCount(blkProxy);
+    window.insertChild(RegMapTreeItem::e_rmmKind::reg);
+    QCOMPARE(treeView->model()->rowCount(blkProxy), countBefore + 1);
+    stack->undo();
+    QCOMPARE(treeView->model()->rowCount(blkProxy), countBefore);
+    stack->redo();
+    QCOMPARE(treeView->model()->rowCount(blkProxy), countBefore + 1);
+    stack->undo();
+}
+
+void TestRegMapWindow::testSortingAndProxyEdgeCases()
+{
+    RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+    auto *model = window.getModel();
+    QVERIFY(model != nullptr);
+
+    QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+    QVERIFY(blkIdx.isValid());
+
+    // Insert data with 0b, decimal, and 0x formats
+    QModelIndex reg1 = model->index(0, 0, blkIdx);
+    model->setData(model->index(0, 1, reg1), "0b100", Qt::EditRole);
+    QModelIndex reg2 = model->index(1, 0, blkIdx);
+    model->setData(model->index(1, 1, reg2), "10", Qt::EditRole);
+    QModelIndex reg3 = model->index(2, 0, blkIdx);
+    model->setData(model->index(2, 1, reg3), "0x20", Qt::EditRole);
+
+    auto *treeView = window.findChild<QTreeView*>("treeView");
+    QVERIFY(treeView != nullptr);
+    treeView->sortByColumn(1, Qt::AscendingOrder);
+    treeView->sortByColumn(1, Qt::DescendingOrder);
+    treeView->sortByColumn(2, Qt::AscendingOrder);
+    treeView->sortByColumn(3, Qt::AscendingOrder);
+
+    auto *fieldsTable = window.findChild<QTableView*>("fieldsTableView");
+    if (fieldsTable) {
+        fieldsTable->sortByColumn(1, Qt::AscendingOrder);
+        fieldsTable->sortByColumn(2, Qt::AscendingOrder);
+        fieldsTable->sortByColumn(3, Qt::AscendingOrder);
+    }
+}
+
+void TestRegMapWindow::testHeadlessCliExtended()
+{
+    // 1. headlessExport with empty filename
+    {
+        RegMapWindow emptyWin;
+        QVERIFY(!emptyWin.headlessExport("work"));
+    }
+
+    // 2. headlessExport with output directory override
+    {
+        RegMapWindow spiWin("examples/rmt/peripherals/spi.rmt");
+        QVERIFY(spiWin.headlessExport("work/spi_custom_out"));
+        QVERIFY(QDir("work/spi_custom_out").exists());
+    }
+
+    // 3. headlessLint with strict mode on wide bus (checks alignment and warns on missing descriptions)
+    {
+        RegMapWindow wideWin("examples/rmt/features/wide_bus_64bit.rmt");
+        QVERIFY(!wideWin.headlessLint(true, "text", ""));
+        QVERIFY(wideWin.headlessLint(false, "text", ""));
+    }
+
+    // 4. headlessLint with invalid overlap and JUnit format
+    {
+        RegMapWindow invWin("examples/rmt/validation/invalid_overlap.rmt");
+        QVERIFY(!invWin.headlessLint(false, "junit", "work/lint_fail.xml"));
+        QVERIFY(QFile::exists("work/lint_fail.xml"));
+    }
+
+    // 5. headlessLint with invalid overlap and text format
+    {
+        RegMapWindow invWin("examples/rmt/validation/invalid_overlap.rmt");
+        QVERIFY(!invWin.headlessLint(false, "text", "work/lint_fail.txt"));
+        QVERIFY(QFile::exists("work/lint_fail.txt"));
+    }
+
+    // 6. headlessLint with unwritable destination
+    {
+        RegMapWindow spiWin("examples/rmt/peripherals/spi.rmt");
+        QVERIFY(!spiWin.headlessLint(false, "text", "/proc/cannot_write/report.txt"));
+    }
+
+    // 7. semanticDiff with missing file1
+    QVERIFY(!RegMapWindow::semanticDiff("nonexistent_1.rmt", "examples/rmt/peripherals/spi.rmt", "text", ""));
+
+    // 8. semanticDiff with missing file2
+    QVERIFY(!RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "nonexistent_2.rmt", "text", ""));
+
+    // 9. semanticDiff with markdown format (same files)
+    QVERIFY(RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "examples/rmt/peripherals/spi.rmt", "markdown", "work/diff_same.md"));
+    QVERIFY(QFile::exists("work/diff_same.md"));
+
+    // 10. semanticDiff with markdown format (different files)
+    QVERIFY(RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "examples/rmt/features/wide_bus_64bit.rmt", "markdown", "work/diff_diff.md"));
+    QVERIFY(QFile::exists("work/diff_diff.md"));
 }
 
 QTEST_MAIN(TestRegMapWindow)

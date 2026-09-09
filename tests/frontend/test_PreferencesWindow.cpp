@@ -14,11 +14,32 @@
 #include "LanguageManager.hpp"
 #include "AppSettings.hpp"
 
+static QtMessageHandler s_originalHandler = nullptr;
+static void testOffscreenMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    if (type == QtWarningMsg && msg.contains("This plugin does not support")) {
+        return;
+    }
+    if (s_originalHandler) {
+        s_originalHandler(type, context, msg);
+    }
+}
+
 class TestPreferencesWindow : public QObject
 {
     Q_OBJECT
 
 private slots:
+    void initTestCase() {
+        s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
+        QDir("work").removeRecursively();
+        QDir().mkpath("work");
+    }
+    void cleanupTestCase() {
+        QDir("work").removeRecursively();
+        qInstallMessageHandler(s_originalHandler);
+    }
+
     void testPreferencesDefaults();
     void testColourSchemeChange();
     void testColourBlindModeToggle();
@@ -26,6 +47,14 @@ private slots:
     void testWindowSizePersistence();
     void testLanguageSelection();
     void testThemesFolderButton();
+    void testAllThemesCycling();
+    void testColorBlindExtended();
+    void testLanguageExtended();
+    void testOnOpenThemesFolder();
+    void testLanguageChangeEvent();
+    void testMoveAndResizeEvents();
+    void testRestoreWindowStateVariations();
+    void testShowEventAndApplyButton();
 };
 
 void TestPreferencesWindow::testPreferencesDefaults()
@@ -168,6 +197,156 @@ void TestPreferencesWindow::testThemesFolderButton()
     QString themesDir = ThemeManager::userThemesDir();
     QVERIFY(!themesDir.isEmpty());
     QVERIFY(themesDir.endsWith("themes"));
+}
+
+void TestPreferencesWindow::testAllThemesCycling()
+{
+    PreferencesWindow prefWin;
+    const auto themes = ThemeManager::instance().availableThemes();
+    for (const auto &t : themes) {
+        prefWin.setColourScheme(t.id);
+        QCOMPARE(prefWin.colourScheme(), t.id);
+        QCOMPARE(prefWin.colorScheme(), t.id);
+        prefWin.apply();
+        QCOMPARE(ThemeManager::instance().currentThemeId(), t.id);
+    }
+
+    // Setting empty scheme should default to solarized8
+    prefWin.setColourScheme("");
+    QCOMPARE(prefWin.colourScheme(), QString("solarized8"));
+    prefWin.apply();
+    QCOMPARE(ThemeManager::instance().currentThemeId(), QString("solarized8"));
+}
+
+void TestPreferencesWindow::testOnOpenThemesFolder()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString origPath = AppSettings::instance().configFilePath();
+    AppSettings::instance().setConfigFilePath(tempDir.path() + "/conf/rmap.conf");
+
+    PreferencesWindow prefWin;
+    QString themesDir = ThemeManager::userThemesDir();
+    QVERIFY(!QDir(themesDir).exists());
+
+    prefWin.onOpenThemesFolder();
+    QVERIFY(QDir(themesDir).exists());
+    QVERIFY(QFile::exists(QDir(themesDir).filePath("template.json")));
+
+    AppSettings::instance().setConfigFilePath(origPath);
+}
+
+void TestPreferencesWindow::testLanguageExtended()
+{
+    PreferencesWindow prefWin;
+    prefWin.setLanguage("");
+    QCOMPARE(prefWin.language(), QString("en"));
+
+    prefWin.setLanguage("de");
+    QCOMPARE(prefWin.language(), QString("de"));
+}
+
+void TestPreferencesWindow::testColorBlindExtended()
+{
+    PreferencesWindow prefWin;
+
+    // Setting ColorBlindMode::None should fallback to Universal
+    prefWin.setColourBlindType(ColorBlindMode::None);
+    QCOMPARE(prefWin.colourBlindType(), ColorBlindMode::Universal);
+
+    // Test alias methods
+    prefWin.setColorBlindType(ColorBlindMode::Tritanopia);
+    QCOMPARE(prefWin.colorBlindType(), ColorBlindMode::Tritanopia);
+    QCOMPARE(prefWin.colourBlindType(), ColorBlindMode::Tritanopia);
+
+    prefWin.setColourBlindMode(true);
+    QCOMPARE(prefWin.colorBlindMode(), true);
+    QCOMPARE(prefWin.isColourBlindMode(), true);
+
+    prefWin.setColourBlindMode(false);
+    QCOMPARE(prefWin.colorBlindMode(), false);
+
+    // Test empty combo fallback in saveStateFromUi
+    auto *cbCombo = prefWin.findChild<QComboBox*>("colourBlindCombo");
+    auto *schemeCombo = prefWin.findChild<QComboBox*>("colourSchemeCombo");
+    auto *langCombo = prefWin.findChild<QComboBox*>("languageCombo");
+    QVERIFY(cbCombo && schemeCombo && langCombo);
+    cbCombo->setCurrentIndex(-1);
+    schemeCombo->setCurrentIndex(-1);
+    langCombo->setCurrentIndex(-1);
+    prefWin.accept();
+    QCOMPARE(prefWin.colourScheme(), QString("solarized8"));
+    QCOMPARE(prefWin.language(), QString("en"));
+    QCOMPARE(prefWin.colourBlindType(), ColorBlindMode::Universal);
+}
+
+void TestPreferencesWindow::testLanguageChangeEvent()
+{
+    PreferencesWindow prefWin;
+    QEvent langChange(QEvent::LanguageChange);
+    QApplication::sendEvent(&prefWin, &langChange);
+    QCOMPARE(prefWin.windowTitle(), QString("Preferences"));
+}
+
+void TestPreferencesWindow::testMoveAndResizeEvents()
+{
+    PreferencesWindow prefWin;
+    QResizeEvent resizeEv(QSize(520, 300), QSize(500, 280));
+    QApplication::sendEvent(&prefWin, &resizeEv);
+
+    QMoveEvent moveEv(QPoint(50, 50), QPoint(0, 0));
+    QApplication::sendEvent(&prefWin, &moveEv);
+
+    QCloseEvent closeEv;
+    QApplication::sendEvent(&prefWin, &closeEv);
+}
+
+void TestPreferencesWindow::testRestoreWindowStateVariations()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString origPath = AppSettings::instance().configFilePath();
+    AppSettings::instance().setConfigFilePath(tempDir.path() + "/test_pref_restore.conf");
+
+    // Case 1: Non-empty geometry
+    {
+        PreferencesWindow prefWin;
+        prefWin.saveWindowStateToSettings();
+        QVERIFY(!AppSettings::instance().windowGeometry("PreferencesWindow").isEmpty());
+    }
+    {
+        PreferencesWindow prefWin2;
+        QVERIFY(prefWin2.width() >= 400);
+    }
+
+    // Case 2: Empty geometry, valid size and pos
+    AppSettings::instance().setWindowGeometry("PreferencesWindow", QByteArray());
+    AppSettings::instance().setWindowSize("PreferencesWindow", QSize(510, 290));
+    AppSettings::instance().setWindowPos("PreferencesWindow", QPoint(70, 70));
+    {
+        PreferencesWindow prefWin3;
+        QCOMPARE(prefWin3.size(), QSize(510, 290));
+        QCOMPARE(prefWin3.pos(), QPoint(70, 70));
+    }
+
+    AppSettings::instance().setConfigFilePath(origPath);
+}
+
+void TestPreferencesWindow::testShowEventAndApplyButton()
+{
+    PreferencesWindow prefWin;
+    prefWin.show();
+
+    // Trigger themesUpdated signal
+    ThemeManager::instance().scanThemes();
+
+    // Trigger apply button directly via buttonBox
+    auto *box = prefWin.findChild<QDialogButtonBox*>("buttonBox");
+    QVERIFY(box != nullptr);
+    auto *applyBtn = box->button(QDialogButtonBox::Apply);
+    if (applyBtn) {
+        applyBtn->click();
+    }
 }
 
 QTEST_MAIN(TestPreferencesWindow)

@@ -10,9 +10,18 @@
 #include "LanguageManager.hpp"
 #include "PathUtils.hpp"
 #include "RmapVersion.hpp"
+#include <csignal>
+
+static void signalHandler(int sig)
+{
+    Q_UNUSED(sig);
+    QCoreApplication::quit();
+}
 
 int main(int argc, char *argv[])
 {
+    std::signal(SIGTERM, signalHandler);
+    std::signal(SIGINT, signalHandler);
     Q_INIT_RESOURCE(resources);
     const QString version = QStringLiteral("v") + QString::fromLatin1(RMAP_VERSION_STRING);
 

@@ -295,6 +295,13 @@ void TestRegMapTreeModel::testCrc32AndMemoryGapPadding()
     json extractedRestored = model.extractJsonData(32);
     uint32_t crc3 = extractedRestored["regmap_crc32"].get<uint32_t>();
     QCOMPARE(crc1, crc3);
+
+    // Insert a second block to exercise multi-block sorting lambda
+    model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    model.setData(model.index(1, 3, QModelIndex()), "BLK_SECOND", Qt::EditRole);
+    model.setData(model.index(1, 1, QModelIndex()), "0x1000", Qt::EditRole);
+    json multiBlkJson = model.extractJsonData(32);
+    QCOMPARE(multiBlkJson["blocks"].size(), (size_t)2);
 }
 
 void TestRegMapTreeModel::testAsicLinterDrc()

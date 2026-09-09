@@ -10,14 +10,40 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QTableWidget>
+#include <QTimer>
+#include <QDir>
+#include <QFileDialog>
+#include <QMessageBox>
 #include "RegConfigWindow.hpp"
 #include "AppSettings.hpp"
+#include "PathUtils.hpp"
+
+static QtMessageHandler s_originalHandler = nullptr;
+static void testOffscreenMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    if (type == QtWarningMsg && msg.contains("This plugin does not support")) {
+        return;
+    }
+    if (s_originalHandler) {
+        s_originalHandler(type, context, msg);
+    }
+}
 
 class TestRegConfigWindow : public QObject
 {
     Q_OBJECT
 
 private slots:
+    void initTestCase() {
+        s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
+        QDir("work").removeRecursively();
+        QDir().mkpath("work");
+    }
+    void cleanupTestCase() {
+        QDir("work").removeRecursively();
+        qInstallMessageHandler(s_originalHandler);
+    }
+
     void testConfigDialogDefaults();
     void testStateModificationAndRows();
     void testSerializationAndDeserialization();
@@ -30,6 +56,15 @@ private slots:
     void testEnableDisableToggles();
     void testDynamicOutputFolderSync();
     void testPythonScriptField();
+    void testTemplateFolderRemovalVariations();
+    void testComputeDefaultOutputPathAllBranches();
+    void testOutputFolderEditedExtendedBranches();
+    void testTableToolbarButtons();
+    void testParameterTableButtons();
+    void testSerializationEdgeCases();
+    void testLifecycleAndEvents();
+    void testBrowseDialogsAutoDismiss();
+    void testFullBranchCoverageRegConfig();
 };
 
 void TestRegConfigWindow::testConfigDialogDefaults()
@@ -455,6 +490,477 @@ void TestRegConfigWindow::testPythonScriptField()
     QCOMPARE(cfgWin2.pythonScript(), QString(""));
     QCOMPARE(pyEdit2->text(), QString(""));
     QCOMPARE(cfgWin2.isPythonScriptEnabled(), false);
+}
+
+void TestRegConfigWindow::testTemplateFolderRemovalVariations()
+{
+    RegConfigWindow cfgWin;
+    auto *list = cfgWin.findChild<QListWidget*>("templateFoldersList");
+    auto *btnRemove = cfgWin.findChild<QPushButton*>("btnRemoveTemplateFolder");
+    QVERIFY(list != nullptr && btnRemove != nullptr);
+
+    // Clear and add 3 folders
+    list->clear();
+    cfgWin.addTemplateFolder("folder1");
+    cfgWin.addTemplateFolder("folder2");
+    cfgWin.addTemplateFolder("folder3");
+    QCOMPARE(list->count(), 3);
+
+    // Re-adding duplicate or empty string
+    cfgWin.addTemplateFolder("");
+    cfgWin.addTemplateFolder("folder1");
+    QCOMPARE(list->count(), 3);
+
+    // 1. Remove with selectedItems empty, but currentRow >= 0
+    list->clearSelection();
+    list->setCurrentRow(1); // folder2
+    btnRemove->click();
+    QCOMPARE(list->count(), 2);
+    QCOMPARE(list->item(0)->text(), QString("folder1"));
+    QCOMPARE(list->item(1)->text(), QString("folder3"));
+
+    // 2. Remove with selectedItems non-empty (select both)
+    list->item(0)->setSelected(true);
+    list->item(1)->setSelected(true);
+    btnRemove->click();
+
+    // List became empty, so fallback defaultTemplatesDir was added!
+    QCOMPARE(list->count(), 1);
+    QCOMPARE(list->item(0)->text(), PathUtils::defaultTemplatesDir());
+
+    // Remove the only item with currentRow
+    list->setCurrentRow(0);
+    list->clearSelection();
+    btnRemove->click();
+    QCOMPARE(list->count(), 1); // Remains fallback
+}
+
+void TestRegConfigWindow::testComputeDefaultOutputPathAllBranches()
+{
+    RegConfigWindow cfgWin;
+    auto *outFolder = cfgWin.findChild<QLineEdit*>("outputFolder");
+    outFolder->setText("work");
+
+    cfgWin.setTemplateFolders(QStringList() << "custom_templates" << "other_templates");
+
+    // Add custom template rows and check computeDefaultOutputPath via sync
+    cfgWin.addTemplateRow(true, "templates/c/reg_map.h.inja", "");
+    cfgWin.addTemplateRow(true, "./templates/rtl/reg_map.sv.inja", "");
+    cfgWin.addTemplateRow(true, "custom_templates/pkg/header.tmpl", "");
+    cfgWin.addTemplateRow(true, "./custom_templates/pkg/defs.tmpl", "");
+    cfgWin.addTemplateRow(true, "other_dir/unmatched.txt", "");
+
+    cfgWin.onSyncDefaultOutputs();
+
+    auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+    QCOMPARE(table->rowCount(), 5);
+    QCOMPARE(table->item(0, 2)->text(), QString("work/c/reg_map.h"));
+    QCOMPARE(table->item(1, 2)->text(), QString("work/rtl/reg_map.sv"));
+    QCOMPARE(table->item(2, 2)->text(), QString("work/pkg/header"));
+    QCOMPARE(table->item(3, 2)->text(), QString("work/pkg/defs"));
+    QCOMPARE(table->item(4, 2)->text(), QString("work/unmatched.txt"));
+}
+
+void TestRegConfigWindow::testOutputFolderEditedExtendedBranches()
+{
+    RegConfigWindow cfgWin;
+    auto *outEdit = cfgWin.findChild<QLineEdit*>("outputFolder");
+    outEdit->setText("work");
+    cfgWin.onOutputFolderEdited("work");
+
+    auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+
+    // Row 0: empty outItem text
+    cfgWin.addTemplateRow(true, "templates/c/reg_map.h.inja", "");
+    // Row 1: outItem text matches expected old
+    cfgWin.addTemplateRow(true, "templates/rtl/reg_map.sv.inja", "work/rtl/reg_map.sv");
+    // Row 2: outItem text starts with prevDefault + "/"
+    cfgWin.addTemplateRow(true, "templates/uvm/reg_model.sv.inja", "work/custom_sub/reg_model.sv");
+    // Row 3: outItem text starts with "./" + prevDefault + "/"
+    cfgWin.addTemplateRow(true, "templates/rust/reg_map.rs.inja", "./work/rust/reg_map.rs");
+    // Row 4: completely unrelated custom output path (should NOT change!)
+    cfgWin.addTemplateRow(true, "templates/html/reg_doc.html.inja", "/etc/custom/doc.html");
+
+    cfgWin.onOutputFolderEdited("build/generated");
+
+    QCOMPARE(table->item(0, 2)->text(), QString("build/generated/c/reg_map.h"));
+    QCOMPARE(table->item(1, 2)->text(), QString("build/generated/rtl/reg_map.sv"));
+    QCOMPARE(table->item(2, 2)->text(), QString("build/generated/uvm/reg_model.sv"));
+    QCOMPARE(table->item(3, 2)->text(), QString("build/generated/rust/reg_map.rs"));
+    QCOMPARE(table->item(4, 2)->text(), QString("/etc/custom/doc.html"));
+}
+
+void TestRegConfigWindow::testTableToolbarButtons()
+{
+    RegConfigWindow cfgWin;
+    auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+    auto *btnAdd = cfgWin.findChild<QPushButton*>("btnAddRow");
+    auto *btnRemove = cfgWin.findChild<QPushButton*>("btnRemoveRow");
+    auto *btnClear = cfgWin.findChild<QPushButton*>("btnClearAll");
+    auto *btnEnable = cfgWin.findChild<QPushButton*>("btnEnableAll");
+    auto *btnDisable = cfgWin.findChild<QPushButton*>("btnDisableAll");
+
+    // Add custom row
+    btnAdd->click();
+    QCOMPARE(table->rowCount(), 1);
+    btnAdd->click();
+    QCOMPARE(table->rowCount(), 2);
+
+    // Enable and Disable all
+    btnDisable->click();
+    QCOMPARE(table->item(0, 0)->checkState(), Qt::Unchecked);
+    QCOMPARE(table->item(1, 0)->checkState(), Qt::Unchecked);
+    btnEnable->click();
+    QCOMPARE(table->item(0, 0)->checkState(), Qt::Checked);
+    QCOMPARE(table->item(1, 0)->checkState(), Qt::Checked);
+
+    // Select only row 0 and remove
+    table->clearSelection();
+    table->item(0, 0)->setSelected(true);
+    btnRemove->click();
+    QCOMPARE(table->rowCount(), 1);
+
+    // Clear all with non-empty table auto-dismissed with No
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) {
+            modal->close();
+        }
+    });
+    btnClear->click();
+
+    // Empty table clear all returns early
+    table->setRowCount(0);
+    btnClear->click();
+    QCOMPARE(table->rowCount(), 0);
+}
+
+void TestRegConfigWindow::testParameterTableButtons()
+{
+    RegConfigWindow cfgWin;
+    auto *paramTable = cfgWin.findChild<QTableWidget*>("customParametersTable");
+    auto *btnAdd = cfgWin.findChild<QPushButton*>("btnAddParameter");
+    auto *btnRemove = cfgWin.findChild<QPushButton*>("btnRemoveParameter");
+
+    // Add parameter rows
+    btnAdd->click();
+    QCOMPARE(paramTable->rowCount(), 1);
+    btnAdd->click();
+    QCOMPARE(paramTable->rowCount(), 2);
+
+    // Populate items
+    paramTable->item(0, 0)->setText("BUS_WIDTH");
+    paramTable->item(0, 1)->setText("64");
+    paramTable->item(1, 0)->setText("ADDR_WIDTH");
+    paramTable->item(1, 1)->setText("32");
+
+    // Select row 1 and remove
+    paramTable->item(1, 0)->setSelected(true);
+    btnRemove->click();
+    QCOMPARE(paramTable->rowCount(), 1);
+    QCOMPARE(paramTable->item(0, 0)->text(), QString("BUS_WIDTH"));
+}
+
+void TestRegConfigWindow::testSerializationEdgeCases()
+{
+    RegConfigWindow cfgWin;
+    cfgWin.setRegisterWidth(0); // fallback to 32
+    QCOMPARE(cfgWin.registerWidth(), 32U);
+
+    cfgWin.setRegisterWidth(64);
+    QCOMPARE(cfgWin.registerWidth(), 64U);
+
+    cfgWin.setProjectName("TEST_PROJ");
+    QCOMPARE(cfgWin.projectName(), QString("TEST_PROJ"));
+
+    cfgWin.setProjectVersion("1.0.0");
+    QCOMPARE(cfgWin.projectVersion(), QString("1.0.0"));
+
+    cfgWin.setBaseDir("");
+    QCOMPARE(cfgWin.baseDir(), QDir::currentPath());
+
+    cfgWin.setTemplateFolders(QStringList());
+    QCOMPARE(cfgWin.templateFolders().size(), 1);
+    QCOMPARE(cfgWin.templateFolders().first(), PathUtils::defaultTemplatesDir());
+
+    protormap::Config *cfg = cfgWin.serialize();
+    QCOMPARE(cfg->reg_width(), 64U);
+    QCOMPARE(cfg->project_name(), std::string("TEST_PROJ"));
+    QCOMPARE(cfg->project_version(), std::string("1.0.0"));
+    delete cfg;
+
+    // Deserialize config with empty template_folders but non-empty templatefolder
+    protormap::Config legacyCfg;
+    legacyCfg.set_templatefolder("legacy/templates");
+    cfgWin.deserialize(legacyCfg);
+    QCOMPARE(cfgWin.templateFolders().first(), QString("legacy/templates"));
+
+    // Deserialize config with disabled python script
+    protormap::Config pyDisabledCfg;
+    pyDisabledCfg.set_python_script_enabled(false);
+    cfgWin.deserialize(pyDisabledCfg);
+    QVERIFY(!cfgWin.isPythonScriptEnabled());
+}
+
+void TestRegConfigWindow::testLifecycleAndEvents()
+{
+    RegConfigWindow cfgWin;
+
+    // LanguageChange event
+    QEvent langChange(QEvent::LanguageChange);
+    QApplication::sendEvent(&cfgWin, &langChange);
+
+    // Resize, Move, Close events
+    QResizeEvent resizeEv(QSize(750, 600), QSize(600, 480));
+    QApplication::sendEvent(&cfgWin, &resizeEv);
+
+    QMoveEvent moveEv(QPoint(100, 100), QPoint(0, 0));
+    QApplication::sendEvent(&cfgWin, &moveEv);
+
+    QCloseEvent closeEv;
+    QApplication::sendEvent(&cfgWin, &closeEv);
+
+    // showEvent with m_firstShown == false
+    cfgWin.show();
+    QShowEvent showEv;
+    QApplication::sendEvent(&cfgWin, &showEv);
+}
+
+void TestRegConfigWindow::testBrowseDialogsAutoDismiss()
+{
+    RegConfigWindow cfgWin;
+    auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+    table->setRowCount(0);
+    table->setCurrentCell(-1, -1);
+
+    // Calling onBrowseOutputFile with currentRow -1 triggers QMessageBox, auto-dismiss it
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnBrowseOut = cfgWin.findChild<QPushButton*>("btnBrowseOutputFile");
+    btnBrowseOut->click();
+
+    // Calling onBrowseOutputFolderItem with currentRow -1 triggers QMessageBox, auto-dismiss it
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnBrowseFolder = cfgWin.findChild<QPushButton*>("btnBrowseOutputFolderItem");
+    btnBrowseFolder->click();
+
+    // Now populate a row and test when row >= 0
+    cfgWin.addTemplateRow(true, "templates/c/reg_map.h.inja", "work/c/reg_map.h");
+    table->setCurrentCell(0, 0);
+
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    btnBrowseOut->click();
+
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    btnBrowseFolder->click();
+
+    // onBrowseOutputFolder
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnBrowseOutFolder = cfgWin.findChild<QPushButton*>("btnBrowseOutputFolder");
+    btnBrowseOutFolder->click();
+
+    // onBrowsePythonScript
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnBrowsePy = cfgWin.findChild<QPushButton*>("btnBrowsePythonScript");
+    btnBrowsePy->click();
+
+    // onAddTemplateFiles
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnAddTmplFiles = cfgWin.findChild<QPushButton*>("btnAddTemplateFiles");
+    btnAddTmplFiles->click();
+
+    // onBrowseTemplate
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnBrowseTmpl = cfgWin.findChild<QPushButton*>("btnBrowseTemplate");
+    btnBrowseTmpl->click();
+
+    // onAddTemplateFolder
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    auto *btnAddFolder = cfgWin.findChild<QPushButton*>("btnAddTemplateFolder");
+    btnAddFolder->click();
+
+    // onScanTemplates
+    auto *btnScan = cfgWin.findChild<QPushButton*>("btnScanTemplates");
+    btnScan->click();
+
+    // 2-argument overload of addTemplateRow
+    int prevRows = table->rowCount();
+    cfgWin.addTemplateRow("my_tmpl", "my_out");
+    QCOMPARE(table->rowCount(), prevRows + 1);
+
+    // Test onSyncDefaultOutputs and onOutputFolderEdited with null outItem
+    table->setItem(0, 2, nullptr);
+    cfgWin.onSyncDefaultOutputs();
+    QVERIFY(table->item(0, 2) != nullptr);
+
+    table->setItem(0, 2, nullptr);
+    cfgWin.onOutputFolderEdited("work/new_folder");
+    QVERIFY(table->item(0, 2) != nullptr);
+
+    // Test templateFolders() fallback when list is empty
+    auto *foldersList = cfgWin.findChild<QListWidget*>("templateFoldersList");
+    foldersList->clear();
+    QCOMPARE(cfgWin.templateFolders().size(), 1);
+    QCOMPARE(cfgWin.templateFolders().first(), PathUtils::defaultTemplatesDir());
+
+    // Test computeDefaultOutputPath with ./ prefix
+    QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::defaultTemplatesDir()));
+    cfgWin.addTemplateRow(true, "./" + expDefaultTmpl + "/c/reg_map.h.inja", "");
+    cfgWin.onSyncDefaultOutputs();
+
+    // ClearAll confirming with QMessageBox::Yes
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (auto *box = qobject_cast<QMessageBox*>(modal)) {
+            if (auto *btn = box->button(QMessageBox::Yes)) {
+                btn->click();
+            } else {
+                box->accept();
+            }
+        } else if (modal) {
+            modal->close();
+        }
+    });
+    auto *btnClear = cfgWin.findChild<QPushButton*>("btnClearAll");
+    btnClear->click();
+    QCOMPARE(table->rowCount(), 0);
+}
+
+void TestRegConfigWindow::testFullBranchCoverageRegConfig()
+{
+    // 1. Two-argument addTemplateRow with ./templates prefix and RMAP_TEMPLATES_DIR override
+    {
+        qputenv("RMAP_TEMPLATES_DIR", "/custom/templates/dir");
+        RegConfigWindow cfgWin;
+        cfgWin.addTemplateRow(QString("./templates/c/reg_map.h.inja"), QString(""));
+        cfgWin.addTemplateRow(QString("templates/c/reg_map.h.inja"), QString(""));
+        cfgWin.onSyncDefaultOutputs();
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        QVERIFY(table->rowCount() >= 2);
+        qunsetenv("RMAP_TEMPLATES_DIR");
+    }
+
+    // 2. Custom parameters serialization and deserialization
+    {
+        RegConfigWindow cfgWin;
+        cfgWin.addParameterRow("CLK_FREQ", "100MHz");
+        cfgWin.addParameterRow("", ""); // empty key branch ignored
+        protormap::Config* cfg = cfgWin.serialize();
+        QVERIFY(cfg != nullptr);
+        QCOMPARE(cfg->custom_parameters().count("CLK_FREQ"), 1);
+        QCOMPARE(QString::fromStdString(cfg->custom_parameters().at("CLK_FREQ")), QString("100MHz"));
+        delete cfg;
+
+        protormap::Config protoIn;
+        (*protoIn.mutable_custom_parameters())["BAUD"] = "115200";
+        cfgWin.deserialize(protoIn);
+        auto *paramTable = cfgWin.findChild<QTableWidget*>("customParametersTable");
+        QVERIFY(paramTable != nullptr);
+        QVERIFY(paramTable->rowCount() > 0);
+        QCOMPARE(paramTable->item(0, 0)->text(), QString("BAUD"));
+        QCOMPARE(paramTable->item(0, 1)->text(), QString("115200"));
+
+        // UI update with empty folders list via reject
+        cfgWin.setTemplateFolders({ " ", "" });
+        cfgWin.reject();
+        QVERIFY(cfgWin.templateFolders().contains(PathUtils::defaultTemplatesDir()));
+    }
+
+    // 3. Window size & position branches (empty geometry, invalid size, valid pos)
+    {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        QString origConf = AppSettings::instance().configFilePath();
+        AppSettings::instance().setConfigFilePath(tempDir.path() + "/cfg.conf");
+        AppSettings::instance().setConfigWindowGeometry(QByteArray());
+        AppSettings::instance().setConfigWindowSize(QSize(0, 0));
+        AppSettings::instance().setConfigWindowPos(QPoint(50, 60));
+
+        {
+            RegConfigWindow cfgWin2;
+            cfgWin2.show();
+            QCoreApplication::processEvents();
+            QVERIFY(cfgWin2.isVisible());
+        }
+        AppSettings::instance().setConfigFilePath(origConf);
+    }
+
+    // 4. File browse helpers with non-empty initial values and auto-dismiss
+    {
+        RegConfigWindow cfgWin;
+        auto *outEdit = cfgWin.findChild<QLineEdit*>("outputFolder");
+        QVERIFY(outEdit != nullptr);
+        outEdit->setText("work");
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        auto *btnOut = cfgWin.findChild<QPushButton*>("btnBrowseOutputFolder");
+        QVERIFY(btnOut != nullptr);
+        btnOut->click();
+
+        cfgWin.setPythonScript("script/test.py");
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        auto *btnPy = cfgWin.findChild<QPushButton*>("btnBrowsePythonScript");
+        QVERIFY(btnPy != nullptr);
+        btnPy->click();
+    }
+
+    // 5. Browse template with row < 0 and rowCount > 0
+    {
+        RegConfigWindow cfgWin;
+        cfgWin.addTemplateRow(true, "", "");
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        table->setCurrentCell(-1, -1);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        auto *btnTmpl = cfgWin.findChild<QPushButton*>("btnBrowseTemplate");
+        QVERIFY(btnTmpl != nullptr);
+        btnTmpl->click();
+    }
+
+    // 6. Browse template with row < 0 and rowCount == 0 (with template folders present)
+    {
+        RegConfigWindow cfgWin;
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        table->setRowCount(0);
+        table->setCurrentCell(-1, -1);
+        cfgWin.setTemplateFolders({ "templates" });
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        auto *btnTmpl = cfgWin.findChild<QPushButton*>("btnBrowseTemplate");
+        QVERIFY(btnTmpl != nullptr);
+        btnTmpl->click();
+    }
 }
 
 QTEST_MAIN(TestRegConfigWindow)

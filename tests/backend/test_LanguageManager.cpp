@@ -69,6 +69,13 @@ void TestLanguageManager::testAvailableLanguages()
     QCOMPARE(esInfo.name, QString("Spanish"));
     QCOMPARE(esInfo.nativeName, QString("Español"));
     QCOMPARE(esInfo.displayName(), QString("Español (Spanish)"));
+
+    QStringList names = lm.languageNames();
+    QCOMPARE(names.size(), lm.availableLanguages().size());
+    LanguageInfo curInfo = lm.currentLanguageInfo();
+    QCOMPARE(curInfo.code, QString("en"));
+    LanguageInfo missingInfo = lm.languageInfo("nonexistent_code_xyz");
+    QVERIFY(missingInfo.code.isEmpty());
 }
 
 void TestLanguageManager::testSetLanguage()
@@ -95,6 +102,10 @@ void TestLanguageManager::testSetLanguage()
 
     // Invalid language
     QVERIFY(!lm.setLanguage("nonexistent_lang_xyz"));
+    QCOMPARE(lm.currentLanguage(), QString("en"));
+
+    // Empty language defaults to English
+    QVERIFY(lm.setLanguage(""));
     QCOMPARE(lm.currentLanguage(), QString("en"));
 }
 
@@ -162,6 +173,28 @@ void TestLanguageManager::testJsonTranslatorDirect()
 
     // Unknown string
     QVERIFY(jt.translate(nullptr, "Unknown String 123").isEmpty());
+
+    QCOMPARE(jt.translationCount(), 3);
+    QVERIFY(jt.translate(nullptr, "").isEmpty());
+    QVERIFY(jt.translate(nullptr, nullptr).isEmpty());
+
+    // Ampersand in source text mapped to plain key in translations
+    QByteArray ampersandJson = R"({
+        "language": "es",
+        "translations": {
+            "Save": "Guardar"
+        }
+    })";
+    JsonTranslator jtAmp;
+    QVERIFY(jtAmp.loadData(ampersandJson));
+    QCOMPARE(jtAmp.code(), QString("es"));
+    QCOMPARE(jtAmp.translate(nullptr, "&Save"), QString("Guardar"));
+
+    // Failure cases: invalid json, non-object, and missing resource
+    JsonTranslator jtErr;
+    QVERIFY(!jtErr.loadData("{ invalid json"));
+    QVERIFY(!jtErr.loadData("[]"));
+    QVERIFY(!jtErr.loadResource("/nonexistent/path/file.json"));
 }
 
 void TestLanguageManager::testBuildTimeLanguageEnforcement()

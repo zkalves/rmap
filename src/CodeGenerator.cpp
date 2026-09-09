@@ -13,26 +13,6 @@
 #include "CodeGenerator.hpp"
 
 void CodeGenerator::registerHelpers(Environment &env) {
-    // Helper: {{ upper(str) }}
-    env.add_callback("upper", 1, [](Arguments& args) {
-        std::string str = args.at(0)->is_string() ? args.at(0)->get<std::string>() : args.at(0)->dump();
-        if (str.size() >= 2 && str.front() == '"' && str.back() == '"') {
-            str = str.substr(1, str.size() - 2);
-        }
-        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-        return str;
-    });
-
-    // Helper: {{ lower(str) }}
-    env.add_callback("lower", 1, [](Arguments& args) {
-        std::string str = args.at(0)->is_string() ? args.at(0)->get<std::string>() : args.at(0)->dump();
-        if (str.size() >= 2 && str.front() == '"' && str.back() == '"') {
-            str = str.substr(1, str.size() - 2);
-        }
-        std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-        return str;
-    });
-
     // Helper: {{ to_hex(val, width) }}
     env.add_callback("to_hex", 2, [](Arguments& args) {
         uint64_t val = 0;

@@ -5,11 +5,14 @@
  * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
  */
 
+#include <QMetaEnum>
+#include <QDebug>
 #include "RegMapTreeItem.hpp"
 
-RegMapTreeItem::RegMapTreeItem(RegMapTreeItem::e_rmmKind kind, QVariantMap &data, RegMapTreeItem *parentItem)
+RegMapTreeItem::RegMapTreeItem(e_rmmKind kind, QVariantMap &data, RegMapTreeItem *parentItem)
     : m_kind(kind), m_itemData(data), m_parentItem(parentItem)
-{}
+{
+}
 
 RegMapTreeItem::RegMapTreeItem(void)
     : m_kind(RegMapTreeItem::e_rmmKind::root), m_parentItem(nullptr)
@@ -21,6 +24,26 @@ RegMapTreeItem::~RegMapTreeItem()
         delete child;
     }
     m_childItems.clear();
+}
+
+QVector<RegMapTreeItem*> RegMapTreeItem::getChildItems() const
+{
+    return m_childItems;
+}
+
+QVector<RegMapTreeItem*> RegMapTreeItem::childItems() const
+{
+    return m_childItems;
+}
+
+const QVector<RegMapTreeItem*>& RegMapTreeItem::childItemsRef() const
+{
+    return m_childItems;
+}
+
+RegMapTreeItem::e_rmmKind RegMapTreeItem::kind() const
+{
+    return m_kind;
 }
 
 void RegMapTreeItem::serialize( QVariantMap& data, SerializationContext* context ) const
@@ -55,14 +78,14 @@ void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext*
 
 RegMapTreeItem *RegMapTreeItem::child(int row) const
 {
-    if (row < 0 || row >= m_childItems.size())
+    if (row < 0 || row >= childItemsRef().size())
         return nullptr;
-    return m_childItems.at(row);
+    return childItems().at(row);
 }
 
 int RegMapTreeItem::childCount() const
 {
-    return m_childItems.size();
+    return childItemsRef().size();
 }
 
 int RegMapTreeItem::columnCount() const

@@ -70,6 +70,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         RegMapTreeModel* model() const { return m_model; }
         QUndoStack* getUndoStack() const { return m_undoStack; }
         QUndoStack* undoStack() const { return m_undoStack; }
+        void insertChild(RegMapTreeItem::e_rmmKind kind);
 
         RegConfigWindow* configWindow() const { return m_config_window; }
         PreferencesWindow* preferencesWindow() const { return m_pref_window; }
@@ -160,7 +161,6 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         bool                    m_is_regmap_modified = false;
 
         void fileNew(void);
-        void insertChild(RegMapTreeItem::e_rmmKind kind);
         void regmap_modified(void);
         void regmap_notModified(void);
         void connectModelSignals(void);

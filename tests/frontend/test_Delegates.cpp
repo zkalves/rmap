@@ -570,6 +570,12 @@ void TestDelegates::testDelegateEventsEdgeCases()
     model.setData(fldBoolIndex, "UNRECOGNIZED", Qt::EditRole);
     boolDelegate.setEditorData(boolEditor, fldBoolIndex);
     delete boolEditor;
+
+    // 5. Test getAccessPolicyColors boolean overload
+    AccessColors acSwFalse = getAccessPolicyColors("RW", false);
+    AccessColors acSwTrue = getAccessPolicyColors("RW", true);
+    QVERIFY(acSwFalse.bg.isValid());
+    QVERIFY(acSwTrue.bg.isValid());
 }
 
 QTEST_MAIN(TestDelegates)

@@ -812,6 +812,9 @@ void RegMapWindow::setColourBlindType(ColorBlindMode mode)
 
 ColorBlindMode RegMapWindow::colourBlindType() const
 {
+    if (!isColourBlindMode()) {
+        return ColorBlindMode::None;
+    }
     return AppSettings::instance().colorBlindType();
 }
 
@@ -1502,6 +1505,7 @@ void RegMapWindow::connectModelSignals(void)
     if (!m_model) return;
     connect(m_model, &RegMapTreeModel::dataChanged, this, [this](const QModelIndex &topLeft, const QModelIndex &bottomRight) {
         Q_UNUSED(topLeft); Q_UNUSED(bottomRight);
+        regmap_modified();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
         }
@@ -1521,6 +1525,7 @@ void RegMapWindow::connectModelSignals(void)
     });
     connect(m_model, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex &parent, int first, int last) {
         Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+        regmap_modified();
         updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
@@ -1531,6 +1536,7 @@ void RegMapWindow::connectModelSignals(void)
     });
     connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex &parent, int first, int last) {
         Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+        regmap_modified();
         updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
@@ -2032,6 +2038,7 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
     }
 
     QMenu menu(this);
+    menu.setObjectName("treeContextMenu");
     if (index.isValid()) {
         QAction* duplicateAction = menu.addAction(tr("Duplicate"));
         QAction* deleteAction = menu.addAction(tr("Delete"));
@@ -2039,8 +2046,7 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
             if (senderWidget == this->treeView) {
                 duplicateItem(index);
             } else {
-                QModelIndex source = m_fieldProxy->mapToSource(index);
-                duplicateItem(m_treeProxy->mapFromSource(source));
+                duplicateItem(index);
             }
         });
         connect(deleteAction, &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
@@ -2050,13 +2056,15 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
 
 void RegMapWindow::duplicateSelectedRegister(void)
 {
-    QModelIndex proxyIndex = this->treeView->currentIndex();
-    if (!proxyIndex.isValid() && m_fieldsTableView && m_fieldsTableView->hasFocus()) {
+    QModelIndex proxyIndex;
+    if (m_fieldsTableView && m_fieldsTableView->hasFocus()) {
         QModelIndex fieldProxyIdx = m_fieldsTableView->currentIndex();
         if (fieldProxyIdx.isValid()) {
-            QModelIndex srcFldIdx = m_fieldProxy->mapToSource(fieldProxyIdx);
-            proxyIndex = m_treeProxy->mapFromSource(srcFldIdx);
+            proxyIndex = fieldProxyIdx;
         }
+    }
+    if (!proxyIndex.isValid()) {
+        proxyIndex = this->treeView->currentIndex();
     }
     if (!proxyIndex.isValid() && m_currentRegItem) {
         RegMapTreeItem *blk = m_currentRegItem->parentItem();
@@ -2076,7 +2084,14 @@ void RegMapWindow::duplicateSelectedRegister(void)
 
 void RegMapWindow::duplicateItem(const QModelIndex &index)
 {
-    QModelIndex source_index = m_treeProxy->mapToSource(index);
+    QModelIndex source_index;
+    if (index.model() == m_fieldProxy) {
+        source_index = m_fieldProxy->mapToSource(index);
+    } else if (index.model() == m_model) {
+        source_index = index;
+    } else {
+        source_index = m_treeProxy->mapToSource(index);
+    }
     RegMapTreeItem* item = m_model->getItem(source_index);
     if (!item || item->kindString() == "root") return;
 
@@ -2114,6 +2129,15 @@ void RegMapWindow::duplicateItem(const QModelIndex &index)
         this->treeView->scrollTo(new_proxy);
         if (this->treeView->selectionModel()) {
             this->treeView->selectionModel()->select(new_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        }
+    } else if (m_fieldsTableView && m_fieldProxy) {
+        QModelIndex new_fld_proxy = m_fieldProxy->mapFromSource(new_source);
+        if (new_fld_proxy.isValid()) {
+            m_fieldsTableView->setCurrentIndex(new_fld_proxy);
+            m_fieldsTableView->scrollTo(new_fld_proxy);
+            if (m_fieldsTableView->selectionModel()) {
+                m_fieldsTableView->selectionModel()->select(new_fld_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            }
         }
     }
     this->treeView->viewport()->update();
@@ -2353,6 +2377,7 @@ bool RegMapWindow::headlessLint(bool strict, const QString &format, const QStrin
             std::cout << "Lint report saved to: " << expOut.toStdString() << std::endl;
         } else {
             std::cerr << "Failed to write lint report to: " << expOut.toStdString() << std::endl;
+            return false;
         }
     } else {
         std::cout << reportContent.toStdString() << std::endl;
@@ -2507,8 +2532,10 @@ bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2, cons
             QTextStream(&f) << outputStr;
             f.close();
             std::cout << "Diff saved to: " << expOut.toStdString() << std::endl;
+        } else {
+            std::cerr << "Failed to write diff report to: " << expOut.toStdString() << std::endl;
+            return false;
         }
-    } else {
         std::cout << outputStr.toStdString() << std::endl;
     }
 

@@ -21,15 +21,14 @@ class RegMapTreeItem : public QObject, public Serializable
 
 public:
     enum class e_rmmKind { root, mem, map, blk, reg, fld, };
-    Q_ENUM(e_rmmKind)
 
     explicit RegMapTreeItem(e_rmmKind kind, QVariantMap &data, RegMapTreeItem *parentItem = nullptr);
     explicit RegMapTreeItem();
     ~RegMapTreeItem() override;
 
-    QVector<RegMapTreeItem*> getChildItems() const { return m_childItems; }
-    QVector<RegMapTreeItem*> childItems() const { return m_childItems; }
-    const QVector<RegMapTreeItem*>& childItemsRef() const { return m_childItems; }
+    QVector<RegMapTreeItem*> getChildItems() const;
+    QVector<RegMapTreeItem*> childItems() const;
+    const QVector<RegMapTreeItem*>& childItemsRef() const;
 
     RegMapTreeItem *child(int row) const;
     int childCount() const;
@@ -46,7 +45,7 @@ public:
     QVector<e_rmmKind> possibleChildren() const;
     QString icon() const;
     QString kindString() const;
-    e_rmmKind kind() const { return m_kind; }
+    e_rmmKind kind() const;
 
 
 

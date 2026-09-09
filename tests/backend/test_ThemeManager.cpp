@@ -146,6 +146,20 @@ void TestThemeManager::testAccessColorsPerTheme()
 
     // Reset to default
     tm.setTheme("solarized8");
+
+    // Test ColorScheme boolean getAccessColors and accessColors inline helpers
+    AccessColors acTrue = tm.currentTheme().getAccessColors("RW", true);
+    AccessColors acFalse = tm.currentTheme().getAccessColors("RW", false);
+    QVERIFY(acTrue.bg.isValid());
+    QVERIFY(acFalse.bg.isValid());
+    AccessColors acAliasMode = tm.currentTheme().accessColors("RW", ColorBlindMode::None);
+    AccessColors acAliasBool = tm.currentTheme().accessColors("RW", true);
+    QVERIFY(acAliasMode.bg.isValid());
+    QVERIFY(acAliasBool.bg.isValid());
+    AccessColors tmAliasMode = tm.accessColors("RW", ColorBlindMode::None);
+    AccessColors tmAliasBool = tm.accessColors("RW", true);
+    QVERIFY(tmAliasMode.bg.isValid());
+    QVERIFY(tmAliasBool.bg.isValid());
 }
 
 void TestThemeManager::testColorBlindMode()
@@ -334,6 +348,12 @@ void TestThemeManager::testAppSettingsConfigFile()
     QCOMPARE(settings.windowPos("HelpDialog"), QPoint(250, 220));
     QCOMPARE(settings.windowSize("HelpDialog"), QSize(500, 400));
 
+    settings.setColorBlindTypeString("protanopia");
+    QCOMPARE(settings.colorBlindTypeString(), QString("protanopia"));
+    QCOMPARE(settings.colorBlindType(), ColorBlindMode::Protanopia);
+    settings.setColorBlindTypeString("none");
+    QCOMPARE(settings.colorBlindTypeString(), QString("none"));
+
     // Reset back to defaults and restore original path
     settings.setColorScheme("solarized8");
     settings.setColorBlindMode(false);
@@ -433,6 +453,13 @@ void TestThemeManager::testCustomThemesDirScanning()
     ThemeManager &tm = ThemeManager::instance();
     QTemporaryDir tempDir;
     QVERIFY(tempDir.isValid());
+
+    // Exercise addSearchPath with an empty dir so resetToDefaults does not rescan synthwave
+    QString emptySearchPath = tempDir.filePath("empty_search_dir");
+    QDir().mkpath(emptySearchPath);
+    tm.addSearchPath(emptySearchPath);
+    tm.addSearchPath(emptySearchPath); // duplicate check
+    tm.addSearchPath(""); // empty check
 
     // Write synthwave.json
     QString synthwaveJson = QString::fromUtf8(R"json({

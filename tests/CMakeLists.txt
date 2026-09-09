@@ -39,6 +39,8 @@ set(FRONTEND_TESTS
     test_AboutWindow
     test_Delegates
     test_RegBitfieldBarWidget
+    test_BlockMemoryMapWidget
+    test_RegMapTreeView
 )
 
 foreach(test_name ${FRONTEND_TESTS})

@@ -30,6 +30,7 @@ private slots:
     void testDefaultDirectoryDiscovery();
     void testResolvePathWithTemplatesSubdir();
     void testEdgeCasesAndOverloads();
+    void testExtendedPathResolutionAndDiscovery();
 };
 
 void TestPathUtils::initTestCase()
@@ -271,6 +272,54 @@ void TestPathUtils::testEdgeCasesAndOverloads()
     QCOMPARE(PathUtils::toRelativePath(static_cast<const char*>(nullptr)), QString(""));
     QCOMPARE(PathUtils::resolvePath(static_cast<const char*>(nullptr)), QString(""));
     QCOMPARE(PathUtils::normalizeSeparators(static_cast<const char*>(nullptr)), QString(""));
+}
+
+void TestPathUtils::testExtendedPathResolutionAndDiscovery()
+{
+    // 1. Primary base dir template resolution stripping "templates/"
+    QString shareTmplDir = QDir("work/test_path_utils/templates").absolutePath();
+    QDir().mkpath(shareTmplDir + "/c");
+    QFile f(shareTmplDir + "/c/reg_map.h.inja");
+    if (f.open(QIODevice::WriteOnly)) { f.write("tmpl"); f.close(); }
+
+    QString resPrim = PathUtils::resolvePath("templates/c/reg_map.h.inja", shareTmplDir);
+    QVERIFY(QFile::exists(resPrim));
+    QCOMPARE(resPrim, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
+
+    QString resPrimRel = PathUtils::resolvePath("./templates/c/reg_map.h.inja", shareTmplDir);
+    QVERIFY(QFile::exists(resPrimRel));
+    QCOMPARE(resPrimRel, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
+
+    // 2. resolvePath fallback with empty primary and valid secondary base dir
+    QString outFallback = PathUtils::resolvePath("out_nonexistent.sv", "", "/tmp/secondary_out_base");
+    QCOMPARE(outFallback, QString("/tmp/secondary_out_base/out_nonexistent.sv"));
+
+    // 3. Relocatable directory discovery (<appDir>/../share/rmap/...) and relative fallback
+    QString origCwd = QDir::currentPath();
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QDir::setCurrent(tempDir.path());
+
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString relShareTmpl = appDir + "/../share/rmap/templates";
+    QString relShareEx = appDir + "/../share/rmap/examples";
+    QString relShareDoc = appDir + "/../share/doc/rmap";
+
+    QDir().mkpath(relShareTmpl);
+    QDir().mkpath(relShareEx);
+    QDir().mkpath(relShareDoc);
+
+    QVERIFY(!PathUtils::defaultTemplatesDir().isEmpty());
+    QVERIFY(!PathUtils::defaultExamplesDir().isEmpty());
+    QVERIFY(!PathUtils::defaultDocsDir().isEmpty());
+
+    QDir(appDir + "/../share").removeRecursively();
+
+    QCOMPARE(PathUtils::defaultTemplatesDir(), QString("./templates"));
+    QCOMPARE(PathUtils::defaultExamplesDir(), QString("./examples"));
+    QCOMPARE(PathUtils::defaultDocsDir(), QString("./docs"));
+
+    QDir::setCurrent(origCwd);
 }
 
 QTEST_MAIN(TestPathUtils)
