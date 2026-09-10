@@ -11,6 +11,7 @@
 #include "RegBitfieldBarWidget.hpp"
 #include "RegMapTreeItem.hpp"
 #include "ThemeManager.hpp"
+#include "AppSettings.hpp"
 
 class TestRegBitfieldBarWidget : public QObject
 {
@@ -41,6 +42,9 @@ void TestRegBitfieldBarWidget::cleanupTestCase()
 
 void TestRegBitfieldBarWidget::testEmptyWidgetAndSizing()
 {
+    auto *heapWidget = new RegBitfieldBarWidget();
+    delete heapWidget;
+
     RegBitfieldBarWidget widget;
 
     // Default sizing
@@ -346,7 +350,22 @@ void TestRegBitfieldBarWidget::testMouseInteractionAndTooltips()
     QMouseEvent moveOutside(QEvent::MouseMove, outsidePos, outsidePos, outsidePos, Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(&widget, &moveOutside);
 
-    // Leave event
+    // Re-hover field slice so m_hoveredSlice != -1 and field is not selected
+    widget.setSelectedField(-1);
+    QApplication::sendEvent(&widget, &moveEvent);
+
+    // Render while hovered and unselected in dark and light themes (hits line 302 both branches)
+    ThemeManager::instance().setTheme("solarized8");
+    QImage darkHoverImg(800, 80, QImage::Format_ARGB32_Premultiplied);
+    QPainter darkHoverP(&darkHoverImg);
+    widget.render(&darkHoverP);
+
+    ThemeManager::instance().setTheme("solarized8_light");
+    QImage lightHoverImg(800, 80, QImage::Format_ARGB32_Premultiplied);
+    QPainter lightHoverP(&lightHoverImg);
+    widget.render(&lightHoverP);
+
+    // Leave event while m_hoveredSlice != -1
     QEvent leaveEvent(QEvent::Leave);
     QApplication::sendEvent(&widget, &leaveEvent);
 }
@@ -373,6 +392,16 @@ void TestRegBitfieldBarWidget::testSelectionAndRefresh()
     widget.refresh();           // Preserves selection across refresh
 
     widget.setSelectedField(99); // Non-existent childRow
+    widget.refresh();            // Rebuild with savedSelectedRow < 0 (hits line 68)
+    widget.setRegister(nullptr, 32); // ComputeSlices with null regItem (hits line 90)
+    QVERIFY(widget.slices().isEmpty());
+
+    // ColorBlindMode fallback to Universal when colorBlindType is None (hits line 187)
+    AppSettings::instance().setColorBlindType(ColorBlindMode::None);
+    widget.setColorBlindMode(true);
+    QCOMPARE(widget.colorBlindMode(), ColorBlindMode::Universal);
+    QVERIFY(widget.isColorBlindMode());
+
     widget.clear();              // Clears slices
     QVERIFY(widget.slices().isEmpty());
 

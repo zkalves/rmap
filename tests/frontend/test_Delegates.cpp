@@ -420,6 +420,8 @@ void TestDelegates::testRegMapDelegatePaintValidationAndProxy()
     model.setData(fldOffset, "0x10", Qt::EditRole);
 
     RegHexDecBinDelegate hexDelegate;
+    RegMapDelegate baseDelegate;
+    baseDelegate.paint(&painter, option, fldOffset);
 
     // 1. Paint valid regex value
     hexDelegate.paint(&painter, option, fldOffset);

@@ -265,7 +265,7 @@ AccessColors ColorScheme::getAccessColors(const QString &access, bool colorBlind
     return getAccessColors(access, colorBlind ? ColorBlindMode::Universal : ColorBlindMode::None);
 }
 
-QPalette ColorScheme::generatePalette() const
+QPalette ColorScheme::generatePalette() const noexcept
 {
     QPalette p;
     p.setColor(QPalette::Window, windowBg);
@@ -342,17 +342,17 @@ QString ColorScheme::generateStyleSheet() const
     qss += QString("QSplitter::handle { background-color: %1; }\n")
                .arg(border.name());
 
-    qss += QString("QScrollBar:vertical { background: %1; width: 12px; margin: 0px; }\n"
-                   "QScrollBar::handle:vertical { background: %2; min-height: 20px; border-radius: 4px; margin: 2px; }\n"
-                   "QScrollBar::handle:vertical:hover { background: %3; }\n"
-                   "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }\n")
-               .arg(windowBg.name(), border.name(), buttonHover.name());
+    QString vsb = QStringLiteral("QScrollBar:vertical { background: %1; width: 12px; margin: 0px; }\n"
+                                 "QScrollBar::handle:vertical { background: %2; min-height: 20px; border-radius: 4px; margin: 2px; }\n"
+                                 "QScrollBar::handle:vertical:hover { background: %3; }\n"
+                                 "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }\n");
+    qss += vsb.arg(windowBg.name(), border.name(), buttonHover.name());
 
-    qss += QString("QScrollBar:horizontal { background: %1; height: 12px; margin: 0px; }\n"
-                   "QScrollBar::handle:horizontal { background: %2; min-width: 20px; border-radius: 4px; margin: 2px; }\n"
-                   "QScrollBar::handle:horizontal:hover { background: %3; }\n"
-                   "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }\n")
-               .arg(windowBg.name(), border.name(), buttonHover.name());
+    QString hsb = QStringLiteral("QScrollBar:horizontal { background: %1; height: 12px; margin: 0px; }\n"
+                                 "QScrollBar::handle:horizontal { background: %2; min-width: 20px; border-radius: 4px; margin: 2px; }\n"
+                                 "QScrollBar::handle:horizontal:hover { background: %3; }\n"
+                                 "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }\n");
+    qss += hsb.arg(windowBg.name(), border.name(), buttonHover.name());
 
     return qss;
 }
@@ -511,7 +511,7 @@ QJsonObject ColorScheme::toJson() const
     rsvd["rulerText"] = rulerText.name();
     root["reserved"] = rsvd;
 
-    auto accessToJson = [](const AccessColors &c) {
+    auto accessToJson = [](const AccessColors &c) noexcept -> QJsonObject {
         QJsonObject o;
         o["bg"] = c.bg.name();
         o["border"] = c.border.name();
@@ -542,7 +542,7 @@ QJsonObject ColorScheme::toJson() const
     return root;
 }
 
-QList<ColorScheme> ColorScheme::builtInDefaults()
+QList<ColorScheme> ColorScheme::builtInDefaults() noexcept
 {
     QList<ColorScheme> list;
 
@@ -953,7 +953,7 @@ const QList<ColorScheme>& ThemeManager::availableThemes() const
     return m_themes;
 }
 
-QStringList ThemeManager::themeIds() const
+QStringList ThemeManager::themeIds() const noexcept
 {
     QStringList ids;
     for (const auto &t : m_themes) {
@@ -962,7 +962,7 @@ QStringList ThemeManager::themeIds() const
     return ids;
 }
 
-QStringList ThemeManager::themeNames() const
+QStringList ThemeManager::themeNames() const noexcept
 {
     QStringList names;
     for (const auto &t : m_themes) {
@@ -1171,6 +1171,18 @@ QString ThemeManager::localThemesDir()
     return QDir::current().filePath("themes");
 }
 
+static bool s_systemThemePathsOverride = false;
+
+void ThemeManager::setSystemThemePathsOverride(bool override)
+{
+    s_systemThemePathsOverride = override;
+}
+
+bool ThemeManager::systemThemePathsOverride()
+{
+    return s_systemThemePathsOverride;
+}
+
 QStringList ThemeManager::searchPaths() const
 {
     QStringList paths;
@@ -1194,13 +1206,13 @@ QStringList ThemeManager::searchPaths() const
     // 3. Installed system paths
     QString appDir = QCoreApplication::applicationDirPath();
     QString installPath = QDir(appDir + "/../share/rmap/themes").canonicalPath();
-    if (!installPath.isEmpty() && !paths.contains(installPath)) {
-        paths.append(installPath);
+    if ((!installPath.isEmpty() || s_systemThemePathsOverride) && !paths.contains(installPath)) {
+        paths.append(installPath.isEmpty() ? appDir + "/../share/rmap/themes" : installPath);
     }
-    if (QDir("/usr/local/share/rmap/themes").exists() && !paths.contains("/usr/local/share/rmap/themes")) {
+    if ((QDir("/usr/local/share/rmap/themes").exists() || s_systemThemePathsOverride) && !paths.contains("/usr/local/share/rmap/themes")) {
         paths.append("/usr/local/share/rmap/themes");
     }
-    if (QDir("/usr/share/rmap/themes").exists() && !paths.contains("/usr/share/rmap/themes")) {
+    if ((QDir("/usr/share/rmap/themes").exists() || s_systemThemePathsOverride) && !paths.contains("/usr/share/rmap/themes")) {
         paths.append("/usr/share/rmap/themes");
     }
 

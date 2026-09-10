@@ -210,7 +210,7 @@ const QList<LanguageInfo>& LanguageManager::availableLanguages() const
     return m_languages;
 }
 
-QStringList LanguageManager::languageCodes() const
+QStringList LanguageManager::languageCodes() const noexcept
 {
     QStringList list;
     list.reserve(m_languages.size());
@@ -220,7 +220,7 @@ QStringList LanguageManager::languageCodes() const
     return list;
 }
 
-QStringList LanguageManager::languageNames() const
+QStringList LanguageManager::languageNames() const noexcept
 {
     QStringList list;
     list.reserve(m_languages.size());

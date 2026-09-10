@@ -73,6 +73,8 @@ RegConfigWindow::RegConfigWindow(QWidget *parent) :
     restoreWindowStateFromSettings();
 }
 
+RegConfigWindow::~RegConfigWindow() = default;
+
 void RegConfigWindow::setBaseDir(const QString &baseDir)
 {
     m_baseDir = baseDir;
@@ -100,7 +102,7 @@ void RegConfigWindow::setTemplateFolders(const QStringList &folders)
     }
 }
 
-QStringList RegConfigWindow::templateFolders() const
+QStringList RegConfigWindow::templateFolders() const noexcept
 {
     QStringList list;
     for (int i = 0; i < this->templateFoldersList->count(); ++i) {
@@ -718,14 +720,7 @@ void RegConfigWindow::showEvent(QShowEvent *event)
     QDialog::showEvent(event);
     if (m_firstShown) {
         m_firstShown = false;
-        QByteArray geom = AppSettings::instance().configWindowGeometry();
-        QSize sz = AppSettings::instance().configWindowSize();
-        if (geom.isEmpty() && (!sz.isValid() || sz.width() <= 0 || sz.height() <= 0)) {
-            adjustSize();
-            QSize optimal = sizeHint().expandedTo(QSize(780, 700));
-            resize(optimal);
-            AppSettings::ensureWindowOnScreen(this, minimumSize(), optimal);
-        }
+        AppSettings::ensureWindowOnScreen(this, minimumSize(), QSize(780, 700));
     }
 }
 
@@ -739,10 +734,6 @@ void RegConfigWindow::restoreWindowStateFromSettings()
         QPoint p = AppSettings::instance().configWindowPos();
         if (sz.isValid() && sz.width() > 0 && sz.height() > 0) {
             resize(sz);
-        } else {
-            adjustSize();
-            QSize optimal = sizeHint().expandedTo(QSize(780, 700));
-            resize(optimal);
         }
         if (!p.isNull()) {
             move(p);

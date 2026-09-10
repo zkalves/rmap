@@ -55,6 +55,8 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(RegMapWindow)
 
+    friend class TestRegMapWindow;
+
     public:
         explicit RegMapWindow(const QString &rmap_filename = QString(), QWidget *parent = nullptr);
         ~RegMapWindow() override;

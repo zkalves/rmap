@@ -95,12 +95,12 @@ struct ColorScheme {
     AccessColors accessColors(const QString &access, ColorBlindMode mode) const { return getAccessColors(access, mode); }
     AccessColors accessColors(const QString &access, bool colorBlind) const { return getAccessColors(access, colorBlind); }
     QString generateStyleSheet() const;
-    QPalette generatePalette() const;
+    QPalette generatePalette() const noexcept;
 
     bool fromJson(const QJsonObject &obj);
     QJsonObject toJson() const;
     static ColorScheme createDefault(const QString &id);
-    static QList<ColorScheme> builtInDefaults();
+    static QList<ColorScheme> builtInDefaults() noexcept;
 };
 
 class ThemeManager : public QObject {
@@ -111,8 +111,8 @@ public:
     static ThemeManager& instance();
 
     const QList<ColorScheme>& availableThemes() const;
-    QStringList themeIds() const;
-    QStringList themeNames() const;
+    QStringList themeIds() const noexcept;
+    QStringList themeNames() const noexcept;
 
     const ColorScheme& currentTheme() const;
     QString currentThemeId() const;
@@ -141,6 +141,11 @@ public:
     static QString localThemesDir();
     QStringList searchPaths() const;
     void addSearchPath(const QString &path);
+
+    static void setSystemThemePathsOverride(bool override);
+    static bool systemThemePathsOverride();
+
+    friend class TestThemeManager;
 
 signals:
     void themeChanged(const ColorScheme &newTheme);

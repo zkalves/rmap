@@ -81,6 +81,9 @@ public:
     // Ensure widget is fully visible on an available display and >= minimum size
     static void ensureWindowOnScreen(QWidget *widget, const QSize &minSize = QSize(), const QSize &defaultSize = QSize());
 
+    static QString determineConfigPath(const char *envConfig, const char *xdgConfig, const QString &genericConfigLoc);
+    static void setScreenOverrideMode(int mode); // 0: normal, 1: force null primary, 2: force null all
+
     void load();
     void save();
 
@@ -89,6 +92,8 @@ signals:
     void colorBlindModeChanged(bool enabled);
     void colorBlindTypeChanged(ColorBlindMode mode);
     void languageChanged(const QString &lang);
+
+    friend class TestThemeManager;
 
 private:
     AppSettings();

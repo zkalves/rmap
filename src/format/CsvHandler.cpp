@@ -82,7 +82,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, R
 {
     FormatResult result;
     QFile file(filepath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (!file.open(QIODevice::ReadOnly)) {
         result.success = false;
         result.errorMessage = QString("Cannot open CSV file: %1").arg(file.errorString());
         return result;

@@ -14,6 +14,8 @@
 #include "../RegMapTreeItem.hpp"
 #include "../RegConfigWindow.hpp"
 
+CmsisSvdHandler::~CmsisSvdHandler() = default;
+
 namespace {
 
 QString svdAccessToUvm(const QString &acc) {

@@ -25,6 +25,7 @@ private slots:
     void testJsonTranslatorDirect();
     void testBuildTimeLanguageEnforcement();
     void testAppSettingsPersistence();
+    void testEdgeCasesAndFallbacks();
 };
 
 void TestLanguageManager::initTestCase()
@@ -231,6 +232,70 @@ void TestLanguageManager::testAppSettingsPersistence()
     // Reset back to English
     AppSettings::instance().setLanguage("en");
     QCOMPARE(AppSettings::instance().language(), QString("en"));
+}
+
+void TestLanguageManager::testEdgeCasesAndFallbacks()
+{
+    // 1. Destructor coverage with active translator
+    {
+        LanguageManager localLm;
+        localLm.m_activeTranslator = new QTranslator(&localLm);
+        if (qApp) {
+            qApp->installTranslator(localLm.m_activeTranslator);
+        }
+    }
+
+    // 2. currentLanguageName & currentLanguageInfo fallback
+    LanguageManager &lm = LanguageManager::instance();
+    QString origLang = lm.m_currentLanguage;
+    lm.m_currentLanguage = "nonexistent_code_123";
+    QCOMPARE(lm.currentLanguageName(), QString("English"));
+    QCOMPARE(lm.currentLanguageInfo().code, QString("en"));
+
+    // Empty languages list fallback
+    QList<LanguageInfo> savedLangs = lm.m_languages;
+    lm.m_languages.clear();
+    QCOMPARE(lm.currentLanguageInfo().code, QString());
+    lm.m_languages = savedLangs;
+    lm.m_currentLanguage = origLang;
+
+    // 3. Fallback to dev path translations/rmap_%1.json
+    LanguageInfo devLang;
+    devLang.code = "es";
+    devLang.name = "SpanishDev";
+    devLang.nativeName = "Español";
+    devLang.resourcePath = "non_existent_res_path_xyz.json";
+    lm.m_languages.append(devLang);
+    QVERIFY(lm.setLanguage("SpanishDev"));
+    lm.m_languages.removeLast();
+
+    // 4. Missing translation file
+    LanguageInfo missingLang;
+    missingLang.code = "xyz_missing";
+    missingLang.name = "MissingLang";
+    missingLang.nativeName = "Missing";
+    missingLang.resourcePath = "definitely_not_a_valid_file_at_all.json";
+    lm.m_languages.append(missingLang);
+    QVERIFY(!lm.setLanguage("MissingLang"));
+    lm.m_languages.removeLast();
+
+    // 5. Invalid JSON translation resource
+    QTemporaryFile badJsonFile;
+    QVERIFY(badJsonFile.open());
+    badJsonFile.write("{ invalid json ");
+    badJsonFile.close();
+    LanguageInfo badLang;
+    badLang.code = "bad_json_lang";
+    badLang.name = "BadLang";
+    badLang.nativeName = "Bad";
+    badLang.resourcePath = badJsonFile.fileName();
+    lm.m_languages.append(badLang);
+    QVERIFY(!lm.setLanguage("BadLang"));
+    lm.m_languages.removeLast();
+
+    // Restore to English
+    lm.setLanguage("en");
+    QCOMPARE(lm.currentLanguage(), QString("en"));
 }
 
 QTEST_MAIN(TestLanguageManager)

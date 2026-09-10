@@ -13,7 +13,7 @@
 class CmsisSvdHandler : public IFormatHandler {
 public:
     CmsisSvdHandler() = default;
-    ~CmsisSvdHandler() override = default;
+    ~CmsisSvdHandler() override;
 
     QString formatName() const override { return "ARM CMSIS-SVD"; }
     QStringList supportedExtensions() const override { return {"svd"}; }

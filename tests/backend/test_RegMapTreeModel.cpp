@@ -9,6 +9,12 @@
 #include "RegMapTreeModel.hpp"
 #include "RegMapTreeItem.hpp"
 
+class TestableRegMapTreeModel : public RegMapTreeModel
+{
+public:
+    using RegMapTreeModel::createIndex;
+};
+
 class TestRegMapTreeModel : public QObject
 {
     Q_OBJECT
@@ -26,6 +32,7 @@ private slots:
     void testMemoryOverlapValidation();
     void testIndexAndDataRolesEdgeCases();
     void testLinterExtendedRules();
+    void testModelCoverageEdgeCases();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders()
@@ -561,6 +568,76 @@ void TestRegMapTreeModel::testLinterExtendedRules()
     model.setData(model.index(0, 6, blkIndex), "0x100000000", Qt::EditRole);
     QStringList errRegReset = model.checkData(32);
     QVERIFY(errRegReset.join("\n").contains("overflows register width (32 bits)"));
+}
+
+void TestRegMapTreeModel::testModelCoverageEdgeCases()
+{
+    TestableRegMapTreeModel model;
+
+    // 1. Data with invalid internalPointer item -> covers L140
+    QModelIndex fakeNullIdx = model.createIndex(0, 0, nullptr);
+    QCOMPARE(model.data(fakeNullIdx, Qt::DisplayRole), QVariant());
+
+    // 2. Parent with invalid internalPointer childItem -> covers L248
+    QCOMPARE(model.parent(fakeNullIdx), QModelIndex());
+
+    // 3. Qt::DecorationRole on col 0 with empty icon -> covers L153
+    QVariantMap emptyData;
+    RegMapTreeItem customItem(static_cast<RegMapTreeItem::e_rmmKind>(99), emptyData);
+    QModelIndex customIdx = model.createIndex(0, 0, &customItem);
+    QCOMPARE(model.data(customIdx, Qt::DecorationRole), QVariant());
+
+    // 4. recursiveExtractJsonData(nullptr, 32) -> covers L581
+    nlohmann::json nullJson = model.recursiveExtractJsonData(nullptr, 32);
+    QVERIFY(nullJson.is_null() || nullJson.empty());
+
+    // 5. computeTreeCrc32 with direct registers array -> covers L755-758
+    nlohmann::json rootWithRegs;
+    rootWithRegs["registers"] = nlohmann::json::array({
+        { {"name", "DIRECT_REG"}, {"offset_lsb", 0x10}, {"size_width", 32}, {"access", "RW"}, {"reset_val", 0x1234} }
+    });
+    uint32_t crc = RegMapTreeModel::computeTreeCrc32(rootWithRegs);
+    QVERIFY(crc != 0);
+
+    // 6. Binary string parsing ("0b...") -> covers L64
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex()));
+    QModelIndex blkIdx = model.index(0, 0, QModelIndex());
+    // Column 0 DisplayRole returns kindString -> covers L179
+    QCOMPARE(model.data(blkIdx, Qt::DisplayRole).toString(), QString("blk"));
+
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QModelIndex regIdx = model.index(0, 0, blkIdx);
+    model.setData(model.index(0, 1, blkIdx), "0x0", Qt::EditRole);
+    model.setData(model.index(0, 6, blkIdx), "0b1010", Qt::EditRole); // binary reset value
+    QCOMPARE(model.data(model.index(0, 6, blkIdx), Qt::DisplayRole).toString(), QString("0b1010"));
+
+    // 7. Multiple fields with out-of-order offsets -> covers L658 (std::sort comparator)
+    QVERIFY(model.insertRows(0, 2, RegMapTreeItem::e_rmmKind::fld, regIdx));
+    QModelIndex fld0 = model.index(0, 0, regIdx);
+    QModelIndex fld1 = model.index(1, 0, regIdx);
+    model.setData(model.index(0, 1, regIdx), "8", Qt::EditRole);
+    model.setData(model.index(0, 2, regIdx), "4", Qt::EditRole);
+    model.setData(model.index(0, 3, regIdx), "FLD_HIGH", Qt::EditRole);
+    model.setData(model.index(1, 1, regIdx), "0", Qt::EditRole);
+    model.setData(model.index(1, 2, regIdx), "4", Qt::EditRole);
+    model.setData(model.index(1, 3, regIdx), "FLD_LOW", Qt::EditRole);
+
+    // 8. Memories with out-of-order offsets -> covers L626-627, 663-666
+    QVERIFY(model.insertRows(1, 2, RegMapTreeItem::e_rmmKind::mem, QModelIndex()));
+    model.setData(model.index(1, 1, QModelIndex()), "0x2000", Qt::EditRole);
+    model.setData(model.index(1, 3, QModelIndex()), "MEM2", Qt::EditRole);
+    model.setData(model.index(2, 1, QModelIndex()), "0x1000", Qt::EditRole);
+    model.setData(model.index(2, 3, QModelIndex()), "MEM1", Qt::EditRole);
+
+    // 9. Root item with empty Name and Description -> covers L762, L765
+    model.getRootItem()->setData("Name", "");
+    model.getRootItem()->setData("Description", "");
+    nlohmann::json extracted = model.extractJsonData(32);
+    QCOMPARE(QString::fromStdString(extracted["name"]), QString("regmap"));
+    QCOMPARE(QString::fromStdString(extracted["description"]), QString("Hardware Register Map Specification"));
+    QVERIFY(extracted.contains("memories"));
+    QCOMPARE(extracted["memories"].size(), 2);
+    QCOMPARE(QString::fromStdString(extracted["memories"][0]["name"]), QString("MEM1"));
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

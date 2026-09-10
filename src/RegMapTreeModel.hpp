@@ -56,12 +56,12 @@ public:
     bool removeRows(int position, int rows, const QModelIndex &parent = QModelIndex()) override;
     bool clear();
     void recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth, QStringList &errors);
-    QStringList checkData(uint32_t regWidth = 32);
+    QStringList checkData(uint32_t regWidth = 32) noexcept;
 
     void refreshHeaderData();
     bool isIndexInvalid(const QModelIndex &index) const;
     json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32);
-    json extractJsonData(uint32_t regWidth = 32);
+    json extractJsonData(uint32_t regWidth = 32) noexcept;
 
     static uint32_t calculateCrc32(const uint8_t *data, size_t length, uint32_t previousCrc32 = 0);
     static uint32_t computeBlockCrc32(const json &blkJson);

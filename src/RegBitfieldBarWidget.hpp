@@ -37,19 +37,19 @@ class RegBitfieldBarWidget : public QWidget
 
 public:
     explicit RegBitfieldBarWidget(QWidget *parent = nullptr);
-    ~RegBitfieldBarWidget() override = default;
+    ~RegBitfieldBarWidget() override;
 
     void setRegister(RegMapTreeItem *regItem, uint32_t regWidth = 32);
     void clear();
     void refresh();
     void setSelectedField(int childRow);
-    const QVector<BitfieldSlice>& getSlices() const { return m_slices; }
-    const QVector<BitfieldSlice>& slices() const { return m_slices; }
+    const QVector<BitfieldSlice>& getSlices() const;
+    const QVector<BitfieldSlice>& slices() const;
 
     void setColorBlindMode(bool enabled);
     void setColorBlindMode(ColorBlindMode mode);
-    bool isColorBlindMode() const { return m_colorBlindMode != ColorBlindMode::None; }
-    ColorBlindMode colorBlindMode() const { return m_colorBlindMode; }
+    bool isColorBlindMode() const;
+    ColorBlindMode colorBlindMode() const;
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;

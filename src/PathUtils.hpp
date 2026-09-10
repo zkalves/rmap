@@ -103,6 +103,12 @@ QString normalizeSeparators(const QString &path);
 std::string normalizeSeparators(const std::string &path);
 inline QString normalizeSeparators(const char *path) { return normalizeSeparators(QString::fromUtf8(path ? path : "")); }
 
+/**
+ * @brief Test hook to simulate or override installation directory checks.
+ */
+void setInstalledOverride(bool enable);
+bool isInstalledOverride();
+
 } // namespace PathUtils
 
 #endif // PATH_UTILS_HPP

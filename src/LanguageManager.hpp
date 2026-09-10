@@ -65,8 +65,8 @@ public:
     static LanguageManager& instance();
 
     const QList<LanguageInfo>& availableLanguages() const;
-    QStringList languageCodes() const;
-    QStringList languageNames() const;
+    QStringList languageCodes() const noexcept;
+    QStringList languageNames() const noexcept;
 
     QString currentLanguage() const;
     QString currentLanguageName() const;
@@ -78,6 +78,8 @@ public:
 
 signals:
     void languageChanged(const QString &languageCode);
+
+    friend class TestLanguageManager;
 
 private:
     LanguageManager();

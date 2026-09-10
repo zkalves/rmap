@@ -27,6 +27,7 @@ private slots:
     void testLoadCustomThemeFromJson();
     void testCustomThemesDirScanning();
     void testThemeOverriding();
+    void testThemeEdgeCasesAndCoverage();
     void cleanupTestCase();
 };
 
@@ -354,6 +355,34 @@ void TestThemeManager::testAppSettingsConfigFile()
     settings.setColorBlindTypeString("none");
     QCOMPARE(settings.colorBlindTypeString(), QString("none"));
 
+    // Test determineConfigPath when all inputs are empty (triggers line 32)
+    QString defPath = AppSettings::determineConfigPath(nullptr, nullptr, QString());
+    QCOMPARE(defPath, QDir::homePath() + "/.config/rmap/rmap.conf");
+
+    // Test determineConfigPath when envConfig is set (triggers line 31)
+    QString customEnvPath = AppSettings::determineConfigPath("/custom/env/rmap.conf", nullptr, QString());
+    QCOMPARE(customEnvPath, QString("/custom/env/rmap.conf"));
+
+    // Test saving to nested non-existent directory (triggers line 410)
+    QString nestedPath = tempDir.path() + "/nested_dir_123/rmap.conf";
+    settings.setConfigFilePath(nestedPath);
+    settings.save();
+    QVERIFY(QFileInfo::exists(nestedPath));
+
+    // Test loading empty config values (triggers lines 371, 377, 381)
+    {
+        QSettings emptyVals(testConfPath, QSettings::IniFormat);
+        emptyVals.setValue("Appearance/ColorScheme", "");
+        emptyVals.setValue("Appearance/ColorBlindType", "none");
+        emptyVals.setValue("Appearance/Language", "");
+        emptyVals.sync();
+    }
+    settings.setConfigFilePath(testConfPath);
+    settings.load();
+    QCOMPARE(settings.colorScheme(), QString("solarized8"));
+    QCOMPARE(settings.colorBlindType(), ColorBlindMode::Universal);
+    QCOMPARE(settings.language(), QString("en"));
+
     // Reset back to defaults and restore original path
     settings.setColorScheme("solarized8");
     settings.setColorBlindMode(false);
@@ -385,6 +414,26 @@ void TestThemeManager::testEnsureWindowOnScreen()
         QVERIFY(widget.x() + widget.width() <= avail.right() + 1);
         QVERIFY(widget.y() + widget.height() <= avail.bottom() + 1);
     }
+
+    // Test 4: Window wider and taller than screen (triggers lines 340 and 343)
+    widget.resize(20000, 20000);
+    AppSettings::ensureWindowOnScreen(&widget, QSize(400, 300), QSize(600, 400));
+    if (primary) {
+        QVERIFY(widget.width() <= primary->availableGeometry().width());
+        QVERIFY(widget.height() <= primary->availableGeometry().height());
+    }
+
+    // Test 5: Screen fallback mode 1 (screens.first() fallback - triggers line 330)
+    widget.move(-5000, -5000);
+    AppSettings::setScreenOverrideMode(1);
+    AppSettings::ensureWindowOnScreen(&widget, QSize(400, 300), QSize(600, 400));
+    AppSettings::setScreenOverrideMode(0);
+
+    // Test 6: Screen fallback mode 2 (null screen fallback - triggers line 367)
+    widget.move(-5000, -5000);
+    AppSettings::setScreenOverrideMode(2);
+    AppSettings::ensureWindowOnScreen(&widget, QSize(400, 300), QSize(600, 400));
+    AppSettings::setScreenOverrideMode(0);
 }
 
 void TestThemeManager::testJsonSerializationAndDeserialization()
@@ -525,6 +574,124 @@ void TestThemeManager::testThemeOverriding()
     // Reset to defaults
     tm.resetToDefaults();
     QCOMPARE(tm.currentTheme().windowBg, QColor("#002b36"));
+}
+
+void TestThemeManager::testThemeEdgeCasesAndCoverage()
+{
+    // 1. ColorScheme accessPolicyColors without custom color blind overrides
+    ColorScheme s = ColorScheme::createDefault("solarized8");
+    s.hasCustomColorBlind = false;
+
+    // Normal mode unknown access policy
+    AccessColors na = s.getAccessColors("UNKNOWN_POLICY", ColorBlindMode::None);
+    QVERIFY(na.bg.isValid());
+
+    // Universal mode access policies
+    QVERIFY(s.getAccessColors("RW", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("RO", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("WO", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("W1S", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("W0S", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("WS", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("W1C", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("W0C", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("WC", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("RC", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("RS", ColorBlindMode::Universal).bg.isValid());
+    QVERIFY(s.getAccessColors("UNKNOWN", ColorBlindMode::Universal).bg.isValid());
+
+    // Default mode switch case
+    QVERIFY(!s.getAccessColors("RW", static_cast<ColorBlindMode>(999)).bg.isValid());
+
+    // 2. Palette and style sheet generation
+    QPalette pal = s.generatePalette();
+    QVERIFY(pal.window().color().isValid());
+    QString ss = s.generateStyleSheet();
+    QVERIFY(!ss.isEmpty());
+
+    // 3. parseColor fallback and fromJson error cases
+    QJsonObject badObj;
+    badObj["id"] = "bad";
+    badObj["windowBg"] = "not-a-valid-color";
+    ColorScheme badScheme;
+    badScheme.fromJson(badObj);
+
+    QJsonObject emptyObj;
+    QVERIFY(!badScheme.fromJson(emptyObj));
+
+    // 4. fromJson with top-level access keys
+    QJsonObject topObj;
+    topObj["id"] = "top_level_theme";
+    topObj["name"] = "Top Level Theme";
+    QJsonObject rwObj;
+    rwObj["bg"] = "#112233";
+    rwObj["border"] = "#445566";
+    rwObj["text"] = "#778899";
+    topObj["rw"] = rwObj;
+    ColorScheme topScheme;
+    QVERIFY(topScheme.fromJson(topObj));
+
+    topScheme.hasCustomColorBlind = true;
+    QJsonObject topJson = topScheme.toJson();
+    QVERIFY(!topJson.isEmpty());
+
+    // 5. builtInDefaults
+    QVERIFY(!ColorScheme::builtInDefaults().isEmpty());
+
+    // 6. ThemeManager themeIds, themeNames, and out-of-bounds currentTheme
+    ThemeManager &tm = ThemeManager::instance();
+    QVERIFY(!tm.themeIds().isEmpty());
+    QVERIFY(!tm.themeNames().isEmpty());
+
+    int savedIdx = tm.m_currentIndex;
+    tm.m_currentIndex = -1;
+    QCOMPARE(tm.currentTheme().id, tm.m_themes.first().id);
+    tm.m_currentIndex = savedIdx;
+
+    // 7. setTheme with direct JSON file path
+    QTemporaryDir tdir;
+    QVERIFY(tdir.isValid());
+    QString tjPath = tdir.filePath("direct_theme.json");
+    QFile f(tjPath);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(QJsonDocument(topJson).toJson());
+    f.close();
+    QVERIFY(tm.setTheme(tjPath));
+
+    // 8. registerTheme with empty id
+    ColorScheme emptyIdScheme;
+    QVERIFY(!tm.registerTheme(emptyIdScheme));
+
+    // 9. loadThemeFromJson error cases
+    QVERIFY(!tm.loadThemeFromJson("nonexistent_file_xyz_123.json"));
+    QString unreadablePath = tdir.filePath("unreadable.json");
+    {
+        QFile uf(unreadablePath);
+        QVERIFY(uf.open(QIODevice::WriteOnly));
+        uf.write("{}");
+        uf.close();
+        uf.setPermissions(QFileDevice::WriteOwner); // remove read permission
+    }
+    QVERIFY(!tm.loadThemeFromJson(unreadablePath));
+    QVERIFY(!tm.loadThemeFromJson("bad json {"));
+    QVERIFY(!tm.loadThemeFromJson("{}"));
+
+    // 10. RMAP_THEMES_PATH environment variable
+    qputenv("RMAP_THEMES_PATH", "/tmp/custom_theme_search_123");
+    QStringList sPaths = tm.searchPaths();
+    QVERIFY(sPaths.contains("/tmp/custom_theme_search_123"));
+    qunsetenv("RMAP_THEMES_PATH");
+
+    // 11. System themes override
+    ThemeManager::setSystemThemePathsOverride(true);
+    QVERIFY(ThemeManager::systemThemePathsOverride());
+    sPaths = tm.searchPaths();
+    QVERIFY(sPaths.contains("/usr/local/share/rmap/themes"));
+    ThemeManager::setSystemThemePathsOverride(false);
+    QVERIFY(!ThemeManager::systemThemePathsOverride());
+
+    // 12. scanThemes coverage
+    tm.scanThemes();
 }
 
 void TestThemeManager::cleanupTestCase()

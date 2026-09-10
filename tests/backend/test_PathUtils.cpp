@@ -56,8 +56,14 @@ void TestPathUtils::testNormalizeSeparators()
     QString p2 = "foo///bar//baz.txt";
     QCOMPARE(PathUtils::normalizeSeparators(p2), QString("foo/bar/baz.txt"));
 
+    QString unc = "//server//share/path";
+    QCOMPARE(PathUtils::normalizeSeparators(unc), QString("//server/share/path"));
+
+    QCOMPARE(PathUtils::normalizeSeparators(""), QString(""));
+
     std::string s1 = "a\\b\\c";
     QCOMPARE(PathUtils::normalizeSeparators(s1), std::string("a/b/c"));
+    QCOMPARE(PathUtils::normalizeSeparators(std::string("")), std::string(""));
 }
 
 void TestPathUtils::testExpandEnvVarsTilde()
@@ -144,6 +150,11 @@ void TestPathUtils::testResolvePathWithBaseDirs()
     // Non-existent target file constructs relative to primary
     QString r3 = PathUtils::resolvePath("non_existent.txt", primDir, secDir);
     QCOMPARE(r3, PathUtils::normalizeSeparators(primDir + "/non_existent.txt"));
+
+    // Resolves in current working directory (CWD)
+    QString r4 = PathUtils::resolvePath("CMakeLists.txt");
+    QVERIFY(!r4.isEmpty());
+    QVERIFY(QFile::exists(r4));
 }
 
 void TestPathUtils::testResolvePathWithEnvVars()
@@ -318,6 +329,15 @@ void TestPathUtils::testExtendedPathResolutionAndDiscovery()
     QCOMPARE(PathUtils::defaultTemplatesDir(), QString("./templates"));
     QCOMPARE(PathUtils::defaultExamplesDir(), QString("./examples"));
     QCOMPARE(PathUtils::defaultDocsDir(), QString("./docs"));
+
+    // Test installed override mode
+    PathUtils::setInstalledOverride(true);
+    QVERIFY(PathUtils::isInstalledOverride());
+    QVERIFY(!PathUtils::defaultTemplatesDir().isEmpty());
+    QVERIFY(!PathUtils::defaultExamplesDir().isEmpty());
+    QVERIFY(!PathUtils::defaultDocsDir().isEmpty());
+    PathUtils::setInstalledOverride(false);
+    QVERIFY(!PathUtils::isInstalledOverride());
 
     QDir::setCurrent(origCwd);
 }

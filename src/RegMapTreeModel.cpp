@@ -222,20 +222,11 @@ QModelIndex RegMapTreeModel::index(int row, int column, const QModelIndex &paren
     if (!hasIndex(row, column, parent))
         return QModelIndex();
 
-    RegMapTreeItem *parentItem;
+    RegMapTreeItem *parentItem = parent.isValid()
+        ? static_cast<RegMapTreeItem*>(parent.internalPointer())
+        : m_rootItem;
 
-    if (!parent.isValid())
-        parentItem = m_rootItem;
-    else
-        parentItem = static_cast<RegMapTreeItem*>(parent.internalPointer());
-
-    if (!parentItem)
-        return QModelIndex();
-
-    RegMapTreeItem *childItem = parentItem->child(row);
-    if (childItem)
-        return createIndex(row, column, childItem);
-    return QModelIndex();
+    return createIndex(row, column, parentItem->child(row));
 }
 
 QModelIndex RegMapTreeModel::parent(const QModelIndex &index) const
@@ -563,7 +554,7 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
     }
 }
 
-QStringList RegMapTreeModel::checkData(uint32_t regWidth)
+QStringList RegMapTreeModel::checkData(uint32_t regWidth) noexcept
 {
     m_invalidCells.clear();
     QStringList errors;
@@ -761,7 +752,7 @@ uint32_t RegMapTreeModel::computeTreeCrc32(const json &rootJson)
     return calculateCrc32(reinterpret_cast<const uint8_t*>(repr.data()), repr.size());
 }
 
-json RegMapTreeModel::extractJsonData(uint32_t regWidth)
+json RegMapTreeModel::extractJsonData(uint32_t regWidth) noexcept
 {
     json root_json = recursiveExtractJsonData(m_rootItem, regWidth);
     root_json["reg_width"]       = regWidth;

@@ -602,7 +602,11 @@ bool CodeGenerator::runPythonScript(
 
     std::string jsonDump = json_data.dump(2);
 
-    QTemporaryFile tempJsonFile(QDir::tempPath() + "/rmap_context_XXXXXX.json");
+    QString tempDirPath = QString::fromLocal8Bit(qgetenv("RMAP_TMPDIR"));
+    if (tempDirPath.isEmpty()) {
+        tempDirPath = QDir::tempPath();
+    }
+    QTemporaryFile tempJsonFile(tempDirPath + "/rmap_context_XXXXXX.json");
     if (!tempJsonFile.open()) {
         if (stderr_str) *stderr_str = "Failed to create temporary file for register map JSON context.";
         return false;
@@ -713,7 +717,15 @@ with open(script_path, 'r', encoding='utf-8') as f:
     process.write(jsonDump.data(), static_cast<qint64>(jsonDump.size()));
     process.closeWriteChannel();
 
-    bool finished = process.waitForFinished(60000);
+    int timeoutMs = 60000;
+    QByteArray envTimeout = qgetenv("RMAP_PYTHON_TIMEOUT");
+    if (!envTimeout.isEmpty()) {
+        bool ok = false;
+        int parsed = envTimeout.toInt(&ok);
+        if (ok && parsed > 0) timeoutMs = parsed;
+    }
+
+    bool finished = process.waitForFinished(timeoutMs);
     if (!finished) {
         process.kill();
         process.waitForFinished(1000);

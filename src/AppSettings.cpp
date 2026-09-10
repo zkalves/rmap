@@ -18,21 +18,33 @@ AppSettings& AppSettings::instance()
     return inst;
 }
 
+static int s_screenOverrideMode = 0;
+
+void AppSettings::setScreenOverrideMode(int mode)
+{
+    s_screenOverrideMode = mode;
+}
+
+QString AppSettings::determineConfigPath(const char *envConfig, const char *xdgConfig, const QString &genericConfigLoc)
+{
+    if (envConfig && envConfig[0] != '\0') {
+        return QString::fromUtf8(envConfig);
+    }
+    QString configDir = (xdgConfig && xdgConfig[0] != '\0')
+        ? QString::fromUtf8(xdgConfig)
+        : genericConfigLoc;
+    if (configDir.isEmpty()) {
+        configDir = QDir::homePath() + "/.config";
+    }
+    return configDir + "/rmap/rmap.conf";
+}
+
 AppSettings::AppSettings()
 {
-    const char *envConfig = std::getenv("RMAP_CONFIG_FILE");
-    if (envConfig && envConfig[0] != '\0') {
-        m_configPath = QString::fromUtf8(envConfig);
-    } else {
-        const char *xdgConfig = std::getenv("XDG_CONFIG_HOME");
-        QString configDir = (xdgConfig && xdgConfig[0] != '\0')
-            ? QString::fromUtf8(xdgConfig)
-            : QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
-        if (configDir.isEmpty()) {
-            configDir = QDir::homePath() + "/.config";
-        }
-        m_configPath = configDir + "/rmap/rmap.conf";
-    }
+    m_configPath = determineConfigPath(
+        std::getenv("RMAP_CONFIG_FILE"),
+        std::getenv("XDG_CONFIG_HOME"),
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation));
 
     load();
 }
@@ -311,8 +323,10 @@ void AppSettings::ensureWindowOnScreen(QWidget *widget, const QSize &minSize, co
 
         // Fallback to primary screen
         if (!targetScreen) {
-            targetScreen = QGuiApplication::primaryScreen();
-            if (!targetScreen) {
+            if (s_screenOverrideMode != 1 && s_screenOverrideMode != 2) {
+                targetScreen = QGuiApplication::primaryScreen();
+            }
+            if (!targetScreen && !screens.isEmpty() && s_screenOverrideMode != 2) {
                 targetScreen = screens.first();
             }
         }

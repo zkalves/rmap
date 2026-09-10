@@ -64,6 +64,7 @@ private slots:
     void testSerializationEdgeCases();
     void testLifecycleAndEvents();
     void testBrowseDialogsAutoDismiss();
+    void testBrowseDialogsWithSelection();
     void testFullBranchCoverageRegConfig();
 };
 
@@ -850,6 +851,144 @@ void TestRegConfigWindow::testBrowseDialogsAutoDismiss()
     auto *btnClear = cfgWin.findChild<QPushButton*>("btnClearAll");
     btnClear->click();
     QCOMPARE(table->rowCount(), 0);
+}
+
+static void chooseInModalFileDialog(const QString &path)
+{
+    QTimer::singleShot(30, [path]() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) {
+            auto *dlg = qobject_cast<QFileDialog*>(modal);
+            if (dlg) {
+                auto *edit = dlg->findChild<QLineEdit*>("fileNameEdit");
+                if (edit) {
+                    edit->setText(path);
+                }
+                for (auto *btn : dlg->findChildren<QPushButton*>()) {
+                    if (btn->text().contains("Choose") || btn->text().contains("Open") || btn->text().contains("Save")) {
+                        btn->click();
+                        return;
+                    }
+                }
+            }
+            modal->close();
+        }
+    });
+}
+
+void TestRegConfigWindow::testBrowseDialogsWithSelection()
+{
+    QDir().mkpath("work/test_config_browse/custom_templates");
+    QDir().mkpath("work/test_config_browse/out");
+
+    QFile f1("work/test_config_browse/custom_templates/sample.inja");
+    if (f1.open(QIODevice::WriteOnly)) {
+        f1.write("// sample template");
+        f1.close();
+    }
+
+    QFile fpy("work/test_config_browse/test_script.py");
+    if (fpy.open(QIODevice::WriteOnly)) {
+        fpy.write("# python script");
+        fpy.close();
+    }
+
+    // 1. onAddTemplateFolder
+    {
+        RegConfigWindow cfgWin;
+        QString dir = QDir("work/test_config_browse/custom_templates").absolutePath();
+        chooseInModalFileDialog(dir);
+        auto *btnAdd = cfgWin.findChild<QPushButton*>("btnAddTemplateFolder");
+        btnAdd->click();
+        QVERIFY(cfgWin.templateFolders().contains("./work/test_config_browse/custom_templates") ||
+                cfgWin.templateFolders().contains("work/test_config_browse/custom_templates"));
+    }
+
+    // 2. onBrowseOutputFolder
+    {
+        RegConfigWindow cfgWin;
+        QString dir = QDir("work/test_config_browse/out").absolutePath();
+        chooseInModalFileDialog(dir);
+        auto *btn = cfgWin.findChild<QPushButton*>("btnBrowseOutputFolder");
+        btn->click();
+        auto *outEdit = cfgWin.findChild<QLineEdit*>("outputFolder");
+        QVERIFY(outEdit->text().contains("work/test_config_browse/out"));
+    }
+
+    // 3. onBrowsePythonScript
+    {
+        RegConfigWindow cfgWin;
+        QString pyFile = QDir("work/test_config_browse/test_script.py").absolutePath();
+        chooseInModalFileDialog(pyFile);
+        auto *btn = cfgWin.findChild<QPushButton*>("btnBrowsePythonScript");
+        btn->click();
+        auto *pyEdit = cfgWin.findChild<QLineEdit*>("pythonScript");
+        QVERIFY(pyEdit->text().contains("work/test_config_browse/test_script.py"));
+    }
+
+    // 4. onAddTemplateFiles
+    {
+        RegConfigWindow cfgWin;
+        QString injaFile = QDir("work/test_config_browse/custom_templates/sample.inja").absolutePath();
+        chooseInModalFileDialog(injaFile);
+        auto *btn = cfgWin.findChild<QPushButton*>("btnAddTemplateFiles");
+        btn->click();
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        QVERIFY(table->rowCount() > 0);
+    }
+
+    // 5. onBrowseTemplate
+    {
+        RegConfigWindow cfgWin;
+        cfgWin.addTemplateRow(true, "", "");
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        table->setCurrentCell(0, 1);
+        table->setItem(0, 1, nullptr); // ensure line 456-457 executes (null item(row, 1))
+        table->setItem(0, 2, nullptr); // ensure line 465-466 executes (null item(row, 2))
+        QString injaFile = QDir("work/test_config_browse/custom_templates/sample.inja").absolutePath();
+        chooseInModalFileDialog(injaFile);
+        auto *btn = cfgWin.findChild<QPushButton*>("btnBrowseTemplate");
+        btn->click();
+        QVERIFY(table->item(0, 1) != nullptr);
+        QVERIFY(table->item(0, 2) != nullptr);
+
+        // Row 1 with non-empty output path to hit else branch of line 463
+        cfgWin.addTemplateRow(true, "", "existing/output.sv");
+        table->setCurrentCell(1, 1);
+        chooseInModalFileDialog(injaFile);
+        btn->click();
+        QCOMPARE(table->item(1, 2)->text(), QString("existing/output.sv"));
+    }
+
+    // 6. onBrowseOutputFile
+    {
+        RegConfigWindow cfgWin;
+        cfgWin.addTemplateRow(true, "tmpl.inja", "");
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        table->setCurrentCell(0, 2);
+        table->setItem(0, 2, nullptr); // ensure line 496 executes (null item(row, 2))
+        QString outFile = QDir("work/test_config_browse/custom_out.h").absolutePath();
+        chooseInModalFileDialog(outFile);
+        auto *btn = cfgWin.findChild<QPushButton*>("btnBrowseOutputFile");
+        btn->click();
+        QVERIFY(table->item(0, 2) != nullptr);
+        QVERIFY(table->item(0, 2)->text().contains("work/test_config_browse/custom_out.h"));
+    }
+
+    // 7. onBrowseOutputFolderItem
+    {
+        RegConfigWindow cfgWin;
+        cfgWin.addTemplateRow(true, "tmpl.inja", "");
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        table->setCurrentCell(0, 2);
+        table->setItem(0, 2, nullptr); // ensure line 524 executes (null item(row, 2))
+        QString dir = QDir("work/test_config_browse/out").absolutePath();
+        chooseInModalFileDialog(dir);
+        auto *btn = cfgWin.findChild<QPushButton*>("btnBrowseOutputFolderItem");
+        btn->click();
+        QVERIFY(table->item(0, 2) != nullptr);
+        QVERIFY(table->item(0, 2)->text().contains("work/test_config_browse/out"));
+    }
 }
 
 void TestRegConfigWindow::testFullBranchCoverageRegConfig()

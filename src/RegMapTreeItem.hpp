@@ -42,10 +42,10 @@ public:
     bool removeChildren(int position, int count);
     bool setData(const QString &column, const QVariant &value);
 
-    QVector<e_rmmKind> possibleChildren() const;
-    QString icon() const;
-    QString kindString() const;
-    e_rmmKind kind() const;
+    QVector<e_rmmKind> possibleChildren() const noexcept;
+    QString icon() const noexcept;
+    QString kindString() const noexcept;
+    e_rmmKind kind() const noexcept;
 
 
 

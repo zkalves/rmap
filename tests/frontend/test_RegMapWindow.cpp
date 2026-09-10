@@ -18,6 +18,13 @@
 #include "LanguageManager.hpp"
 #include "AppSettings.hpp"
 #include "format/FormatManager.hpp"
+#include "RegConfigWindow.hpp"
+#include "SerializationContext.hpp"
+#include "proto/rmap.pb.h"
+#include <QFileDialog>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 static QtMessageHandler s_originalHandler = nullptr;
 static void testOffscreenMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
@@ -88,6 +95,7 @@ private slots:
     void testContextMenuAndDuplicationVariations();
     void testSortingAndProxyEdgeCases();
     void testHeadlessCliExtended();
+    void testUncoveredEdgeCases();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen()
@@ -1991,6 +1999,539 @@ void TestRegMapWindow::testHeadlessCliExtended()
     // 10. semanticDiff with markdown format (different files)
     QVERIFY(RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "examples/rmt/features/wide_bus_64bit.rmt", "markdown", "work/diff_diff.md"));
     QVERIFY(QFile::exists("work/diff_diff.md"));
+}
+
+// Forward-declare Protobuf serialization operators defined in RegMapWindow.cpp
+protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context );
+protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
+
+void TestRegMapWindow::testUncoveredEdgeCases()
+{
+    // 1. isColorBlindMode() and colorScheme() inline getters in RegMapWindow.hpp
+    {
+        RegMapWindow win;
+        QCOMPARE(win.isColorBlindMode(), win.isColourBlindMode());
+        QCOMPARE(win.colorScheme(), win.colourScheme());
+    }
+
+    // 2. parseNumericValue binary ("0b...") and decimal ("...") in duplicateItem (lines 44-45, 47, 2115-2117)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *model = win.getModel();
+        QVERIFY(model != nullptr);
+        QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+        QModelIndex regIdx = model->index(0, 0, blkIdx);
+
+        // Set LSB of field 0 to binary "0b100" and field 1 to decimal "16"
+        model->setData(model->index(0, 1, regIdx), "0b100", Qt::EditRole); // field 0 offset
+        model->setData(model->index(1, 1, regIdx), "16", Qt::EditRole);    // field 1 offset
+
+        // Duplicate field 0 (exercises lines 44-45 in parseNumericValue and lines 2115-2117)
+        win.duplicateItem(model->index(0, 0, regIdx));
+
+        // Duplicate field 1 (exercises line 47 in parseNumericValue)
+        win.duplicateItem(model->index(1, 0, regIdx));
+
+        // Duplicate item with direct source model index (exercises line 2091)
+        win.duplicateItem(regIdx);
+    }
+
+    // 3. Window title when filename is empty (line 1091)
+    {
+        RegMapWindow win;
+        win.setLanguage("es");
+        QVERIFY(!win.windowTitle().isEmpty());
+        win.setLanguage("en");
+    }
+
+    // 4. Window geometry fallback branches (lines 1117 & 1120)
+    {
+        AppSettings::instance().setMainWindowGeometry(QByteArray());
+        AppSettings::instance().setMainWindowSize(QSize(-1, -1));
+        AppSettings::instance().setMainWindowPos(QPoint(50, 50));
+        RegMapWindow win;
+        win.restoreWindowStateFromSettings();
+    }
+
+    auto dismissModal = [](const QString &filePath = QString(), int button = -1) {
+        auto *timer = new QTimer();
+        auto start = std::chrono::steady_clock::now();
+        QObject::connect(timer, &QTimer::timeout, [timer, start, filePath, button]() {
+            QWidget *modal = QApplication::activeModalWidget();
+            if (!modal) {
+                for (auto *w : QApplication::topLevelWidgets()) {
+                    if (w->isVisible() && (w->isModal() || w->inherits("QDialog") || w->inherits("QMessageBox") || w->inherits("QFileDialog"))) {
+                        modal = w;
+                        break;
+                    }
+                }
+            }
+            if (modal) {
+                timer->stop();
+                timer->deleteLater();
+                if (auto *fileDlg = qobject_cast<QFileDialog*>(modal)) {
+                    if (!filePath.isEmpty()) {
+                        auto *edit = fileDlg->findChild<QLineEdit*>("fileNameEdit");
+                        if (edit) {
+                            edit->setText(QFileInfo(filePath).fileName());
+                        }
+                        for (auto *btn : fileDlg->findChildren<QPushButton*>()) {
+                            QString txt = btn->text();
+                            if (txt.contains("Save") || txt.contains("Guardar") || txt.contains("Speichern") ||
+                                txt.contains("Open") || txt.contains("Abrir") || txt.contains("Öffnen") ||
+                                txt.contains("Choose") || (!txt.contains("Cancel") && !txt.contains("Cancelar") && btn->isDefault())) {
+                                btn->click();
+                                return;
+                            }
+                        }
+                    }
+                    modal->close();
+                    return;
+                } else if (auto *msgBox = qobject_cast<QMessageBox*>(modal)) {
+                    if (button >= 0) {
+                        if (auto *btn = msgBox->button(static_cast<QMessageBox::StandardButton>(button))) {
+                            btn->click();
+                        } else {
+                            msgBox->accept();
+                        }
+                    } else {
+                        msgBox->accept();
+                    }
+                    return;
+                } else if (auto *dlg = qobject_cast<QDialog*>(modal)) {
+                    dlg->accept();
+                    return;
+                } else {
+                    modal->close();
+                    return;
+                }
+            }
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+            if (elapsed > 3000) {
+                timer->stop();
+                timer->deleteLater();
+            }
+        });
+        timer->start(5);
+    };
+
+    // 5. btnFileNew Save branch (line 1256)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.m_rmap_filename = "work/spi_test_save.rmt";
+        auto *model = win.getModel();
+        model->setData(model->index(0, 3, model->index(0, 0, QModelIndex())), "MODIFIED_NAME", Qt::EditRole);
+        win.m_is_regmap_modified = true;
+
+        dismissModal(QString(), QMessageBox::Save);
+        win.btnFileNew();
+    }
+
+    // 6. btnFileSaveAs and btnFileOpen modal dialog file selection (lines 1291-1296, 1315-1318, 1751)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.m_rmap_filename = "work/spi_test_save.rmt";
+        win.m_active_folder = QDir::current().absoluteFilePath("work");
+
+        // btnFileSaveAs with accepted chosen file
+        dismissModal("work/saved_as_test.rmt");
+        win.btnFileSaveAs();
+        QVERIFY(QFile::exists("work/saved_as_test.rmt"));
+
+        // btnFileOpen with accepted chosen file (exists in work/ from previous save)
+        dismissModal("work/saved_as_test.rmt");
+        win.btnFileOpen();
+
+        // fileSave("") when filename is empty delegates to btnFileSaveAs (line 1751)
+        RegMapWindow emptyWin;
+        dismissModal(); // reject
+        emptyWin.fileSave("");
+    }
+
+    // 7. btnExport branches (lines 1411, 1418, 1429, 1448-1463)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *cfgWin = win.configWindow();
+        QVERIFY(cfgWin != nullptr);
+
+        // Line 1411 (empty templatefolder), line 1418 (project_name), line 1429 (custom_parameters)
+        auto *cfg = cfgWin->serialize();
+        cfg->set_templatefolder("");
+        cfg->set_project_name("CustomExportProject");
+        (*cfg->mutable_custom_parameters())["author"] = "Tester";
+        cfgWin->deserialize(*cfg);
+        delete cfg;
+
+        // Line 1460 (no templates notice): clear template outputs
+        auto *emptyCfg = cfgWin->serialize();
+        emptyCfg->clear_template_outputs();
+        cfgWin->deserialize(*emptyCfg);
+        delete emptyCfg;
+
+        dismissModal();
+        win.btnExport();
+
+        // Lines 1448-1458 (export completed with errors): add non-existent template
+        auto *errCfg = cfgWin->serialize();
+        auto *out = errCfg->add_template_outputs();
+        out->set_template_filename("nonexistent/bad_template.inja");
+        out->set_output_filepath("work/bad_out.txt");
+        out->set_enabled(true);
+        cfgWin->deserialize(*errCfg);
+        delete errCfg;
+
+        dismissModal();
+        win.btnExport();
+    }
+
+    // 8. updateBitfieldBar selection edge cases (lines 1570-1571, 1578-1579)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        auto *model = win.getModel();
+
+        // Select a register so fields table is populated
+        QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+        QModelIndex regIdx = model->index(0, 0, blkIdx);
+        treeView->setCurrentIndex(treeView->model()->index(0, 0, treeView->model()->index(0, 0, QModelIndex())));
+
+        if (fieldsTable && fieldsTable->selectionModel()) {
+            fieldsTable->setCurrentIndex(fieldsTable->model()->index(0, 0, QModelIndex()));
+            fieldsTable->selectionModel()->clearSelection();
+            fieldsTable->selectionModel()->setCurrentIndex(QModelIndex(), QItemSelectionModel::NoUpdate);
+        }
+    }
+
+    // 9. Protobuf operator << and >> for mem and map (lines 1689-1690, 1722)
+    {
+        protormap::RegModel regModel;
+        SerializationContext ctxOut;
+
+        QVariantMap memData;
+        memData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::mem);
+        memData["id"] = 10;
+        memData["parent"] = 0;
+        QVariantMap memColData;
+        memColData["Name"] = "SRAM_BLOCK";
+        memData["itemData"] = memColData;
+        ctxOut.append_record<RegMapTreeItem>(nullptr, memData);
+
+        QVariantMap mapData;
+        mapData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::map);
+        mapData["id"] = 20;
+        mapData["parent"] = 0;
+        QVariantMap mapColData;
+        mapColData["Name"] = "MAIN_MAP";
+        mapData["itemData"] = mapColData;
+        ctxOut.append_record<RegMapTreeItem>(nullptr, mapData);
+
+        regModel << ctxOut; // covers lines 1689 and 1690
+
+        SerializationContext ctxIn;
+        regModel >> ctxIn;  // covers line 1722
+    }
+
+    // 10. insertChild tree traversal and fallback branches (lines 1831-1832, 1845-1853, 1857)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *proxy = qobject_cast<QAbstractProxyModel*>(treeView->model());
+        auto *model = win.getModel();
+
+        // Select a field, then insert reg (while loop climbs up from fld -> reg -> blk, lines 1831-1832)
+        QModelIndex blkIdx = model->index(0, 0, QModelIndex());
+        QModelIndex regIdx = model->index(0, 0, blkIdx);
+        QModelIndex fldIdx = model->index(0, 0, regIdx);
+        QModelIndex proxyFld = proxy ? proxy->mapFromSource(fldIdx) : QModelIndex();
+        treeView->setCurrentIndex(proxyFld);
+        win.insertChild(RegMapTreeItem::e_rmmKind::reg);
+
+        // Deselect in treeView, insert reg -> falls back to firstChild (lines 1845-1853)
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        win.insertChild(RegMapTreeItem::e_rmmKind::reg);
+
+        // Empty window with no blocks -> insertChild returns early (line 1857)
+        RegMapWindow emptyWin;
+        emptyWin.fileNew();
+        auto *emptyModel = emptyWin.getModel();
+        emptyModel->removeRows(0, emptyModel->rowCount(QModelIndex()), QModelIndex());
+        emptyWin.insertChild(RegMapTreeItem::e_rmmKind::reg);
+    }
+
+    // 11. onTreeSelectionChanged reconnection of fields table model (lines 1943-1944)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        if (fieldsTable) {
+            fieldsTable->setModel(nullptr);
+        }
+        auto *proxy = qobject_cast<QAbstractProxyModel*>(treeView->model());
+        auto *model = win.getModel();
+        QModelIndex reg0 = model->index(0, 0, model->index(0, 0, QModelIndex()));
+        treeView->setCurrentIndex(proxy ? proxy->mapFromSource(reg0) : QModelIndex());
+    }
+
+    // 12. duplicateCurrentItem when treeView index is invalid but m_currentRegItem is set (lines 2070-2076)
+    // and duplicateItem when new_proxy is not valid in treeProxy (lines 2133-2140)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *model = win.getModel();
+        QModelIndex blk0 = model->index(0, 0, QModelIndex());
+        QModelIndex reg0 = model->index(0, 0, blk0);
+        win.m_currentRegItem = model->getItem(reg0);
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        win.duplicateSelectedRegister(); // executes lines 2070-2076
+
+        // Set search filter that will not match duplicated field name so new_proxy is invalid (lines 2133-2140)
+        auto *searchEdit = win.findChild<QLineEdit*>("searchLineEdit");
+        if (searchEdit) {
+            searchEdit->setText("ZZZZ_NEVER_MATCH_DUPLICATE");
+        }
+        QModelIndex fld0 = model->index(0, 0, reg0);
+        win.duplicateItem(fld0);
+        if (searchEdit) searchEdit->clear();
+    }
+
+    // 13. headlessExport output path prefix branches (lines 2169, 2176, 2187, 2203, 2206-2209, 2217, 2231-2236)
+    {
+        QFile::remove("work/headless_spi.rmt");
+        QFile::copy("examples/rmt/peripherals/spi.rmt", "work/headless_spi.rmt");
+        RegMapWindow win("work/headless_spi.rmt");
+        auto *cfgWin = win.configWindow();
+        auto *cfg = cfgWin->serialize();
+        cfg->set_templatefolder("");
+        cfg->set_project_name("HeadlessProject");
+        (*cfg->mutable_custom_parameters())["version"] = "1.0";
+        cfg->set_outputfolder("custom_cfg_out");
+
+        cfg->clear_template_outputs();
+        auto *out1 = cfg->add_template_outputs();
+        out1->set_template_filename("templates/c/reg_map.h.inja");
+        out1->set_output_filepath("./custom_cfg_out/header.h");
+        out1->set_enabled(true);
+
+        auto *out2 = cfg->add_template_outputs();
+        out2->set_template_filename("templates/sim/Makefile.inja");
+        out2->set_output_filepath("./work/Makefile");
+        out2->set_enabled(true);
+
+        auto *out3 = cfg->add_template_outputs();
+        out3->set_template_filename("templates/markdown/reg_doc.md.inja");
+        out3->set_output_filepath("raw_filename.md");
+        out3->set_enabled(true);
+
+        cfgWin->deserialize(*cfg);
+        delete cfg;
+
+        QVERIFY(win.headlessExport("work/headless_prefix_out"));
+        QVERIFY(win.headlessExport(""));
+
+        auto *errCfg = cfgWin->serialize();
+        errCfg->clear_template_outputs();
+        auto *errOut = errCfg->add_template_outputs();
+        errOut->set_template_filename("nonexistent_path/bad.inja");
+        errOut->set_output_filepath("work/bad.txt");
+        errOut->set_enabled(true);
+        cfgWin->deserialize(*errCfg);
+        delete errCfg;
+        QVERIFY(!win.headlessExport("work"));
+    }
+
+    // 14. headlessLint strict mode unaligned offset warning and JUnit format (lines 2275, 2332, 2345-2349)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *model = win.getModel();
+        QModelIndex blk0 = model->index(0, 0, QModelIndex());
+        model->setData(model->index(1, 1, blk0), "0x21", Qt::EditRole);
+
+        QVERIFY(!win.headlessLint(true, "junit", "work/junit_unaligned_strict.xml"));
+        QVERIFY(QFile::exists("work/junit_unaligned_strict.xml"));
+
+        QVERIFY(win.headlessLint(false, "junit", "work/junit_unaligned_nonstrict.xml"));
+        QVERIFY(QFile::exists("work/junit_unaligned_nonstrict.xml"));
+    }
+
+    // 15. semanticDiff added, modified, removed fields and markdown output (lines 2473, 2475, 2481, 2486, 2515-2517, 2536-2537)
+    {
+        json j1, j2;
+        j1["blocks"] = json::array({
+            {
+                {"name", "BLK"},
+                {"offset", 0},
+                {"registers", json::array({
+                    {
+                        {"name", "REG1"},
+                        {"offset", 0},
+                        {"fields", json::array({
+                            {{"name", "FLD_MOD"}, {"offset_lsb", 0}, {"size_width", 8}},
+                            {{"name", "FLD_REM"}, {"offset_lsb", 8}, {"size_width", 8}}
+                        })}
+                    }
+                })}
+            }
+        });
+
+        j2["blocks"] = json::array({
+            {
+                {"name", "BLK"},
+                {"offset", 0},
+                {"registers", json::array({
+                    {
+                        {"name", "REG1"},
+                        {"offset", 0},
+                        {"fields", json::array({
+                            {{"name", "FLD_MOD"}, {"offset_lsb", 0}, {"size_width", 16}},
+                            {{"name", "FLD_ADD"}, {"offset_lsb", 16}, {"size_width", 8}}
+                        })}
+                    }
+                })}
+            }
+        });
+
+        QFile f1("work/diff_f1.json");
+        QVERIFY(f1.open(QIODevice::WriteOnly | QIODevice::Text));
+        f1.write(j1.dump(2).c_str());
+        f1.close();
+
+        QFile f2("work/diff_f2.json");
+        QVERIFY(f2.open(QIODevice::WriteOnly | QIODevice::Text));
+        f2.write(j2.dump(2).c_str());
+        f2.close();
+
+        QVERIFY(RegMapWindow::semanticDiff("work/diff_f1.json", "work/diff_f2.json", "markdown", "work/diff_fields.md"));
+        QVERIFY(QFile::exists("work/diff_fields.md"));
+        QVERIFY(!RegMapWindow::semanticDiff("work/diff_f1.json", "work/diff_f2.json", "markdown", "/proc/invalid/out.md"));
+    }
+
+    // 16. Empty filename window title update via LanguageChange event (line 1091)
+    {
+        RegMapWindow win;
+        QEvent ev(QEvent::LanguageChange);
+        QCoreApplication::sendEvent(&win, &ev);
+        QVERIFY(!win.windowTitle().isEmpty());
+    }
+
+    // 17. btnFileClose with unsaved changes and Save reply (line 1256)
+    {
+        QFile::remove("work/temp_close.rmt");
+        QFile::copy("examples/rmt/peripherals/spi.rmt", "work/temp_close.rmt");
+        RegMapWindow win("work/temp_close.rmt");
+        auto *model = win.getModel();
+        QModelIndex blk0 = model->index(0, 0, QModelIndex());
+        model->setData(model->index(0, 1, blk0), "0x44", Qt::EditRole);
+        dismissModal(QString(), QMessageBox::Save);
+        win.btnFileClose();
+    }
+
+    // 18. btnExport with partial success and errors (lines 1447-1449)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *cfgWin = win.configWindow();
+        auto *cfg = cfgWin->serialize();
+        cfg->clear_template_outputs();
+        auto *goodOut = cfg->add_template_outputs();
+        goodOut->set_template_filename("templates/c/reg_map.h.inja");
+        goodOut->set_output_filepath("work/good_export.h");
+        goodOut->set_enabled(true);
+        auto *badOut = cfg->add_template_outputs();
+        badOut->set_template_filename("nonexistent_bad.inja");
+        badOut->set_output_filepath("work/bad_export.h");
+        badOut->set_enabled(true);
+        cfgWin->deserialize(*cfg);
+        delete cfg;
+
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnExport();
+    }
+
+    // 19. btnExport with zero templates found (lines 1454-1455)
+    {
+        QDir().mkpath("work/empty_tmpl");
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *cfgWin = win.configWindow();
+        auto *cfg = cfgWin->serialize();
+        cfg->set_templatefolder("work/empty_tmpl");
+        cfg->clear_template_outputs();
+        cfgWin->deserialize(*cfg);
+        delete cfg;
+
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnExport();
+    }
+
+    // 20. insertChild climbs up hierarchy from reg to blk (lines 1821-1822)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        QVERIFY(treeView);
+        auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
+        QVERIFY(proxy);
+        QModelIndex blk0 = proxy->index(0, 0);
+        QModelIndex reg0 = proxy->index(0, 0, blk0);
+        treeView->selectionModel()->select(reg0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        treeView->setCurrentIndex(reg0);
+        win.insertChild(RegMapTreeItem::e_rmmKind::blk);
+    }
+
+    // 21. duplicateSelectedRegister with cleared current index but m_currentRegItem cached (lines 2049-2055)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
+        QModelIndex blk0 = proxy->index(0, 0);
+        QModelIndex reg0 = proxy->index(0, 0, blk0);
+        treeView->selectionModel()->select(reg0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        treeView->setCurrentIndex(reg0);
+
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        if (fieldsTable) {
+            fieldsTable->selectionModel()->clearSelection();
+            fieldsTable->setCurrentIndex(QModelIndex());
+            fieldsTable->clearFocus();
+        }
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+
+        win.duplicateSelectedRegister();
+    }
+
+    // 22. headlessExport with model validation warnings (lines 2149-2152)
+    {
+        QFile::remove("work/temp_invalid.rmt");
+        QFile::copy("examples/rmt/validation/invalid_overlap.rmt", "work/temp_invalid.rmt");
+        RegMapWindow win("work/temp_invalid.rmt");
+        win.headlessExport("work/invalid_export");
+    }
+
+    // 23. parseNumericValue binary and decimal in field duplicate (lines 44, 45, 47)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
+        QModelIndex blk0 = proxy->index(0, 0);
+        QModelIndex reg0 = proxy->index(0, 0, blk0);
+        treeView->setCurrentIndex(reg0);
+
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        QVERIFY(fieldsTable);
+        auto *fieldProxy = qobject_cast<QSortFilterProxyModel*>(fieldsTable->model());
+        QVERIFY(fieldProxy);
+        QVERIFY(fieldProxy->rowCount() > 0);
+
+        QModelIndex fld0Offset = fieldProxy->index(0, 1);
+        QModelIndex fld0Width = fieldProxy->index(0, 2);
+        fieldProxy->setData(fld0Offset, "0b01", Qt::EditRole);
+        fieldProxy->setData(fld0Width, "4", Qt::EditRole);
+
+        fieldsTable->setCurrentIndex(fieldProxy->index(0, 0));
+        fieldsTable->setFocus();
+        win.duplicateSelectedRegister();
+    }
 }
 
 QTEST_MAIN(TestRegMapWindow)

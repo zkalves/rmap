@@ -1009,6 +1009,51 @@ void TestCodeGenerator::testRelativePathAndBaseDirResolution()
     outFile.close();
 
     QCOMPARE(content.trimmed(), QString("MSG: Hello, Relative Paths!"));
+
+    // Fallback to global/installed default templates directory (lines 226-230)
+    QDir().mkpath("work/test_codegen_rel/global_tmpls");
+    QFile globTmpl("work/test_codegen_rel/global_tmpls/global_rel.inja");
+    QVERIFY(globTmpl.open(QIODevice::WriteOnly | QIODevice::Text));
+    globTmpl.write("GLOBAL: {{ greeting }}");
+    globTmpl.close();
+
+    qputenv("RMAP_TEMPLATES_DIR", "work/test_codegen_rel/global_tmpls");
+    std::vector<TemplateMapping> globMappings;
+    globMappings.push_back({"global_rel.inja", "work/test_codegen_rel/global_out.txt"});
+    GenerationReport globReport = cg.generate(data, "work/test_codegen_rel/nonexistent_folder", "work/test_codegen_rel", globMappings, "");
+    qunsetenv("RMAP_TEMPLATES_DIR");
+    QVERIFY(!globReport.has_errors());
+    QVERIFY(QFile::exists("work/test_codegen_rel/global_out.txt"));
+
+    // resolveOutputPath prefix branches: line 253 (./ + expDefaultTmpl + /)
+    {
+        qputenv("RMAP_TEMPLATES_DIR", "templates");
+        data["name"] = "pfx_test";
+        data["blocks"] = json::array({
+            {
+                {"name", "ctrl"},
+                {"offset", 0},
+                {"registers", json::array()}
+            }
+        });
+        std::vector<TemplateMapping> pfxMappings;
+        pfxMappings.push_back({"./templates/c/reg_map.h.inja", ""});
+        GenerationReport pfxReport = cg.generate(data, "templates", "work/test_codegen_rel/pfx1", pfxMappings);
+        qunsetenv("RMAP_TEMPLATES_DIR");
+        QVERIFY(!pfxReport.has_errors());
+        QVERIFY(QFile::exists("work/test_codegen_rel/pfx1/c/reg_map.h"));
+    }
+
+    // resolveOutputPath prefix branches: line 257 (./templates/ when expDefaultTmpl != templates)
+    {
+        qputenv("RMAP_TEMPLATES_DIR", "/custom/nonexistent/templates_dir_123");
+        std::vector<TemplateMapping> pfx2Mappings;
+        pfx2Mappings.push_back({"./templates/c/reg_map.h.inja", ""});
+        GenerationReport pfx2Report = cg.generate(data, "templates", "work/test_codegen_rel/pfx2", pfx2Mappings);
+        qunsetenv("RMAP_TEMPLATES_DIR");
+        QVERIFY(!pfx2Report.has_errors());
+        QVERIFY(QFile::exists("work/test_codegen_rel/pfx2/c/reg_map.h"));
+    }
 }
 
 void TestCodeGenerator::testEnvVarExpansionInTemplateAndOutput()
@@ -1405,6 +1450,7 @@ void TestCodeGenerator::testPythonScriptExecutionOnGeneration()
     out << "# 6. Write success marker\n";
     out << "with open('work/test_python_exec/success.marker', 'w') as f:\n";
     out << "    f.write(f'PASS: {name}_{project_name}')\n";
+    out << "print('Python test output for CodeGenerator')\n";
     scriptFile.close();
 
     // Prepare JSON data identical to Inja template input
@@ -1565,6 +1611,7 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "snake_dash={{ snake_case(\"foo-bar baz\") }}\n"
         "snake_camel={{ snake_case(\"camelCaseWord\") }}\n"
         "sv_hex_str={{ sv_hex(\"0x123\", \"16\") }}\n"
+        "sv_hex_quoted={{ sv_hex(\"\\\"0x1234\\\"\", \"16\") }}\n"
         "sv_hex_bad={{ sv_hex(\"not_num\", \"invalid\") }}\n"
         "sv_hex_no_width={{ sv_hex(255) }}\n"
         "sv_hex_zero_width={{ sv_hex(255, 0) }}\n"
@@ -1594,6 +1641,7 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
     QVERIFY(content.contains("snake_dash=foo_bar_baz"));
     QVERIFY(content.contains("snake_camel=camel_case_word"));
     QVERIFY(content.contains("sv_hex_str=16'h0123"));
+    QVERIFY(content.contains("sv_hex_quoted=16'h1234"));
     QVERIFY(content.contains("sv_hex_bad=32'h0000"));
 }
 
@@ -1629,6 +1677,16 @@ void TestCodeGenerator::testLegacyAndDirectoryMethods()
     GenerationReport repEmpty = cg.parseDirectory(data, "work/cg_empty_tmpl_dir", "work/cg_out");
     QVERIFY(!repEmpty.has_errors());
     QVERIFY(repEmpty.success_files.empty());
+
+    // 4b. parseDirectory with empty directory and python_script (covers line 553)
+    QDir().mkpath("work/cg_other_dir");
+    QFile dummyScript("work/cg_other_dir/run.py");
+    QVERIFY(dummyScript.open(QIODevice::WriteOnly | QIODevice::Text));
+    dummyScript.write("print('empty dir script')\n");
+    dummyScript.close();
+    GenerationReport repEmptyPy = cg.parseDirectory(data, "work/cg_empty_tmpl_dir", "work/cg_out", "", dummyScript.fileName().toStdString());
+    QVERIFY(!repEmptyPy.has_errors());
+    QVERIFY(!repEmptyPy.success_files.empty());
 
     // 5. Template ending in .tmpl
     QFile tmplFile("work/cg_empty_tmpl_dir/sample.tmpl");
@@ -1668,6 +1726,35 @@ void TestCodeGenerator::testPythonRunnerEdgeCases()
     bool okBadExe = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", nullptr, &err);
     QVERIFY(!okBadExe);
     qunsetenv("RMAP_PYTHON");
+
+    // 4. Missing python interpreter in PATH (lines 596, 599-600)
+    qunsetenv("RMAP_PYTHON");
+    qunsetenv("PYTHON");
+    QByteArray savedPath = qgetenv("PATH");
+    qputenv("PATH", "/nonexistent_bin_dir_12345");
+    bool okNoPy = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", nullptr, &err);
+    qputenv("PATH", savedPath);
+    QVERIFY(!okNoPy);
+    QVERIFY(err.find("Python interpreter ('python3' or 'python') not found in system PATH.") != std::string::npos);
+
+    // 5. Temporary JSON file failure via RMAP_TMPDIR (lines 607-608)
+    qputenv("RMAP_TMPDIR", "/dev/null/not_a_dir_12345");
+    bool okBadTmp = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", nullptr, &err);
+    qunsetenv("RMAP_TMPDIR");
+    QVERIFY(!okBadTmp);
+    QVERIFY(err.find("Failed to create temporary file for register map JSON context.") != std::string::npos);
+
+    // 6. Python script timeout (lines 718-721)
+    QFile sleepScript("work/cg_py_test/sleep.py");
+    QVERIFY(sleepScript.open(QIODevice::WriteOnly | QIODevice::Text));
+    sleepScript.write("import time\ntime.sleep(2)\n");
+    sleepScript.close();
+
+    qputenv("RMAP_PYTHON_TIMEOUT", "100");
+    bool okTimeout = cg.runPythonScript(sleepScript.fileName().toStdString(), data, "", nullptr, &err);
+    qunsetenv("RMAP_PYTHON_TIMEOUT");
+    QVERIFY(!okTimeout);
+    QVERIFY(err.find("Python script execution timed out") != std::string::npos);
 }
 
 void TestCodeGenerator::testCommandLineInterface()

@@ -56,6 +56,7 @@ void TestRegMapTreeItem::testNodeCreationAndKinds()
     RegMapTreeItem customItem(static_cast<RegMapTreeItem::e_rmmKind>(99), emptyData);
     QCOMPARE(customItem.kindString(), QString(""));
     QCOMPARE(customItem.icon(), QString(""));
+    QVERIFY(customItem.possibleChildren().isEmpty());
 }
 
 void TestRegMapTreeItem::testHierarchyAndRelationships()
@@ -180,11 +181,11 @@ void TestRegMapTreeItem::testSerializationRoundtrip()
 
     delete root;
 
-    // Test deserialize on a standalone item with no children
+    // Test deserialize on a standalone item with invalid/out-of-bounds children
     QVariantMap dummyData;
     dummyData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::blk);
     dummyData["parent"] = QVariant();
-    dummyData["childItems"] = QList<QVariant>();
+    dummyData["childItems"] = QList<QVariant>{ QVariant(), QVariant(-1), QVariant(99999) };
     QVariantMap itemData;
     itemData["Name"] = "DESER_BLK";
     dummyData["itemData"] = itemData;
@@ -193,6 +194,46 @@ void TestRegMapTreeItem::testSerializationRoundtrip()
     deserItem.deserialize(dummyData, &context);
     QCOMPARE(static_cast<int>(deserItem.kind()), static_cast<int>(RegMapTreeItem::e_rmmKind::blk));
     QCOMPARE(deserItem.data("Name").toString(), QString("DESER_BLK"));
+
+    // Full hierarchy deserialize with parent and children
+    SerializationContext deserCtx;
+    QVariantMap rootRecord;
+    rootRecord["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::root);
+    rootRecord["id"] = 0;
+    rootRecord["parent"] = QVariant();
+    rootRecord["childItems"] = QList<QVariant>{1};
+    QVariantMap rootItemData;
+    rootItemData["Name"] = "ROOT";
+    rootRecord["itemData"] = rootItemData;
+
+    QVariantMap regRecord;
+    regRecord["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+    regRecord["id"] = 1;
+    regRecord["parent"] = 0;
+    regRecord["childItems"] = QList<QVariant>();
+    QVariantMap regItemData;
+    regItemData["Name"] = "REG0";
+    regRecord["itemData"] = regItemData;
+
+    deserCtx.append_record<RegMapTreeItem>(nullptr, rootRecord);
+    deserCtx.append_record<RegMapTreeItem>(nullptr, regRecord);
+
+    // Test invalid and out-of-range handles (covers L81, 85, 86)
+    QVERIFY(deserCtx.deserialize<RegMapTreeItem>(QVariant()) == nullptr);
+    QVERIFY(deserCtx.deserialize<RegMapTreeItem>(QVariant(-1)) == nullptr);
+    QVERIFY(deserCtx.deserialize<RegMapTreeItem>(QVariant(9999)) == nullptr);
+
+    // Deserialize root -> automatically deserializes reg child too (covers L88-105)
+    RegMapTreeItem* deserRoot = deserCtx.deserialize<RegMapTreeItem>(QVariant(0));
+    QVERIFY(deserRoot != nullptr);
+    QCOMPARE(deserRoot->childCount(), 1);
+    QCOMPARE(deserRoot->child(0)->data("Name").toString(), QString("REG0"));
+
+    // Calling deserialize again on already-deserialized object returns cached pointer (covers L90-91)
+    RegMapTreeItem* reRoot = deserCtx.deserialize<RegMapTreeItem>(QVariant(0));
+    QCOMPARE(reRoot, deserRoot);
+
+    delete deserRoot;
 }
 
 void TestRegMapTreeItem::testPossibleChildren()

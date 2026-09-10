@@ -41,7 +41,7 @@ const QVector<RegMapTreeItem*>& RegMapTreeItem::childItemsRef() const
     return m_childItems;
 }
 
-RegMapTreeItem::e_rmmKind RegMapTreeItem::kind() const
+RegMapTreeItem::e_rmmKind RegMapTreeItem::kind() const noexcept
 {
     return m_kind;
 }
@@ -95,32 +95,27 @@ int RegMapTreeItem::columnCount() const
 
 QVariant RegMapTreeItem::data(const QString &column) const
 {
-    QVariant ret_val;
     if (m_itemData.contains(column))
     {
-        ret_val = m_itemData[column];
+        return m_itemData[column];
     }
-    else if ((column == "Offset" || column == "LSB") && m_itemData.contains("Offset/LSB"))
+    if ((column == "Offset" || column == "LSB") && m_itemData.contains("Offset/LSB"))
     {
-        ret_val = m_itemData["Offset/LSB"];
+        return m_itemData["Offset/LSB"];
     }
-    else if (column == "Offset/LSB" && m_itemData.contains("Offset"))
+    if (column == "Offset/LSB" && m_itemData.contains("Offset"))
     {
-        ret_val = m_itemData["Offset"];
+        return m_itemData["Offset"];
     }
-    else if ((column == "Size" || column == "Width") && m_itemData.contains("Size/Width"))
+    if ((column == "Size" || column == "Width") && m_itemData.contains("Size/Width"))
     {
-        ret_val = m_itemData["Size/Width"];
+        return m_itemData["Size/Width"];
     }
-    else if (column == "Size/Width" && m_itemData.contains("Size"))
+    if (column == "Size/Width" && m_itemData.contains("Size"))
     {
-        ret_val = m_itemData["Size"];
+        return m_itemData["Size"];
     }
-    else
-    {
-        ret_val = QVariant();
-    }
-    return ret_val;
+    return QVariant();
 }
 
 RegMapTreeItem *RegMapTreeItem::parentItem() const
@@ -128,9 +123,9 @@ RegMapTreeItem *RegMapTreeItem::parentItem() const
     return m_parentItem;
 }
 
-void RegMapTreeItem::appendChild(RegMapTreeItem *item)
+void RegMapTreeItem::appendChild(RegMapTreeItem *child)
 {
-    m_childItems.append(item);
+    m_childItems.append(child);
 }
 
 int RegMapTreeItem::row() const
@@ -141,47 +136,29 @@ int RegMapTreeItem::row() const
     return 0;
 }
 
-bool RegMapTreeItem::insertChildren(RegMapTreeItem::e_rmmKind kind, int position, int count, const QVector<QString> &displayColumns)
+bool RegMapTreeItem::insertChildren(e_rmmKind kind, int position, int count, const QVector<QString> &displayColumns)
 {
-    bool insert_status;
-    if((position < 0) || (position > this->m_childItems.size()))
-    {
-        insert_status = false;
-    }
-    else
-    {
-        for(int r = 0; r < count; r++)
-        {
-            QVariantMap dataMap;
-            for (const QString &str : displayColumns)
-            {
-                dataMap[str] = "NA";
-            }
-            RegMapTreeItem *item = new RegMapTreeItem(kind, dataMap, this);
-            this->m_childItems.insert(position, item);
-        }
-        insert_status = true;
+    if (position < 0 || position > m_childItems.size())
+        return false;
+
+    for (int row = 0; row < count; ++row) {
+        QVariantMap data;
+        RegMapTreeItem *item = new RegMapTreeItem(kind, data, this);
+        m_childItems.insert(position, item);
     }
 
-    return insert_status;
+    return true;
 }
 
 bool RegMapTreeItem::removeChildren(int position, int count)
 {
-    bool status = false;
-    if (position < 0 || (position + count) > m_childItems.size())
-    {
-        status = false;
-    }
-    else
-    {
-        for (int r = 0; r < count; r++)
-        {
-            m_childItems.remove(position);
-        }
-        status = true;
-    }
-    return status;
+    if (position < 0 || position + count > m_childItems.size())
+        return false;
+
+    for (int row = 0; row < count; ++row)
+        delete m_childItems.takeAt(position);
+
+    return true;
 }
 
 bool RegMapTreeItem::setData(const QString &column, const QVariant &value)
@@ -198,7 +175,7 @@ bool RegMapTreeItem::setData(const QString &column, const QVariant &value)
     return true;
 }
 
-QString RegMapTreeItem::kindString() const
+QString RegMapTreeItem::kindString() const noexcept
 {
     QString kind;
     switch(m_kind)
@@ -214,7 +191,7 @@ QString RegMapTreeItem::kindString() const
     return kind;
 }
 
-QString RegMapTreeItem::icon() const
+QString RegMapTreeItem::icon() const noexcept
 {
     QString iconPath;
     switch(m_kind)
@@ -229,7 +206,7 @@ QString RegMapTreeItem::icon() const
     return iconPath;
 }
 
-QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::possibleChildren() const
+QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::possibleChildren() const noexcept
 {
     QVector<RegMapTreeItem::e_rmmKind> possible_children;
     switch(m_kind)

@@ -35,6 +35,7 @@ private slots:
     void testConfigTemplateFoldersAndEnabled();
     void testConfigPythonScriptEnabled();
     void testParseInvalidRmt();
+    void testSerializationContextEdgeCases();
 };
 
 void TestSerialization::testParseSpiRmt()
@@ -320,6 +321,16 @@ void TestSerialization::testParseInvalidRmt()
     QVERIFY(!success);
     QVERIFY(!errorCollector.string().empty());
     QVERIFY(errorCollector.string().find("ERROR") != std::string::npos);
+}
+
+void TestSerialization::testSerializationContextEdgeCases()
+{
+    SerializationContext context;
+    // Invalid handle
+    QVERIFY(context.deserialize<RegMapTreeItem>(QVariant()) == nullptr);
+    // Out-of-bounds indices (triggers line 86 of SerializationContext.hpp)
+    QVERIFY(context.deserialize<RegMapTreeItem>(QVariant(-1)) == nullptr);
+    QVERIFY(context.deserialize<RegMapTreeItem>(QVariant(99999)) == nullptr);
 }
 
 QTEST_MAIN(TestSerialization)

@@ -247,12 +247,10 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
 
     size_t idx = 0;
     auto peek = [&](size_t offset = 0) -> Token {
-        if (idx + offset < tokens.size()) return tokens[idx + offset];
-        return {TokenType::Eof, "", 0};
+        return tokens[std::min(idx + offset, tokens.size() - 1)];
     };
     auto consume = [&]() -> Token {
-        if (idx < tokens.size()) return tokens[idx++];
-        return {TokenType::Eof, "", 0};
+        return tokens[std::min(idx++, tokens.size() - 1)];
     };
 
     uint64_t nextRegOffset = 0;

@@ -16,6 +16,7 @@
 #include "format/JsonHandler.hpp"
 #include "format/CsvHandler.hpp"
 #include "format/ProtobufHandler.hpp"
+#include "RegMapTreeItem.hpp"
 
 class TestFormats : public QObject
 {
@@ -500,6 +501,17 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
                         w1s;
                     } F7;
 
+                    field my_fld_type {
+                        sw = rs;
+                        w0s;
+                    } F8;
+
+                    field { sw = w1s; } F9;
+                    field { sw = w0s; } F10;
+                    field { sw = custom_unknown; } F11;
+
+                    unknown_reg_property = 123;
+
                     F1->reset = 4'h5;
                     F2.reset = 4'h7;
                 } INST_A @ 0x20;
@@ -531,6 +543,15 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
     fBadStr.close();
     RegMapTreeModel badModel;
     rdlHandler.read(badStrPath, &badModel, nullptr);
+
+    // Test lexer single char fallback ($) and parser peek/consume past EOF
+    QString truncRdl = "$ addrmap Incomplete { reg REG_INC { field {";
+    QString truncPath = "work/test_formats/truncated.rdl";
+    QFile fTrunc(truncPath);
+    QVERIFY(fTrunc.open(QIODevice::WriteOnly | QIODevice::Text));
+    fTrunc.write(truncRdl.toUtf8());
+    fTrunc.close();
+    rdlHandler.read(truncPath, &badModel, nullptr);
 
     // Non-existent file read
     FormatResult badRead = rdlHandler.read("work/test_formats/non_existent.rdl", &model, &config);
@@ -620,8 +641,20 @@ void TestFormats::test_IpxactExtendedSyntaxAndErrors()
                     <ipxact:bitWidth>1</ipxact:bitWidth>
                     <ipxact:access>write-only</ipxact:access>
                 </ipxact:field>
+                <ipxact:field>
+                    <ipxact:name>F_UNKNOWN</ipxact:name>
+                    <ipxact:bitOffset>9</ipxact:bitOffset>
+                    <ipxact:bitWidth>1</ipxact:bitWidth>
+                    <ipxact:access>custom_unknown</ipxact:access>
+                </ipxact:field>
             </ipxact:register>
         </ipxact:addressBlock>
+        <ipxact:register>
+            <ipxact:name>DIRECT_IPXACT_REG</ipxact:name>
+            <ipxact:addressOffset>0x500</ipxact:addressOffset>
+            <ipxact:size>32</ipxact:size>
+            <ipxact:access>custom_unknown</ipxact:access>
+        </ipxact:register>
     </ipxact:component>
     )";
     QString ipxactPath = "work/test_formats/extended.xml";
@@ -714,6 +747,12 @@ void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
                 </field>
             </register>
         </peripheral>
+        <register>
+            <name>DIRECT_SVD_REG</name>
+            <addressOffset>0x100</addressOffset>
+            <size>32</size>
+            <access>unknown_policy</access>
+        </register>
     </device>
     )";
     QString svdPath = "work/test_formats/extended.svd";
@@ -733,6 +772,16 @@ void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
     QVERIFY(!handler.write("work/test_formats/dummy.svd", nullptr, nullptr).success);
     QVERIFY(!handler.write("/non_existent_directory_xyz/file.svd", &model, &config).success);
 
+    // Malformed XML SVD read error
+    QString badXmlPath = "work/test_formats/malformed.svd";
+    QFile fBad(badXmlPath);
+    QVERIFY(fBad.open(QIODevice::WriteOnly | QIODevice::Text));
+    fBad.write("<device><unclosed>");
+    fBad.close();
+    FormatResult badXmlRes = handler.read(badXmlPath, &model, &config);
+    QVERIFY(!badXmlRes.success);
+    QVERIFY(badXmlRes.errorMessage.contains("XML Parse Error"));
+
     // Write with and without config
     QString outSvd = "work/test_formats/out_svd.svd";
     QVERIFY(handler.write(outSvd, &model, &config).success);
@@ -747,7 +796,7 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors()
                          "fld,UART_BLK,BAUD,DIV,0,16,RW,0x100,true,false,true,\"Divider field\"\r\n";
     QString csvPath = "work/test_formats/extended.csv";
     QFile fCsv(csvPath);
-    QVERIFY(fCsv.open(QIODevice::WriteOnly | QIODevice::Text));
+    QVERIFY(fCsv.open(QIODevice::WriteOnly));
     fCsv.write(csvContent.toUtf8());
     fCsv.close();
 
@@ -765,6 +814,20 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors()
     RegMapTreeModel tsvModel;
     FormatResult readTsv = handler.read(tsvPath, &tsvModel, &config);
     QVERIFY2(readTsv.success, qPrintable(readTsv.errorMessage));
+
+    // CSV write with quotes, commas, and newlines in description -> covers escapeCsv
+    model.setData(model.index(0, 10, model.index(0, 0, QModelIndex())), "Desc with \"quotes\", comma, and\nnewlines", Qt::EditRole);
+    QString quotedCsvPath = "work/test_formats/quoted_out.csv";
+    QVERIFY(handler.write(quotedCsvPath, &model, &config).success);
+
+    // CSV read without trailing newline at EOF -> covers lines 70-72
+    QString noNewlineCsv = "work/test_formats/no_newline.csv";
+    QFile fNoNl(noNewlineCsv);
+    QVERIFY(fNoNl.open(QIODevice::WriteOnly | QIODevice::Text));
+    fNoNl.write("Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description\nblk,BLK1,,,0x0,,RW,0x0,false,false,false,No trailing newline");
+    fNoNl.close();
+    RegMapTreeModel noNlModel;
+    QVERIFY(handler.read(noNewlineCsv, &noNlModel, &config).success);
 
     // Empty CSV file error
     QString emptyPath = "work/test_formats/empty.csv";
@@ -953,6 +1016,43 @@ void TestFormats::test_ProtobufExtendedSyntaxAndErrors()
 
     FormatResult badWriteRmb = handler.write("/non_existent_directory_xyz/file.rmb", &model, &config);
     QVERIFY(!badWriteRmb.success);
+
+    // Corrupted Protobuf syntax read error -> covers lines 50-53
+    QString badRmt = "work/test_formats/bad_syntax.rmt";
+    QFile fBadRmt(badRmt);
+    QVERIFY(fBadRmt.open(QIODevice::WriteOnly | QIODevice::Text));
+    fBadRmt.write("corrupted_syntax {{{ unknown");
+    fBadRmt.close();
+    FormatResult parseFail = handler.read(badRmt, &model, &config);
+    QVERIFY(!parseFail.success);
+    QVERIFY(parseFail.errorMessage.contains("Failed to parse Protobuf file"));
+
+    // Valid text .rmt write -> covers lines 104-107
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QString validRmt = "work/test_formats/valid.rmt";
+    FormatResult writeRmt = handler.write(validRmt, &model, &config);
+    QVERIFY(writeRmt.success);
+
+    // Write failure on full device -> covers lines 110-112
+    if (QFile::exists("/dev/full")) {
+        QString devFullSymlink = "work/test_formats/dev_full.rmb";
+        QFile::remove(devFullSymlink);
+        QFile::link("/dev/full", devFullSymlink);
+        FormatResult fullRes = handler.write(devFullSymlink, &model, &config);
+        QVERIFY(!fullRes.success);
+        QFile::remove(devFullSymlink);
+    }
+
+    // Test deserialization of missing parent and out-of-bounds children via RegMapTreeItem::deserialize
+    SerializationContext ctx;
+    RegMapTreeItem item;
+    QVariantMap dataWithoutParent;
+    dataWithoutParent["childItems"] = QList<QVariant>{ QVariant(), QVariant(-1), QVariant(99999) };
+    item.deserialize(dataWithoutParent, &ctx);
+    QVERIFY(item.getChildItems().size() == 3);
+    QCOMPARE(item.getChildItems().at(0), nullptr);
+    QCOMPARE(item.getChildItems().at(1), nullptr);
+    QCOMPARE(item.getChildItems().at(2), nullptr);
 }
 
 QTEST_MAIN(TestFormats)
