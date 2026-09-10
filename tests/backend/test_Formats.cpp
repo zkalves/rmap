@@ -553,6 +553,52 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
     fTrunc.close();
     rdlHandler.read(truncPath, &badModel, nullptr);
 
+    // Advanced RDL syntax: block comments, embedded comments, arrows, defaults, binary literals
+    {
+        QString advRdl = R"(
+            /* Block comment test */
+            <% Embedded template comment %>
+            addrmap {
+                default regwidth = 64;
+                default sw = rw;
+                default unknown_default_prop = 123;
+
+                regfile {
+                    reg ControlReg {
+                        field {
+                            name = "EN";
+                        } en[0:0] = 0b1;
+
+                        field {
+                            name = "STATUS";
+                        } status[1:1];
+
+                        status->reset = 0b1010;
+                        status.other_prop = 1;
+                        status->other_prop = 2;
+                    } CTRL @ 0x10;
+
+                    reg {
+                        field {
+                            desc = "Anonymous field";
+                        } f_anon;
+                    } ANON_REG;
+
+                    reg MyType InstNoBody @ 0x20;
+                };
+            };
+        )";
+        QString advPath = "work/test_formats/advanced.rdl";
+        QFile fAdv(advPath);
+        QVERIFY(fAdv.open(QIODevice::WriteOnly | QIODevice::Text));
+        fAdv.write(advRdl.toUtf8());
+        fAdv.close();
+        RegMapTreeModel advModel;
+        RegConfigWindow advConfig;
+        FormatResult advRes = rdlHandler.read(advPath, &advModel, &advConfig);
+        QVERIFY2(advRes.success, qPrintable(advRes.errorMessage));
+    }
+
     // Non-existent file read
     FormatResult badRead = rdlHandler.read("work/test_formats/non_existent.rdl", &model, &config);
     QVERIFY(!badRead.success);
@@ -664,8 +710,8 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
         fUnclosed2.close();
         rdlHandler.read(unclosedPath2, &badModel, nullptr);
 
-        // Decimal prefix 'd and binary prefix 0b
-        QString numRdl = "addrmap NumRdl { reg REG_N { field { } FN @ 0b1000 = 'd100; } INST_N @ 0x0; };";
+        // Decimal prefix 'd, binary prefix 0b, and fallback format 'o
+        QString numRdl = "addrmap NumRdl { reg REG_N { field { } FN @ 0b1000 = 'd100; field { } FO = 'o77; } INST_N @ 0x0; };";
         QString numPath = "work/test_formats/nums.rdl";
         QFile fNum(numPath);
         QVERIFY(fNum.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -862,6 +908,11 @@ void TestFormats::test_IpxactExtendedSyntaxAndErrors()
     synCfg.setProjectVersion("2.1.0");
     synCfg.setRegisterWidth(64);
     QVERIFY(handler.write("work/test_formats/syn_out.xml", &synModel, &synCfg).success);
+
+    // Error cases: read non-existent, write null model, write uncreatable path
+    QVERIFY(!handler.read("work/test_formats/non_existent.xml", &synModel, nullptr).success);
+    QVERIFY(!handler.write("work/test_formats/dummy.xml", nullptr, nullptr).success);
+    QVERIFY(!handler.write("/non_existent_directory_xyz/file.xml", &synModel, &synCfg).success);
 }
 
 void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
@@ -1044,6 +1095,10 @@ void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
     r3->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldMap, r3));
 
     QVERIFY(handler.write("work/test_formats/svd_write_cases.svd", &svdSynModel, nullptr).success);
+
+    // Error cases: read non-existent, write uncreatable path
+    QVERIFY(!handler.read("work/test_formats/non_existent.svd", &model, nullptr).success);
+    QVERIFY(!handler.write("/non_existent_directory_xyz/file.svd", &svdSynModel, nullptr).success);
 }
 
 void TestFormats::test_CsvExtendedSyntaxAndErrors()
@@ -1074,7 +1129,7 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors()
     QVERIFY2(readTsv.success, qPrintable(readTsv.errorMessage));
 
     // CSV write with quotes, commas, and newlines in description -> covers escapeCsv
-    model.setData(model.index(0, 10, model.index(0, 0, QModelIndex())), "Desc with \"quotes\", comma, and\nnewlines", Qt::EditRole);
+    model.setData(model.index(0, 10, model.index(0, 0, QModelIndex())), "Desc with \"quotes\", comma, and\r\nnewlines", Qt::EditRole);
     QString quotedCsvPath = "work/test_formats/quoted_out.csv";
     QVERIFY(handler.write(quotedCsvPath, &model, &config).success);
 
@@ -1114,6 +1169,7 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors()
                     "fld,BLK1,REG1,FLD2,8,8,RW,0x0,true,false,true,Field RW\n"
                     "reg,,REG_ANON,,0x4,32,RW,0x0,false,false,false,\n"
                     "fld,,REG_ANON,FLD_A,0,16,RW,0x0,true,false,true,\n"
+                    "fld,BLK1,REG1,FLD_QUOTE,24,8,RW,0x0,true,false,true,\"nested \"\"quotes\"\" here and \r\n CRLF\"\n"
                     "other,BLK1,REG1,FLD3,16,8,RW,0x0,true,false,true,\n");
         fEdge.close();
         RegMapTreeModel edgeModel;
@@ -1320,6 +1376,62 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
     QVERIFY(!handler.read("work/test_formats/non_existent.json", &model, &config).success);
     QVERIFY(!handler.write("work/test_formats/dummy.json", nullptr, nullptr).success);
     QVERIFY(!handler.write("/non_existent_directory_xyz/file.json", &model, &config).success);
+
+    // Negative types in JSON: non-string project_name/version, non-array blocks/memories
+    {
+        QString corruptJson = R"({
+            "project_name": 123,
+            "project_version": 456,
+            "blocks": "not_an_array",
+            "memories": "not_an_array"
+        })";
+        QString corruptPath = "work/test_formats/corrupt.json";
+        QFile fCorrupt(corruptPath);
+        QVERIFY(fCorrupt.open(QIODevice::WriteOnly | QIODevice::Text));
+        fCorrupt.write(corruptJson.toUtf8());
+        fCorrupt.close();
+        RegMapTreeModel corruptModel;
+        QVERIFY(handler.read(corruptPath, &corruptModel, nullptr).success);
+    }
+
+    // Negative types inside block and memory: non-array registers, non-string name
+    {
+        QString corruptBlkJson = R"({
+            "name": 999,
+            "blocks": [{
+                "registers": "not_an_array"
+            }],
+            "memories": [{
+                "size_width": "not_a_number"
+            }]
+        })";
+        QString corruptBlkPath = "work/test_formats/corrupt_blk.json";
+        QFile fCorruptBlk(corruptBlkPath);
+        QVERIFY(fCorruptBlk.open(QIODevice::WriteOnly | QIODevice::Text));
+        fCorruptBlk.write(corruptBlkJson.toUtf8());
+        fCorruptBlk.close();
+        RegMapTreeModel corruptBlkModel;
+        QVERIFY(handler.read(corruptBlkPath, &corruptBlkModel, nullptr).success);
+    }
+
+    // Negative types inside register: non-array fields
+    {
+        QString corruptRegJson = R"({
+            "blocks": [{
+                "registers": [{
+                    "name": "R_CORRUPT",
+                    "fields": "not_an_array"
+                }]
+            }]
+        })";
+        QString corruptRegPath = "work/test_formats/corrupt_reg.json";
+        QFile fCorruptReg(corruptRegPath);
+        QVERIFY(fCorruptReg.open(QIODevice::WriteOnly | QIODevice::Text));
+        fCorruptReg.write(corruptRegJson.toUtf8());
+        fCorruptReg.close();
+        RegMapTreeModel corruptRegModel;
+        QVERIFY(handler.read(corruptRegPath, &corruptRegModel, nullptr).success);
+    }
 
     // JSON parse error
     {

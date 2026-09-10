@@ -301,6 +301,14 @@ void TestPathUtils::testExtendedPathResolutionAndDiscovery()
     QVERIFY(QFile::exists(resPrimRel));
     QCOMPARE(resPrimRel, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
 
+    // Test primaryBaseDir == "templates" (exercises normP == "templates" in PathUtils::resolvePath)
+    QDir().mkpath("templates/c");
+    QFile fLocal("templates/c/dummy_prim.inja");
+    if (fLocal.open(QIODevice::WriteOnly)) { fLocal.write("x"); fLocal.close(); }
+    QString resTmplBase = PathUtils::resolvePath("templates/c/dummy_prim.inja", "templates");
+    QVERIFY(resTmplBase.endsWith("templates/c/dummy_prim.inja"));
+    QFile::remove("templates/c/dummy_prim.inja");
+
     // 2. resolvePath fallback with empty primary and valid secondary base dir
     QString outFallback = PathUtils::resolvePath("out_nonexistent.sv", "", "/tmp/secondary_out_base");
     QCOMPARE(outFallback, QString("/tmp/secondary_out_base/out_nonexistent.sv"));

@@ -8,5 +8,6 @@ _site/
 *.gcno
 *.gcda
 *.gcov
+*.gcov.json.gz
 *.info
 

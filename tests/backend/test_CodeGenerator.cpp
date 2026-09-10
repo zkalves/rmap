@@ -1241,6 +1241,30 @@ void TestCodeGenerator::testDynamicPathVariableSubstitution()
     QVERIFY(!report2.has_errors());
     QVERIFY(QFile::exists("work/dedup_test/rtl/reg_map.sv"));
     QVERIFY(!QFile::exists("work/dedup_test/rtl/rtl/reg_map.sv"));
+
+    // Test category directory override deduplication without trailing slash (work/dedup_test2/rtl)
+    std::vector<TemplateMapping> dirMappings2;
+    dirMappings2.push_back({
+        "templates/rtl/reg_map.sv.inja",
+        "work/dedup_test2/rtl"
+    });
+    GenerationReport report3 = cg.generate(data, "templates", "work/dedup_test2", dirMappings2);
+    QVERIFY(!report3.has_errors());
+    QVERIFY(QFile::exists("work/dedup_test2/rtl/reg_map.sv"));
+
+    // Test data with empty blocks array, fallback to root name
+    json dataNoBlocks;
+    dataNoBlocks["name"] = "standalone_device";
+    dataNoBlocks["reg_width"] = 32;
+    dataNoBlocks["blocks"] = json::array();
+    std::vector<TemplateMapping> nameOnlyMappings;
+    nameOnlyMappings.push_back({
+        "templates/c/reg_map.h.inja",
+        "work/name_only/{block_name}.h"
+    });
+    GenerationReport report4 = cg.generate(dataNoBlocks, "templates", "work/name_only", nameOnlyMappings);
+    QVERIFY(!report4.has_errors());
+    QVERIFY(QFile::exists("work/name_only/standalone_device.h"));
 }
 
 void TestCodeGenerator::testCHeaderPaddingGeneration()
@@ -1672,6 +1696,18 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "snake_aB={{ snake_case(\"aB\") }}\n"
         "snake_abcDef={{ snake_case(\"ABCDef\") }}\n"
         "snake_consec={{ snake_case(\"foo--bar  baz\") }}\n"
+        "camel_num={{ camel_case(123) }}\n"
+        "camel_quote={{ camel_case(\"\\\"ctrl_status\\\"\") }}\n"
+        "camel_dash={{ camel_case(\"ctrl-status flag\") }}\n"
+        "pascal_num={{ pascal_case(123) }}\n"
+        "pascal_quote={{ pascal_case(\"\\\"ctrl_status\\\"\") }}\n"
+        "pascal_dash={{ pascal_case(\"ctrl-status flag\") }}\n"
+        "snake_num={{ snake_case(123) }}\n"
+        "snake_quote={{ snake_case(\"\\\"FooBar\\\"\") }}\n"
+        "hex_bool={{ to_hex(true, 4) }}\n"
+        "dec_bool={{ to_dec(true) }}\n"
+        "pad_bool={{ pad_zero(true, 4) }}\n"
+        "sv_hex_bool={{ sv_hex(true, 16) }}\n"
     );
     tmpl.close();
 
@@ -1715,6 +1751,18 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
     QVERIFY(content.contains("snake_aB=a_b"));
     QVERIFY(content.contains("snake_abcDef=abc_def"));
     QVERIFY(content.contains("snake_consec=foo_bar_baz"));
+    QVERIFY(content.contains("camel_num=123"));
+    QVERIFY(content.contains("camel_quote=ctrlStatus"));
+    QVERIFY(content.contains("camel_dash=ctrlStatusFlag"));
+    QVERIFY(content.contains("pascal_num=123"));
+    QVERIFY(content.contains("pascal_quote=CtrlStatus"));
+    QVERIFY(content.contains("pascal_dash=CtrlStatusFlag"));
+    QVERIFY(content.contains("snake_num=123"));
+    QVERIFY(content.contains("snake_quote=foo_bar"));
+    QVERIFY(content.contains("hex_bool=0x0000"));
+    QVERIFY(content.contains("dec_bool=0"));
+    QVERIFY(content.contains("pad_bool=0000"));
+    QVERIFY(content.contains("sv_hex_bool=16'h0000"));
 }
 
 void TestCodeGenerator::testLegacyAndDirectoryMethods()

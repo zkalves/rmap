@@ -263,12 +263,42 @@ class TestCoverageEngine(unittest.TestCase):
         self.assertEqual(s["branches_raw"]["total"], 3)
         self.assertEqual(s["branches_raw"]["covered"], 1)
 
-        # When include_throw_branches=True
+    def test_landing_pad_filtering(self):
+        mock_data = {
+            "src/Sample.cpp": {
+                "subsystem": "Core Architecture & Model",
+                "lines": {1: 1},
+                "funcs": {"test()": 1},
+                "branches": {
+                    (1, 0): {"count": 5, "throw": False, "landing_pad": False},
+                    (1, 1): {"count": 0, "throw": False, "landing_pad": False},
+                    (1, 2): {"count": 0, "throw": True, "landing_pad": False},
+                    (1, 3): {"count": 0, "throw": False, "landing_pad": True},  # Inside landing pad
+                },
+                "conds": [
+                    {"count": 2, "covered": 2, "landing_pad": False},
+                    {"count": 2, "covered": 0, "landing_pad": True},  # Inside landing pad
+                ],
+                "calls": [],
+                "blocks_total": 2,
+                "blocks_exec": 1,
+            }
+        }
+        # Filtered (default ISO 26262 / DO-178C standard)
+        m_filtered = compute_metrics(mock_data, exclude_throw_branches=True)
+        s = m_filtered["summary"]
+        self.assertEqual(s["branches"]["total"], 2)
+        self.assertEqual(s["branches"]["covered"], 1)
+        self.assertEqual(s["conditions"]["total"], 2)
+        self.assertEqual(s["conditions"]["covered"], 2)
+
+        # Unfiltered
         m_unfiltered = compute_metrics(mock_data, exclude_throw_branches=False)
         s_unf = m_unfiltered["summary"]
-        self.assertEqual(s_unf["branches"]["total"], 3)
+        self.assertEqual(s_unf["branches"]["total"], 4)
         self.assertEqual(s_unf["branches"]["covered"], 1)
-        self.assertEqual(s_unf["branches"]["percent"], 33.33)
+        self.assertEqual(s_unf["conditions"]["total"], 4)
+        self.assertEqual(s_unf["conditions"]["covered"], 2)
 
 
 if __name__ == "__main__":

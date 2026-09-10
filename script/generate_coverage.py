@@ -35,8 +35,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import defaultdict, deque
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -68,7 +69,7 @@ def categorize_subsystem(rel_path: str) -> str:
     return "System Services & Utilities"
 
 
-def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
+def parse_gcov_data(build_dir: Path, source_dir: Path, gcov_dir: Optional[Path] = None) -> Dict[str, Any]:
     """Run gcov on build artifacts and aggregate all 6 coverage metrics."""
     gcda_files = list(build_dir.glob("**/*.gcda"))
     if not gcda_files:
@@ -78,39 +79,45 @@ def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
     gcov_flags = get_gcov_flags()
     all_files_data: Dict[str, Dict[str, Any]] = {}
 
-    with tempfile.TemporaryDirectory(prefix="rmap_gcov_") as tmp_dir_str:
-        tmp_dir = Path(tmp_dir_str)
+    target_dir = gcov_dir if gcov_dir is not None else (PROJECT_ROOT / "work" / "coverage" / "gcov")
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-        for gcda in sorted(gcda_files):
-            obj = gcda.with_suffix(".o")
-            if not obj.exists():
-                continue
+    # Clean up stale .gcov* files from target_dir before running
+    for old_file in target_dir.glob("*.gcov*"):
+        try:
+            old_file.unlink()
+        except OSError:
+            pass
 
-            if "src" not in gcda.parts:
-                continue
+    for gcda in sorted(gcda_files):
+        obj = gcda.with_suffix(".o")
+        if not obj.exists():
+            continue
 
-            src_rel = Path(*gcda.parts[gcda.parts.index("src"):])
-            src_str = str(src_rel)
-            if src_str.endswith(".gcda"):
-                src_str = src_str[:-5]
-            src_cand = PROJECT_ROOT / src_str
+        if "src" not in gcda.parts:
+            continue
 
-            if not src_cand.exists():
-                continue
+        src_rel = Path(*gcda.parts[gcda.parts.index("src"):])
+        src_str = str(src_rel)
+        if src_str.endswith(".gcda"):
+            src_str = src_str[:-5]
+        src_cand = PROJECT_ROOT / src_str
 
-            cmd = ["gcov"] + gcov_flags + ["-o", str(obj.resolve()), str(src_cand.resolve())]
-            subprocess.run(cmd, cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not src_cand.exists():
+            continue
 
-            # Process all produced json.gz files
-            for gz in tmp_dir.glob("*.gcov.json.gz"):
-                try:
-                    with gzip.open(gz, "rt", encoding="utf-8") as f_in:
-                        data = json.load(f_in)
-                except Exception:
-                    gz.unlink(missing_ok=True)
-                    continue
+        cmd = ["gcov"] + gcov_flags + ["-o", str(obj.resolve()), str(src_cand.resolve())]
+        subprocess.run(cmd, cwd=target_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-                for f in data.get("files", []):
+    # Process all produced json.gz files
+    for gz in target_dir.glob("*.gcov.json.gz"):
+        try:
+            with gzip.open(gz, "rt", encoding="utf-8") as f_in:
+                data = json.load(f_in)
+        except Exception:
+            continue
+
+        for f in data.get("files", []):
                     f_path_str = f.get("file", "")
                     if not f_path_str:
                         continue
@@ -143,27 +150,81 @@ def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
 
                     entry = all_files_data[f_rel_str]
 
+                    # Map lines by function to resolve exception landing pad blocks in CFG
+                    fn_lines: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+                    for l in f.get("lines", []):
+                        fn_lines[l.get("function_name", "")].append(l)
+
+                    fn_landing_pads: Dict[str, Set[int]] = {}
+                    for fn_name, flist in fn_lines.items():
+                        throw_dsts = set()
+                        adj = defaultdict(set)
+                        all_source_blocks = set()
+
+                        for l in flist:
+                            for b in l.get("branches", []):
+                                s = b.get("source_block_id")
+                                d_blk = b.get("destination_block_id")
+                                if s is not None and d_blk is not None:
+                                    adj[s].add(d_blk)
+                                    all_source_blocks.add(s)
+                                if b.get("throw", False):
+                                    throw_dsts.add(d_blk)
+
+                        landing_pads = set(throw_dsts)
+                        queue = deque(list(throw_dsts))
+                        while queue:
+                            curr = queue.popleft()
+                            for nxt in adj[curr]:
+                                if nxt not in landing_pads and nxt != 1:  # 1 is exit block
+                                    landing_pads.add(nxt)
+                                    queue.append(nxt)
+                            nxt_seq = curr + 1
+                            if nxt_seq not in landing_pads and nxt_seq != 1:
+                                normal_predecessor = False
+                                for s, dsts in adj.items():
+                                    if s not in landing_pads and nxt_seq in dsts:
+                                        normal_predecessor = True
+                                        break
+                                if not normal_predecessor and nxt_seq in all_source_blocks:
+                                    landing_pads.add(nxt_seq)
+                                    queue.append(nxt_seq)
+
+                        fn_landing_pads[fn_name] = landing_pads
+
                     # Aggregate Lines
                     for l in f.get("lines", []):
                         ln = l.get("line_number", 0)
                         cnt = l.get("count", 0)
                         entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
+                        fn_name = l.get("function_name", "")
+                        lp = fn_landing_pads.get(fn_name, set())
 
                         # Aggregate Branches on this line
                         for bi, b in enumerate(l.get("branches", [])):
                             b_key = (ln, bi)
                             cnt_br = b.get("count", 0)
                             is_throw = bool(b.get("throw", False))
+                            s_blk = b.get("source_block_id")
+                            is_landing = bool(s_blk is not None and s_blk in lp)
                             if b_key not in entry["branches"]:
-                                entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw}
+                                entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw, "landing_pad": is_landing}
                             else:
                                 if isinstance(entry["branches"][b_key], dict):
                                     entry["branches"][b_key]["count"] += cnt_br
+                                    if is_landing:
+                                        entry["branches"][b_key]["landing_pad"] = True
                                 else:
-                                    entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw}
+                                    entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw, "landing_pad": is_landing}
 
                         # Aggregate Conditions
-                        entry["conds"].extend(l.get("conditions", []))
+                        unexec_b = [b for b in l.get("branches", []) if b.get("count", 0) == 0]
+                        line_is_landing = bool(unexec_b and all(b.get("throw", False) or (b.get("source_block_id") in lp) for b in unexec_b))
+                        for c in l.get("conditions", []):
+                            c_dict = dict(c)
+                            if line_is_landing and c.get("covered", 0) == 0:
+                                c_dict["landing_pad"] = True
+                            entry["conds"].append(c_dict)
 
                         # Aggregate Calls
                         entry["calls"].extend(l.get("calls", []))
@@ -175,8 +236,6 @@ def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
                         entry["funcs"][name] = entry["funcs"].get(name, 0) + exec_cnt
                         entry["blocks_total"] += fn.get("blocks", 0)
                         entry["blocks_exec"] += fn.get("blocks_executed", 0)
-
-                gz.unlink(missing_ok=True)
 
     return all_files_data
 
@@ -213,23 +272,25 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]], exclude_throw_bra
             if isinstance(b_val, dict):
                 cnt = b_val.get("count", 0)
                 is_throw = b_val.get("throw", False)
+                is_landing = b_val.get("landing_pad", False)
             else:
                 cnt = b_val
                 is_throw = False
+                is_landing = False
 
             raw_br_tot += 1
             if cnt > 0:
                 raw_br_cov += 1
 
-            if exclude_throw_branches and is_throw:
+            if exclude_throw_branches and (is_throw or is_landing):
                 continue
 
             br_tot += 1
             if cnt > 0:
                 br_cov += 1
 
-        cd_tot = sum(c.get("count", 0) for c in d["conds"])
-        cd_cov = sum(c.get("covered", 0) for c in d["conds"])
+        cd_tot = sum(c.get("count", 0) for c in d["conds"] if not (exclude_throw_branches and c.get("landing_pad", False)))
+        cd_cov = sum(c.get("covered", 0) for c in d["conds"] if not (exclude_throw_branches and c.get("landing_pad", False)))
 
         cl_tot = len(d["calls"])
         cl_cov = sum(1 for c in d["calls"] if c.get("returned", 0) > 0)
@@ -785,10 +846,11 @@ def main():
     parser.add_argument("--fail-under-functions", type=float, default=0.0, help="Fail if function coverage is below this threshold")
     parser.add_argument("--fail-under-conditions", type=float, default=0.0, help="Fail if condition coverage is below this threshold")
     parser.add_argument("--include-throw-branches", action="store_true", help="Include compiler-synthesized exception unwinding landing pads in branch metrics")
+    parser.add_argument("--gcov-dir", type=Path, default=PROJECT_ROOT / "work" / "coverage" / "gcov", help="Directory where temporary gcov intermediate files are generated (default: work/coverage/gcov)")
 
     args = parser.parse_args()
 
-    raw_data = parse_gcov_data(args.build_dir, args.source_dir)
+    raw_data = parse_gcov_data(args.build_dir, args.source_dir, gcov_dir=args.gcov_dir)
     if not raw_data:
         print("No coverage data could be processed.", file=sys.stderr)
         sys.exit(1)

@@ -2037,6 +2037,17 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         // Duplicate item with direct source model index (exercises line 2091)
         win.duplicateItem(regIdx);
+
+        // Duplicate field via field table proxy model (exercises index.model() == m_fieldProxy)
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        auto *treeProxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
+        treeView->setCurrentIndex(treeProxy->mapFromSource(regIdx));
+        win.updateFieldsTable(treeProxy->mapFromSource(regIdx), QModelIndex());
+        auto *fieldProxy = qobject_cast<QSortFilterProxyModel*>(fieldsTable->model());
+        if (fieldProxy && fieldProxy->rowCount() > 0) {
+            win.duplicateItem(fieldProxy->index(0, 0));
+        }
     }
 
     // 3. Window title when filename is empty (line 1091)

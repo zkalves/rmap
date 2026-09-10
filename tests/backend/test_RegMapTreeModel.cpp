@@ -638,6 +638,75 @@ void TestRegMapTreeModel::testModelCoverageEdgeCases()
     QVERIFY(extracted.contains("memories"));
     QCOMPARE(extracted["memories"].size(), 2);
     QCOMPARE(QString::fromStdString(extracted["memories"][0]["name"]), QString("MEM1"));
+
+    // 10. padHexOffset with invalid hex, and with > 32-bit address
+    model.setData(model.index(0, 1, blkIdx), "0xNOT_HEX", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIdx), Qt::DisplayRole).toString(), QString("0xNOT_HEX"));
+    model.setData(model.index(0, 1, blkIdx), "0x10000", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x00010000"));
+    model.setData(model.index(0, 1, blkIdx), "0x100000000", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x0000000100000000"));
+
+    // 11. insertRow with prevOffset >= 0x100000000 (exercises formatHex with >= 0x100000000)
+    QVERIFY(model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QCOMPARE(model.data(model.index(1, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x0000000100000004"));
+
+    // 12. insertRow when prevSize == 0 (exercises byteSize = (prevSize == 0) ? 4 : prevSize / 8)
+    model.setData(model.index(1, 2, blkIdx), "0", Qt::EditRole);
+    QVERIFY(model.insertRows(2, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QCOMPARE(model.data(model.index(2, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x0000000100000008"));
+
+    // 13. checkData with regWidth == 0 (defaults to 4 bytes for registers)
+    QStringList zeroWidthErrors = model.checkData(0);
+    Q_UNUSED(zeroWidthErrors);
+
+    // 14. checkData with 64-bit regWidth and register with no fields
+    RegMapTreeModel model64;
+    model64.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    model64.setData(model64.index(0, 3, QModelIndex()), "BLK64", Qt::EditRole);
+    QModelIndex b64 = model64.index(0, 0, QModelIndex());
+    model64.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, b64);
+    model64.setData(model64.index(0, 3, b64), "REG64_NO_FLD", Qt::EditRole);
+    model64.setData(model64.index(0, 6, b64), "0xFFFFFFFFFFFFFFFF", Qt::EditRole);
+    QStringList errs64 = model64.checkData(64);
+    QCOMPARE(errs64.size(), 0);
+
+    // 15. Memory with size_bytes == 0 in checkData (defaults to 4 bytes)
+    model.setData(model.index(1, 2, QModelIndex()), "0", Qt::EditRole);
+    QStringList memZeroSizeErrs = model.checkData(32);
+    Q_UNUSED(memZeroSizeErrs);
+
+    // 16. data() with Qt::UserRole (non-display role fallback)
+    QCOMPARE(model.data(blkIdx, Qt::UserRole), QVariant());
+
+    // 17. insertRow after a register with offset in [0x10000, 0x100000000) (exercises line 75 of formatHex)
+    model.setData(model.index(2, 1, blkIdx), "0x10000", Qt::EditRole);
+    model.setData(model.index(2, 2, blkIdx), "32", Qt::EditRole);
+    QVERIFY(model.insertRows(3, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QCOMPARE(model.data(model.index(3, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x00010004"));
+
+    // 18. Memory inside a block in checkData (childKind == mem)
+    QVERIFY(model.insertRows(4, 1, RegMapTreeItem::e_rmmKind::mem, blkIdx));
+    model.setData(model.index(4, 1, blkIdx), "0x20000", Qt::EditRole);
+    model.setData(model.index(4, 2, blkIdx), "1024", Qt::EditRole);
+    model.setData(model.index(4, 3, blkIdx), "BLK_MEM", Qt::EditRole);
+    QStringList blkMemErrs = model.checkData(32);
+    Q_UNUSED(blkMemErrs);
+
+    // 19. Empty access policy and HW access in extractJsonData
+    model.setData(model.index(3, 4, blkIdx), "", Qt::EditRole);
+    model.setData(model.index(3, 5, blkIdx), "", Qt::EditRole);
+    nlohmann::json emptyAccessJson = model.extractJsonData(32);
+    Q_UNUSED(emptyAccessJson);
+
+    // 20. Child item of kind 'map' in extractJsonData
+    QVariantMap mapData;
+    mapData["Name"] = "SYS_MAP";
+    RegMapTreeItem *rootItem = model.getRootItem();
+    RegMapTreeItem *mapChild = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData, rootItem);
+    rootItem->appendChild(mapChild);
+    nlohmann::json mapJson = model.extractJsonData(32);
+    Q_UNUSED(mapJson);
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

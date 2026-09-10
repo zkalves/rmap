@@ -371,6 +371,17 @@ void TestRegConfigWindow::testTemplateFoldersListAndScanning()
     }
     QVERIFY(foundC);
     QVERIFY(foundRtl);
+
+    // Non-existent directory scanning
+    cfgWin.setTemplateFolders(QStringList() << "/path/that/does/not/exist");
+    cfgWin.scanTemplateFolders();
+
+    // Call scanTemplateFolders() twice to exercise duplicate template detection
+    cfgWin.setTemplateFolders(QStringList() << "templates/c");
+    cfgWin.scanTemplateFolders();
+    int rowsBefore = table->rowCount();
+    cfgWin.scanTemplateFolders();
+    QCOMPARE(table->rowCount(), rowsBefore);
 }
 
 void TestRegConfigWindow::testEnableDisableToggles()
@@ -534,6 +545,17 @@ void TestRegConfigWindow::testTemplateFolderRemovalVariations()
     list->clearSelection();
     btnRemove->click();
     QCOMPARE(list->count(), 1); // Remains fallback
+
+    // 3. Remove with selectedItems empty AND currentRow < 0 (no-op)
+    list->clearSelection();
+    list->setCurrentRow(-1);
+    btnRemove->click();
+    QCOMPARE(list->count(), 1);
+
+    // 4. templateFolders() with an empty string item
+    list->addItem("   ");
+    QStringList tfList = cfgWin.templateFolders();
+    QVERIFY(!tfList.contains(""));
 }
 
 void TestRegConfigWindow::testComputeDefaultOutputPathAllBranches()
@@ -701,6 +723,23 @@ void TestRegConfigWindow::testSerializationEdgeCases()
     pyDisabledCfg.set_python_script_enabled(false);
     cfgWin.deserialize(pyDisabledCfg);
     QVERIFY(!cfgWin.isPythonScriptEnabled());
+
+    // Deserialize template_outputs with has_enabled() == false (unset), and has_enabled() == true (false)
+    protormap::Config outCfg;
+    auto *entryUnset = outCfg.add_template_outputs();
+    entryUnset->set_template_filename("t1.inja");
+    entryUnset->set_output_filepath("t1.sv");
+
+    auto *entryExplicitFalse = outCfg.add_template_outputs();
+    entryExplicitFalse->set_template_filename("t2.inja");
+    entryExplicitFalse->set_output_filepath("t2.h");
+    entryExplicitFalse->set_enabled(false);
+
+    cfgWin.deserialize(outCfg);
+    auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+    QCOMPARE(table->rowCount(), 2);
+    QCOMPARE(table->item(0, 0)->checkState(), Qt::Checked);
+    QCOMPARE(table->item(1, 0)->checkState(), Qt::Unchecked);
 }
 
 void TestRegConfigWindow::testLifecycleAndEvents()
@@ -829,6 +868,21 @@ void TestRegConfigWindow::testBrowseDialogsAutoDismiss()
     foldersList->clear();
     QCOMPARE(cfgWin.templateFolders().size(), 1);
     QCOMPARE(cfgWin.templateFolders().first(), PathUtils::defaultTemplatesDir());
+
+    // Test dialog opening when templateFoldersList is empty
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    btnAddFolder->click();
+
+    // Test dialog opening when first item has empty text
+    foldersList->addItem("   ");
+    QTimer::singleShot(50, []() {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (modal) modal->close();
+    });
+    btnAddFolder->click();
 
     // Test computeDefaultOutputPath with ./ prefix
     QString expDefaultTmpl = PathUtils::normalizeSeparators(PathUtils::expandEnvVars(PathUtils::defaultTemplatesDir()));
@@ -1300,10 +1354,26 @@ void TestRegConfigWindow::testFullBranchCoverageRegConfig()
         QCOMPARE(serZero->reg_width(), (uint32_t)32);
         delete serZero;
 
-        // Invalid window size in settings
+        // Invalid window size in settings with empty geometry
+        AppSettings::instance().setConfigWindowGeometry(QByteArray());
         AppSettings::instance().setConfigWindowSize(QSize(-1, -1));
+        AppSettings::instance().setConfigWindowPos(QPoint());
         RegConfigWindow invalidSizeWin;
         invalidSizeWin.restoreWindowStateFromSettings();
+
+        // Valid window size and position with empty geometry
+        AppSettings::instance().setConfigWindowGeometry(QByteArray());
+        AppSettings::instance().setConfigWindowSize(QSize(800, 600));
+        AppSettings::instance().setConfigWindowPos(QPoint(100, 100));
+        RegConfigWindow validSizeWin;
+        validSizeWin.restoreWindowStateFromSettings();
+
+        // Valid width but zero height (exercises ht <= 0 branch of isEmpty)
+        AppSettings::instance().setConfigWindowGeometry(QByteArray());
+        AppSettings::instance().setConfigWindowSize(QSize(800, 0));
+        AppSettings::instance().setConfigWindowPos(QPoint());
+        RegConfigWindow zeroHtWin;
+        zeroHtWin.restoreWindowStateFromSettings();
     }
 }
 

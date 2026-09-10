@@ -97,7 +97,9 @@ test check: test-unit
 # Clean up profiling counter data (.gcda) to prevent checksum mismatches after code changes
 clean-gcda clean-coverage:
 	@find build -name "*.gcda" -delete 2>/dev/null || true
-	@echo "Removed all stale .gcda coverage profile files."
+	@find . -maxdepth 1 -name "*.gcov*" -delete 2>/dev/null || true
+	@rm -rf work/coverage/gcov 2>/dev/null || true
+	@echo "Removed all stale .gcda coverage profile files and temporary gcov artifacts."
 
 # Clean up build directory and test artifacts
 clean:

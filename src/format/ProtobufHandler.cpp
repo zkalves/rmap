@@ -22,7 +22,10 @@ protormap::RegModel& operator <<( protormap::RegModel& reg_model, const Serializ
 protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context );
 
 QString ProtobufHandler::formatName() const { return QStringLiteral("Protobuf"); }
-QStringList ProtobufHandler::supportedExtensions() const { return {QStringLiteral("rmt"), QStringLiteral("rmb")}; }
+QStringList ProtobufHandler::supportedExtensions() const {
+    static const QStringList exts = {QStringLiteral("rmt"), QStringLiteral("rmb")};
+    return exts;
+}
 QString ProtobufHandler::fileFilter() const {
     return QStringLiteral("Protobuf Register Map (*.rmt *.rmb);;Text Format (*.rmt);;Binary Format (*.rmb)");
 }

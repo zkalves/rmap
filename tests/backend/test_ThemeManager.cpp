@@ -761,6 +761,7 @@ void TestThemeManager::testThemeEdgeCasesAndCoverage()
     QVERIFY(sPaths.contains("/usr/local/share/rmap/themes"));
     ThemeManager::setSystemThemePathsOverride(false);
     QVERIFY(!ThemeManager::systemThemePathsOverride());
+    sPaths = tm.searchPaths();
 
     // 12. scanThemes coverage
     tm.scanThemes();
@@ -935,6 +936,49 @@ void TestThemeManager::testThemeEdgeCasesAndCoverage()
                 cs.getAccessColors(p, m);
             }
         }
+
+        // Custom color-blind overrides in ColorScheme
+        cs.hasCustomColorBlind = true;
+        for (const auto &p : policiesToTest) {
+            cs.getAccessColors(p, ColorBlindMode::Universal);
+        }
+        cs.hasCustomColorBlind = false;
+
+        // String to color blind mode alias mapping
+        QCOMPARE(stringToColorBlindMode("universal"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("okabe_ito"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("barrier_free"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("cvd"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("true"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("1"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("protanopia"), ColorBlindMode::Protanopia);
+        QCOMPARE(stringToColorBlindMode("protan"), ColorBlindMode::Protanopia);
+        QCOMPARE(stringToColorBlindMode("red_blind"), ColorBlindMode::Protanopia);
+        QCOMPARE(stringToColorBlindMode("deuteranopia"), ColorBlindMode::Deuteranopia);
+        QCOMPARE(stringToColorBlindMode("deutan"), ColorBlindMode::Deuteranopia);
+        QCOMPARE(stringToColorBlindMode("green_blind"), ColorBlindMode::Deuteranopia);
+        QCOMPARE(stringToColorBlindMode("tritanopia"), ColorBlindMode::Tritanopia);
+        QCOMPARE(stringToColorBlindMode("tritan"), ColorBlindMode::Tritanopia);
+        QCOMPARE(stringToColorBlindMode("blue_blind"), ColorBlindMode::Tritanopia);
+        QCOMPARE(stringToColorBlindMode("achromatopsia"), ColorBlindMode::Achromatopsia);
+        QCOMPARE(stringToColorBlindMode("monochrome"), ColorBlindMode::Achromatopsia);
+        QCOMPARE(stringToColorBlindMode("grayscale"), ColorBlindMode::Achromatopsia);
+        QCOMPARE(stringToColorBlindMode("none"), ColorBlindMode::None);
+        QCOMPARE(stringToColorBlindMode("invalid_random_string"), ColorBlindMode::None);
+        QCOMPARE(stringToColorBlindMode(""), ColorBlindMode::None);
+
+        // Color blind mode to string
+        QCOMPARE(colorBlindModeToString(ColorBlindMode::Universal), QString("universal"));
+        QCOMPARE(colorBlindModeToString(ColorBlindMode::Protanopia), QString("protanopia"));
+        QCOMPARE(colorBlindModeToString(ColorBlindMode::Deuteranopia), QString("deuteranopia"));
+        QCOMPARE(colorBlindModeToString(ColorBlindMode::Tritanopia), QString("tritanopia"));
+        QCOMPARE(colorBlindModeToString(ColorBlindMode::Achromatopsia), QString("achromatopsia"));
+        QCOMPARE(colorBlindModeToString(ColorBlindMode::None), QString("none"));
+        QCOMPARE(colorBlindModeToString(static_cast<ColorBlindMode>(999)), QString("none"));
+
+        // availableColorBlindModes
+        const auto &allAvailModes = availableColorBlindModes();
+        QCOMPARE(allAvailModes.size(), 5);
 
         // setColorBlindMode boolean toggle
         tm.setColorBlindMode(true);
