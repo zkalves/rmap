@@ -631,8 +631,10 @@ FormatResult SystemRdlHandler::write(const QString &filepath, RegMapTreeModel *m
                     out << "            hw = " << hwAccess << ";\n";
                     out << "        } " << fldName << "[" << msb << ":" << lsb << "]";
 
-                    if (fld->data("Has Reset").toString().toLower() == "true" || !resetVal.isEmpty()) {
-                        out << " = " << resetVal;
+                    const bool hasExplicitReset = (fld->data("Has Reset").toString().compare("true", Qt::CaseInsensitive) == 0);
+                    const bool hasResetValue = !resetVal.isEmpty();
+                    if (hasExplicitReset || hasResetValue) {
+                        out << " = " << (hasResetValue ? resetVal : QStringLiteral("0"));
                     }
                     out << ";\n";
                 }

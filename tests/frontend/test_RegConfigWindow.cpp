@@ -1140,6 +1140,171 @@ void TestRegConfigWindow::testFullBranchCoverageRegConfig()
         table->setItem(0, 2, new QTableWidgetItem("work_custom2/c/reg_map.h"));
         cfgWin.onOutputFolderEdited("work_custom3");
     }
+
+    // 8. onBrowseOutputFile, onBrowseOutputFolderItem, and empty template folders serialize
+    {
+        RegConfigWindow cfgWin;
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        auto *outFolderEdit = cfgWin.findChild<QLineEdit*>("outputFolder");
+        auto *btnBrowseOut = cfgWin.findChild<QPushButton*>("btnBrowseOutputFile");
+        auto *btnBrowseOutDir = cfgWin.findChild<QPushButton*>("btnBrowseOutputFolderItem");
+        QVERIFY(table && outFolderEdit && btnBrowseOut && btnBrowseOutDir);
+
+        // row < 0 triggers Selection Required message box
+        table->setCurrentCell(-1, -1);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOut->click();
+
+        table->setCurrentCell(-1, -1);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOutDir->click();
+
+        // row >= 0:
+        table->setRowCount(3);
+        // Row 0: currOut empty, outputFolder empty -> uses defaultOutputDir
+        table->setItem(0, 0, new QTableWidgetItem());
+        table->setItem(0, 1, new QTableWidgetItem("templates/rtl/reg_map.sv.inja"));
+        table->setItem(0, 2, new QTableWidgetItem(""));
+        outFolderEdit->setText("");
+
+        table->setCurrentCell(0, 0);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOut->click();
+
+        table->setCurrentCell(0, 0);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOutDir->click();
+
+        // Row 1: currOut empty, outputFolder non-empty -> uses outputFolder
+        table->setItem(1, 0, new QTableWidgetItem());
+        table->setItem(1, 1, new QTableWidgetItem("templates/c/reg_map.h.inja"));
+        table->setItem(1, 2, nullptr); // null item(row, 2)
+        outFolderEdit->setText("work_custom_out");
+
+        table->setCurrentCell(1, 0);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOut->click();
+
+        table->setCurrentCell(1, 0);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOutDir->click();
+
+        // Row 2: currOut non-empty -> uses currOut
+        table->setItem(2, 0, new QTableWidgetItem());
+        table->setItem(2, 1, new QTableWidgetItem("templates/uvm/reg_model.sv.inja"));
+        table->setItem(2, 2, new QTableWidgetItem("work/uvm/reg_model.sv"));
+
+        table->setCurrentCell(2, 0);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOut->click();
+
+        table->setCurrentCell(2, 0);
+        QTimer::singleShot(50, []() {
+            if (auto *modal = QApplication::activeModalWidget()) modal->close();
+        });
+        btnBrowseOutDir->click();
+
+        // Empty template folders in serialize()
+        cfgWin.setTemplateFolders({});
+        protormap::Config *emptyCfg = cfgWin.serialize();
+        QCOMPARE(emptyCfg->templatefolder(), PathUtils::defaultTemplatesDir().toStdString());
+        delete emptyCfg;
+
+        // Null / empty items during scanning and default output applying
+        table->setRowCount(4);
+        table->setItem(0, 0, nullptr);
+        table->setItem(0, 1, nullptr);
+        table->setItem(0, 2, nullptr);
+        table->setItem(1, 0, new QTableWidgetItem());
+        table->setItem(1, 1, new QTableWidgetItem("")); // empty template
+        table->setItem(1, 2, nullptr);
+        table->setItem(2, 0, new QTableWidgetItem());
+        table->setItem(2, 1, new QTableWidgetItem("templates/c/reg_map.h.inja"));
+        table->setItem(2, 2, new QTableWidgetItem("work/c/reg_map.h"));
+        table->setItem(3, 0, new QTableWidgetItem());
+        table->setItem(3, 1, new QTableWidgetItem("templates/python/reg_map.py.inja"));
+        table->setItem(3, 2, new QTableWidgetItem("./work/python/reg_map.py"));
+
+        cfgWin.scanTemplateFolders();
+        cfgWin.onSyncDefaultOutputs();
+
+        // onOutputFolderEdited with empty string and relative prefixes
+        cfgWin.onOutputFolderEdited("");
+        cfgWin.onOutputFolderEdited("custom_work_dir");
+
+        // selectAll / enable / disable with null item at row 0
+        auto *btnEnableAll = cfgWin.findChild<QPushButton*>("btnEnableAll");
+        auto *btnDisableAll = cfgWin.findChild<QPushButton*>("btnDisableAll");
+        if (btnEnableAll) btnEnableAll->click();
+        if (btnDisableAll) btnDisableAll->click();
+
+        // Custom parameters table with null items
+        auto *customTable = cfgWin.findChild<QTableWidget*>("customParametersTable");
+        QVERIFY(customTable);
+        customTable->setRowCount(2);
+        customTable->setItem(0, 0, nullptr);
+        customTable->setItem(0, 1, nullptr);
+        customTable->setItem(1, 0, new QTableWidgetItem(""));
+        customTable->setItem(1, 1, nullptr);
+
+        // serialize with null items in tables
+        protormap::Config *cfgWithNulls = cfgWin.serialize();
+        delete cfgWithNulls;
+
+        // removeTemplateFolder when selected is empty and currentRow < 0
+        auto *foldersList = cfgWin.findChild<QListWidget*>("templateFoldersList");
+        QVERIFY(foldersList);
+        foldersList->clearSelection();
+        foldersList->setCurrentRow(-1);
+        auto *btnRemoveFolder = cfgWin.findChild<QPushButton*>("btnRemoveTemplateFolder");
+        if (btnRemoveFolder) btnRemoveFolder->click();
+
+        // Add custom row
+        auto *btnAddRow = cfgWin.findChild<QPushButton*>("btnAddRow");
+        if (btnAddRow) btnAddRow->click();
+
+        // Add parameter row
+        auto *btnAddParam = cfgWin.findChild<QPushButton*>("btnAddParameter");
+        if (btnAddParam) btnAddParam->click();
+
+        // Add template files with 0 template folders
+        auto *btnAddFiles = cfgWin.findChild<QPushButton*>("btnAddTemplateFiles");
+        if (btnAddFiles) {
+            QTimer::singleShot(50, []() {
+                if (auto *modal = QApplication::activeModalWidget()) modal->close();
+            });
+            btnAddFiles->click();
+        }
+
+        // reg_width <= 0 fallbacks
+        cfgWin.setRegisterWidth(0);
+        QCOMPARE(cfgWin.registerWidth(), (uint32_t)32);
+        protormap::Config zeroWidthCfg;
+        zeroWidthCfg.set_reg_width(0);
+        cfgWin.deserialize(zeroWidthCfg);
+        protormap::Config *serZero = cfgWin.serialize();
+        QCOMPARE(serZero->reg_width(), (uint32_t)32);
+        delete serZero;
+
+        // Invalid window size in settings
+        AppSettings::instance().setConfigWindowSize(QSize(-1, -1));
+        RegConfigWindow invalidSizeWin;
+        invalidSizeWin.restoreWindowStateFromSettings();
+    }
 }
 
 QTEST_MAIN(TestRegConfigWindow)

@@ -356,6 +356,17 @@ void TestCodeGenerator::testNewNamingAndTypeHelpers()
     CodeGenerator cg;
     json data;
     data["name"] = "My_Device_Ctrl";
+    data["name_empty"] = "";
+    data["name_single"] = "a";
+    data["name_single_quote"] = "\"";
+    data["name_quoted"] = "\"quoted_id\"";
+    data["name_unclosed_l"] = "\"unclosed";
+    data["name_unclosed_r"] = "unclosed\"";
+    data["name_num"] = 42;
+    data["name_spaces"] = "hello world test";
+    data["name_dashes"] = "hello-world test";
+    data["name_caps"] = "SPI_SYS_ENABLE";
+    data["name_pascal"] = "MyDeviceCtrl";
     data["width_8"] = 8;
     data["width_16"] = 16;
     data["width_32"] = 32;
@@ -367,8 +378,37 @@ void TestCodeGenerator::testNewNamingAndTypeHelpers()
     QFile f("work/test_tmpl/helpers.inja");
     if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         f.write("CAMEL: {{ camel_case(name) }}\n"
+                "CAMEL_EMPTY: {{ camel_case(name_empty) }}\n"
+                "CAMEL_SINGLE: {{ camel_case(name_single) }}\n"
+                "CAMEL_SQUOTE: {{ camel_case(name_single_quote) }}\n"
+                "CAMEL_QUOTED: {{ camel_case(name_quoted) }}\n"
+                "CAMEL_UNL: {{ camel_case(name_unclosed_l) }}\n"
+                "CAMEL_UNR: {{ camel_case(name_unclosed_r) }}\n"
+                "CAMEL_NUM: {{ camel_case(name_num) }}\n"
+                "CAMEL_SPACES: {{ camel_case(name_spaces) }}\n"
+                "CAMEL_DASHES: {{ camel_case(name_dashes) }}\n"
                 "PASCAL: {{ pascal_case(name) }}\n"
+                "PASCAL_EMPTY: {{ pascal_case(name_empty) }}\n"
+                "PASCAL_SINGLE: {{ pascal_case(name_single) }}\n"
+                "PASCAL_SQUOTE: {{ pascal_case(name_single_quote) }}\n"
+                "PASCAL_QUOTED: {{ pascal_case(name_quoted) }}\n"
+                "PASCAL_UNL: {{ pascal_case(name_unclosed_l) }}\n"
+                "PASCAL_UNR: {{ pascal_case(name_unclosed_r) }}\n"
+                "PASCAL_NUM: {{ pascal_case(name_num) }}\n"
+                "PASCAL_SPACES: {{ pascal_case(name_spaces) }}\n"
+                "PASCAL_DASHES: {{ pascal_case(name_dashes) }}\n"
                 "SNAKE: {{ snake_case(name) }}\n"
+                "SNAKE_EMPTY: {{ snake_case(name_empty) }}\n"
+                "SNAKE_SINGLE: {{ snake_case(name_single) }}\n"
+                "SNAKE_SQUOTE: {{ snake_case(name_single_quote) }}\n"
+                "SNAKE_QUOTED: {{ snake_case(name_quoted) }}\n"
+                "SNAKE_UNL: {{ snake_case(name_unclosed_l) }}\n"
+                "SNAKE_UNR: {{ snake_case(name_unclosed_r) }}\n"
+                "SNAKE_NUM: {{ snake_case(name_num) }}\n"
+                "SNAKE_SPACES: {{ snake_case(name_spaces) }}\n"
+                "SNAKE_DASHES: {{ snake_case(name_dashes) }}\n"
+                "SNAKE_CAPS: {{ snake_case(name_caps) }}\n"
+                "SNAKE_PASCAL: {{ snake_case(name_pascal) }}\n"
                 "T8: {{ c_type(width_8) }}\n"
                 "T16: {{ c_type(width_16) }}\n"
                 "T32: {{ c_type(width_32) }}\n"
@@ -1616,6 +1656,22 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "sv_hex_bad={{ sv_hex(\"not_num\", \"invalid\") }}\n"
         "sv_hex_no_width={{ sv_hex(255) }}\n"
         "sv_hex_zero_width={{ sv_hex(255, 0) }}\n"
+        "hex_bad_width={{ to_hex(48, \"bad_width\") }}\n"
+        "mask_bad={{ bitmask(\"bad_w\", \"bad_l\") }}\n"
+        "mask_0={{ bitmask(0, 0) }}\n"
+        "pad_bad_width={{ pad_zero(42, \"bad_width\") }}\n"
+        "ctype_bad={{ c_type(\"bad\") }}\n"
+        "ctype_8={{ c_type(8) }}\n"
+        "ctype_16={{ c_type(16) }}\n"
+        "ctype_32={{ c_type(32) }}\n"
+        "ctype_64={{ c_type(64) }}\n"
+        "msb_bad={{ msb(\"bad0\", \"bad1\") }}\n"
+        "msb_0={{ msb(0, 0) }}\n"
+        "sv_hex_64={{ sv_hex(1, 64) }}\n"
+        "sv_hex_big={{ sv_hex(131072, 64) }}\n"
+        "snake_aB={{ snake_case(\"aB\") }}\n"
+        "snake_abcDef={{ snake_case(\"ABCDef\") }}\n"
+        "snake_consec={{ snake_case(\"foo--bar  baz\") }}\n"
     );
     tmpl.close();
 
@@ -1629,7 +1685,6 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
     QVERIFY(outFile.open(QIODevice::ReadOnly | QIODevice::Text));
     QString content = QString::fromUtf8(outFile.readAll());
     outFile.close();
-
     QVERIFY(content.contains("upper_q=QUOTED"));
     QVERIFY(content.contains("lower_q=quoted"));
     QVERIFY(content.contains("hex_str=0x0030"));
@@ -1644,6 +1699,22 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
     QVERIFY(content.contains("sv_hex_str=16'h0123"));
     QVERIFY(content.contains("sv_hex_quoted=16'h1234"));
     QVERIFY(content.contains("sv_hex_bad=32'h0000"));
+    QVERIFY(content.contains("hex_bad_width=0x30"));
+    QVERIFY(content.contains("mask_bad=0x0"));
+    QVERIFY(content.contains("mask_0=0x0"));
+    QVERIFY(content.contains("pad_bad_width=42"));
+    QVERIFY(content.contains("ctype_bad=uint32_t"));
+    QVERIFY(content.contains("ctype_8=uint8_t"));
+    QVERIFY(content.contains("ctype_16=uint16_t"));
+    QVERIFY(content.contains("ctype_32=uint32_t"));
+    QVERIFY(content.contains("ctype_64=uint64_t"));
+    QVERIFY(content.contains("msb_bad=0"));
+    QVERIFY(content.contains("msb_0=0"));
+    QVERIFY(content.contains("sv_hex_64=64'h0001"));
+    QVERIFY(content.contains("sv_hex_big=64'h0000000000020000"));
+    QVERIFY(content.contains("snake_aB=a_b"));
+    QVERIFY(content.contains("snake_abcDef=abc_def"));
+    QVERIFY(content.contains("snake_consec=foo_bar_baz"));
 }
 
 void TestCodeGenerator::testLegacyAndDirectoryMethods()
@@ -1698,6 +1769,29 @@ void TestCodeGenerator::testLegacyAndDirectoryMethods()
     GenerationReport repTmpl = cg.parseDirectory(data, "work/cg_empty_tmpl_dir", "work/cg_tmpl_out");
     QVERIFY(!repTmpl.has_errors());
     QVERIFY(QFile::exists("work/cg_tmpl_out/sample"));
+
+    // 6. Empty template path returns empty string
+    std::vector<TemplateMapping> emptyTmplMapping = {{"", "work/cg_empty_tmpl_out.txt"}};
+    cg.generate(data, "templates", "work/cg_empty_map", emptyTmplMapping);
+
+    // 7. Empty template folder & output folder in parseDirectory
+    cg.parseDirectory(data, "", "");
+
+    // 8. Register padding when regOffset <= currentOffset, and reg_width == 0
+    json padData = json::object();
+    padData["name"] = "pad_test";
+    padData["reg_width"] = 0;
+    padData["blocks"] = json::array({
+        {
+            {"name", "b1"},
+            {"offset", 0},
+            {"registers", json::array({
+                {{"name", "r1"}, {"offset", 0}},
+                {{"name", "r2"}, {"offset", 0}}
+            })}
+        }
+    });
+    cg.generate(padData, "templates/c", "work/cg_pad_test", {{"templates/c/reg_map.h.inja", "work/cg_pad_test/reg_map.h"}});
 }
 
 void TestCodeGenerator::testPythonRunnerEdgeCases()
@@ -1756,6 +1850,90 @@ void TestCodeGenerator::testPythonRunnerEdgeCases()
     qunsetenv("RMAP_PYTHON_TIMEOUT");
     QVERIFY(!okTimeout);
     QVERIFY(err.find("Python script execution timed out") != std::string::npos);
+
+    // 7. Successful execution with empty base_dir (workDir fallback)
+    std::string outStr;
+    bool okSuccessEmpty = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", &outStr, &err);
+    QVERIFY(okSuccessEmpty);
+    QVERIFY(outStr.find("ok") != std::string::npos);
+
+    // 8. Successful execution with non-existent base_dir (workDir fallback to script dir)
+    bool okSuccessNonExDir = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "/non_existent_folder_xyz_12345", &outStr, &err);
+    QVERIFY(okSuccessNonExDir);
+
+    // 9. Successful execution with existing base_dir
+    bool okSuccessWorkDir = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "work/cg_py_test", &outStr, &err);
+    QVERIFY(okSuccessWorkDir);
+
+    // 10. Python script non-zero exit code
+    QFile failScript("work/cg_py_test/fail.py");
+    QVERIFY(failScript.open(QIODevice::WriteOnly | QIODevice::Text));
+    failScript.write("import sys\nsys.stderr.write('fatal script error\\n')\nsys.exit(42)\n");
+    failScript.close();
+
+    bool okFail = cg.runPythonScript(failScript.fileName().toStdString(), data, "", &outStr, &err);
+    QVERIFY(!okFail);
+    QVERIFY(err.find("fatal script error") != std::string::npos);
+
+    // 10b. Python script failure with empty stderr (pyErr empty, error on stdout instead)
+    QFile failStdoutScript("work/cg_py_test/fail_stdout.py");
+    QVERIFY(failStdoutScript.open(QIODevice::WriteOnly | QIODevice::Text));
+    failStdoutScript.write("import sys\nsys.stdout.write('error on stdout\\n')\nsys.exit(1)\n");
+    failStdoutScript.close();
+
+    bool okFailStdout = cg.runPythonScript(failStdoutScript.fileName().toStdString(), data, "", &outStr, &err);
+    QVERIFY(!okFailStdout);
+
+    // 10c. runPythonScript with nullptr stdout and stderr pointers
+    cg.runPythonScript("", data, "", nullptr, nullptr);
+    cg.runPythonScript("non_existent_xyz.py", data, "", nullptr, nullptr);
+    cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", nullptr, nullptr);
+
+    // 10d. RMAP_PYTHON_TIMEOUT_MS env var
+    qputenv("RMAP_PYTHON_TIMEOUT_MS", "5000");
+    bool okTimeoutMs = cg.runPythonScript(scriptFile.fileName().toStdString(), data, "", &outStr, &err);
+    qunsetenv("RMAP_PYTHON_TIMEOUT_MS");
+    QVERIFY(okTimeoutMs);
+
+    // 11. Template categorization pre-scan mappings: rtl, rtl_tb, uvm, uvm_tb, sim dir, sim file
+    {
+        json root;
+        root["name"] = "SCAN_TEST";
+        root["reg_width"] = 32;
+
+        QDir().mkpath("work/scan_test/rtl");
+        QDir().mkpath("work/scan_test/rtl_tb");
+        QDir().mkpath("work/scan_test/uvm");
+        QDir().mkpath("work/scan_test/uvm_tb");
+        QDir().mkpath("work/scan_test/sim");
+
+        QFile fRtlTmpl("work/scan_test/rtl/reg_map.sv.inja");
+        fRtlTmpl.open(QIODevice::WriteOnly); fRtlTmpl.write("// rtl\n"); fRtlTmpl.close();
+
+        QFile fRtlTbTmpl("work/scan_test/rtl_tb/tb_reg_map.sv.inja");
+        fRtlTbTmpl.open(QIODevice::WriteOnly); fRtlTbTmpl.write("// rtl_tb\n"); fRtlTbTmpl.close();
+
+        QFile fUvmTmpl("work/scan_test/uvm/reg_model.sv.inja");
+        fUvmTmpl.open(QIODevice::WriteOnly); fUvmTmpl.write("// uvm\n"); fUvmTmpl.close();
+
+        QFile fUvmTbTmpl("work/scan_test/uvm_tb/tb_reg_model.sv.inja");
+        fUvmTbTmpl.open(QIODevice::WriteOnly); fUvmTbTmpl.write("// uvm_tb\n"); fUvmTbTmpl.close();
+
+        QFile fSimTmpl("work/scan_test/sim/Makefile.inja");
+        fSimTmpl.open(QIODevice::WriteOnly); fSimTmpl.write("RTL_REL = {{ sim_rel_rtl_path }}\nUVM_REL = {{ sim_rel_uvm_path }}\n"); fSimTmpl.close();
+
+        std::vector<TemplateMapping> scanMappings = {
+            {"work/scan_test/rtl/reg_map.sv.inja", "work/scan_test/out_rtl/reg_map.sv"},
+            {"work/scan_test/rtl_tb/tb_reg_map.sv.inja", "work/scan_test/out_rtl_tb/tb_reg_map.sv"},
+            {"work/scan_test/uvm/reg_model.sv.inja", "work/scan_test/out_uvm/reg_model.sv"},
+            {"work/scan_test/uvm_tb/tb_reg_model.sv.inja", "work/scan_test/out_uvm_tb/tb_reg_model.sv"},
+            {"work/scan_test/sim/Makefile.inja", "work/scan_test/sim/"},
+            {"work/scan_test/sim/Makefile.inja", "work/scan_test/sim/Makefile"}
+        };
+
+        GenerationReport scanReport = cg.generate(root, "work/scan_test", "work/scan_test/out", scanMappings);
+        QVERIFY(!scanReport.has_errors());
+    }
 }
 
 void TestCodeGenerator::testCommandLineInterface()
@@ -1982,6 +2160,15 @@ void TestCodeGenerator::testCommandLineInterface()
             proc.waitForFinished(2000);
         }
         QVERIFY(proc.state() == QProcess::NotRunning);
+    }
+
+    // 15. CLI convert failure and export failure
+    {
+        auto [codeConvFail, outConvFail] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c", "/dev/null/cannot_write/out.svd"});
+        QCOMPARE(codeConvFail, 1);
+
+        auto [codeExpShortFail, outExpShortFail] = runRmap({"-e"});
+        QCOMPARE(codeExpShortFail, 1);
     }
 }
 

@@ -1508,11 +1508,14 @@ void TestRegMapWindow::testFileSaveAndSaveAsVariations()
         QVERIFY(window.fileSave("work/test_save_direct.rmt"));
         QVERIFY(QFile::exists("work/test_save_direct.rmt"));
 
-        // fileSave with write error
+        // fileSave with write error (visible window covers QMessageBox, hidden covers std::cerr)
+        window.show();
         QTimer::singleShot(50, []() {
             if (auto *modal = QApplication::activeModalWidget()) modal->close();
         });
         QVERIFY(!window.fileSave("/proc/invalid_path/cannot_save.rmt"));
+        window.hide();
+        QVERIFY(!window.fileSave("/proc/invalid_path/cannot_save_hidden.rmt"));
     }
 
     // 4. SaveAs action with auto-dismiss
@@ -2876,6 +2879,382 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         SerializationContext ctxIn;
         regModel >> ctxIn;
+    }
+
+    // 35. Export helper methods permutations
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        protormap::Config cfg;
+
+        // resolveExportOutputFolder
+        QCOMPARE(RegMapWindow::resolveExportOutputFolder("custom/out", &cfg), std::string("custom/out"));
+        cfg.set_outputfolder("cfg/out");
+        QCOMPARE(RegMapWindow::resolveExportOutputFolder("", &cfg), std::string("cfg/out"));
+        cfg.clear_outputfolder();
+        QCOMPARE(RegMapWindow::resolveExportOutputFolder("", &cfg), std::string(PathUtils::DEFAULT_OUTPUT_DIR));
+        QCOMPARE(RegMapWindow::resolveExportOutputFolder("", nullptr), std::string(PathUtils::DEFAULT_OUTPUT_DIR));
+
+        // resolveExportProjectName
+        nlohmann::json j1;
+        cfg.set_project_name("MyProject");
+        RegMapWindow::resolveExportProjectName(&cfg, "my_file.rmt", j1);
+        QCOMPARE(j1["name"].get<std::string>(), std::string("MyProject"));
+
+        nlohmann::json j2;
+        cfg.clear_project_name();
+        RegMapWindow::resolveExportProjectName(&cfg, "my_file.rmt", j2);
+        QCOMPARE(j2["name"].get<std::string>(), std::string("my_file"));
+
+        nlohmann::json j3;
+        j3["name"] = "regmap";
+        RegMapWindow::resolveExportProjectName(&cfg, "another_file.rmt", j3);
+        QCOMPARE(j3["name"].get<std::string>(), std::string("another_file"));
+
+        nlohmann::json j4;
+        j4["name"] = "custom_chip";
+        RegMapWindow::resolveExportProjectName(&cfg, "another_file.rmt", j4);
+        QCOMPARE(j4["name"].get<std::string>(), std::string("custom_chip"));
+
+        nlohmann::json j5;
+        RegMapWindow::resolveExportProjectName(&cfg, "", j5);
+        QVERIFY(!j5.contains("name"));
+
+        nlohmann::json j6;
+        RegMapWindow::resolveExportProjectName(nullptr, "null_cfg.rmt", j6);
+        QCOMPARE(j6["name"].get<std::string>(), std::string("null_cfg"));
+
+        // isExportPythonEnabled
+        QCOMPARE(win.isExportPythonEnabled(nullptr), false);
+
+        cfg.set_python_script_enabled(true);
+        QCOMPARE(win.isExportPythonEnabled(&cfg), true);
+        cfg.set_python_script_enabled(false);
+        QCOMPARE(win.isExportPythonEnabled(&cfg), false);
+
+        cfg.clear_python_script_enabled();
+        bool expected = win.configWindow() ? win.configWindow()->isPythonScriptEnabled() : false;
+        QCOMPARE(win.isExportPythonEnabled(&cfg), expected);
+
+        // Fallback when m_config_window is null
+        RegConfigWindow *savedCfgWin = win.m_config_window;
+        win.m_config_window = nullptr;
+        cfg.set_pythonscript("gen.py");
+        QCOMPARE(win.isExportPythonEnabled(&cfg), true);
+        cfg.set_pythonscript("");
+        QCOMPARE(win.isExportPythonEnabled(&cfg), false);
+        win.m_config_window = savedCfgWin;
+    }
+
+    // 36. TreeFilterProxyModel and FieldSortProxyModel comprehensive sort, filter, headerData
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *searchEdit = win.findChild<QLineEdit*>("searchEdit");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        QVERIFY(treeView && searchEdit && fieldsTable);
+
+        auto *treeProxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
+        auto *fieldProxy = qobject_cast<QSortFilterProxyModel*>(fieldsTable->model());
+        QVERIFY(treeProxy && fieldProxy);
+
+        // headerData tests
+        QCOMPARE(treeProxy->headerData(1, Qt::Horizontal).toString(), QString("Offset"));
+        QCOMPARE(treeProxy->headerData(2, Qt::Horizontal).toString(), QString("Size"));
+        QVERIFY(!treeProxy->headerData(0, Qt::Horizontal).toString().isEmpty());
+        QVERIFY(!treeProxy->headerData(0, Qt::Vertical).isValid());
+
+        // Filter tests
+        searchEdit->setText(""); // empty filter -> accepts all non-fld
+        searchEdit->setText("spi"); // matches block name
+        searchEdit->setText("cr1"); // matches register name
+        searchEdit->setText("spe"); // matches child field name (recursive match)
+        searchEdit->setText("0x0"); // matches offset
+        searchEdit->setText("rw"); // matches access policy
+        searchEdit->setText("control"); // matches description
+        searchEdit->setText("nonexistent_search_query_99999"); // matches nothing
+        searchEdit->setText(""); // reset
+
+        // TreeView sorting across all columns
+        for (int col = 0; col < 11; ++col) {
+            treeView->sortByColumn(col, Qt::AscendingOrder);
+            treeView->sortByColumn(col, Qt::DescendingOrder);
+        }
+
+        // FieldsTable sorting across all columns
+        for (int col = 0; col < 11; ++col) {
+            fieldsTable->sortByColumn(col, Qt::AscendingOrder);
+            fieldsTable->sortByColumn(col, Qt::DescendingOrder);
+        }
+    }
+
+    // 37. gatherRegs traversal branches and batchExport custom out_dir prefixes
+    {
+        // Construct models with non-blk directly under root, non-reg under blk, non-fld under reg
+        RegMapTreeModel modelA;
+        RegMapTreeItem *rootA = modelA.getRootItem();
+        QVariantMap emptyData;
+        
+        // 1. Non-block item directly under root (e.g. mem)
+        RegMapTreeItem *memUnderRoot = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, emptyData, rootA);
+        rootA->appendChild(memUnderRoot);
+
+        // 2. Valid block under root
+        RegMapTreeItem *blkA = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, emptyData, rootA);
+        blkA->setData("Name", "BLK_TEST");
+        rootA->appendChild(blkA);
+
+        // 3. Non-reg item directly under blk (e.g. mem)
+        RegMapTreeItem *memUnderBlk = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, emptyData, blkA);
+        blkA->appendChild(memUnderBlk);
+
+        // 4. Valid reg under blk
+        RegMapTreeItem *regA = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, emptyData, blkA);
+        regA->setData("Name", "REG_TEST");
+        regA->setData("Offset/LSB", "0x0");
+        blkA->appendChild(regA);
+
+        // 5. Non-fld item directly under reg (e.g. mem)
+        RegMapTreeItem *memUnderReg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, emptyData, regA);
+        regA->appendChild(memUnderReg);
+
+        // 6. Valid fld under reg
+        RegMapTreeItem *fldA = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, emptyData, regA);
+        fldA->setData("Name", "FLD1");
+        fldA->setData("Offset/LSB", "0");
+        fldA->setData("Size/Width", "1");
+        regA->appendChild(fldA);
+
+        FormatManager::instance().saveFile("work/test_gather_a.rmt", &modelA, nullptr);
+
+        RegMapTreeModel modelB;
+        RegMapTreeItem *rootB = modelB.getRootItem();
+        RegMapTreeItem *blkB = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, emptyData, rootB);
+        blkB->setData("Name", "BLK_TEST");
+        rootB->appendChild(blkB);
+
+        RegMapTreeItem *regB = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, emptyData, blkB);
+        regB->setData("Name", "REG_TEST");
+        regB->setData("Offset/LSB", "0x4");
+        blkB->appendChild(regB);
+
+        RegMapTreeItem *fldB = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, emptyData, regB);
+        fldB->setData("Name", "FLD1");
+        fldB->setData("Offset/LSB", "0");
+        fldB->setData("Size/Width", "8");
+        regB->appendChild(fldB);
+
+        FormatManager::instance().saveFile("work/test_gather_b.rmt", &modelB, nullptr);
+
+        QVERIFY(RegMapWindow::semanticDiff("work/test_gather_a.rmt", "work/test_gather_b.rmt", "text", "work/diff_gather.txt"));
+        QVERIFY(RegMapWindow::semanticDiff("work/test_gather_a.rmt", "work/test_gather_b.rmt", "markdown", "work/diff_gather.md"));
+
+        // Batch export with custom out_dir prefixes
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.headlessExport("work/custom_export_1");
+        win.headlessExport("./work/custom_export_2");
+    }
+
+    // 38. Comprehensive branch & condition boost: proxy models, editor focus, strict linter, duplication, undo text
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+        auto *treeProxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
+        auto *fieldProxy = qobject_cast<QSortFilterProxyModel*>(fieldsTable->model());
+        auto *undoStack = win.findChild<QUndoStack*>();
+        auto *model = win.getModel();
+        QVERIFY(treeView && fieldsTable && treeProxy && fieldProxy && undoStack && model);
+
+        win.show();
+        QApplication::processEvents();
+
+        // 1. Undo / Redo text updates (empty command text vs non-empty command text)
+        undoStack->push(new QUndoCommand(""));
+        undoStack->undo();
+        undoStack->redo();
+        undoStack->push(new QUndoCommand("CustomOperation"));
+        undoStack->undo();
+        undoStack->redo();
+
+
+        // Add registers with 0b, 0x, decimal offsets and sizes
+        model->insertRows(model->rowCount(), 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+        QModelIndex newBlk = model->index(model->rowCount() - 1, 0, QModelIndex());
+        model->setData(model->index(newBlk.row(), 3, QModelIndex()), "BLK_PROXY", Qt::EditRole);
+
+        // Reg 1: binary offset 0b10, size 16, reset 0b101
+        model->insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, newBlk);
+        QModelIndex r1 = model->index(0, 0, newBlk);
+        model->setData(model->index(0, 1, newBlk), "0b10", Qt::EditRole);
+        model->setData(model->index(0, 2, newBlk), "16", Qt::EditRole);
+        model->setData(model->index(0, 6, newBlk), "0b101", Qt::EditRole);
+
+        // Reg 2: binary offset 0b100, size 0x20, reset 0x10
+        model->insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, newBlk);
+        QModelIndex r2 = model->index(1, 0, newBlk);
+        model->setData(model->index(1, 1, newBlk), "0b100", Qt::EditRole);
+        model->setData(model->index(1, 2, newBlk), "0x20", Qt::EditRole);
+        model->setData(model->index(1, 6, newBlk), "0x10", Qt::EditRole);
+
+        // Field 1: offset 0b0, size 0b10, reset 0x5
+        model->insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, r1);
+        model->setData(model->index(0, 1, r1), "0b0", Qt::EditRole);
+        model->setData(model->index(0, 2, r1), "0b10", Qt::EditRole);
+        model->setData(model->index(0, 6, r1), "0x5", Qt::EditRole);
+
+        // Field 2: offset 0b10, size 0x4, reset 0b11
+        model->insertRows(1, 1, RegMapTreeItem::e_rmmKind::fld, r1);
+        model->setData(model->index(1, 1, r1), "0b10", Qt::EditRole);
+        model->setData(model->index(1, 2, r1), "0x4", Qt::EditRole);
+        model->setData(model->index(1, 6, r1), "0b11", Qt::EditRole);
+
+        // Trigger sort on tree proxy columns 1, 2, 6
+        treeProxy->sort(1, Qt::AscendingOrder);
+        treeProxy->sort(1, Qt::DescendingOrder);
+        treeProxy->sort(2, Qt::AscendingOrder);
+        treeProxy->sort(2, Qt::DescendingOrder);
+        treeProxy->sort(6, Qt::AscendingOrder);
+        treeProxy->sort(6, Qt::DescendingOrder);
+
+        // Trigger sort on field proxy columns 1, 2, 6
+        fieldProxy->sort(1, Qt::AscendingOrder);
+        fieldProxy->sort(1, Qt::DescendingOrder);
+        fieldProxy->sort(2, Qt::AscendingOrder);
+        fieldProxy->sort(2, Qt::DescendingOrder);
+        fieldProxy->sort(6, Qt::AscendingOrder);
+        fieldProxy->sort(6, Qt::DescendingOrder);
+
+        // 3. Selection change with field having focus and duplicating field
+        QModelIndex regProxyIdx = treeProxy->mapFromSource(r1);
+        treeView->setCurrentIndex(regProxyIdx);
+        QApplication::processEvents();
+
+        QModelIndex fldProxyIdx = fieldProxy->index(0, 0);
+        fieldsTable->selectionModel()->select(fldProxyIdx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        fieldsTable->setCurrentIndex(fldProxyIdx);
+        fieldsTable->setFocus();
+        QApplication::processEvents();
+        win.duplicateSelectedRegister();
+
+        // Duplication via fallback when proxyIndex is invalid but m_currentRegItem is set
+        treeView->setCurrentIndex(regProxyIdx);
+        QApplication::processEvents();
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        fieldsTable->selectionModel()->clearSelection();
+        fieldsTable->setCurrentIndex(QModelIndex());
+        fieldsTable->clearFocus();
+        treeView->clearFocus();
+        win.duplicateSelectedRegister();
+
+        // Duplication with direct source index, invalid index, and root index
+        win.duplicateItem(r1);
+        win.duplicateItem(QModelIndex());
+        QModelIndex rootSrcIdx = model->index(0, 0, QModelIndex()).parent();
+        win.duplicateItem(rootSrcIdx);
+
+        // 4. Insertion with nothing selected in tree
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        win.insertChild(RegMapTreeItem::e_rmmKind::blk);
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        win.insertChild(RegMapTreeItem::e_rmmKind::reg);
+
+        // 5. Selecting non-reg and non-blk/map item (e.g. mem node)
+        model->insertRows(model->rowCount(), 1, RegMapTreeItem::e_rmmKind::mem, QModelIndex());
+        QModelIndex memProxyIdx = treeProxy->mapFromSource(model->index(model->rowCount() - 1, 0, QModelIndex()));
+        treeView->selectionModel()->select(memProxyIdx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+
+        // 6. Delete item with no selection / invalid index
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        win.btnDeleteItem();
+
+        // 7. Focus on header line edits during updates
+        auto *regNameEdit = win.findChild<QLineEdit*>("regNameEdit");
+        auto *regOffsetEdit = win.findChild<QLineEdit*>("regOffsetEdit");
+        auto *regDescEdit = win.findChild<QLineEdit*>("regDescEdit");
+        auto *blkNameEdit = win.findChild<QLineEdit*>("blkNameEdit");
+        auto *blkOffsetEdit = win.findChild<QLineEdit*>("blkOffsetEdit");
+        auto *blkDescEdit = win.findChild<QLineEdit*>("blkDescEdit");
+
+        // Select a register
+        regProxyIdx = treeProxy->mapFromSource(r1);
+        treeView->setCurrentIndex(regProxyIdx);
+        QApplication::processEvents();
+
+        if (regNameEdit) {
+            regNameEdit->setFocus();
+            emit model->dataChanged(r1, r1);
+            regNameEdit->clearFocus();
+        }
+        if (regOffsetEdit) {
+            regOffsetEdit->setFocus();
+            emit model->dataChanged(r1, r1);
+            regOffsetEdit->clearFocus();
+        }
+        if (regDescEdit) {
+            regDescEdit->setFocus();
+            emit model->dataChanged(r1, r1);
+            regDescEdit->clearFocus();
+        }
+
+        // Select a block
+        QModelIndex blkProxyIdx = treeProxy->mapFromSource(newBlk);
+        treeView->setCurrentIndex(blkProxyIdx);
+        QApplication::processEvents();
+
+        if (blkNameEdit) {
+            blkNameEdit->setFocus();
+            emit model->dataChanged(newBlk, newBlk);
+            blkNameEdit->clearFocus();
+        }
+        if (blkOffsetEdit) {
+            blkOffsetEdit->setFocus();
+            emit model->dataChanged(newBlk, newBlk);
+            blkOffsetEdit->clearFocus();
+        }
+        if (blkDescEdit) {
+            blkDescEdit->setFocus();
+            emit model->dataChanged(newBlk, newBlk);
+            blkDescEdit->clearFocus();
+        }
+
+        // 8. Strict linting: 64-bit offset (>= 0x100000000ULL), >= 0x10000ULL, decimal offset, unaligned offset, empty desc
+        RegMapTreeModel lintModel;
+        lintModel.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+        QModelIndex lBlk = lintModel.index(0, 0, QModelIndex());
+        lintModel.setData(lintModel.index(0, 1, QModelIndex()), "0x1000000000", Qt::EditRole); // 64-bit offset
+        lintModel.setData(lintModel.index(0, 3, QModelIndex()), "BLK_64", Qt::EditRole);
+        lintModel.setData(lintModel.index(0, 10, QModelIndex()), "", Qt::EditRole); // empty desc
+
+        // Reg with offset >= 0x10000, unaligned offset 0x3 (off % 4 != 0), empty desc
+        lintModel.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, lBlk);
+        QModelIndex lReg1 = lintModel.index(0, 0, lBlk);
+        lintModel.setData(lintModel.index(0, 1, lBlk), "0x10003", Qt::EditRole); // unaligned + >= 0x10000
+        lintModel.setData(lintModel.index(0, 3, lBlk), "REG_UNALIGNED", Qt::EditRole);
+        lintModel.setData(lintModel.index(0, 10, lBlk), "", Qt::EditRole); // empty desc
+
+        // Reg with decimal offset string "1024"
+        lintModel.insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, lBlk);
+        QModelIndex lReg2 = lintModel.index(1, 0, lBlk);
+        lintModel.setData(lintModel.index(1, 1, lBlk), "1024", Qt::EditRole);
+        lintModel.setData(lintModel.index(1, 3, lBlk), "REG_DEC", Qt::EditRole);
+        lintModel.setData(lintModel.index(1, 10, lBlk), "Has desc", Qt::EditRole);
+
+        // Field with empty description
+        lintModel.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, lReg1);
+        lintModel.setData(lintModel.index(0, 3, lReg1), "FLD_NO_DESC", Qt::EditRole);
+        lintModel.setData(lintModel.index(0, 10, lReg1), "", Qt::EditRole);
+
+        FormatManager::instance().saveFile("work/test_lint_fail.rmt", &lintModel, nullptr);
+
+        RegMapWindow lintWin("work/test_lint_fail.rmt");
+        lintWin.headlessLint(true, "json", "work/lint_fail.json");
+        lintWin.headlessLint(true, "sarif", "work/lint_fail.sarif");
+        lintWin.headlessLint(true, "junit", "work/lint_fail.junit");
+        lintWin.headlessLint(true, "text", "work/lint_fail.txt");
     }
 }
 

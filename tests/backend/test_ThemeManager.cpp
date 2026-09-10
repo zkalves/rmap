@@ -859,6 +859,96 @@ void TestThemeManager::testThemeEdgeCasesAndCoverage()
 
         QCOMPARE(tm.scanThemesDir(tmplDir), 0);
         QCOMPARE(tm.scanThemesDir("/non_existent_scan_dir_xyz"), 0);
+
+        // Comprehensive stringToColorBlindMode aliases
+        QCOMPARE(stringToColorBlindMode("universal"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("okabe_ito"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("barrier_free"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("cvd"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("true"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("1"), ColorBlindMode::Universal);
+        QCOMPARE(stringToColorBlindMode("protanopia"), ColorBlindMode::Protanopia);
+        QCOMPARE(stringToColorBlindMode("protan"), ColorBlindMode::Protanopia);
+        QCOMPARE(stringToColorBlindMode("red_blind"), ColorBlindMode::Protanopia);
+        QCOMPARE(stringToColorBlindMode("deuteranopia"), ColorBlindMode::Deuteranopia);
+        QCOMPARE(stringToColorBlindMode("deutan"), ColorBlindMode::Deuteranopia);
+        QCOMPARE(stringToColorBlindMode("green_blind"), ColorBlindMode::Deuteranopia);
+        QCOMPARE(stringToColorBlindMode("tritanopia"), ColorBlindMode::Tritanopia);
+        QCOMPARE(stringToColorBlindMode("tritan"), ColorBlindMode::Tritanopia);
+        QCOMPARE(stringToColorBlindMode("blue_blind"), ColorBlindMode::Tritanopia);
+        QCOMPARE(stringToColorBlindMode("achromatopsia"), ColorBlindMode::Achromatopsia);
+        QCOMPARE(stringToColorBlindMode("monochrome"), ColorBlindMode::Achromatopsia);
+        QCOMPARE(stringToColorBlindMode("grayscale"), ColorBlindMode::Achromatopsia);
+        QCOMPARE(stringToColorBlindMode("none"), ColorBlindMode::None);
+        QCOMPARE(stringToColorBlindMode("other_unknown"), ColorBlindMode::None);
+
+        // Comprehensive ColorScheme::createDefault aliases
+        QCOMPARE(ColorScheme::createDefault("").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("solarized").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("solarized8").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("solarized8_dark").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("solarized_dark").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("default").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("dark").id, QString("solarized8"));
+        QCOMPARE(ColorScheme::createDefault("solarized8_light").id, QString("solarized8_light"));
+        QCOMPARE(ColorScheme::createDefault("solarized_light").id, QString("solarized8_light"));
+        QCOMPARE(ColorScheme::createDefault("light").id, QString("solarized8_light"));
+        QCOMPARE(ColorScheme::createDefault("high_contrast").id, QString("high_contrast_dark"));
+        QCOMPARE(ColorScheme::createDefault("high_contrast_dark").id, QString("high_contrast_dark"));
+        QCOMPARE(ColorScheme::createDefault("high-contrast").id, QString("high_contrast_dark"));
+        QCOMPARE(ColorScheme::createDefault("high-contrast-dark").id, QString("high_contrast_dark"));
+        QCOMPARE(ColorScheme::createDefault("high_contrast_light").id, QString("high_contrast_light"));
+        QCOMPARE(ColorScheme::createDefault("high-contrast-light").id, QString("high_contrast_light"));
+        QCOMPARE(ColorScheme::createDefault("dracula").id, QString("dracula"));
+        QCOMPARE(ColorScheme::createDefault("non_existent_key").id, QString("non_existent_key"));
+
+        // Comprehensive setTheme aliases
+        QVERIFY(tm.setTheme(""));
+        QVERIFY(tm.setTheme("solarized"));
+        QVERIFY(tm.setTheme("solarized8_dark"));
+        QVERIFY(tm.setTheme("default"));
+        QVERIFY(tm.setTheme("dark"));
+        QVERIFY(tm.setTheme("light"));
+        QVERIFY(tm.setTheme("high_contrast"));
+        QVERIFY(tm.setTheme("high-contrast"));
+        QVERIFY(tm.setTheme("high-contrast-dark"));
+        QVERIFY(tm.setTheme("high-contrast-light"));
+
+        // Direct .json file loading via setTheme
+        QString customJson = tdir.filePath("direct_custom_theme.json");
+        QFile fCustom(customJson);
+        QVERIFY(fCustom.open(QIODevice::WriteOnly));
+        fCustom.write(R"({
+            "id": "direct_custom_theme",
+            "name": "Direct Custom Theme",
+            "windowBg": "#123456"
+        })");
+        fCustom.close();
+        QVERIFY(tm.setTheme(customJson));
+        QCOMPARE(tm.currentThemeId(), QString("direct_custom_theme"));
+
+        // Access colors across all modes and policies
+        QStringList policiesToTest = {"RW", "RO", "WO", "W1C", "W0C", "WC", "W1S", "W0S", "WS", "RC", "RS", "NA", "UNKNOWN_POLICY", "W1", "W0"};
+        QList<ColorBlindMode> modesToTest = {ColorBlindMode::None, ColorBlindMode::Universal, ColorBlindMode::Protanopia, ColorBlindMode::Deuteranopia, ColorBlindMode::Tritanopia, ColorBlindMode::Achromatopsia};
+        for (auto m : modesToTest) {
+            for (const auto &p : policiesToTest) {
+                cs.getAccessColors(p, m);
+            }
+        }
+
+        // setColorBlindMode boolean toggle
+        tm.setColorBlindMode(true);
+        QCOMPARE(tm.colorBlindMode(), ColorBlindMode::Universal);
+        tm.setColorBlindMode(false);
+        QCOMPARE(tm.colorBlindMode(), ColorBlindMode::None);
+
+        // System theme paths override toggle
+        ThemeManager::setSystemThemePathsOverride(true);
+        QVERIFY(ThemeManager::systemThemePathsOverride());
+        QStringList sysPaths = tm.searchPaths();
+        QVERIFY(!sysPaths.isEmpty());
+        ThemeManager::setSystemThemePathsOverride(false);
+        QVERIFY(!ThemeManager::systemThemePathsOverride());
     }
 }
 

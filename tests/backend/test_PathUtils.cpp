@@ -339,7 +339,76 @@ void TestPathUtils::testExtendedPathResolutionAndDiscovery()
     PathUtils::setInstalledOverride(false);
     QVERIFY(!PathUtils::isInstalledOverride());
 
+    // 4. Triple slash vs double slash in normalizeSeparators
+    QCOMPARE(PathUtils::normalizeSeparators("///triple/slash/file.txt"), QString("/triple/slash/file.txt"));
+    QCOMPARE(PathUtils::normalizeSeparators("//double/slash/file.txt"), QString("//double/slash/file.txt"));
+    QCOMPARE(PathUtils::normalizeSeparators("/single/slash/file.txt"), QString("/single/slash/file.txt"));
+
+    // 5. resolvePath with non-existent files and templates prefix variants
+    QString resNonEx1 = PathUtils::resolvePath("templates/dummy_nonexistent.inja", "", "templates");
+    QVERIFY(resNonEx1.endsWith("templates/dummy_nonexistent.inja"));
+
+    QString resNonEx2 = PathUtils::resolvePath("./templates/dummy_nonexistent.inja", "", "templates");
+    QVERIFY(resNonEx2.endsWith("templates/dummy_nonexistent.inja"));
+
+    QString resNonEx3 = PathUtils::resolvePath("other/dummy_nonexistent.inja", "", "templates");
+    QVERIFY(resNonEx3.endsWith("templates/other/dummy_nonexistent.inja"));
+
+    QString resNonEx4 = PathUtils::resolvePath("dummy_nonexistent.inja", "", "custom_base");
+    QVERIFY(resNonEx4.endsWith("custom_base/dummy_nonexistent.inja"));
+
+    // 6. Local examples directory detection branches: rmt subdir vs non-empty vs empty
+    QDir().mkpath("examples/rmt");
+    QCOMPARE(PathUtils::defaultExamplesDir(), QString("./examples"));
+    QDir("examples/rmt").removeRecursively();
+
+    QFile exFile("examples/dummy.txt");
+    exFile.open(QIODevice::WriteOnly); exFile.write("ex"); exFile.close();
+    QCOMPARE(PathUtils::defaultExamplesDir(), QString("./examples"));
+    exFile.remove();
+
+    // Empty examples directory falls through if no share directory
+    QDir("examples").removeRecursively();
+
     QDir::setCurrent(origCwd);
+
+    // 7. Environment variable overrides for default directories
+    qputenv("RMAP_TEMPLATES_DIR", "/custom/env/templates");
+    QCOMPARE(PathUtils::defaultTemplatesDir(), QString("/custom/env/templates"));
+    qunsetenv("RMAP_TEMPLATES_DIR");
+
+    qputenv("RMAP_EXAMPLES_DIR", "/custom/env/examples");
+    QCOMPARE(PathUtils::defaultExamplesDir(), QString("/custom/env/examples"));
+    qunsetenv("RMAP_EXAMPLES_DIR");
+
+    qputenv("RMAP_DOCS_DIR", "/custom/env/docs");
+    QCOMPARE(PathUtils::defaultDocsDir(), QString("/custom/env/docs"));
+    qunsetenv("RMAP_DOCS_DIR");
+
+    // 8. Base directory resolution when primaryBaseDir is an existing file
+    QDir().mkpath("work/test_path_utils");
+    QFile dummyBaseFile("work/test_path_utils/dummy_regmap.rmt");
+    QVERIFY(dummyBaseFile.open(QIODevice::WriteOnly));
+    dummyBaseFile.write("dummy");
+    dummyBaseFile.close();
+    QString resFromFile = PathUtils::resolvePath("dummy_regmap.rmt", dummyBaseFile.fileName());
+    QVERIFY(QFile::exists(resFromFile));
+
+    // 9. Base directory ending with templates and subTmpl starting with templates/
+    QDir().mkpath("work/test_path_utils/templates/c");
+    QFile tmplF("work/test_path_utils/templates/c/reg_map.h.inja");
+    QVERIFY(tmplF.open(QIODevice::WriteOnly));
+    tmplF.write("// test");
+    tmplF.close();
+
+    QString resSub1 = PathUtils::resolvePath("templates/c/reg_map.h.inja", "work/test_path_utils/templates");
+    QVERIFY(QFile::exists(resSub1));
+
+    QString resSub2 = PathUtils::resolvePath("templates/c/reg_map.h.inja", "", "work/test_path_utils/templates");
+    QVERIFY(QFile::exists(resSub2));
+
+    QString resSub3 = PathUtils::resolvePath("./templates/c/reg_map.h.inja", "", "work/test_path_utils/templates");
+    QVERIFY(QFile::exists(resSub3));
 }
 
 QTEST_MAIN(TestPathUtils)

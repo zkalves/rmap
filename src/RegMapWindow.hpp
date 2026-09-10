@@ -108,6 +108,11 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         void saveWindowStateToSettings();
         void restoreWindowStateFromSettings();
 
+        // Export resolution helpers (exposed for testing and modularity)
+        static std::string resolveExportOutputFolder(const QString &outDir, const protormap::Config *cfg);
+        static void resolveExportProjectName(const protormap::Config *cfg, const QString &filename, nlohmann::json &jsonData);
+        bool isExportPythonEnabled(const protormap::Config *cfg) const;
+
     protected:
         void closeEvent(QCloseEvent *event) override;
         void resizeEvent(QResizeEvent *event) override;

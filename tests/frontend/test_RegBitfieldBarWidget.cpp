@@ -350,6 +350,10 @@ void TestRegBitfieldBarWidget::testMouseInteractionAndTooltips()
     QMouseEvent moveOutside(QEvent::MouseMove, outsidePos, outsidePos, outsidePos, Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(&widget, &moveOutside);
 
+    // Mouse press outside slices (e.g. y = -10)
+    QMouseEvent pressOutside(QEvent::MouseButtonPress, outsidePos, outsidePos, outsidePos, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &pressOutside);
+
     // Re-hover field slice so m_hoveredSlice != -1 and field is not selected
     widget.setSelectedField(-1);
     QApplication::sendEvent(&widget, &moveEvent);
@@ -365,8 +369,17 @@ void TestRegBitfieldBarWidget::testMouseInteractionAndTooltips()
     QPainter lightHoverP(&lightHoverImg);
     widget.render(&lightHoverP);
 
+    // Render while selected in light theme
+    widget.setSelectedField(0);
+    QImage lightSelImg(800, 80, QImage::Format_ARGB32_Premultiplied);
+    QPainter lightSelP(&lightSelImg);
+    widget.render(&lightSelP);
+
     // Leave event while m_hoveredSlice != -1
     QEvent leaveEvent(QEvent::Leave);
+    QApplication::sendEvent(&widget, &leaveEvent);
+
+    // Leave event while m_hoveredSlice == -1 (hits false branch of line 431)
     QApplication::sendEvent(&widget, &leaveEvent);
 }
 

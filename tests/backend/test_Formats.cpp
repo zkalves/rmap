@@ -571,19 +571,108 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
     QVERIFY2(writeRes.success, qPrintable(writeRes.errorMessage));
     QVERIFY(rdlHandler.write(outRdl, &model, nullptr).success);
 
-    // Special write case: empty block name, width 0, hwAccess WO and RW
+    // Special write case: empty block name, width 0, hwAccess WO and RW, reset permutations, non-blk, non-reg
     {
         RegMapTreeModel specialMdl;
-        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
-        QModelIndex bIdx = specialMdl.index(0, 0, QModelIndex());
-        specialMdl.setData(specialMdl.index(0, 3, QModelIndex()), "", Qt::EditRole); // empty name -> "block"
-        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, bIdx);
-        QModelIndex rIdx = specialMdl.index(0, 0, bIdx);
+        // Non-block item directly under root
+        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::mem, QModelIndex());
+        
+        // Block 1 with empty name
+        specialMdl.insertRows(1, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+        QModelIndex bIdx = specialMdl.index(1, 0, QModelIndex());
+        specialMdl.setData(specialMdl.index(1, 3, QModelIndex()), "", Qt::EditRole); // empty name -> "block"
+
+        // Non-reg item inside block
+        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::mem, bIdx);
+
+        // Register 1 inside block with non-empty description
+        specialMdl.insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, bIdx);
+        QModelIndex rIdx = specialMdl.index(1, 0, bIdx);
+        specialMdl.setData(specialMdl.index(1, 3, bIdx), "REG_TEST", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(1, 10, bIdx), "Reg Description", Qt::EditRole);
+
+        // Field 1: hasReset=true, resetVal="0x1" (both true), hwAccess="" (empty -> "r"), fldDesc non-empty
         specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, rIdx);
-        QModelIndex fIdx = specialMdl.index(0, 0, rIdx);
+        QModelIndex f1 = specialMdl.index(0, 0, rIdx);
         specialMdl.setData(specialMdl.index(0, 2, rIdx), "0", Qt::EditRole); // width 0 -> 1
-        specialMdl.setData(specialMdl.index(0, 5, rIdx), "WO", Qt::EditRole); // hwAccess WO -> w
+        specialMdl.setData(specialMdl.index(0, 3, rIdx), "F1", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(0, 5, rIdx), "", Qt::EditRole); // empty hwAccess -> "r"
+        specialMdl.setData(specialMdl.index(0, 6, rIdx), "0x1", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(0, 9, rIdx), "true", Qt::EditRole); // Has Reset = true
+        specialMdl.setData(specialMdl.index(0, 10, rIdx), "Field 1 desc", Qt::EditRole);
+
+        // Field 2: hasReset=true, resetVal="" (hasReset true, val empty), hwAccess="ro" -> "r"
+        specialMdl.insertRows(1, 1, RegMapTreeItem::e_rmmKind::fld, rIdx);
+        QModelIndex f2 = specialMdl.index(1, 0, rIdx);
+        specialMdl.setData(specialMdl.index(1, 3, rIdx), "F2", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(1, 5, rIdx), "ro", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(1, 6, rIdx), "", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(1, 9, rIdx), "true", Qt::EditRole);
+
+        // Field 3: hasReset=false, resetVal="0x5" (hasReset false, val non-empty), hwAccess="wo" -> "w"
+        specialMdl.insertRows(2, 1, RegMapTreeItem::e_rmmKind::fld, rIdx);
+        QModelIndex f3 = specialMdl.index(2, 0, rIdx);
+        specialMdl.setData(specialMdl.index(2, 3, rIdx), "F3", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(2, 5, rIdx), "wo", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(2, 6, rIdx), "0x5", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(2, 9, rIdx), "false", Qt::EditRole);
+
+        // Field 4: hasReset=false, resetVal="" (both false), hwAccess="rw" -> "rw"
+        specialMdl.insertRows(3, 1, RegMapTreeItem::e_rmmKind::fld, rIdx);
+        QModelIndex f4 = specialMdl.index(3, 0, rIdx);
+        specialMdl.setData(specialMdl.index(3, 3, rIdx), "F4", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(3, 5, rIdx), "rw", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(3, 6, rIdx), "", Qt::EditRole);
+        specialMdl.setData(specialMdl.index(3, 9, rIdx), "false", Qt::EditRole);
+
+        // Append non-fld child directly under reg
+        RegMapTreeItem *rItem = specialMdl.getRootItem()->child(1)->child(1);
+        QVariantMap emptyData;
+        rItem->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, emptyData, rItem));
+
         rdlHandler.write("work/test_formats/special_rdl_out.rdl", &specialMdl, nullptr);
+
+        // Empty root write
+        RegMapTreeModel emptyRdlModel;
+        emptyRdlModel.setRootItem(nullptr);
+        QVERIFY(!rdlHandler.write("work/test_formats/empty_root.rdl", &emptyRdlModel, nullptr).success);
+
+        // Multi-line and perl-style comments, sw=rc, rclr, w1clr, w1set, regwidth, sw, project_name, reset
+        QString commentRdl = "/* comment */ <% perl comment %> addrmap CommentRdl { /* block */ regwidth = 64; sw = rw; project_name = \"comment_chip\"; reg REG_C { reset = 0x55; field { sw = rc; rclr; } F_RC; field { w1clr; } F_W1C; field { w1set; } F_W1S; } INST_C @ 0x0; };";
+        QString commentPath = "work/test_formats/comments.rdl";
+        QFile fComment(commentPath);
+        QVERIFY(fComment.open(QIODevice::WriteOnly | QIODevice::Text));
+        fComment.write(commentRdl.toUtf8());
+        fComment.close();
+        RegMapTreeModel commentModel;
+        QVERIFY(rdlHandler.read(commentPath, &commentModel, nullptr).success);
+
+        // Unclosed comments at EOF
+        QString unclosedRdl1 = "/* unclosed comment at EOF";
+        QString unclosedPath1 = "work/test_formats/unclosed1.rdl";
+        QFile fUnclosed1(unclosedPath1);
+        QVERIFY(fUnclosed1.open(QIODevice::WriteOnly | QIODevice::Text));
+        fUnclosed1.write(unclosedRdl1.toUtf8());
+        fUnclosed1.close();
+        rdlHandler.read(unclosedPath1, &badModel, nullptr);
+
+        QString unclosedRdl2 = "<% unclosed erb at EOF";
+        QString unclosedPath2 = "work/test_formats/unclosed2.rdl";
+        QFile fUnclosed2(unclosedPath2);
+        QVERIFY(fUnclosed2.open(QIODevice::WriteOnly | QIODevice::Text));
+        fUnclosed2.write(unclosedRdl2.toUtf8());
+        fUnclosed2.close();
+        rdlHandler.read(unclosedPath2, &badModel, nullptr);
+
+        // Decimal prefix 'd and binary prefix 0b
+        QString numRdl = "addrmap NumRdl { reg REG_N { field { } FN @ 0b1000 = 'd100; } INST_N @ 0x0; };";
+        QString numPath = "work/test_formats/nums.rdl";
+        QFile fNum(numPath);
+        QVERIFY(fNum.open(QIODevice::WriteOnly | QIODevice::Text));
+        fNum.write(numRdl.toUtf8());
+        fNum.close();
+        RegMapTreeModel numModel;
+        QVERIFY(rdlHandler.read(numPath, &numModel, nullptr).success);
     }
 }
 
@@ -705,6 +794,74 @@ void TestFormats::test_IpxactExtendedSyntaxAndErrors()
     QString outXml = "work/test_formats/out_ipxact.xml";
     QVERIFY(handler.write(outXml, &model, &config).success);
     QVERIFY(handler.write(outXml, &model, nullptr).success);
+
+    // Empty root write
+    RegMapTreeModel emptyIpxactMdl;
+    emptyIpxactMdl.setRootItem(nullptr);
+    QVERIFY(!handler.write("work/test_formats/empty_root.xml", &emptyIpxactMdl, nullptr).success);
+
+    // Additional IP-XACT syntax: rw, ro, r, wo, w, size 0, decimal and hex address formats
+    QString ipxactSyntax = R"(<?xml version="1.0" encoding="UTF-8"?>
+    <ipxact:component xmlns:ipxact="https://www.accellera.org/XMLSchema/IPXACT/1685-2014">
+        <ipxact:name>SyntaxComp</ipxact:name>
+        <ipxact:addressBlock>
+            <ipxact:name>BLK_SYNTAX</ipxact:name>
+            <ipxact:baseAddress>4096</ipxact:baseAddress>
+            <ipxact:register>
+                <ipxact:name>REG_SZ0</ipxact:name>
+                <ipxact:addressOffset>0x0</ipxact:addressOffset>
+                <ipxact:size>0</ipxact:size>
+                <ipxact:access>rw</ipxact:access>
+                <ipxact:field>
+                    <ipxact:name>F_RO</ipxact:name>
+                    <ipxact:bitOffset>0</ipxact:bitOffset>
+                    <ipxact:bitWidth>1</ipxact:bitWidth>
+                    <ipxact:access>ro</ipxact:access>
+                </ipxact:field>
+                <ipxact:field>
+                    <ipxact:name>F_R</ipxact:name>
+                    <ipxact:bitOffset>1</ipxact:bitOffset>
+                    <ipxact:bitWidth>1</ipxact:bitWidth>
+                    <ipxact:access>r</ipxact:access>
+                </ipxact:field>
+                <ipxact:field>
+                    <ipxact:name>F_WO</ipxact:name>
+                    <ipxact:bitOffset>2</ipxact:bitOffset>
+                    <ipxact:bitWidth>1</ipxact:bitWidth>
+                    <ipxact:access>wo</ipxact:access>
+                </ipxact:field>
+                <ipxact:field>
+                    <ipxact:name>F_W</ipxact:name>
+                    <ipxact:bitOffset>3</ipxact:bitOffset>
+                    <ipxact:bitWidth>1</ipxact:bitWidth>
+                    <ipxact:access>w</ipxact:access>
+                </ipxact:field>
+            </ipxact:register>
+        </ipxact:addressBlock>
+    </ipxact:component>
+    )";
+    QString syntaxPath = "work/test_formats/syntax_ipxact.xml";
+    QFile fSyn(syntaxPath);
+    QVERIFY(fSyn.open(QIODevice::WriteOnly | QIODevice::Text));
+    fSyn.write(ipxactSyntax.toUtf8());
+    fSyn.close();
+    RegMapTreeModel synModel;
+    QVERIFY(handler.read(syntaxPath, &synModel, nullptr).success);
+
+    // Export IP-XACT with project version, non-blk under root, non-reg under blk, non-fld under reg, empty desc
+    QVariantMap dummyData;
+    dummyData["Type"] = "mem";
+    synModel.getRootItem()->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, dummyData, synModel.getRootItem()));
+    RegMapTreeItem *blk0 = synModel.getRootItem()->child(0);
+    blk0->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, dummyData, blk0));
+    RegMapTreeItem *reg0 = blk0->child(0);
+    reg0->setData("Description", ""); // empty description
+    reg0->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, dummyData, reg0));
+
+    RegConfigWindow synCfg;
+    synCfg.setProjectVersion("2.1.0");
+    synCfg.setRegisterWidth(64);
+    QVERIFY(handler.write("work/test_formats/syn_out.xml", &synModel, &synCfg).success);
 }
 
 void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
@@ -801,6 +958,92 @@ void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
     QString outSvd = "work/test_formats/out_svd.svd";
     QVERIFY(handler.write(outSvd, &model, &config).success);
     QVERIFY(handler.write(outSvd, &model, nullptr).success);
+
+    // Empty root write
+    RegMapTreeModel emptySvdMdl;
+    emptySvdMdl.setRootItem(nullptr);
+    QVERIFY(!handler.write("work/test_formats/empty_root.svd", &emptySvdMdl, nullptr).success);
+
+    // SVD with size 0, rw, ro, r, wo, writeonce, w1c
+    QString svdSyntax = R"(<?xml version="1.0" encoding="utf-8"?>
+    <device schemaVersion="1.3">
+        <name>SyntaxDev</name>
+        <size>0</size>
+        <peripheral>
+            <name>PERIPH_SYN</name>
+            <baseAddress>0x1000</baseAddress>
+            <register>
+                <name>REG_RW</name>
+                <addressOffset>0x0</addressOffset>
+                <size>32</size>
+                <access>rw</access>
+            </register>
+            <register>
+                <name>REG_RO</name>
+                <addressOffset>0x4</addressOffset>
+                <size>32</size>
+                <access>ro</access>
+            </register>
+            <register>
+                <name>REG_R</name>
+                <addressOffset>0x8</addressOffset>
+                <size>32</size>
+                <access>r</access>
+            </register>
+            <register>
+                <name>REG_WO</name>
+                <addressOffset>0xC</addressOffset>
+                <size>32</size>
+                <access>wo</access>
+            </register>
+            <register>
+                <name>REG_W1C</name>
+                <addressOffset>0x10</addressOffset>
+                <size>32</size>
+                <access>w1c</access>
+            </register>
+        </peripheral>
+    </device>
+    )";
+    QString svdSynPath = "work/test_formats/syntax_svd.svd";
+    QFile fSvdSyn(svdSynPath);
+    QVERIFY(fSvdSyn.open(QIODevice::WriteOnly | QIODevice::Text));
+    fSvdSyn.write(svdSyntax.toUtf8());
+    fSvdSyn.close();
+    RegMapTreeModel svdSynModel;
+    QVERIFY(handler.read(svdSynPath, &svdSynModel, nullptr).success);
+
+    // Write SVD with register having 0 fields, non-blk under root, non-reg under blk, non-fld under reg, and RO/WO/W1C/W0C
+    QVariantMap dummyData;
+    dummyData["Type"] = "mem";
+    svdSynModel.getRootItem()->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, dummyData, svdSynModel.getRootItem()));
+    RegMapTreeItem *p0 = svdSynModel.getRootItem()->child(0);
+    p0->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, dummyData, p0));
+    RegMapTreeItem *r0 = p0->child(0);
+    // r0 has 0 children initially, which tests childCount() == 0
+
+    // Add field with WO, W1C, W0C
+    QVariantMap fldMap;
+    fldMap["Type"] = "fld";
+    fldMap["Name"] = "FLD_WO";
+    fldMap["Offset/LSB"] = "0";
+    fldMap["Size/Width"] = "1";
+    fldMap["Access Policy"] = "WO";
+    RegMapTreeItem *r1 = p0->child(1);
+    r1->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldMap, r1));
+    r1->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, dummyData, r1)); // non-fld under reg
+
+    fldMap["Name"] = "FLD_W1C";
+    fldMap["Access Policy"] = "W1C";
+    RegMapTreeItem *r2 = p0->child(2);
+    r2->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldMap, r2));
+
+    fldMap["Name"] = "FLD_W0C";
+    fldMap["Access Policy"] = "W0C";
+    RegMapTreeItem *r3 = p0->child(3);
+    r3->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldMap, r3));
+
+    QVERIFY(handler.write("work/test_formats/svd_write_cases.svd", &svdSynModel, nullptr).success);
 }
 
 void TestFormats::test_CsvExtendedSyntaxAndErrors()
@@ -930,6 +1173,43 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors()
         RegMapTreeModel emptyModel;
         emptyModel.setRootItem(nullptr);
         QVERIFY(!handler.write("work/test_formats/no_root.csv", &emptyModel, nullptr).success);
+
+        // read with model == nullptr
+        QVERIFY(handler.read(varColCsvPath, nullptr, nullptr).success);
+
+        // Headerless CSV (first row is data directly)
+        QString noHdrPath = "work/test_formats/no_hdr.csv";
+        QFile fNoHdr(noHdrPath);
+        QVERIFY(fNoHdr.open(QIODevice::WriteOnly | QIODevice::Text));
+        fNoHdr.write("reg,BLK_NH,REG_NH,FLD_NH,0x0,32,RW,0x0,false,false,false,No Header Desc\n");
+        fNoHdr.close();
+        RegMapTreeModel noHdrModel;
+        QVERIFY(handler.read(noHdrPath, &noHdrModel, nullptr).success);
+
+        // TSV read & write with quotes, escaped quotes, and newlines in description
+        QString tsvPath = "work/test_formats/roundtrip.tsv";
+        QVERIFY(handler.write(tsvPath, &edgeModel, nullptr).success);
+        RegMapTreeModel tsvModel;
+        QVERIFY(handler.read(tsvPath, &tsvModel, nullptr).success);
+
+        // Quotes, commas, and double quotes inside CSV
+        QString quotesCsvPath = "work/test_formats/quotes.csv";
+        QFile fQuotes(quotesCsvPath);
+        QVERIFY(fQuotes.open(QIODevice::WriteOnly | QIODevice::Text));
+        fQuotes.write("Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description\n"
+                      "reg,BLK_Q,REG_Q,,\"0x0\",32,RW,0x0,false,false,false,\"Description with, comma and \"\"escaped\"\" quotes\"\n"
+                      "fld,BLK_Q,REG_Q,FLD_Q,0,8,RW,0x0,true,false,true,\"Field with\nnewline and \rcarriage return\"\n");
+        fQuotes.close();
+        RegMapTreeModel quotesModel;
+        QVERIFY(handler.read(quotesCsvPath, &quotesModel, nullptr).success);
+
+        // Empty CSV file
+        QString emptyCsvPath = "work/test_formats/completely_empty.csv";
+        QFile fEmpty(emptyCsvPath);
+        QVERIFY(fEmpty.open(QIODevice::WriteOnly | QIODevice::Text));
+        fEmpty.close();
+        RegMapTreeModel emptyCsvModel;
+        QVERIFY(!handler.read(emptyCsvPath, &emptyCsvModel, nullptr).success);
     }
 }
 
@@ -1130,6 +1410,32 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
         RegConfigWindow noNameCfg;
         QVERIFY(handler.read(noNamePath, &noNameMdl, &noNameCfg).success);
         QCOMPARE(noNameCfg.projectName(), QString("chip_map"));
+    }
+
+    // Empty root write
+    RegMapTreeModel emptyJsonMdl;
+    emptyJsonMdl.setRootItem(nullptr);
+    QVERIFY(!handler.write("work/test_formats/empty_root.json", &emptyJsonMdl, nullptr).success);
+
+    // Reading JSON with fields and memories missing every optional property
+    {
+        QString bareJson = R"({
+            "blocks": [{
+                "registers": [{
+                    "fields": [{}]
+                }]
+            }],
+            "memories": [{
+                "offset_lsb": 4096
+            }]
+        })";
+        QString barePath = "work/test_formats/bare.json";
+        QFile fBare(barePath);
+        QVERIFY(fBare.open(QIODevice::WriteOnly | QIODevice::Text));
+        fBare.write(bareJson.toUtf8());
+        fBare.close();
+        RegMapTreeModel bareModel;
+        QVERIFY(handler.read(barePath, &bareModel, nullptr).success);
     }
 }
 

@@ -1473,18 +1473,10 @@ void RegMapWindow::btnExport(void)
 
     CodeGenerator cg;
     std::string template_folder = cfg->templatefolder();
-    std::string default_output  = cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder();
+    std::string default_output  = resolveExportOutputFolder(QString(), cfg);
 
     json jsonData = m_model->extractJsonData(regWidth);
-    if (!cfg->project_name().empty()) {
-        jsonData["name"] = cfg->project_name();
-    } else if (!m_rmap_filename.isEmpty() && (jsonData.value("name", "").empty() || jsonData["name"] == "regmap")) {
-        QFileInfo fi(m_rmap_filename);
-        QString base = fi.baseName();
-        if (!base.isEmpty()) {
-            jsonData["name"] = base.toStdString();
-        }
-    }
+    resolveExportProjectName(cfg, m_rmap_filename, jsonData);
     jsonData["project_name"] = cfg->project_name();
     jsonData["project_version"] = cfg->project_version();
     for (const auto& [key, value] : cfg->custom_parameters()) {
@@ -1499,7 +1491,7 @@ void RegMapWindow::btnExport(void)
     }
 
     std::string pythonScript = "";
-    bool pyEnabled = cfg->has_python_script_enabled() ? cfg->python_script_enabled() : (m_config_window ? m_config_window->isPythonScriptEnabled() : !cfg->pythonscript().empty());
+    bool pyEnabled = isExportPythonEnabled(cfg);
     if (pyEnabled && !cfg->pythonscript().empty()) {
         pythonScript = cfg->pythonscript();
     }
@@ -1819,10 +1811,14 @@ bool RegMapWindow::fileSave(QString fname)
 
     FormatResult res = FormatManager::instance().saveFile(expanded, m_model, m_config_window);
     if (!res.success) {
-        QMessageBox::critical(this,
-                tr("Failed to write output file"),
-                tr("Error writing to file: %1\n%2").arg(fname, res.errorMessage),
-                QMessageBox::Ok);
+        if (this->isVisible()) {
+            QMessageBox::critical(this,
+                    tr("Failed to write output file"),
+                    tr("Error writing to file: %1\n%2").arg(fname, res.errorMessage),
+                    QMessageBox::Ok);
+        } else {
+            std::cerr << "Error writing to file: " << fname.toStdString() << " - " << res.errorMessage.toStdString() << std::endl;
+        }
         return false;
     }
 
@@ -2216,18 +2212,10 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
 
     CodeGenerator cg;
     std::string template_folder = cfg->templatefolder();
-    std::string default_output = out_dir.isEmpty() ? (cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder()) : PathUtils::expandEnvVars(out_dir).toStdString();
+    std::string default_output = resolveExportOutputFolder(out_dir, cfg);
 
     json jsonData = m_model->extractJsonData(regWidth);
-    if (!cfg->project_name().empty()) {
-        jsonData["name"] = cfg->project_name();
-    } else if (!m_rmap_filename.isEmpty() && (jsonData.value("name", "").empty() || jsonData["name"] == "regmap")) {
-        QFileInfo fi(m_rmap_filename);
-        QString base = fi.baseName();
-        if (!base.isEmpty()) {
-            jsonData["name"] = base.toStdString();
-        }
-    }
+    resolveExportProjectName(cfg, m_rmap_filename, jsonData);
     jsonData["project_name"] = cfg->project_name();
     jsonData["project_version"] = cfg->project_version();
     for (const auto& [key, value] : cfg->custom_parameters()) {
@@ -2267,7 +2255,7 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
     }
 
     std::string pythonScript = "";
-    bool pyEnabled = cfg->has_python_script_enabled() ? cfg->python_script_enabled() : (m_config_window ? m_config_window->isPythonScriptEnabled() : !cfg->pythonscript().empty());
+    bool pyEnabled = isExportPythonEnabled(cfg);
     if (pyEnabled && !cfg->pythonscript().empty()) {
         pythonScript = cfg->pythonscript();
     }
@@ -2286,6 +2274,49 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
 
     delete cfg;
     return true;
+}
+
+std::string RegMapWindow::resolveExportOutputFolder(const QString &outDir, const protormap::Config *cfg)
+{
+    if (!outDir.isEmpty()) {
+        return PathUtils::expandEnvVars(outDir).toStdString();
+    }
+    if (cfg && !cfg->outputfolder().empty()) {
+        return cfg->outputfolder();
+    }
+    return PathUtils::DEFAULT_OUTPUT_DIR;
+}
+
+void RegMapWindow::resolveExportProjectName(const protormap::Config *cfg, const QString &filename, nlohmann::json &jsonData)
+{
+    if (cfg && !cfg->project_name().empty()) {
+        jsonData["name"] = cfg->project_name();
+        return;
+    }
+    if (!filename.isEmpty()) {
+        std::string currentName = jsonData.is_object() ? jsonData.value("name", "") : "";
+        if (currentName.empty() || currentName == "regmap") {
+            QFileInfo fi(filename);
+            QString base = fi.baseName();
+            if (!base.isEmpty()) {
+                jsonData["name"] = base.toStdString();
+            }
+        }
+    }
+}
+
+bool RegMapWindow::isExportPythonEnabled(const protormap::Config *cfg) const
+{
+    if (!cfg) {
+        return false;
+    }
+    if (cfg->has_python_script_enabled()) {
+        return cfg->python_script_enabled();
+    }
+    if (m_config_window) {
+        return m_config_window->isPythonScriptEnabled();
+    }
+    return !cfg->pythonscript().empty();
 }
 
 bool RegMapWindow::headlessLint(bool strict, const QString &format, const QString &outFile)

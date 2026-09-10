@@ -65,8 +65,8 @@ AccessColors ColorScheme::getAccessColors(const QString &access, ColorBlindMode 
         if (a == "RW") return rwColors;
         if (a == "RO") return roColors;
         if (a == "WO") return woColors;
-        if (a.startsWith("W1C") || a == "W1C" || a.startsWith("W0C") || a == "W0C" || a == "WC") return w1cColors;
-        if (a.startsWith("W1S") || a == "W1S" || a.startsWith("W0S") || a == "WS") return w1cColors;
+        if (a.startsWith("W1C") || a.startsWith("W0C") || a == "WC") return w1cColors;
+        if (a.startsWith("W1S") || a.startsWith("W0S") || a == "WS") return w1cColors;
         if (a == "RC" || a == "RS") return rcColors;
         return naColors;
     }
@@ -1003,6 +1003,14 @@ bool ThemeManager::setTheme(const QString &idOrName)
                key.compare("solarized_light", Qt::CaseInsensitive) == 0 ||
                key.compare("light", Qt::CaseInsensitive) == 0) {
         key = "solarized8_light";
+    } else if (key.compare("high_contrast", Qt::CaseInsensitive) == 0 ||
+               key.compare("high_contrast_dark", Qt::CaseInsensitive) == 0 ||
+               key.compare("high-contrast", Qt::CaseInsensitive) == 0 ||
+               key.compare("high-contrast-dark", Qt::CaseInsensitive) == 0) {
+        key = "high_contrast_dark";
+    } else if (key.compare("high_contrast_light", Qt::CaseInsensitive) == 0 ||
+               key.compare("high-contrast-light", Qt::CaseInsensitive) == 0) {
+        key = "high_contrast_light";
     }
 
     // If key points to an existing JSON file, load it

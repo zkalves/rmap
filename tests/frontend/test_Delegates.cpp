@@ -557,7 +557,7 @@ void TestDelegates::testDelegateEventsEdgeCases()
     QVERIFY(boolDelegate.editorEvent(&leftClick, &model, option, fldBoolIndex));
     QCOMPARE(model.data(fldBoolIndex, Qt::DisplayRole).toString(), QString("true"));
 
-    // 4. setEditorData with value not in combo box
+    // 4. setEditorData and setModelData with combo box editors
     QWidget *editor = swDelegate.createEditor(&parent, option, fldAccessIndex);
     model.setData(fldAccessIndex, "UNRECOGNIZED", Qt::EditRole);
     swDelegate.setEditorData(editor, fldAccessIndex);
@@ -566,12 +566,33 @@ void TestDelegates::testDelegateEventsEdgeCases()
     QWidget *hwEditor = hwDelegate.createEditor(&parent, option, fldHwIndex);
     model.setData(fldHwIndex, "UNRECOGNIZED", Qt::EditRole);
     hwDelegate.setEditorData(hwEditor, fldHwIndex);
+    QComboBox *hwBox = qobject_cast<QComboBox*>(hwEditor);
+    if (hwBox) {
+        hwBox->setCurrentText("RW");
+        hwDelegate.setModelData(hwEditor, &model, fldHwIndex);
+        QCOMPARE(model.data(fldHwIndex, Qt::DisplayRole).toString(), QString("RW"));
+    }
     delete hwEditor;
 
     QWidget *boolEditor = boolDelegate.createEditor(&parent, option, fldBoolIndex);
     model.setData(fldBoolIndex, "UNRECOGNIZED", Qt::EditRole);
     boolDelegate.setEditorData(boolEditor, fldBoolIndex);
+    QComboBox *boolBox = qobject_cast<QComboBox*>(boolEditor);
+    if (boolBox) {
+        boolBox->setCurrentText("false");
+        boolDelegate.setModelData(boolEditor, &model, fldBoolIndex);
+        QCOMPARE(model.data(fldBoolIndex, Qt::DisplayRole).toString(), QString("false"));
+    }
     delete boolEditor;
+
+    // 4b. HexDecBinDelegate with "NA" and empty string
+    RegHexDecBinDelegate hexDelegate(&parent);
+    QWidget *hexEditor = hexDelegate.createEditor(&parent, option, fldAccessIndex);
+    model.setData(fldAccessIndex, "NA", Qt::EditRole);
+    hexDelegate.setEditorData(hexEditor, fldAccessIndex);
+    model.setData(fldAccessIndex, "", Qt::EditRole);
+    hexDelegate.setEditorData(hexEditor, fldAccessIndex);
+    delete hexEditor;
 
     // 5. Test getAccessPolicyColors boolean overload
     AccessColors acSwFalse = getAccessPolicyColors("RW", false);
