@@ -15,9 +15,9 @@ public:
     CmsisSvdHandler() = default;
     ~CmsisSvdHandler() override;
 
-    QString formatName() const override { return "ARM CMSIS-SVD"; }
-    QStringList supportedExtensions() const override { return {"svd"}; }
-    QString fileFilter() const override { return "ARM CMSIS-SVD (*.svd)"; }
+    QString formatName() const override;
+    QStringList supportedExtensions() const override;
+    QString fileFilter() const override;
 
     FormatResult read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
     FormatResult write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;

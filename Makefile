@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -93,6 +93,11 @@ coverage-report: coverage
 
 # Convenience alias for test-unit
 test check: test-unit
+
+# Clean up profiling counter data (.gcda) to prevent checksum mismatches after code changes
+clean-gcda clean-coverage:
+	@find build -name "*.gcda" -delete 2>/dev/null || true
+	@echo "Removed all stale .gcda coverage profile files."
 
 # Clean up build directory and test artifacts
 clean:

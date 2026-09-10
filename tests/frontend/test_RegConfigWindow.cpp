@@ -1100,6 +1100,46 @@ void TestRegConfigWindow::testFullBranchCoverageRegConfig()
         QVERIFY(btnTmpl != nullptr);
         btnTmpl->click();
     }
+
+    // 7. saveStateFromUi, templateOutputs, and onOutputFolderEdited with null items and prefixes
+    {
+        RegConfigWindow cfgWin;
+        auto *table = cfgWin.findChild<QTableWidget*>("templateTable");
+        table->setRowCount(2);
+        // Row 0 has null items in all columns
+        // Row 1 has item in col 1 but null in 0 and 2
+        table->setItem(1, 1, new QTableWidgetItem("templates/test.inja"));
+
+        auto *paramTable = cfgWin.findChild<QTableWidget*>("customParametersTable");
+        paramTable->setRowCount(2);
+        // Row 0 has null items
+        // Row 1 has item in col 0 but null in 1
+        paramTable->setItem(1, 0, new QTableWidgetItem("KEY1"));
+
+        cfgWin.setRegisterWidth(0);
+        cfgWin.saveWindowStateToSettings();
+        protormap::Config* cfg = cfgWin.serialize();
+        QCOMPARE(cfg->custom_parameters_size(), 1);
+        QCOMPARE(cfg->template_outputs_size(), 1);
+        delete cfg;
+
+        auto *btnEn = cfgWin.findChild<QPushButton*>("btnEnableAll");
+        if (btnEn) btnEn->click();
+
+        // onOutputFolderEdited with null outItem
+        table->setRowCount(1);
+        table->setItem(0, 1, new QTableWidgetItem("templates/c/reg_map.h.inja"));
+        table->setItem(0, 2, nullptr);
+        cfgWin.onOutputFolderEdited("work_custom");
+
+        // onOutputFolderEdited with ./ prefix
+        table->setItem(0, 2, new QTableWidgetItem("./work_custom/c/reg_map.h"));
+        cfgWin.onOutputFolderEdited("work_custom2");
+
+        // onOutputFolderEdited with plain prefix
+        table->setItem(0, 2, new QTableWidgetItem("work_custom2/c/reg_map.h"));
+        cfgWin.onOutputFolderEdited("work_custom3");
+    }
 }
 
 QTEST_MAIN(TestRegConfigWindow)

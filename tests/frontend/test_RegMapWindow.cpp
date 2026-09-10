@@ -2054,13 +2054,14 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     }
 
     auto dismissModal = [](const QString &filePath = QString(), int button = -1) {
+        QApplication::processEvents();
         auto *timer = new QTimer();
         auto start = std::chrono::steady_clock::now();
         QObject::connect(timer, &QTimer::timeout, [timer, start, filePath, button]() {
             QWidget *modal = QApplication::activeModalWidget();
             if (!modal) {
                 for (auto *w : QApplication::topLevelWidgets()) {
-                    if (w->isVisible() && (w->isModal() || w->inherits("QDialog") || w->inherits("QMessageBox") || w->inherits("QFileDialog"))) {
+                    if (w->isVisible() && (w->isModal() || qobject_cast<QMessageBox*>(w) || qobject_cast<QFileDialog*>(w))) {
                         modal = w;
                         break;
                     }
@@ -2449,13 +2450,13 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         win.btnExport();
     }
 
-    // 19. btnExport with zero templates found (lines 1454-1455)
+    // 19. btnExport with zero templates found (lines 1524-1525)
     {
         QDir().mkpath("work/empty_tmpl");
         RegMapWindow win("examples/rmt/peripherals/spi.rmt");
         auto *cfgWin = win.configWindow();
+        cfgWin->setTemplateFolders({"work/empty_tmpl"});
         auto *cfg = cfgWin->serialize();
-        cfg->set_templatefolder("work/empty_tmpl");
         cfg->clear_template_outputs();
         cfgWin->deserialize(*cfg);
         delete cfg;
@@ -2464,7 +2465,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         win.btnExport();
     }
 
-    // 20. insertChild climbs up hierarchy from reg to blk (lines 1821-1822)
+    // 20. insertChild climbs up hierarchy from blk to root (lines 1889-1890)
     {
         RegMapWindow win("examples/rmt/peripherals/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
@@ -2472,20 +2473,18 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
         QVERIFY(proxy);
         QModelIndex blk0 = proxy->index(0, 0);
-        QModelIndex reg0 = proxy->index(0, 0, blk0);
-        treeView->selectionModel()->select(reg0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-        treeView->setCurrentIndex(reg0);
-        win.insertChild(RegMapTreeItem::e_rmmKind::blk);
+        treeView->selectionModel()->select(blk0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        treeView->setCurrentIndex(blk0);
+        win.insertChild(RegMapTreeItem::e_rmmKind::fld);
     }
 
-    // 21. duplicateSelectedRegister with cleared current index but m_currentRegItem cached (lines 2049-2055)
+    // 21. duplicateSelectedRegister with cleared current index but m_currentRegItem cached (lines 2119-2125)
     {
         RegMapWindow win("examples/rmt/peripherals/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
         QModelIndex blk0 = proxy->index(0, 0);
         QModelIndex reg0 = proxy->index(0, 0, blk0);
-        treeView->selectionModel()->select(reg0, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
         treeView->setCurrentIndex(reg0);
 
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
@@ -2494,8 +2493,32 @@ void TestRegMapWindow::testUncoveredEdgeCases()
             fieldsTable->setCurrentIndex(QModelIndex());
             fieldsTable->clearFocus();
         }
+        treeView->selectionModel()->blockSignals(true);
         treeView->selectionModel()->clearSelection();
         treeView->setCurrentIndex(QModelIndex());
+        treeView->selectionModel()->blockSignals(false);
+
+        win.duplicateSelectedRegister();
+
+        // Also test branch where blk->parentItem() != m_model->getRootItem() (line 2121)
+        auto *model = win.model();
+        QModelIndex blk0Source = proxy->mapToSource(blk0);
+        model->insertRows(model->rowCount(blk0Source), 1, RegMapTreeItem::e_rmmKind::blk, blk0Source);
+        QModelIndex subBlkSource = model->index(model->rowCount(blk0Source) - 1, 0, blk0Source);
+        model->insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, subBlkSource);
+        QModelIndex subRegSource = model->index(0, 0, subBlkSource);
+        QModelIndex subRegProxy = proxy->mapFromSource(subRegSource);
+        treeView->setCurrentIndex(subRegProxy);
+
+        if (fieldsTable) {
+            fieldsTable->selectionModel()->clearSelection();
+            fieldsTable->setCurrentIndex(QModelIndex());
+            fieldsTable->clearFocus();
+        }
+        treeView->selectionModel()->blockSignals(true);
+        treeView->selectionModel()->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        treeView->selectionModel()->blockSignals(false);
 
         win.duplicateSelectedRegister();
     }
@@ -2531,6 +2554,328 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         fieldsTable->setCurrentIndex(fieldProxy->index(0, 0));
         fieldsTable->setFocus();
         win.duplicateSelectedRegister();
+    }
+
+    // 24. UndoCommands: EditCellCommand invalid index, InsertItemCommand kinds, and null DeleteItemCommand
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *model = win.model();
+
+        EditCellCommand invalidCell(model, QModelIndex(), "old", "new");
+        invalidCell.undo();
+        invalidCell.redo();
+
+        InsertItemCommand cmdBlk(model, RegMapTreeItem::e_rmmKind::blk, 0, QModelIndex());
+        QCOMPARE(cmdBlk.text(), QString("Add Block"));
+        InsertItemCommand cmdReg(model, RegMapTreeItem::e_rmmKind::reg, 0, QModelIndex());
+        QCOMPARE(cmdReg.text(), QString("Add Register"));
+        InsertItemCommand cmdFld(model, RegMapTreeItem::e_rmmKind::fld, 0, QModelIndex());
+        QCOMPARE(cmdFld.text(), QString("Add Field"));
+        InsertItemCommand cmdMem(model, RegMapTreeItem::e_rmmKind::mem, 0, QModelIndex());
+        QCOMPARE(cmdMem.text(), QString("Add Memory"));
+        InsertItemCommand cmdMap(model, RegMapTreeItem::e_rmmKind::map, 0, QModelIndex());
+        QCOMPARE(cmdMap.text(), QString("Add Map"));
+
+        DeleteItemCommand cmdDelNull(model, 9999, QModelIndex());
+        DeleteItemCommand::StoredNode node;
+        DeleteItemCommand::captureItem(nullptr, node);
+        DeleteItemCommand::restoreItem(model, QModelIndex(), node);
+
+        DeleteItemCommand::StoredNode emptyNode;
+        emptyNode.kind = RegMapTreeItem::e_rmmKind::reg;
+        emptyNode.colData["Name"] = "";
+        DuplicateItemCommand dupEmpty(model, 0, QModelIndex(), emptyNode);
+        QCOMPARE(dupEmpty.text(), QString("Duplicate Item"));
+    }
+
+    // 25. btnKeyBindings dialog dismissal
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        QTimer::singleShot(50, []() {
+            for (QWidget *w : QApplication::topLevelWidgets()) {
+                if (auto *dlg = qobject_cast<QDialog*>(w)) {
+                    dlg->accept();
+                }
+            }
+        });
+        win.btnKeyBindings();
+    }
+
+    // 26. btnPreferences, btnAbout, btnConfig, and btnQuitButton
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.btnPreferences();
+        win.btnAbout();
+        win.btnConfig();
+        win.btnQuitButton();
+    }
+
+    // 27. btnFileReload, btnFileNew, btnFileClose with unsaved changes permutations
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        // Reload when not modified
+        win.btnFileReload();
+
+        // Reload when modified with Cancel
+        win.regmap_modified();
+        dismissModal(QString(), QMessageBox::Cancel);
+        win.btnFileReload();
+
+        // Reload when modified with Ok
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnFileReload();
+
+        // btnFileNew when not modified
+        win.btnFileNew();
+
+        // btnFileNew when modified with Cancel
+        win.regmap_modified();
+        dismissModal(QString(), QMessageBox::Cancel);
+        win.btnFileNew();
+
+        // btnFileNew when modified with Ok
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnFileNew();
+
+        // btnFileClose when not modified
+        win.btnFileClose();
+
+        // btnFileClose when modified with Cancel
+        win.regmap_modified();
+        dismissModal(QString(), QMessageBox::Cancel);
+        win.btnFileClose();
+
+        // btnFileClose when modified with Ok
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnFileClose();
+    }
+
+    // 28. btnExport with validation issues: user selects No, user selects Yes
+    {
+        QFile::remove("work/temp_invalid.rmt");
+        QFile::copy("examples/rmt/validation/invalid_overlap.rmt", "work/temp_invalid.rmt");
+        RegMapWindow win("work/temp_invalid.rmt");
+
+        // User clicks No -> export aborted early (line 1468)
+        dismissModal(QString(), QMessageBox::No);
+        win.btnExport();
+
+        // User clicks Yes -> export proceeds anyway (lines 1466, 1509-1530)
+        dismissModal(QString(), QMessageBox::Yes);
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnExport();
+    }
+
+    // 29. showTreeContextMenu on treeView and fieldsTableView
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+
+        if (treeView) {
+            QTimer::singleShot(30, [&win]() {
+                if (auto *menu = win.findChild<QMenu*>("treeContextMenu")) {
+                    if (!menu->actions().isEmpty()) {
+                        menu->actions().first()->trigger();
+                    }
+                    menu->close();
+                }
+            });
+            emit treeView->customContextMenuRequested(QPoint(5, 5));
+
+            QTimer::singleShot(30, [&win]() {
+                if (auto *menu = win.findChild<QMenu*>("treeContextMenu")) {
+                    menu->close();
+                }
+            });
+            emit treeView->customContextMenuRequested(QPoint(9999, 9999));
+        }
+
+        if (fieldsTable) {
+            QTimer::singleShot(30, [&win]() {
+                if (auto *menu = win.findChild<QMenu*>("treeContextMenu")) {
+                    if (menu->actions().size() > 1) {
+                        menu->actions().at(1)->trigger();
+                    }
+                    menu->close();
+                }
+            });
+            emit fieldsTable->customContextMenuRequested(QPoint(5, 5));
+
+            QTimer::singleShot(30, [&win]() {
+                if (auto *menu = win.findChild<QMenu*>("treeContextMenu")) {
+                    menu->close();
+                }
+            });
+            emit fieldsTable->customContextMenuRequested(QPoint(9999, 9999));
+        }
+    }
+
+    // 30. duplicateItem variations: source model index, invalid index, blk item, regBytes == 0
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *model = win.model();
+
+        // Passing source model index directly (line 2141-2142)
+        QModelIndex srcBlk = model->index(0, 0, QModelIndex());
+        QModelIndex srcReg = model->index(0, 0, srcBlk);
+        win.duplicateItem(srcReg);
+
+        // Passing invalid index or root item (line 2147: returns early)
+        win.duplicateItem(QModelIndex());
+
+        // Duplicate a block item (lines 2161 and 2165 false)
+        win.duplicateItem(srcBlk);
+
+        // Duplicate when reg_width = 7 (regBytes == 0 -> falls back to 4, line 2156)
+        auto *cfgWin = win.configWindow();
+        cfgWin->setRegisterWidth(7);
+        win.duplicateItem(srcReg);
+        cfgWin->setRegisterWidth(32);
+    }
+
+    // 31. semanticDiff comprehensive comparisons with added, removed, modified registers and fields
+    {
+        // Diff between spi.rmt and uart.rmt (added and removed registers)
+        QVERIFY(RegMapWindow::semanticDiff(
+            "examples/rmt/peripherals/spi.rmt",
+            "examples/rmt/peripherals/uart.rmt",
+            "text",
+            "work/diff_spi_uart.txt"
+        ));
+        QVERIFY(QFile::exists("work/diff_spi_uart.txt"));
+
+        // Markdown format diff between spi.rmt and uart.rmt
+        QVERIFY(RegMapWindow::semanticDiff(
+            "examples/rmt/peripherals/spi.rmt",
+            "examples/rmt/peripherals/uart.rmt",
+            "markdown",
+            "work/diff_spi_uart.md"
+        ));
+        QVERIFY(QFile::exists("work/diff_spi_uart.md"));
+
+        // Diff where file1 is valid, but file2 does not exist (line 2416-2419 returns false)
+        QVERIFY(!RegMapWindow::semanticDiff(
+            "examples/rmt/peripherals/spi.rmt",
+            "nonexistent_file_diff_123.rmt",
+            "text",
+            ""
+        ));
+
+        // Diff write failure on invalid path (line 2505-2506)
+        QVERIFY(!RegMapWindow::semanticDiff(
+            "examples/rmt/peripherals/spi.rmt",
+            "examples/rmt/peripherals/uart.rmt",
+            "text",
+            "/non_existent_directory_xyz/diff.txt"
+        ));
+
+        // Create modified SPI map with offset, access, reset, and field modifications
+        QFile::remove("work/spi_modified.rmt");
+        QFile::copy("examples/rmt/peripherals/spi.rmt", "work/spi_modified.rmt");
+        {
+            RegMapWindow modWin("work/spi_modified.rmt");
+            auto *modModel = modWin.model();
+            QModelIndex b0 = modModel->index(0, 0, QModelIndex());
+            QModelIndex r0 = modModel->index(0, 0, b0);
+            modModel->setData(modModel->index(0, 1, b0), "0x100", Qt::EditRole); // Offset changed
+            modModel->setData(modModel->index(0, 4, b0), "RO", Qt::EditRole);    // Access changed
+            modModel->setData(modModel->index(0, 6, b0), "0xFF", Qt::EditRole);  // Reset changed
+            // Modify field 0
+            modModel->setData(modModel->index(0, 4, r0), "RO", Qt::EditRole); // Field access changed
+            // Add a field
+            modModel->insertRows(modModel->rowCount(r0), 1, RegMapTreeItem::e_rmmKind::fld, r0);
+            modModel->setData(modModel->index(modModel->rowCount(r0)-1, 3, r0), "NEW_FLD", Qt::EditRole);
+            // Remove a field
+            if (modModel->rowCount(r0) > 2) {
+                modModel->removeRows(1, 1, r0);
+            }
+            modWin.fileSave("work/spi_modified.rmt");
+        }
+
+        // Diff spi.rmt vs spi_modified.rmt in both text and markdown formats
+        QVERIFY(RegMapWindow::semanticDiff(
+            "examples/rmt/peripherals/spi.rmt",
+            "work/spi_modified.rmt",
+            "text",
+            "work/diff_mod.txt"
+        ));
+        QVERIFY(RegMapWindow::semanticDiff(
+            "examples/rmt/peripherals/spi.rmt",
+            "work/spi_modified.rmt",
+            "markdown",
+            "work/diff_mod.md"
+        ));
+    }
+
+    // 32. setColourBlindType permutations and window state restoration
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+
+        // Set colour blind type to None
+        win.setColourBlindType(ColorBlindMode::None);
+        QCOMPARE(win.colourBlindType(), ColorBlindMode::None);
+
+        // When not in colour blind mode, setting a type turns it on
+        win.setColourBlindType(ColorBlindMode::Protanopia);
+        QCOMPARE(win.colourBlindType(), ColorBlindMode::Protanopia);
+
+        // When already in colour blind mode, setting another type changes it directly (lines 850-878)
+        win.setColourBlindType(ColorBlindMode::Deuteranopia);
+        QCOMPARE(win.colourBlindType(), ColorBlindMode::Deuteranopia);
+        win.setColourBlindType(ColorBlindMode::Tritanopia);
+        QCOMPARE(win.colourBlindType(), ColorBlindMode::Tritanopia);
+        win.setColourBlindType(ColorBlindMode::Achromatopsia);
+        QCOMPARE(win.colourBlindType(), ColorBlindMode::Achromatopsia);
+
+        // Restore window state with empty geometry, valid size and valid pos
+        AppSettings::instance().setMainWindowGeometry(QByteArray());
+        AppSettings::instance().setMainWindowSize(QSize(1024, 768));
+        AppSettings::instance().setMainWindowPos(QPoint(50, 50));
+        AppSettings::instance().setMainWindowState(QByteArray());
+        win.restoreWindowStateFromSettings();
+
+        // Restore window state with valid geometry and state
+        win.saveWindowStateToSettings();
+        win.restoreWindowStateFromSettings();
+
+        // Fallback size <= 0
+        AppSettings::instance().setMainWindowGeometry(QByteArray());
+        AppSettings::instance().setMainWindowSize(QSize(0, 0));
+        AppSettings::instance().setMainWindowPos(QPoint());
+        win.restoreWindowStateFromSettings();
+    }
+
+    // 33. insertChild fallback to first child when root cannot accept (lines 1907-1915)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        // Clear selection so nothing is selected
+        if (treeView && treeView->selectionModel()) {
+            treeView->selectionModel()->clearSelection();
+            treeView->setCurrentIndex(QModelIndex());
+        }
+        // Inserting a reg with nothing selected: root cannot accept reg, but firstChild (blk) can!
+        win.insertChild(RegMapTreeItem::e_rmmKind::reg);
+
+        // Empty window: root cannot accept fld, childCount == 0, targetParentItem is null -> returns (lines 1918-1920)
+        RegMapWindow emptyWin;
+        emptyWin.insertChild(RegMapTreeItem::e_rmmKind::fld);
+    }
+
+    // 34. Protobuf operator >> and << with parent_id == id == 0 and unknown item kind
+    {
+        protormap::RegModel regModel;
+        protormap::RegItem *item = regModel.add_item();
+        item->set_kind(protormap::RegItem_Kind_BLK);
+        item->set_id(0);
+        item->set_parent_id(0); // triggers (item.parent_id() == item.id() && item.id() == 0)
+
+        protormap::RegItem *unknownItem = regModel.add_item();
+        unknownItem->set_kind(static_cast<protormap::RegItem_Kind>(999)); // triggers default: ; in operator >>
+
+        SerializationContext ctxIn;
+        regModel >> ctxIn;
     }
 }
 

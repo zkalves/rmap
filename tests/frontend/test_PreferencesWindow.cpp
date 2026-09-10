@@ -329,6 +329,25 @@ void TestPreferencesWindow::testRestoreWindowStateVariations()
         QCOMPARE(prefWin3.pos(), QPoint(70, 70));
     }
 
+    // Case 3: Empty geometry, invalid size and null pos
+    AppSettings::instance().setWindowGeometry("PreferencesWindow", QByteArray());
+    AppSettings::instance().setWindowSize("PreferencesWindow", QSize(-1, -1));
+    AppSettings::instance().setWindowPos("PreferencesWindow", QPoint(0, 0));
+    {
+        PreferencesWindow prefWin4;
+        QVERIFY(prefWin4.width() >= 400);
+    }
+
+    // Case 4: Non-existent scheme/lang/colorblind in updateUiFromState
+    {
+        PreferencesWindow prefWin5;
+        prefWin5.setColourScheme("unknown_scheme_xyz");
+        prefWin5.setColourBlindType(ColorBlindMode::None);
+        prefWin5.setLanguage("unknown_lang_xyz");
+        prefWin5.onOpenThemesFolder();
+        prefWin5.onOpenThemesFolder();
+    }
+
     AppSettings::instance().setConfigFilePath(origPath);
 }
 

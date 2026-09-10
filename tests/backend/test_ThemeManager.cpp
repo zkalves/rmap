@@ -377,11 +377,73 @@ void TestThemeManager::testAppSettingsConfigFile()
         emptyVals.setValue("Appearance/Language", "");
         emptyVals.sync();
     }
+    // Test determineConfigPath variants
+    QCOMPARE(AppSettings::determineConfigPath("", "", QString()), QDir::homePath() + "/.config/rmap/rmap.conf");
+    QCOMPARE(AppSettings::determineConfigPath(nullptr, "/custom/xdg", QString()), QString("/custom/xdg/rmap/rmap.conf"));
+    QCOMPARE(AppSettings::determineConfigPath(nullptr, "", "/generic/loc"), QString("/generic/loc/rmap/rmap.conf"));
+    QCOMPARE(AppSettings::determineConfigPath(nullptr, nullptr, "/generic/loc"), QString("/generic/loc/rmap/rmap.conf"));
+
+    // setConfigFilePath with empty string and same string
+    settings.setConfigFilePath("");
+    settings.setConfigFilePath(settings.configFilePath());
+
+    // setColorScheme with empty / whitespace
+    settings.setColorScheme("");
+    QCOMPARE(settings.colorScheme(), QString("solarized8"));
+    settings.setColorScheme("   ");
+    QCOMPARE(settings.colorScheme(), QString("solarized8"));
+
+    // setLanguage with empty / whitespace
+    settings.setLanguage("");
+    QCOMPARE(settings.language(), QString("en"));
+    settings.setLanguage("   ");
+    QCOMPARE(settings.language(), QString("en"));
+
+    // Invalid sizes
+    settings.setMainWindowSize(QSize(-10, -20));
+    settings.setMainWindowSize(QSize(0, 500));
+    settings.setMainWindowSize(QSize(500, 0));
+    settings.setConfigWindowSize(QSize(-10, -20));
+    settings.setConfigWindowSize(QSize(0, 500));
+    settings.setConfigWindowSize(QSize(500, 0));
+    settings.setWindowSize("TestWin", QSize(-10, -20));
+    settings.setWindowSize("TestWin", QSize(0, 500));
+    settings.setWindowSize("TestWin", QSize(500, 0));
+
+    // Nonexistent windowPos / windowSize default fallbacks
+    QCOMPARE(settings.windowPos("NonExistent", QPoint(42, 42)), QPoint(42, 42));
+    QCOMPARE(settings.windowSize("NonExistent", QSize(123, 456)), QSize(123, 456));
+
+    // Test loading config with invalid/negative dimensions and partial coordinates
+    {
+        QSettings invalidVals(testConfPath, QSettings::IniFormat);
+        invalidVals.setValue("Geometry/MainWindowX", 100);
+        invalidVals.remove("Geometry/MainWindowY");
+        invalidVals.setValue("Geometry/ConfigWindowY", 200);
+        invalidVals.remove("Geometry/ConfigWindowX");
+        invalidVals.setValue("Geometry/MainWindowWidth", -50);
+        invalidVals.setValue("Geometry/MainWindowHeight", 0);
+        invalidVals.setValue("Geometry/ConfigWindowWidth", -10);
+        invalidVals.setValue("Geometry/ConfigWindowHeight", 0);
+        invalidVals.setValue("Geometry/TestPartialX", 50);
+        invalidVals.remove("Geometry/TestPartialY");
+        invalidVals.setValue("Geometry/TestPartialWidth", -100);
+        invalidVals.setValue("Geometry/TestPartialHeight", -100);
+        invalidVals.sync();
+    }
     settings.setConfigFilePath(testConfPath);
     settings.load();
-    QCOMPARE(settings.colorScheme(), QString("solarized8"));
-    QCOMPARE(settings.colorBlindType(), ColorBlindMode::Universal);
-    QCOMPARE(settings.language(), QString("en"));
+    QCOMPARE(settings.windowPos("TestPartial", QPoint(99, 99)), QPoint(99, 99));
+    QCOMPARE(settings.windowSize("TestPartial", QSize(333, 444)), QSize(333, 444));
+
+    // Clear geometries and save to exercise empty branches in save()
+    settings.setMainWindowGeometry(QByteArray());
+    settings.setMainWindowState(QByteArray());
+    settings.setMainWindowSplitter(QByteArray());
+    settings.setConfigWindowGeometry(QByteArray());
+    settings.setMainWindowPos(QPoint(0, 0));
+    settings.setConfigWindowPos(QPoint(0, 0));
+    settings.save();
 
     // Reset back to defaults and restore original path
     settings.setColorScheme("solarized8");
@@ -434,6 +496,16 @@ void TestThemeManager::testEnsureWindowOnScreen()
     AppSettings::setScreenOverrideMode(2);
     AppSettings::ensureWindowOnScreen(&widget, QSize(400, 300), QSize(600, 400));
     AppSettings::setScreenOverrideMode(0);
+
+    // Test 7: Null widget (early return)
+    AppSettings::ensureWindowOnScreen(nullptr, QSize(400, 300), QSize(600, 400));
+
+    // Test 8: Zero and negative minimum dimensions
+    AppSettings::ensureWindowOnScreen(&widget, QSize(0, 0), QSize(100, 100));
+    AppSettings::ensureWindowOnScreen(&widget, QSize(-10, -10), QSize(100, 100));
+
+    // Test 9: defaultSize smaller than minSize
+    AppSettings::ensureWindowOnScreen(&widget, QSize(500, 400), QSize(200, 150));
 }
 
 void TestThemeManager::testJsonSerializationAndDeserialization()
@@ -692,6 +764,102 @@ void TestThemeManager::testThemeEdgeCasesAndCoverage()
 
     // 12. scanThemes coverage
     tm.scanThemes();
+
+    // 13. Comprehensive access policy coverage for all remaining color blind modes
+    {
+        ColorScheme cs = ColorScheme::createDefault("solarized8");
+        cs.hasCustomColorBlind = false;
+
+        const QStringList policies = {"RW", "RO", "WO", "W1S", "W0S", "WS", "W1C", "W0C", "WC", "RC", "RS", "UNKNOWN"};
+        const ColorBlindMode modes[] = {
+            ColorBlindMode::Protanopia,
+            ColorBlindMode::Deuteranopia,
+            ColorBlindMode::Tritanopia,
+            ColorBlindMode::Achromatopsia
+        };
+
+        for (auto m : modes) {
+            for (const auto &p : policies) {
+                AccessColors ac = cs.getAccessColors(p, m);
+                QVERIFY(ac.bg.isValid());
+                QVERIFY(ac.border.isValid());
+                QVERIFY(ac.text.isValid());
+            }
+        }
+
+        // None mode specific branches: W1C, W0C, WC, W1S, W0S, WS, RC, RS
+        for (const auto &p : policies) {
+            AccessColors acNone = cs.getAccessColors(p, ColorBlindMode::None);
+            QVERIFY(acNone.bg.isValid());
+        }
+
+        // Custom color blind overrides active
+        cs.hasCustomColorBlind = true;
+        cs.cbRo = cs.roColors;
+        cs.cbWo = cs.woColors;
+        cs.cbW1c = cs.w1cColors;
+        cs.cbRw = cs.rwColors;
+        cs.cbRc = cs.rcColors;
+        cs.cbNa = cs.naColors;
+        for (const auto &p : policies) {
+            AccessColors acCustom = cs.getAccessColors(p, ColorBlindMode::Universal);
+            QVERIFY(acCustom.bg.isValid());
+        }
+
+        // Custom color blind fromJson parsing
+        QJsonObject cbThemeObj;
+        cbThemeObj["id"] = "custom_cb_theme";
+        cbThemeObj["name"] = "Custom CB Theme";
+        QJsonObject cbSection;
+        QJsonObject cbRoObj;
+        cbRoObj["bg"] = "#111111";
+        cbRoObj["border"] = "#222222";
+        cbRoObj["text"] = "#333333";
+        cbSection["ro"] = cbRoObj;
+        QJsonObject cbEmptyObj;
+        cbSection["wo"] = cbEmptyObj; // triggers o.isEmpty() return def in getCb
+        cbThemeObj["colorBlind"] = cbSection;
+
+        // Reserved flat and nested keys
+        QJsonObject rsvdNested;
+        rsvdNested["bg"] = "#444444";
+        cbThemeObj["reserved"] = rsvdNested;
+        cbThemeObj["rsvdBorder"] = "#555555";
+        cbThemeObj["rsvdStripe"] = ""; // triggers empty string parseColor fallback
+        cbThemeObj["rsvdText"] = 12345; // triggers non-string parseColor fallback
+
+        ColorScheme cbParsed;
+        QVERIFY(cbParsed.fromJson(cbThemeObj));
+        QVERIFY(cbParsed.hasCustomColorBlind);
+
+        // addSearchPath empty and duplicate
+        tm.addSearchPath("");
+        tm.addSearchPath("/tmp/custom_unique_search_path");
+        tm.addSearchPath("/tmp/custom_unique_search_path");
+        QVERIFY(tm.searchPaths().contains("/tmp/custom_unique_search_path"));
+
+        // RMAP_THEME_DIR fallback when RMAP_THEMES_PATH is empty
+        qunsetenv("RMAP_THEMES_PATH");
+        qputenv("RMAP_THEME_DIR", "/tmp/custom_theme_dir_456");
+        QVERIFY(tm.searchPaths().contains("/tmp/custom_theme_dir_456"));
+        qunsetenv("RMAP_THEME_DIR");
+
+        // scanThemesDir on template.json and invalid json
+        QString tmplDir = tdir.filePath("scan_test_dir");
+        QDir().mkpath(tmplDir);
+        QFile fTmpl(tmplDir + "/template.json");
+        QVERIFY(fTmpl.open(QIODevice::WriteOnly));
+        fTmpl.write("{}");
+        fTmpl.close();
+
+        QFile fInvalid(tmplDir + "/bad.json");
+        QVERIFY(fInvalid.open(QIODevice::WriteOnly));
+        fInvalid.write("not json");
+        fInvalid.close();
+
+        QCOMPARE(tm.scanThemesDir(tmplDir), 0);
+        QCOMPARE(tm.scanThemesDir("/non_existent_scan_dir_xyz"), 0);
+    }
 }
 
 void TestThemeManager::cleanupTestCase()

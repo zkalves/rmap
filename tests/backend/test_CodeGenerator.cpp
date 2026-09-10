@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QProcess>
 #include <QThread>
+#include <csignal>
 #include "CodeGenerator.hpp"
 
 class TestCodeGenerator : public QObject
@@ -1834,7 +1835,122 @@ void TestCodeGenerator::testCommandLineInterface()
         QVERIFY(QDir("work/cli_exp_dir").exists());
     }
 
-    // 9. Interactive GUI startup and clean SIGTERM shutdown (exercises mainWin->show() and app.exec())
+    // 9. Short and long option variants (-h, -v, --export, --convert, --lint, --diff)
+    {
+        auto [codeH, outH] = runRmap({"-h"});
+        QCOMPARE(codeH, 0);
+        QVERIFY(outH.contains("Usage:"));
+
+        auto [codeV, outV] = runRmap({"-v"});
+        QCOMPARE(codeV, 0);
+        QVERIFY(outV.contains("rmap"));
+
+        auto [codeExpLong, outExpLong] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--export", "--out", "work/cli_exp_long"});
+        QCOMPARE(codeExpLong, 0);
+
+        auto [codeConvLong, outConvLong] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--convert", "work/cli_conv_long.svd"});
+        QCOMPARE(codeConvLong, 0);
+
+        auto [codeLintLong, outLintLong] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint"});
+        QCOMPARE(codeLintLong, 0);
+
+        auto [codeDiffLong, outDiffLong] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff", "examples/rmt/peripherals/spi.rmt", "--report-format", "text"});
+        QCOMPARE(codeDiffLong, 0);
+    }
+
+    // 10. Alternative theme and language option flags (--theme, --colour-scheme, --color-scheme, --language)
+    {
+        auto [c1, o1] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--theme", "nord", "--lint"});
+        QCOMPARE(c1, 0);
+
+        auto [c2, o2] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--colour-scheme", "solarized8_light", "--lint"});
+        QCOMPARE(c2, 0);
+
+        auto [c3, o3] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--color-scheme", "monokai", "--language", "pt_BR", "--lint"});
+        QCOMPARE(c3, 0);
+    }
+
+    // 11. CLI error branches (diff failure, export failure without file)
+    {
+        auto [codeDiffFail, outDiffFail] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff", "nonexistent_diff_file.rmt"});
+        QCOMPARE(codeDiffFail, 1);
+
+        auto [codeExpFail, outExpFail] = runRmap({"--export"});
+        QCOMPARE(codeExpFail, 1);
+    }
+
+    // 12. Headless mode when DISPLAY is unset but WAYLAND_DISPLAY is set
+    {
+        QProcessEnvironment waylandEnv = QProcessEnvironment::systemEnvironment();
+        waylandEnv.remove("DISPLAY");
+        waylandEnv.insert("WAYLAND_DISPLAY", "wayland-0");
+        auto [codeWayland, outWayland] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &waylandEnv);
+        QCOMPARE(codeWayland, 0);
+    }
+
+    // 13. Additional CLI option permutations (--help, --version, -c, -d, --strict, report formats)
+    {
+        auto [codeHelpLong, outHelpLong] = runRmap({"--help"});
+        QCOMPARE(codeHelpLong, 0);
+
+        auto [codeVerLong, outVerLong] = runRmap({"--version"});
+        QCOMPARE(codeVerLong, 0);
+
+        auto [codeConvShort, outConvShort] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/cli_conv_short.svd"});
+        QCOMPARE(codeConvShort, 0);
+
+        auto [codeDiffShort, outDiffShort] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d", "examples/rmt/peripherals/spi.rmt"});
+        QCOMPARE(codeDiffShort, 0);
+
+        auto [codeLintStrict, outLintStrict] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint", "--strict"});
+        QCOMPARE(codeLintStrict, 0);
+
+        auto [codeLintJson, outLintJson] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint", "--report-format", "json", "-o", "work/cli_lint.json"});
+        QCOMPARE(codeLintJson, 0);
+        QVERIFY(QFile::exists("work/cli_lint.json"));
+
+        auto [codeLintSarif, outLintSarif] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint", "--report-format", "sarif", "-o", "work/cli_lint.sarif"});
+        QCOMPARE(codeLintSarif, 0);
+        QVERIFY(QFile::exists("work/cli_lint.sarif"));
+
+        auto [codeLintJunit, outLintJunit] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint", "--report-format", "junit", "-o", "work/cli_lint.junit"});
+        QCOMPARE(codeLintJunit, 0);
+        QVERIFY(QFile::exists("work/cli_lint.junit"));
+
+        auto [codeDiffMd, outDiffMd] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d", "examples/rmt/peripherals/spi.rmt", "--report-format", "markdown", "-o", "work/cli_diff.md"});
+        QCOMPARE(codeDiffMd, 0);
+        QVERIFY(QFile::exists("work/cli_diff.md"));
+
+        auto [codeExpDefault, outExpDefault] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--export"});
+        QCOMPARE(codeExpDefault, 0);
+
+        auto [codeLintFail, outLintFail] = runRmap({"-f", "examples/rmt/validation/invalid_overlap.rmt", "--lint"});
+        QCOMPARE(codeLintFail, 1);
+
+        // Language-only CLI option without theme (line 109-111 in main.cpp)
+        auto [codeLangOnly, outLangOnly] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lang", "es", "-l"});
+        QCOMPARE(codeLangOnly, 0);
+
+        // DISPLAY set and WAYLAND_DISPLAY set
+        QProcessEnvironment dispWaylandEnv = QProcessEnvironment::systemEnvironment();
+        dispWaylandEnv.insert("DISPLAY", ":99");
+        dispWaylandEnv.insert("WAYLAND_DISPLAY", "wayland-0");
+        auto [cDW, oDW] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &dispWaylandEnv);
+        QCOMPARE(cDW, 0);
+
+        // DISPLAY set and WAYLAND_DISPLAY unset
+        QProcessEnvironment dispOnlyEnv = QProcessEnvironment::systemEnvironment();
+        dispOnlyEnv.insert("DISPLAY", ":99");
+        dispOnlyEnv.remove("WAYLAND_DISPLAY");
+        auto [cDO, oDO] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &dispOnlyEnv);
+        QCOMPARE(cDO, 0);
+
+        // Diff with different files
+        auto [codeDiffDiff, outDiffDiff] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d", "examples/rmt/peripherals/uart.rmt"});
+        QCOMPARE(codeDiffDiff, 0);
+    }
+
+    // 13. Interactive GUI startup and clean SIGTERM shutdown (exercises mainWin->show() and app.exec())
     {
         QProcess proc;
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -1842,8 +1958,25 @@ void TestCodeGenerator::testCommandLineInterface()
         proc.setProcessEnvironment(env);
         proc.start(rmapBin, QStringList());
         QVERIFY(proc.waitForStarted(5000));
-        QThread::msleep(500);
+        QThread::msleep(300);
         proc.terminate();
+        if (!proc.waitForFinished(5000)) {
+            proc.kill();
+            proc.waitForFinished(2000);
+        }
+        QVERIFY(proc.state() == QProcess::NotRunning);
+    }
+
+    // 14. Interactive GUI startup and clean SIGINT shutdown
+    {
+        QProcess proc;
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("QT_QPA_PLATFORM", "offscreen");
+        proc.setProcessEnvironment(env);
+        proc.start(rmapBin, QStringList());
+        QVERIFY(proc.waitForStarted(5000));
+        QThread::msleep(300);
+        ::kill(static_cast<pid_t>(proc.processId()), SIGINT);
         if (!proc.waitForFinished(5000)) {
             proc.kill();
             proc.waitForFinished(2000);

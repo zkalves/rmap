@@ -14,6 +14,9 @@
 #include "../RegConfigWindow.hpp"
 
 using json = nlohmann::json;
+QString JsonHandler::formatName() const { return QStringLiteral("JSON Schema"); }
+QStringList JsonHandler::supportedExtensions() const { return {QStringLiteral("json")}; }
+QString JsonHandler::fileFilter() const { return QStringLiteral("JSON Register Map (*.json)"); }
 
 FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
 {

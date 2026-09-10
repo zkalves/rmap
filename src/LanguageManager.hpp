@@ -22,12 +22,7 @@ struct LanguageInfo {
     QString resourcePath; // Embedded Qt resource path (e.g. ":/translations/rmap_es.json")
     bool isBuiltIn = true;
 
-    QString displayName() const {
-        if (nativeName.isEmpty() || nativeName == name) {
-            return name;
-        }
-        return QStringLiteral("%1 (%2)").arg(nativeName, name);
-    }
+    QString displayName() const;
 };
 
 class JsonTranslator : public QTranslator {

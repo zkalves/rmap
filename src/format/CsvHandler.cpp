@@ -78,6 +78,10 @@ std::vector<QStringList> parseCsvLines(const QString &content, char16_t delimite
 
 } // anonymous namespace
 
+QString CsvHandler::formatName() const { return QStringLiteral("CSV Spreadsheet"); }
+QStringList CsvHandler::supportedExtensions() const { return {QStringLiteral("csv"), QStringLiteral("tsv")}; }
+QString CsvHandler::fileFilter() const { return QStringLiteral("CSV Table (*.csv *.tsv)"); }
+
 FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
 {
     FormatResult result;

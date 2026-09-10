@@ -14,6 +14,18 @@
 #include <QDebug>
 
 // -------------------------------------------------------------------------
+// LanguageInfo Implementation
+// -------------------------------------------------------------------------
+
+QString LanguageInfo::displayName() const
+{
+    if (nativeName.isEmpty() || nativeName == name) {
+        return name;
+    }
+    return QStringLiteral("%1 (%2)").arg(nativeName, name);
+}
+
+// -------------------------------------------------------------------------
 // JsonTranslator Implementation
 // -------------------------------------------------------------------------
 

@@ -570,6 +570,21 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
     FormatResult writeRes = rdlHandler.write(outRdl, &model, &config);
     QVERIFY2(writeRes.success, qPrintable(writeRes.errorMessage));
     QVERIFY(rdlHandler.write(outRdl, &model, nullptr).success);
+
+    // Special write case: empty block name, width 0, hwAccess WO and RW
+    {
+        RegMapTreeModel specialMdl;
+        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+        QModelIndex bIdx = specialMdl.index(0, 0, QModelIndex());
+        specialMdl.setData(specialMdl.index(0, 3, QModelIndex()), "", Qt::EditRole); // empty name -> "block"
+        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, bIdx);
+        QModelIndex rIdx = specialMdl.index(0, 0, bIdx);
+        specialMdl.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, rIdx);
+        QModelIndex fIdx = specialMdl.index(0, 0, rIdx);
+        specialMdl.setData(specialMdl.index(0, 2, rIdx), "0", Qt::EditRole); // width 0 -> 1
+        specialMdl.setData(specialMdl.index(0, 5, rIdx), "WO", Qt::EditRole); // hwAccess WO -> w
+        rdlHandler.write("work/test_formats/special_rdl_out.rdl", &specialMdl, nullptr);
+    }
 }
 
 void TestFormats::test_IpxactExtendedSyntaxAndErrors()
@@ -842,6 +857,80 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors()
     QVERIFY(!handler.read("work/test_formats/non_existent.csv", &model, &config).success);
     QVERIFY(!handler.write("work/test_formats/dummy.csv", nullptr, nullptr).success);
     QVERIFY(!handler.write("/non_existent_directory_xyz/file.csv", &model, &config).success);
+
+    // CSV with 'block' as header, skipped short rows, duplicate block/register, RO access, anonymous block
+    {
+        QString edgeCsvPath = "work/test_formats/edge_cases.csv";
+        QFile fEdge(edgeCsvPath);
+        QVERIFY(fEdge.open(QIODevice::WriteOnly | QIODevice::Text));
+        fEdge.write("block,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description\n"
+                    "short,row\n"
+                    "blk,BLK1,,,0x0,,RW,0x0,false,false,false,\n"
+                    "reg,BLK1,REG1,,0x0,32,RO,0x0,false,false,false,Reg RO\n"
+                    "fld,BLK1,REG1,FLD1,0,8,RO,0x0,true,false,true,Field RO\n"
+                    "fld,BLK1,REG1,FLD2,8,8,RW,0x0,true,false,true,Field RW\n"
+                    "reg,,REG_ANON,,0x4,32,RW,0x0,false,false,false,\n"
+                    "fld,,REG_ANON,FLD_A,0,16,RW,0x0,true,false,true,\n"
+                    "other,BLK1,REG1,FLD3,16,8,RW,0x0,true,false,true,\n");
+        fEdge.close();
+        RegMapTreeModel edgeModel;
+        RegConfigWindow edgeConfig;
+        QVERIFY(handler.read(edgeCsvPath, &edgeModel, &edgeConfig).success);
+
+        // Export with a non-blk item under root, a non-reg child under blk, and non-fld under reg
+        auto *root = edgeModel.getRootItem();
+        QVariantMap memData;
+        memData["Type"] = "mem";
+        memData["Name"] = "SRAM";
+        auto *memItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, root);
+        root->appendChild(memItem);
+
+        auto *blkItem = root->child(0);
+        auto *subBlkItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, memData, blkItem);
+        blkItem->appendChild(subBlkItem);
+
+        auto *regItem = blkItem->child(0);
+        auto *dummyChild = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, memData, regItem);
+        regItem->appendChild(dummyChild);
+
+        QString outEdgeCsv = "work/test_formats/edge_out.csv";
+        QVERIFY(handler.write(outEdgeCsv, &edgeModel, &edgeConfig).success);
+
+        // Test rows of variable column counts from 4 to 11 to test every column fallback
+        QString varColCsvPath = "work/test_formats/var_col.csv";
+        QFile fVar(varColCsvPath);
+        QVERIFY(fVar.open(QIODevice::WriteOnly | QIODevice::Text));
+        fVar.write("Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description\n"
+                   "\n"
+                   "reg,BLK_V,REG4,F4\n"
+                   "reg,BLK_V,REG5,F5,0x10\n"
+                   "reg,BLK_V,REG6,F6,0x14,16\n"
+                   "reg,BLK_V,REG7,F7,0x18,16,WO\n"
+                   "reg,BLK_V,REG8,F8,0x1C,16,WO,0x55\n"
+                   "reg,BLK_V,REG9,F9,0x20,16,WO,0x55,false\n"
+                   "reg,BLK_V,REG10,F10,0x24,16,WO,0x55,false,true\n"
+                   "reg,BLK_V,REG11,F11,0x28,16,WO,0x55,false,true,false\n"
+                   "fld,BLK_V,REG4,,0x0\n"
+                   "fld,BLK_V,,FLD_NO_REG,0x0\n"
+        );
+        fVar.close();
+        RegMapTreeModel varModel;
+        QVERIFY(handler.read(varColCsvPath, &varModel, nullptr).success);
+
+        // Standalone CR (\r) newline support
+        QString crCsvPath = "work/test_formats/cr_only.csv";
+        QFile fCr(crCsvPath);
+        QVERIFY(fCr.open(QIODevice::WriteOnly | QIODevice::Text));
+        fCr.write("Type,Block,Register,Field\rreg,BLK_CR,REG_CR,FLD_CR\r");
+        fCr.close();
+        RegMapTreeModel crModel;
+        QVERIFY(handler.read(crCsvPath, &crModel, nullptr).success);
+
+        // write with null root item
+        RegMapTreeModel emptyModel;
+        emptyModel.setRootItem(nullptr);
+        QVERIFY(!handler.write("work/test_formats/no_root.csv", &emptyModel, nullptr).success);
+    }
 }
 
 void TestFormats::test_JsonExtendedSyntaxAndErrors()
@@ -858,11 +947,11 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
                 "registers": [
                     {
                         "name": "SRC_ADDR",
-                        "offset_lsb": 0,
-                        "description": "Source address",
+                        "offset_hex": "0x0",
                         "access": "RW",
                         "hw_access": "RO",
                         "reset_hex": "0x0",
+                        "description": "Source address register",
                         "fields": [
                             {
                                 "name": "ADDR",
@@ -924,15 +1013,124 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
     }
     QVERIFY(foundMem);
 
+    // Minimal JSON fallback branches (no project_name, registers with offset_lsb/neither, memory defaults, export without config)
+    {
+        QString minimalJson = R"({
+            "blocks": [{
+                "registers": [
+                    { "name": "REG_LSB", "offset_lsb": 16 },
+                    { "name": "REG_NO_OFF" }
+                ]
+            }],
+            "memories": [
+                { "name": "MEM_DEFAULT" }
+            ]
+        })";
+        QString minPath = "work/test_formats/minimal.json";
+        QFile fMin(minPath);
+        QVERIFY(fMin.open(QIODevice::WriteOnly | QIODevice::Text));
+        fMin.write(minimalJson.toUtf8());
+        fMin.close();
+        RegMapTreeModel minModel;
+        QVERIFY(handler.read(minPath, &minModel, nullptr).success);
+        QVERIFY(handler.write("work/test_formats/no_cfg.json", &minModel, nullptr).success);
+    }
+
     // Error cases
     QVERIFY(!handler.read("work/test_formats/non_existent.json", &model, &config).success);
     QVERIFY(!handler.write("work/test_formats/dummy.json", nullptr, nullptr).success);
     QVERIFY(!handler.write("/non_existent_directory_xyz/file.json", &model, &config).success);
 
+    // JSON parse error
+    {
+        QString badJsonPath = "work/test_formats/bad_parse.json";
+        QFile fBad(badJsonPath);
+        QVERIFY(fBad.open(QIODevice::WriteOnly | QIODevice::Text));
+        fBad.write("{ invalid json syntax [");
+        fBad.close();
+        RegMapTreeModel badModel;
+        FormatResult badRes = handler.read(badJsonPath, &badModel, nullptr);
+        QVERIFY(!badRes.success);
+        QVERIFY(badRes.errorMessage.contains("JSON parse error"));
+    }
+
+    // JSON with reg_width as string (not number), project_name instead of name, and fields with false flags
+    {
+        QString flagJson = R"({
+            "project_name": "FlagProject",
+            "reg_width": "invalid_not_a_number",
+            "blocks": [{
+                "name": "B1",
+                "offset_hex": "0x0",
+                "description": "B1 desc",
+                "registers": [{
+                    "name": "R1",
+                    "offset_hex": "0x0",
+                    "access": "RO",
+                    "hw_access": "WO",
+                    "reset_hex": "0x0",
+                    "description": "R1 desc",
+                    "fields": [{
+                        "name": "F1",
+                        "offset_lsb": 0,
+                        "size_width": 1,
+                        "access": "RO",
+                        "hw_access": "WO",
+                        "reset_hex": "0x0",
+                        "is_rand": false,
+                        "volatile": false,
+                        "has_reset": false,
+                        "description": "F1 desc"
+                    }]
+                }]
+            }],
+            "memories": [{
+                "name": "M1",
+                "offset_hex": "0x1000",
+                "size_width": 1024,
+                "access": "RO",
+                "hw_access": "RO",
+                "description": "M1 desc"
+            }]
+        })";
+        QString flagPath = "work/test_formats/flags.json";
+        QFile fFlag(flagPath);
+        QVERIFY(fFlag.open(QIODevice::WriteOnly | QIODevice::Text));
+        fFlag.write(flagJson.toUtf8());
+        fFlag.close();
+        RegMapTreeModel flagModel;
+        RegConfigWindow flagCfg;
+        QVERIFY(handler.read(flagPath, &flagModel, &flagCfg).success);
+        QCOMPARE(flagCfg.projectName(), QString("FlagProject"));
+    }
+
     // Write with and without config
     QString outJson = "work/test_formats/extended_out.json";
     QVERIFY(handler.write(outJson, &model, &config).success);
     QVERIFY(handler.write(outJson, &model, nullptr).success);
+
+    // Write with config having reg_width = 0, empty project_name and empty project_version (lines 162-164)
+    {
+        RegConfigWindow emptyCfg;
+        emptyCfg.setRegisterWidth(0);
+        emptyCfg.setProjectName("");
+        emptyCfg.setProjectVersion("");
+        QVERIFY(handler.write("work/test_formats/empty_cfg_out.json", &model, &emptyCfg).success);
+    }
+
+    // Read JSON without project_name or name (defaults to chip_map, lines 48-54)
+    {
+        QString noNameJson = R"({ "reg_width": 32, "blocks": [] })";
+        QString noNamePath = "work/test_formats/no_name.json";
+        QFile fNoName(noNamePath);
+        QVERIFY(fNoName.open(QIODevice::WriteOnly | QIODevice::Text));
+        fNoName.write(noNameJson.toUtf8());
+        fNoName.close();
+        RegMapTreeModel noNameMdl;
+        RegConfigWindow noNameCfg;
+        QVERIFY(handler.read(noNamePath, &noNameMdl, &noNameCfg).success);
+        QCOMPARE(noNameCfg.projectName(), QString("chip_map"));
+    }
 }
 
 void TestFormats::test_FormatManagerEdgeCases()
@@ -1027,11 +1225,33 @@ void TestFormats::test_ProtobufExtendedSyntaxAndErrors()
     QVERIFY(!parseFail.success);
     QVERIFY(parseFail.errorMessage.contains("Failed to parse Protobuf file"));
 
+    // Corrupted binary .rmb read error
+    QString badRmb = "work/test_formats/bad_syntax.rmb";
+    QFile fBadRmb(badRmb);
+    QVERIFY(fBadRmb.open(QIODevice::WriteOnly));
+    fBadRmb.write("\xff\xff\xff\xff\x00\x01\x02");
+    fBadRmb.close();
+    FormatResult parseFailRmb = handler.read(badRmb, &model, &config);
+    QVERIFY(!parseFailRmb.success);
+    QVERIFY(parseFailRmb.errorMessage.contains("Failed to parse Protobuf file"));
+
+    // Read with null config, null model, and both null
+    QVERIFY(handler.read("examples/rmt/peripherals/spi.rmt", &model, nullptr).success);
+    QVERIFY(handler.read("examples/rmt/peripherals/spi.rmt", nullptr, &config).success);
+    QVERIFY(handler.read("examples/rmt/peripherals/spi.rmt", nullptr, nullptr).success);
+
     // Valid text .rmt write -> covers lines 104-107
     model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
     QString validRmt = "work/test_formats/valid.rmt";
     FormatResult writeRmt = handler.write(validRmt, &model, &config);
     QVERIFY(writeRmt.success);
+
+    // Write with null config, null model, and empty model
+    QVERIFY(handler.write("work/test_formats/no_cfg.rmt", &model, nullptr).success);
+    QVERIFY(handler.write("work/test_formats/no_mdl.rmt", nullptr, &config).success);
+    RegMapTreeModel emptyMdl;
+    emptyMdl.setRootItem(nullptr);
+    QVERIFY(handler.write("work/test_formats/empty_mdl.rmt", &emptyMdl, &config).success);
 
     // Write failure on full device -> covers lines 110-112
     if (QFile::exists("/dev/full")) {

@@ -100,11 +100,10 @@ struct RegSummary {
     std::map<QString, QString> fields; // name -> "lsb:width:access:reset"
 };
 
-static std::map<QString, RegSummary> gatherRegs(RegMapTreeModel &model)
+static void gatherRegs(RegMapTreeModel &model, std::map<QString, RegSummary> &map)
 {
-    std::map<QString, RegSummary> map;
     RegMapTreeItem *root = model.getRootItem();
-    if (!root) return map;
+    if (!root) return;
     for (RegMapTreeItem *blk : root->getChildItems()) {
         if (!blk || blk->kindString() != "blk") continue;
         QString bName = blk->data("Name").toString();
@@ -132,7 +131,6 @@ static std::map<QString, RegSummary> gatherRegs(RegMapTreeModel &model)
             map[key] = s;
         }
     }
-    return map;
 }
 
 class TreeFilterProxyModel : public QSortFilterProxyModel {
@@ -1786,7 +1784,11 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
             default: ;
         }
         m_data["id"]   = item.id();
-        m_data["parent"]= item.parent_id();
+        if (item.kind() == protormap::RegItem_Kind_ROOT || (item.parent_id() == item.id() && item.id() == 0)) {
+            m_data["parent"] = QVariant();
+        } else {
+            m_data["parent"] = item.parent_id();
+        }
         for (const auto &child : item.child_id()) {
             childItemsList.append(child);
         }
@@ -1879,7 +1881,7 @@ void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind)
                 // Ascend ancestor hierarchy to find the nearest parent capable of accepting 'kind'
                 RegMapTreeItem *curr = selectedItem;
                 QModelIndex currSource = source_index;
-                while (curr && curr->parentItem()) {
+                while (curr && curr->parentItem() && curr->parentItem() != curr) {
                     RegMapTreeItem *p = curr->parentItem();
                     QModelIndex pSource = currSource.parent();
                     if (p->possibleChildren().contains(kind)) {
@@ -2416,8 +2418,9 @@ bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2, cons
         return false;
     }
 
-    auto map1 = gatherRegs(model1);
-    auto map2 = gatherRegs(model2);
+    std::map<QString, RegSummary> map1, map2;
+    gatherRegs(model1, map1);
+    gatherRegs(model2, map2);
 
     QStringList addedRegs, removedRegs, modifiedRegs;
 

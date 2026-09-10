@@ -12,11 +12,9 @@
 
 class JsonHandler : public IFormatHandler {
 public:
-    QString formatName() const override { return "JSON Schema"; }
-    QStringList supportedExtensions() const override { return {"json"}; }
-    QString fileFilter() const override {
-        return "JSON Register Map (*.json)";
-    }
+    QString formatName() const override;
+    QStringList supportedExtensions() const override;
+    QString fileFilter() const override;
 
     FormatResult read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
     FormatResult write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;

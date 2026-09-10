@@ -14,6 +14,10 @@
 #include "../RegMapTreeItem.hpp"
 #include "../RegConfigWindow.hpp"
 
+QString SystemRdlHandler::formatName() const { return QStringLiteral("SystemRDL"); }
+QStringList SystemRdlHandler::supportedExtensions() const { return {QStringLiteral("rdl"), QStringLiteral("systemrdl")}; }
+QString SystemRdlHandler::fileFilter() const { return QStringLiteral("SystemRDL (*.rdl *.systemrdl)"); }
+
 namespace {
 
 enum class TokenType {
