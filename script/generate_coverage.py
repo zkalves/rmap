@@ -117,125 +117,134 @@ def parse_gcov_data(build_dir: Path, source_dir: Path, gcov_dir: Optional[Path] 
         except Exception:
             continue
 
-        for f in data.get("files", []):
-                    f_path_str = f.get("file", "")
-                    if not f_path_str:
-                        continue
-                    f_path = Path(f_path_str).resolve()
+        process_gcov_json(data, all_files_data)
 
-                    # Filter: must be inside source_dir and hand-written source
-                    try:
-                        f_rel = f_path.relative_to(PROJECT_ROOT)
-                    except ValueError:
-                        continue
+    return all_files_data
 
-                    f_rel_str = str(f_rel).replace("\\", "/")
-                    if not f_rel_str.startswith("src/"):
-                        continue
-                    if any(bad in f_rel_str for bad in ["/proto/", "_autogen", "/work/", "/build/", "mocs_compilation"]):
-                        continue
 
-                    if f_rel_str not in all_files_data:
-                        all_files_data[f_rel_str] = {
-                            "file": f_rel_str,
-                            "subsystem": categorize_subsystem(f_rel_str),
-                            "lines": {},
-                            "funcs": {},
-                            "branches": {},
-                            "conds": [],
-                            "calls": [],
-                            "blocks_total": 0,
-                            "blocks_exec": 0,
-                        }
+def process_gcov_json(data: Dict[str, Any], all_files_data: Dict[str, Dict[str, Any]]) -> None:
+    """Process single gcov JSON structure and aggregate metrics into all_files_data."""
+    for f in data.get("files", []):
+        f_path_str = f.get("file", "")
+        if not f_path_str:
+            continue
+        f_path = Path(f_path_str).resolve()
 
-                    entry = all_files_data[f_rel_str]
+        # Filter: must be inside source_dir and hand-written source
+        try:
+            f_rel = f_path.relative_to(PROJECT_ROOT)
+        except ValueError:
+            continue
 
-                    # Map lines by function to resolve exception landing pad blocks in CFG
-                    fn_lines: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-                    for l in f.get("lines", []):
-                        fn_lines[l.get("function_name", "")].append(l)
+        f_rel_str = str(f_rel).replace("\\", "/")
+        if not f_rel_str.startswith("src/"):
+            continue
+        if any(bad in f_rel_str for bad in ["/proto/", "_autogen", "/work/", "/build/", "mocs_compilation"]):
+            continue
 
-                    fn_landing_pads: Dict[str, Set[int]] = {}
-                    for fn_name, flist in fn_lines.items():
-                        throw_dsts = set()
-                        adj = defaultdict(set)
-                        all_source_blocks = set()
+        if f_rel_str not in all_files_data:
+            all_files_data[f_rel_str] = {
+                "file": f_rel_str,
+                "subsystem": categorize_subsystem(f_rel_str),
+                "lines": {},
+                "funcs": {},
+                "branches": {},
+                "conds": [],
+                "calls": [],
+                "blocks_total": 0,
+                "blocks_exec": 0,
+            }
 
-                        for l in flist:
-                            for b in l.get("branches", []):
-                                s = b.get("source_block_id")
-                                d_blk = b.get("destination_block_id")
-                                if s is not None and d_blk is not None:
-                                    adj[s].add(d_blk)
-                                    all_source_blocks.add(s)
-                                if b.get("throw", False):
-                                    throw_dsts.add(d_blk)
+        entry = all_files_data[f_rel_str]
 
-                        landing_pads = set(throw_dsts)
-                        queue = deque(list(throw_dsts))
-                        while queue:
-                            curr = queue.popleft()
-                            for nxt in adj[curr]:
-                                if nxt not in landing_pads and nxt != 1:  # 1 is exit block
-                                    landing_pads.add(nxt)
-                                    queue.append(nxt)
-                            nxt_seq = curr + 1
-                            if nxt_seq not in landing_pads and nxt_seq != 1:
-                                normal_predecessor = False
-                                for s, dsts in adj.items():
-                                    if s not in landing_pads and nxt_seq in dsts:
-                                        normal_predecessor = True
-                                        break
-                                if not normal_predecessor and nxt_seq in all_source_blocks:
-                                    landing_pads.add(nxt_seq)
-                                    queue.append(nxt_seq)
+        # Map lines by function to resolve exception landing pad blocks in CFG
+        fn_lines: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for l in f.get("lines", []):
+            fn_lines[l.get("function_name", "")].append(l)
 
-                        fn_landing_pads[fn_name] = landing_pads
+        fn_landing_pads: Dict[str, Set[int]] = {}
+        for fn_name, flist in fn_lines.items():
+            throw_dsts = set()
+            adj = defaultdict(set)
+            all_source_blocks = set()
 
-                    # Aggregate Lines
-                    for l in f.get("lines", []):
-                        ln = l.get("line_number", 0)
-                        cnt = l.get("count", 0)
-                        entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
-                        fn_name = l.get("function_name", "")
-                        lp = fn_landing_pads.get(fn_name, set())
+            for l in flist:
+                for b in l.get("branches", []):
+                    s = b.get("source_block_id")
+                    d_blk = b.get("destination_block_id")
+                    if s is not None and d_blk is not None:
+                        adj[s].add(d_blk)
+                        all_source_blocks.add(s)
+                    if b.get("throw", False) and d_blk is not None and d_blk != 1:
+                        throw_dsts.add(d_blk)
 
-                        # Aggregate Branches on this line
-                        for bi, b in enumerate(l.get("branches", [])):
-                            b_key = (ln, bi)
-                            cnt_br = b.get("count", 0)
-                            is_throw = bool(b.get("throw", False))
-                            s_blk = b.get("source_block_id")
-                            is_landing = bool(s_blk is not None and s_blk in lp)
-                            if b_key not in entry["branches"]:
-                                entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw, "landing_pad": is_landing}
-                            else:
-                                if isinstance(entry["branches"][b_key], dict):
-                                    entry["branches"][b_key]["count"] += cnt_br
-                                    if is_landing:
-                                        entry["branches"][b_key]["landing_pad"] = True
-                                else:
-                                    entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw, "landing_pad": is_landing}
+            landing_pads = {blk for blk in throw_dsts if isinstance(blk, int) and blk != 1}
+            queue = deque(list(landing_pads))
+            while queue:
+                curr = queue.popleft()
+                if not isinstance(curr, int) or curr == 1:
+                    continue
+                for nxt in adj.get(curr, set()):
+                    if isinstance(nxt, int) and nxt not in landing_pads and nxt != 1:  # 1 is exit block
+                        landing_pads.add(nxt)
+                        queue.append(nxt)
+                nxt_seq = curr + 1
+                if nxt_seq not in landing_pads and nxt_seq != 1:
+                    normal_predecessor = False
+                    for s, dsts in adj.items():
+                        if s not in landing_pads and nxt_seq in dsts:
+                            normal_predecessor = True
+                            break
+                    if not normal_predecessor and nxt_seq in all_source_blocks:
+                        landing_pads.add(nxt_seq)
+                        queue.append(nxt_seq)
 
-                        # Aggregate Conditions
-                        unexec_b = [b for b in l.get("branches", []) if b.get("count", 0) == 0]
-                        line_is_landing = bool(unexec_b and all(b.get("throw", False) or (b.get("source_block_id") in lp) for b in unexec_b))
-                        for c in l.get("conditions", []):
-                            c_dict = dict(c)
-                            if line_is_landing and c.get("covered", 0) == 0:
-                                c_dict["landing_pad"] = True
-                            entry["conds"].append(c_dict)
+            fn_landing_pads[fn_name] = landing_pads
 
-                        # Aggregate Calls
-                        entry["calls"].extend(l.get("calls", []))
+        # Aggregate Lines
+        for l in f.get("lines", []):
+            ln = l.get("line_number", 0)
+            cnt = l.get("count", 0)
+            entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
+            fn_name = l.get("function_name", "")
+            lp = fn_landing_pads.get(fn_name, set())
 
-                    # Aggregate Functions & Blocks
-                    for fn in f.get("functions", []):
-                        name = fn.get("demangled_name") or fn.get("name", "unknown")
-                        exec_cnt = fn.get("execution_count", 0)
-                        entry["funcs"][name] = entry["funcs"].get(name, 0) + exec_cnt
-                        entry["blocks_total"] += fn.get("blocks", 0)
-                        entry["blocks_exec"] += fn.get("blocks_executed", 0)
+            # Aggregate Branches on this line
+            for bi, b in enumerate(l.get("branches", [])):
+                b_key = (ln, bi)
+                cnt_br = b.get("count", 0)
+                is_throw = bool(b.get("throw", False))
+                s_blk = b.get("source_block_id")
+                is_landing = bool(s_blk is not None and s_blk in lp)
+                if b_key not in entry["branches"]:
+                    entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw, "landing_pad": is_landing}
+                else:
+                    if isinstance(entry["branches"][b_key], dict):
+                        entry["branches"][b_key]["count"] += cnt_br
+                        if is_landing:
+                            entry["branches"][b_key]["landing_pad"] = True
+                    else:
+                        entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw, "landing_pad": is_landing}
+
+            # Aggregate Conditions
+            unexec_b = [b for b in l.get("branches", []) if b.get("count", 0) == 0]
+            line_is_landing = bool(unexec_b and all(b.get("throw", False) or (b.get("source_block_id") is not None and b.get("source_block_id") in lp) for b in unexec_b))
+            for c in l.get("conditions", []):
+                c_dict = dict(c)
+                if line_is_landing and c.get("covered", 0) == 0:
+                    c_dict["landing_pad"] = True
+                entry["conds"].append(c_dict)
+
+            # Aggregate Calls
+            entry["calls"].extend(l.get("calls", []))
+
+        # Aggregate Functions & Blocks
+        for fn in f.get("functions", []):
+            name = fn.get("demangled_name") or fn.get("name", "unknown")
+            exec_cnt = fn.get("execution_count", 0)
+            entry["funcs"][name] = entry["funcs"].get(name, 0) + exec_cnt
+            entry["blocks_total"] += fn.get("blocks", 0)
+            entry["blocks_exec"] += fn.get("blocks_executed", 0)
 
     return all_files_data
 
