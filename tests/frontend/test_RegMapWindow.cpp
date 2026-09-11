@@ -46,6 +46,9 @@ private slots:
         s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
         QDir().mkpath("work");
         qputenv("RMAP_CONFIG_FILE", "work/rmap_test.conf");
         AppSettings::instance().setConfigFilePath("work/rmap_test.conf");
@@ -56,6 +59,9 @@ private slots:
         AppSettings::instance().setColorBlindMode(false);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
         qInstallMessageHandler(s_originalHandler);
     }
     void testWindowInitAndFileOpen();
@@ -96,6 +102,7 @@ private slots:
     void testSortingAndProxyEdgeCases();
     void testHeadlessCliExtended();
     void testUncoveredEdgeCases();
+    void testAdditionalBranchCoverage();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen()
@@ -1758,6 +1765,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
             });
         });
         actExport->trigger();
+        QDir("examples/rmt/validation/work").removeRecursively();
     }
 
     // 5. Export with empty template table
@@ -3266,6 +3274,548 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         lintWin.headlessLint(true, "sarif", "work/lint_fail.sarif");
         lintWin.headlessLint(true, "junit", "work/lint_fail.junit");
         lintWin.headlessLint(true, "text", "work/lint_fail.txt");
+    }
+
+    // 9. Line edits with same name, empty name, same offset, empty offset, search filter variations
+    {
+        RegMapWindow editWin("examples/rmt/peripherals/spi.rmt");
+        editWin.show();
+        auto *treeView = editWin.findChild<QTreeView*>("treeView");
+        QVERIFY(treeView != nullptr);
+        auto *regNameEdit = editWin.findChild<QLineEdit*>("regNameEdit");
+        auto *regOffsetEdit = editWin.findChild<QLineEdit*>("regOffsetEdit");
+        auto *regDescEdit = editWin.findChild<QLineEdit*>("regDescEdit");
+        auto *blkNameEdit = editWin.findChild<QLineEdit*>("blkNameEdit");
+        auto *blkOffsetEdit = editWin.findChild<QLineEdit*>("blkOffsetEdit");
+        auto *blkDescEdit = editWin.findChild<QLineEdit*>("blkDescEdit");
+        auto *searchEdit = editWin.findChild<QLineEdit*>("searchEdit");
+
+        // Select register
+        QModelIndex blkProxy = treeView->model()->index(0, 0, QModelIndex());
+        QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+        treeView->setCurrentIndex(regProxy);
+        QApplication::processEvents();
+
+        if (regNameEdit) {
+            // Same name
+            regNameEdit->setText(regNameEdit->text());
+            emit regNameEdit->editingFinished();
+            // Empty name
+            regNameEdit->setText("");
+            emit regNameEdit->editingFinished();
+            // Different name
+            regNameEdit->setText("REG_MODIFIED");
+            emit regNameEdit->editingFinished();
+        }
+
+        if (regOffsetEdit) {
+            // Same offset
+            regOffsetEdit->setText(regOffsetEdit->text());
+            emit regOffsetEdit->editingFinished();
+            // Empty offset
+            regOffsetEdit->setText("");
+            emit regOffsetEdit->editingFinished();
+            // Different offset
+            regOffsetEdit->setText("0x40");
+            emit regOffsetEdit->editingFinished();
+        }
+
+        if (regDescEdit) {
+            // Same desc
+            regDescEdit->setText(regDescEdit->text());
+            emit regDescEdit->editingFinished();
+            // Different desc
+            regDescEdit->setText("New Description");
+            emit regDescEdit->editingFinished();
+        }
+
+        // Select block
+        blkProxy = treeView->model()->index(0, 0, QModelIndex());
+        treeView->setCurrentIndex(blkProxy);
+        QApplication::processEvents();
+
+        if (blkNameEdit) {
+            // Same name
+            blkNameEdit->setText(blkNameEdit->text());
+            emit blkNameEdit->editingFinished();
+            // Empty name
+            blkNameEdit->setText("");
+            emit blkNameEdit->editingFinished();
+            // Different name
+            blkNameEdit->setText("BLK_MODIFIED");
+            emit blkNameEdit->editingFinished();
+        }
+
+        if (blkOffsetEdit) {
+            // Same offset
+            blkOffsetEdit->setText(blkOffsetEdit->text());
+            emit blkOffsetEdit->editingFinished();
+            // Empty offset
+            blkOffsetEdit->setText("");
+            emit blkOffsetEdit->editingFinished();
+            // Different offset
+            blkOffsetEdit->setText("0x1000");
+            emit blkOffsetEdit->editingFinished();
+        }
+
+        if (blkDescEdit) {
+            // Same desc
+            blkDescEdit->setText(blkDescEdit->text());
+            emit blkDescEdit->editingFinished();
+            // Different desc
+            blkDescEdit->setText("New Block Desc");
+            emit blkDescEdit->editingFinished();
+        }
+
+        // Search filter variations: match field (childHasMatch), match block, match nothing, clear
+        if (searchEdit) {
+            searchEdit->setText("ENABLE"); // matches field name -> tests childHasMatch
+            QApplication::processEvents();
+            searchEdit->setText("SPI"); // matches block name
+            QApplication::processEvents();
+            searchEdit->setText("NONEXISTENT_QUERY_12345"); // no match
+            QApplication::processEvents();
+            searchEdit->setText(""); // clear search
+            QApplication::processEvents();
+        }
+    }
+}
+
+void TestRegMapWindow::testAdditionalBranchCoverage()
+{
+    auto dismissModal = [](const QString &filePath = QString(), int button = -1) {
+        QApplication::processEvents();
+        auto *timer = new QTimer();
+        QObject::connect(timer, &QTimer::timeout, [timer, filePath, button]() {
+            QWidget *modal = QApplication::activeModalWidget();
+            if (!modal) {
+                for (auto *w : QApplication::topLevelWidgets()) {
+                    if (w->isVisible() && (w->isModal() || qobject_cast<QMessageBox*>(w) || qobject_cast<QFileDialog*>(w))) {
+                        modal = w;
+                        break;
+                    }
+                }
+            }
+            if (modal) {
+                timer->stop();
+                timer->deleteLater();
+                if (auto *msgBox = qobject_cast<QMessageBox*>(modal)) {
+                    if (button >= 0) {
+                        if (auto *btn = msgBox->button(static_cast<QMessageBox::StandardButton>(button))) {
+                            btn->click();
+                        } else {
+                            msgBox->accept();
+                        }
+                    } else {
+                        msgBox->accept();
+                    }
+                } else if (auto *dlg = qobject_cast<QDialog*>(modal)) {
+                    dlg->accept();
+                } else {
+                    modal->close();
+                }
+            }
+        });
+        timer->start(10);
+    };
+
+    // 1. padHexOffsetString with 8-digit hex (> 0x10000) and invalid hex
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *regOffsetEdit = win.findChild<QLineEdit*>("regOffsetEdit");
+        auto *blkOffsetEdit = win.findChild<QLineEdit*>("blkOffsetEdit");
+
+        // Select a register
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->expand(blkProxy);
+        QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+        treeView->setCurrentIndex(regProxy);
+        QApplication::processEvents();
+
+        if (regOffsetEdit) {
+            regOffsetEdit->setText("0x20000"); // val >= 0x10000 -> 8 digits
+            emit regOffsetEdit->editingFinished();
+            QCOMPARE(regOffsetEdit->text(), QString("0x00020000"));
+
+            regOffsetEdit->setText("0xZZZZ"); // invalid hex -> ok is false
+            emit regOffsetEdit->editingFinished();
+            QCOMPARE(regOffsetEdit->text(), QString("0xZZZZ"));
+        }
+
+        // Select block
+        treeView->setCurrentIndex(blkProxy);
+        QApplication::processEvents();
+
+        if (blkOffsetEdit) {
+            blkOffsetEdit->setText("0x30000"); // val >= 0x10000 -> 8 digits
+            emit blkOffsetEdit->editingFinished();
+            QCOMPARE(blkOffsetEdit->text(), QString("0x00030000"));
+
+            blkOffsetEdit->setText("0xGGGG"); // invalid hex -> ok is false
+            emit blkOffsetEdit->editingFinished();
+            QCOMPARE(blkOffsetEdit->text(), QString("0xGGGG"));
+        }
+    }
+
+    // 2. Line edits editingFinished when current items are null
+    {
+        RegMapWindow win;
+        auto *regNameEdit = win.findChild<QLineEdit*>("regNameEdit");
+        auto *regOffsetEdit = win.findChild<QLineEdit*>("regOffsetEdit");
+        auto *regDescEdit = win.findChild<QLineEdit*>("regDescEdit");
+        auto *blkNameEdit = win.findChild<QLineEdit*>("blkNameEdit");
+        auto *blkOffsetEdit = win.findChild<QLineEdit*>("blkOffsetEdit");
+        auto *blkDescEdit = win.findChild<QLineEdit*>("blkDescEdit");
+
+        // When current reg / blk are null (fresh window)
+        if (regNameEdit) emit regNameEdit->editingFinished();
+        if (regOffsetEdit) emit regOffsetEdit->editingFinished();
+        if (regDescEdit) emit regDescEdit->editingFinished();
+        if (blkNameEdit) emit blkNameEdit->editingFinished();
+        if (blkOffsetEdit) emit blkOffsetEdit->editingFinished();
+        if (blkDescEdit) emit blkDescEdit->editingFinished();
+    }
+
+    // 3. btnFileReset and btnFileClose when modified with Cancel and Ok buttons
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.regmap_modified();
+
+        // btnFileNew with Cancel
+        dismissModal(QString(), QMessageBox::Cancel);
+        win.btnFileNew();
+
+        // btnFileNew with Ok
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnFileNew();
+
+        // btnFileClose with Cancel
+        win.fileOpen("examples/rmt/peripherals/spi.rmt");
+        win.regmap_modified();
+        dismissModal(QString(), QMessageBox::Cancel);
+        win.btnFileClose();
+
+        // btnFileClose with Ok
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnFileClose();
+    }
+
+    // 4. btnExport and headlessExport with enabled/disabled template outputs and python script
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *cfgWin = win.configWindow();
+        auto *cfg = cfgWin->serialize();
+        cfg->clear_template_outputs();
+
+        auto *outDisabled = cfg->add_template_outputs();
+        outDisabled->set_template_filename("templates/c/reg_map.h.inja");
+        outDisabled->set_output_filepath("work/c_disabled.h");
+        outDisabled->set_enabled(false);
+
+        auto *outEmptyTmpl = cfg->add_template_outputs();
+        outEmptyTmpl->set_template_filename("");
+        outEmptyTmpl->set_output_filepath("work/empty.h");
+        outEmptyTmpl->set_enabled(true);
+
+        auto *outGood = cfg->add_template_outputs();
+        outGood->set_template_filename("templates/c/reg_map.h.inja");
+        outGood->set_output_filepath("work/c_good.h");
+        outGood->set_enabled(true);
+
+        QDir().mkpath("work");
+        QFile fPy("work/test_hook.py");
+        if (fPy.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fPy.write("#!/usr/bin/env python3\nimport sys\n");
+            fPy.close();
+        }
+        cfg->set_python_script_enabled(true);
+        cfg->set_pythonscript(QFileInfo("work/test_hook.py").absoluteFilePath().toStdString());
+        cfg->set_outputfolder("");
+
+        cfgWin->deserialize(*cfg);
+        delete cfg;
+
+        // Run headlessExport
+        QVERIFY(win.headlessExport("work/headless_test_out"));
+
+        // Run btnExport
+        dismissModal(QString(), QMessageBox::Ok);
+        win.btnExport();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+    }
+
+    // 5. Bitfield bar fieldClicked with out-of-range index and cleared selection
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *bar = win.findChild<RegBitfieldBarWidget*>("bitfieldBar");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->expand(blkProxy);
+        QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+        treeView->setCurrentIndex(regProxy);
+        QApplication::processEvents();
+
+        if (bar) {
+            // Valid row
+            emit bar->fieldClicked(0);
+            // Out of range row (covers !fieldSource.isValid())
+            emit bar->fieldClicked(999);
+            // Invalid selection
+            treeView->clearSelection();
+            treeView->setCurrentIndex(QModelIndex());
+            emit bar->fieldClicked(0);
+        }
+    }
+
+    // 6. Navigation and block view corner cases
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        // updateBlockView with nullptr
+        win.updateBlockView(nullptr);
+
+        // navigateToRegister when current blk item is null
+        win.navigateToRegister(0, nullptr);
+
+        // navigateToRegister with out of range child row
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->setCurrentIndex(blkProxy);
+        QApplication::processEvents();
+        win.navigateToRegister(999, nullptr);
+
+        // navigateToRegister when selection is cleared
+        treeView->clearSelection();
+        treeView->setCurrentIndex(QModelIndex());
+        win.navigateToRegister(0, nullptr);
+    }
+
+    // 7. Duplicate item variations: duplicate on fields table with focus, duplicate on block, duplicate on root
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
+
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->expand(blkProxy);
+        QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+        treeView->setCurrentIndex(regProxy);
+        QApplication::processEvents();
+
+        // Focus fields table and duplicate field
+        if (fieldsTable && fieldsTable->model() && fieldsTable->model()->rowCount() > 0) {
+            fieldsTable->setFocus();
+            fieldsTable->setCurrentIndex(fieldsTable->model()->index(0, 1));
+            win.duplicateSelectedRegister();
+        }
+
+        // Duplicate block
+        treeView->setFocus();
+        treeView->setCurrentIndex(blkProxy);
+        win.duplicateSelectedRegister();
+
+        // Duplicate root (returns early)
+        win.duplicateItem(QModelIndex());
+    }
+
+    // 8. regmap_modified and regmap_notModified title asterisk branches
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.regmap_modified();
+        win.setWindowTitle("CustomNoAsterisk");
+        win.regmap_notModified(); // m_is_regmap_modified true, but title doesn't end with '*'
+
+        win.fileNew();
+        win.setWindowTitle("CustomWithAsterisk*");
+        win.regmap_modified(); // m_is_regmap_modified false -> becomes true, title already ends with '*'
+    }
+
+    // 9. restoreWindowStateFromSettings with empty geometry, custom size, and saved splitter
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        AppSettings::instance().setMainWindowGeometry(QByteArray());
+        AppSettings::instance().setMainWindowSize(QSize(950, 650));
+        AppSettings::instance().setMainWindowPos(QPoint(120, 120));
+        auto *splitter = win.findChild<QSplitter*>();
+        if (splitter) {
+            AppSettings::instance().setMainWindowSplitter(splitter->saveState());
+        }
+        win.restoreWindowStateFromSettings();
+    }
+
+    // 10. fileNew and fileClose when modified without filename: user chooses Save, then cancels Save As dialog
+    {
+        RegMapWindow win;
+        auto *model = win.getModel();
+        QVERIFY(model != nullptr);
+        auto *actAddBlk = win.findChild<QAction*>("actionAddRegBlock");
+        if (actAddBlk) actAddBlk->trigger();
+
+        auto *actNew = win.findChild<QAction*>("actionFileNew");
+        QVERIFY(actNew != nullptr);
+
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Save)) btn->click();
+            }
+            QTimer::singleShot(50, []() {
+                if (auto *m = QApplication::activeModalWidget()) m->close();
+            });
+        });
+        actNew->trigger();
+
+        auto *actClose = win.findChild<QAction*>("actionFileClose");
+        QVERIFY(actClose != nullptr);
+        QTimer::singleShot(50, []() {
+            if (auto *box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                if (auto *btn = box->button(QMessageBox::Save)) btn->click();
+            }
+            QTimer::singleShot(50, []() {
+                if (auto *m = QApplication::activeModalWidget()) m->close();
+            });
+        });
+        actClose->trigger();
+    }
+
+    // 11. fileSave with unwritable path
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        bool res = win.fileSave("/proc/nonexistent_unwritable_dir/test.rmt");
+        QVERIFY(!res);
+    }
+
+    // 12. SerializationContext with mem and map records into Protobuf RegModel
+    {
+        SerializationContext ctx;
+        QVariantMap memData;
+        memData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::mem);
+        memData["id"] = 10;
+        memData["parent"] = 0;
+        memData["childItems"] = QList<QVariant>();
+        QVariantMap memItemData;
+        memItemData["Name"] = "RAM0";
+        memData["itemData"] = memItemData;
+
+        QVariantMap mapData;
+        mapData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::map);
+        mapData["id"] = 11;
+        mapData["parent"] = 0;
+        mapData["childItems"] = QList<QVariant>();
+        QVariantMap mapItemData;
+        mapItemData["Name"] = "MAP0";
+        mapData["itemData"] = mapItemData;
+
+        ctx.append_record<RegMapTreeItem>(nullptr, memData);
+        ctx.append_record<RegMapTreeItem>(nullptr, mapData);
+
+        protormap::RegModel regModel;
+        regModel << ctx;
+        QCOMPARE(regModel.item_size(), 2);
+        QCOMPARE(regModel.item(0).kind(), protormap::RegItem_Kind_MEM);
+        QCOMPARE(regModel.item(1).kind(), protormap::RegItem_Kind_MAP);
+    }
+
+    // 13. Block & Reg header editing with invalid currentIndex
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        auto *regNameEdit = win.findChild<QLineEdit*>("regNameEdit");
+        auto *regOffsetEdit = win.findChild<QLineEdit*>("regOffsetEdit");
+        auto *regDescEdit = win.findChild<QLineEdit*>("regDescEdit");
+        auto *blkNameEdit = win.findChild<QLineEdit*>("blkNameEdit");
+        auto *blkOffsetEdit = win.findChild<QLineEdit*>("blkOffsetEdit");
+        auto *blkDescEdit = win.findChild<QLineEdit*>("blkDescEdit");
+
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->expand(blkProxy);
+        QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+        treeView->setCurrentIndex(regProxy);
+
+        treeView->setCurrentIndex(QModelIndex());
+        if (regNameEdit) { regNameEdit->setText("NEW_REG_NAME"); emit regNameEdit->editingFinished(); }
+        if (regOffsetEdit) { regOffsetEdit->setText("0x10"); emit regOffsetEdit->editingFinished(); }
+        if (regDescEdit) { regDescEdit->setText("NEW_DESC"); emit regDescEdit->editingFinished(); }
+
+        treeView->setCurrentIndex(blkProxy);
+        treeView->setCurrentIndex(QModelIndex());
+        if (blkNameEdit) { blkNameEdit->setText("NEW_BLK_NAME"); emit blkNameEdit->editingFinished(); }
+        if (blkOffsetEdit) { blkOffsetEdit->setText("0x1000"); emit blkOffsetEdit->editingFinished(); }
+        if (blkDescEdit) { blkDescEdit->setText("NEW_BLK_DESC"); emit blkDescEdit->editingFinished(); }
+    }
+
+    // 14. insertChild fallback with empty model and with existing block but no selection
+    {
+        RegMapWindow win;
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        treeView->setCurrentIndex(QModelIndex());
+        win.insertChild(RegMapTreeItem::e_rmmKind::reg);
+
+        win.insertChild(RegMapTreeItem::e_rmmKind::blk);
+        treeView->setCurrentIndex(QModelIndex());
+        win.insertChild(RegMapTreeItem::e_rmmKind::reg);
+    }
+
+    // 15. headlessLint with errors in json and sarif formats
+    {
+        RegMapWindow win("examples/rmt/validation/invalid_overlap.rmt");
+        bool ok = win.headlessLint(true, "json", "work/lint_err.json");
+        QVERIFY(!ok);
+        QVERIFY(QFile::exists("work/lint_err.json"));
+
+        bool okSarif = win.headlessLint(true, "sarif", "work/lint_err.sarif");
+        QVERIFY(!okSarif);
+        QVERIFY(QFile::exists("work/lint_err.sarif"));
+    }
+
+    // 16. headlessExport mapping edge cases
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        protormap::Config cfg;
+        cfg.set_outputfolder("work");
+        auto *entry1 = cfg.add_template_outputs();
+        entry1->set_template_filename("");
+        auto *entry2 = cfg.add_template_outputs();
+        entry2->set_template_filename("c/reg_map.h.inja");
+        entry2->set_enabled(false);
+        auto *entry3 = cfg.add_template_outputs();
+        entry3->set_template_filename("c/reg_map.h.inja");
+        entry3->set_output_filepath("work/test_out.h");
+        entry3->set_enabled(true);
+        cfg.set_pythonscript("nonexistent_hook.py");
+        cfg.set_python_script_enabled(false);
+        cfg.set_reg_width(0);
+        win.configWindow()->deserialize(cfg);
+
+        win.headlessExport("");
+    }
+
+    // 17. Selecting a map item in treeView
+    {
+        RegMapWindow win;
+        auto *model = win.getModel();
+        QVariantMap mapData;
+        mapData["Name"] = "MAP_MODULE";
+        auto *mapItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData);
+        model->getRootItem()->appendChild(mapItem);
+
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        QModelIndex mapProxy = treeView->model()->index(0, 0);
+        treeView->setCurrentIndex(mapProxy);
+        QApplication::processEvents();
+    }
+
+    // 18. duplicateSelectedRegister with active reg item but deselected treeView
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->expand(blkProxy);
+        QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+        treeView->setCurrentIndex(regProxy);
+        QApplication::processEvents();
+
+        treeView->setCurrentIndex(QModelIndex());
+        win.duplicateSelectedRegister();
     }
 }
 

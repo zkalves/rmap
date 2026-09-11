@@ -292,11 +292,13 @@ void AppSettings::ensureWindowOnScreen(QWidget *widget, const QSize &minSize, co
     int curH = widget->height();
 
     // If dimensions are too small or invalid, enlarge to minSize or defaultSize
-    if (curW < minW || curW <= 0) {
-        curW = (defaultSize.width() >= minW) ? defaultSize.width() : minW;
+    int effectiveMinW = (minW > 0) ? minW : 1;
+    if (curW < effectiveMinW) {
+        curW = (defaultSize.width() >= effectiveMinW) ? defaultSize.width() : effectiveMinW;
     }
-    if (curH < minH || curH <= 0) {
-        curH = (defaultSize.height() >= minH) ? defaultSize.height() : minH;
+    int effectiveMinH = (minH > 0) ? minH : 1;
+    if (curH < effectiveMinH) {
+        curH = (defaultSize.height() >= effectiveMinH) ? defaultSize.height() : effectiveMinH;
     }
 
     QList<QScreen*> screens = QGuiApplication::screens();
@@ -443,7 +445,7 @@ void AppSettings::save()
         settings.setValue("Geometry/MainWindowX", m_mainWindowPos.x());
         settings.setValue("Geometry/MainWindowY", m_mainWindowPos.y());
     }
-    if (m_mainWindowSize.isValid() && m_mainWindowSize.width() > 0 && m_mainWindowSize.height() > 0) {
+    if (m_mainWindowSize.width() > 0 && m_mainWindowSize.height() > 0) {
         settings.setValue("Geometry/MainWindowWidth", m_mainWindowSize.width());
         settings.setValue("Geometry/MainWindowHeight", m_mainWindowSize.height());
     }
@@ -455,7 +457,7 @@ void AppSettings::save()
         settings.setValue("Geometry/ConfigWindowX", m_configWindowPos.x());
         settings.setValue("Geometry/ConfigWindowY", m_configWindowPos.y());
     }
-    if (m_configWindowSize.isValid() && m_configWindowSize.width() > 0 && m_configWindowSize.height() > 0) {
+    if (m_configWindowSize.width() > 0 && m_configWindowSize.height() > 0) {
         settings.setValue("Geometry/ConfigWindowWidth", m_configWindowSize.width());
         settings.setValue("Geometry/ConfigWindowHeight", m_configWindowSize.height());
     }

@@ -1,0 +1,299 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm/reg_model.sv.inja"
+    output_filepath: "./work/uvm/reg_model.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rust/reg_map.rs.inja"
+    output_filepath: "./work/rust/reg_map.rs"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/html/reg_doc.html.inja"
+    output_filepath: "./work/html/reg_doc.html"
+  }
+  template_outputs {
+    template_filename: "./templates/markdown/reg_doc.md.inja"
+    output_filepath: "./work/markdown/reg_doc.md"
+  }
+  template_outputs {
+    template_filename: "./templates/systemrdl/reg_map.rdl.inja"
+    output_filepath: "./work/systemrdl/reg_map.rdl"
+  }
+  template_outputs {
+    template_filename: "./templates/ipxact/reg_map.xml.inja"
+    output_filepath: "./work/ipxact/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/svd/reg_map.xml.inja"
+    output_filepath: "./work/svd/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl_tb/tb_reg_map.sv.inja"
+    output_filepath: "./work/sim/tb_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/pyuvm_tb/tb_pyuvm.py.inja"
+    output_filepath: "./work/sim/tb_pyuvm.py"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_if.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_if.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_pkg.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_pkg.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_env.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_env.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_tests.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_tests.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/tb_top.sv.inja"
+    output_filepath: "./work/sim/uvm/tb_top.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/sim/Makefile.inja"
+    output_filepath: "./work/sim/Makefile"
+  }
+  reg_width: 32
+  project_name: "Parametric_Peripheral"
+  project_version: "1.2.0"
+  custom_parameters {
+    key: "company_name"
+    value: "Acme_Semiconductors"
+  }
+  custom_parameters {
+    key: "target_frequency_mhz"
+    value: "500"
+  }
+  custom_parameters {
+    key: "bus_protocol"
+    value: "AXI4_Lite"
+  }
+  custom_parameters {
+    key: "silicon_process"
+    value: "TSMC_N16"
+  }
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "PARAMETRIC_CORE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0000"
+  }
+  itemData {
+    key: "Description"
+    value: "Parametric Core with Template Custom Parameters"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Name"
+    value: "CONFIG_REG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Core Configuration and Clock Ratio"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "CLK_RATIO"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x04"
+  }
+  itemData {
+    key: "Description"
+    value: "Clock Frequency Division Ratio"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "PROTOCOL_VER"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "8"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x01"
+  }
+  itemData {
+    key: "Description"
+    value: "Hardware Protocol Version"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "FREQ_MONITOR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Target Frequency Monitor in MHz"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Name"
+    value: "MHZ_VAL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x01F4"
+  }
+  itemData {
+    key: "Description"
+    value: "Reported Core Frequency (500 MHz = 0x01F4)"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

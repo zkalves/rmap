@@ -455,6 +455,32 @@ void TestRegBitfieldBarWidget::testSelectionAndRefresh()
     QPoint binPos(90, 40);
     QMouseEvent moveNoDesc(QEvent::MouseMove, binPos, binPos, binPos, Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(&widget, &moveNoDesc);
+
+    // Non-field child under register (exercises child->kindString() != "fld")
+    RegMapTreeItem *dummyChild = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData2, &regItem2);
+    regItem2.appendChild(dummyChild);
+    widget.setRegister(&regItem2, 32);
+
+    // Render with 2-bit reserved slice to exercise sliceW <= 60 (RSVD text & font size 7)
+    QVariantMap fLargeData;
+    fLargeData["Type"] = "fld";
+    fLargeData["Name"] = "LARGE_FLD";
+    fLargeData["Offset/LSB"] = "2";
+    fLargeData["Size/Width"] = "30";
+    RegMapTreeItem regItem3(RegMapTreeItem::e_rmmKind::reg, regData2);
+    RegMapTreeItem *fLarge = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fLargeData, &regItem3);
+    regItem3.appendChild(fLarge);
+
+    widget.resize(500, 80);
+    widget.setRegister(&regItem3, 32);
+    QImage rsvdSmallImg(500, 80, QImage::Format_ARGB32_Premultiplied);
+    QPainter rsvdSmallP(&rsvdSmallImg);
+    widget.render(&rsvdSmallP);
+
+    // Mouse move in ruler area above slice (pos.y() = 5) to exercise hit test fallback branch
+    QPoint rulerPos(250, 5);
+    QMouseEvent moveRuler(QEvent::MouseMove, rulerPos, rulerPos, rulerPos, Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&widget, &moveRuler);
 }
 
 QTEST_MAIN(TestRegBitfieldBarWidget)

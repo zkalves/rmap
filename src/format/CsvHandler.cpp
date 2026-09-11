@@ -120,7 +120,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, R
     }
 
     // Column definitions
-    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "Access Policy", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
+    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
     QVariantMap rootData;
     for (const QString &c : cols) rootData[c] = c;
     RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
@@ -180,7 +180,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, R
                 regData["Offset/LSB"] = (type == "reg") ? offsetLsb : "0x0";
                 regData["Size/Width"] = "32";
                 regData["Name"] = regName;
-                regData["Access Policy"] = access;
+                regData["SW Access"] = access;
                 regData["HW Access"] = "RO";
                 regData["Reset Value"] = "0x0";
                 regData["Description"] = (type == "reg") ? desc : "";
@@ -198,7 +198,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, R
             fldData["Offset/LSB"] = offsetLsb;
             fldData["Size/Width"] = width;
             fldData["Name"] = fldName;
-            fldData["Access Policy"] = access;
+            fldData["SW Access"] = access;
             fldData["HW Access"] = (access == "RO") ? "WO" : "RO";
             fldData["Reset Value"] = reset;
             fldData["Is Rand"] = isRand;
@@ -268,7 +268,7 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model, 
                 QString fldName = fld->data("Name").toString().trimmed();
                 QString lsb = fld->data("Offset/LSB").toString().trimmed();
                 QString width = fld->data("Size/Width").toString().trimmed();
-                QString access = fld->data("Access Policy").toString().trimmed();
+                QString access = fld->data("SW Access").toString().trimmed();
                 QString reset = fld->data("Reset Value").toString().trimmed();
                 QString isRand = fld->data("Is Rand").toString().trimmed();
                 QString isVol = fld->data("Volatile").toString().trimmed();

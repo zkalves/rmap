@@ -104,7 +104,7 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent)
                << tr("Offset/LSB")
                << tr("Size/Width")
                << tr("Name")
-               << tr("Access Policy")
+               << tr("SW Access")
                << tr("HW Access")
                << tr("Reset Value")
                << tr("Is Rand")
@@ -116,6 +116,7 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent)
     {
         data[str] = str;
     }
+    data["Access Policy"] = tr("SW Access");
     m_displayColumns = QVector<QString>::fromList(headerlist);
     m_rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, data);
 }
@@ -331,9 +332,9 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
     }
 
     const auto kind = childItem->kind();
-    const bool isRegOrMem = (kind == RegMapTreeItem::e_rmmKind::reg || kind == RegMapTreeItem::e_rmmKind::mem);
+    const bool isHexOffset = (kind == RegMapTreeItem::e_rmmKind::reg || kind == RegMapTreeItem::e_rmmKind::mem || kind == RegMapTreeItem::e_rmmKind::blk || kind == RegMapTreeItem::e_rmmKind::map);
     QString offsetVal;
-    if (isRegOrMem) {
+    if (isHexOffset) {
         offsetVal = QString::fromStdString(formatHex(nextOffsetLsb));
     } else {
         offsetVal = QString::number(nextOffsetLsb);
@@ -344,9 +345,13 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
         sizeVal = QStringLiteral("1024");
     } else if (kind == RegMapTreeItem::e_rmmKind::reg) {
         sizeVal = QStringLiteral("32");
+    } else if (kind == RegMapTreeItem::e_rmmKind::map) {
+        sizeVal = QStringLiteral("4");
     } else {
         sizeVal = QStringLiteral("1");
     }
+
+    const bool isStructuralNode = (kind == RegMapTreeItem::e_rmmKind::map || kind == RegMapTreeItem::e_rmmKind::blk || kind == RegMapTreeItem::e_rmmKind::mem);
 
     for (int column = 1; column < columnCount(index); column++) {
         QModelIndex child = this->index(row, column, index);
@@ -356,14 +361,28 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
             this->setData(child, offsetVal, Qt::EditRole);
         } else if (colName == "Size/Width") {
             this->setData(child, sizeVal, Qt::EditRole);
-        } else if (colName == "Access Policy") {
+        } else if (colName == "SW Access" || colName == "Access Policy") {
             this->setData(child, "RW", Qt::EditRole);
         } else if (colName == "HW Access") {
-            this->setData(child, "RO", Qt::EditRole);
+            if (kind == RegMapTreeItem::e_rmmKind::map || kind == RegMapTreeItem::e_rmmKind::blk) {
+                this->setData(child, "NA", Qt::EditRole);
+            } else if (kind == RegMapTreeItem::e_rmmKind::mem) {
+                this->setData(child, "RW", Qt::EditRole);
+            } else {
+                this->setData(child, "RO", Qt::EditRole);
+            }
         } else if (colName == "Reset Value") {
-            this->setData(child, "0x0", Qt::EditRole);
+            if (isStructuralNode) {
+                this->setData(child, "", Qt::EditRole);
+            } else {
+                this->setData(child, "0x0", Qt::EditRole);
+            }
         } else if (colName == "Is Rand" || colName == "Has Reset") {
-            this->setData(child, "true", Qt::EditRole);
+            if (isStructuralNode) {
+                this->setData(child, "false", Qt::EditRole);
+            } else {
+                this->setData(child, "true", Qt::EditRole);
+            }
         } else if (colName == "Volatile") {
             this->setData(child, "false", Qt::EditRole);
         } else {
@@ -522,10 +541,10 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
                 }
 
                 // Check contradictory access policy (SW=WO and HW=WO)
-                QString swAccess = child->data("Access Policy").toString().toUpper().trimmed();
+                QString swAccess = child->data("SW Access").toString().toUpper().trimmed();
                 QString hwAccess = child->data("HW Access").toString().toUpper().trimmed();
                 if (swAccess == "WO" && hwAccess == "WO") {
-                    m_invalidCells.insert(std::make_pair(child, 4)); // Access Policy
+                    m_invalidCells.insert(std::make_pair(child, 4)); // SW Access
                     m_invalidCells.insert(std::make_pair(child, 5)); // HW Access
                     errors.append(tr("Field '%1' in Register '%2' has contradictory access policy: both SW and HW are Write-Only")
                         .arg(fldName, nodeName));
@@ -596,7 +615,7 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
     item_json["kind"] = kind;
 
     std::string name = node->data("Name").toString().toStdString();
-    std::string access = node->data("Access Policy").toString().toStdString();
+    std::string access = node->data("SW Access").toString().toStdString();
     std::string sw_access = access.empty() ? "RW" : access;
     std::string hw_access_str = node->data("HW Access").toString().toStdString();
     std::string hw_access = hw_access_str.empty() ? "RO" : hw_access_str;
@@ -625,11 +644,84 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
     item_json["has_reset"]   = has_reset;
     item_json["description"] = desc;
 
+    // Node-specific properties for UVM RAL
+    if (kind == "reg") {
+        QString regHdl = node->data("HDL Path").toString().trimmed();
+        if (regHdl.isEmpty()) {
+            QString lowerRegName = QString::fromStdString(name).toLower();
+            regHdl = QString("reg_%1_q").arg(lowerRegName);
+        }
+        item_json["hdl_path"] = regHdl.toStdString();
+
+        bool no_reg_test = (node->data("NO_REG_TEST").toString().toLower() == "true" || node->data("No Reg Test").toString().toLower() == "true");
+        bool no_reset_test = (no_reg_test || node->data("NO_REG_HW_RESET_TEST").toString().toLower() == "true" || node->data("No Reset Test").toString().toLower() == "true");
+        bool no_bit_bash_test = (no_reg_test || node->data("NO_REG_BIT_BASH_TEST").toString().toLower() == "true" || node->data("No Bit Bash Test").toString().toLower() == "true");
+        bool no_access_test = (no_reg_test || node->data("NO_REG_ACCESS_TEST").toString().toLower() == "true" || node->data("No Access Test").toString().toLower() == "true");
+        item_json["no_reg_test"] = no_reg_test;
+        item_json["no_reset_test"] = no_reset_test;
+        item_json["no_bit_bash_test"] = no_bit_bash_test;
+        item_json["no_access_test"] = no_access_test;
+
+        QString regType = node->data("Reg Type").toString().trimmed().toLower();
+        bool is_fifo = (regType == "fifo" || node->data("Is FIFO").toString().toLower() == "true");
+        uint64_t fifo_depth = parseNumericValue(node->data("FIFO Depth"));
+        if (fifo_depth == 0) fifo_depth = 8;
+        item_json["is_fifo"] = is_fifo;
+        item_json["fifo_depth"] = fifo_depth;
+
+        bool is_indirect = (regType == "indirect" || node->data("Is Indirect").toString().toLower() == "true");
+        QString idxReg = node->data("Index Reg").toString().trimmed();
+        item_json["is_indirect"] = is_indirect;
+        item_json["index_reg"] = idxReg.toStdString();
+
+        bool has_callbacks = (node->data("Has Callbacks").toString().toLower() == "true" || node->data("Callbacks").toString().toLower() == "true");
+        item_json["has_callbacks"] = has_callbacks;
+    } else if (kind == "mem") {
+        uint64_t word_width = parseNumericValue(node->data("Word Width"));
+        if (word_width == 0) word_width = regWidth;
+        uint64_t depth = parseNumericValue(node->data("Depth"));
+        if (depth == 0) {
+            uint64_t wordBytes = (word_width >= 8 ? word_width : 32) / 8;
+            depth = (size_width >= wordBytes && wordBytes > 0) ? (size_width / wordBytes) : (size_width > 0 ? size_width : 1024);
+        }
+        item_json["depth"] = depth;
+        item_json["word_width"] = word_width;
+        item_json["hdl_path"] = node->data("HDL Path").toString().trimmed().toStdString();
+
+        bool no_mem_test = (node->data("NO_MEM_TEST").toString().toLower() == "true" || node->data("No Mem Test").toString().toLower() == "true");
+        bool no_walk_test = (no_mem_test || node->data("NO_MEM_WALK_TEST").toString().toLower() == "true" || node->data("No Walk Test").toString().toLower() == "true");
+        bool no_mem_access_test = (no_mem_test || node->data("NO_MEM_ACCESS_TEST").toString().toLower() == "true" || node->data("No Access Test").toString().toLower() == "true");
+        item_json["no_mem_test"] = no_mem_test;
+        item_json["no_walk_test"] = no_walk_test;
+        item_json["no_access_test"] = no_mem_access_test;
+    } else if (kind == "fld") {
+        bool ind_acc = true;
+        if (node->data("Individually Accessible").isValid()) {
+            QString s = node->data("Individually Accessible").toString().toLower();
+            ind_acc = (s == "true" || s == "1");
+        }
+        item_json["individually_accessible"] = ind_acc ? 1 : 0;
+    } else if (kind == "map") {
+        uint64_t n_bytes = size_width > 0 ? size_width : ((regWidth >= 8 ? regWidth : 32) / 8);
+        QString endianness = node->data("Endianness").toString().trimmed();
+        if (endianness.isEmpty()) endianness = QStringLiteral("UVM_LITTLE_ENDIAN");
+        bool byte_addressing = (node->data("Byte Addressing").toString().toLower() != "false" && node->data("Byte Addressing").toString() != "0");
+        item_json["base_addr"] = offset_lsb;
+        item_json["base_hex"] = formatHex(offset_lsb);
+        item_json["n_bytes"] = n_bytes;
+        item_json["endianness"] = endianness.toStdString();
+        item_json["byte_addressing"] = byte_addressing ? 1 : 0;
+    } else if (kind == "blk") {
+        QString blkHdl = node->data("HDL Path").toString().trimmed();
+        item_json["hdl_path"] = blkHdl.isEmpty() ? "DUT" : blkHdl.toStdString();
+    }
+
     // Structured arrays for native Inja loops
     json blocks    = json::array();
     json registers = json::array();
     json fields    = json::array();
     json memories  = json::array();
+    json maps      = json::array();
 
     for (RegMapTreeItem* child : node->getChildItems())
     {
@@ -648,9 +740,31 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
         case RegMapTreeItem::e_rmmKind::mem:
             memories.push_back(child_json);
             break;
+        case RegMapTreeItem::e_rmmKind::map:
+            maps.push_back(child_json);
+            break;
         default:
             break;
         }
+    }
+
+    if (kind == "blk" || kind == "root") {
+        if (maps.empty()) {
+            json def_map;
+            def_map["name"] = "default_map";
+            def_map["base_addr"] = 0;
+            def_map["base_hex"] = "0";
+            def_map["n_bytes"] = (regWidth >= 8 ? regWidth : 32) / 8;
+            def_map["endianness"] = "UVM_LITTLE_ENDIAN";
+            def_map["byte_addressing"] = 1;
+            maps.push_back(def_map);
+        }
+        std::sort(maps.begin(), maps.end(), [](const json &a, const json &b) {
+            return a.value("base_addr", 0ULL) < b.value("base_addr", 0ULL);
+        });
+        item_json["maps"] = maps;
+    } else if (!maps.empty()) {
+        item_json["maps"] = maps;
     }
 
     if (!blocks.empty()) {

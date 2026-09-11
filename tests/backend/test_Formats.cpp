@@ -48,6 +48,7 @@ private slots:
     void test_JsonExtendedSyntaxAndErrors();
     void test_FormatManagerEdgeCases();
     void test_ProtobufExtendedSyntaxAndErrors();
+    void test_FormatsBranchAndConditionCoverage();
 };
 
 void TestFormats::initTestCase()
@@ -597,6 +598,35 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors()
         RegConfigWindow advConfig;
         FormatResult advRes = rdlHandler.read(advPath, &advModel, &advConfig);
         QVERIFY2(advRes.success, qPrintable(advRes.errorMessage));
+    }
+
+    // Advanced RDL syntax without equals signs (desc "text", sw rw, default regwidth 32)
+    {
+        QString noEqRdl = R"(
+            addrmap NoEqMap {
+                name "NoEqName";
+                default regwidth 32;
+                default sw rw;
+                regfile RF {
+                    reg R1 {
+                        desc "R1 desc";
+                        field {
+                            desc "F1 desc";
+                            sw rw;
+                            hw ro;
+                        } F1[0:0];
+                        F1->reset 0x1;
+                    } REG1 @ 0x0;
+                };
+            };
+        )";
+        QString noEqPath = "work/test_formats/no_equals.rdl";
+        QFile fNoEq(noEqPath);
+        QVERIFY(fNoEq.open(QIODevice::WriteOnly | QIODevice::Text));
+        fNoEq.write(noEqRdl.toUtf8());
+        fNoEq.close();
+        RegMapTreeModel noEqModel;
+        QVERIFY(rdlHandler.read(noEqPath, &noEqModel, nullptr).success);
     }
 
     // Non-existent file read
@@ -1496,6 +1526,37 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
         QCOMPARE(flagCfg.projectName(), QString("FlagProject"));
     }
 
+    // Test JSON fields and registers with non-matching types (triggers false branches of is_string, is_number, is_boolean)
+    {
+        QString wrongTypeJson = R"({
+            "blocks": [{
+                "registers": [{
+                    "offset_hex": 123,
+                    "offset_lsb": "not_a_number",
+                    "fields": [{
+                        "name": 123,
+                        "offset_lsb": "invalid",
+                        "size_width": "invalid",
+                        "access": 123,
+                        "hw_access": 123,
+                        "reset_hex": 123,
+                        "is_rand": "not_bool",
+                        "volatile": 123,
+                        "has_reset": 123,
+                        "description": 123
+                    }]
+                }]
+            }]
+        })";
+        QString wrongTypePath = "work/test_formats/wrong_types.json";
+        QFile fWrong(wrongTypePath);
+        QVERIFY(fWrong.open(QIODevice::WriteOnly | QIODevice::Text));
+        fWrong.write(wrongTypeJson.toUtf8());
+        fWrong.close();
+        RegMapTreeModel wrongModel;
+        QVERIFY(handler.read(wrongTypePath, &wrongModel, nullptr).success);
+    }
+
     // Write with and without config
     QString outJson = "work/test_formats/extended_out.json";
     QVERIFY(handler.write(outJson, &model, &config).success);
@@ -1607,7 +1668,24 @@ void TestFormats::test_FormatManagerEdgeCases()
     QVERIFY(!noHandlerSave.success);
     QVERIFY(noHandlerSave.errorMessage.contains("No format handler found"));
 
+    // Test handlerForFile when only non-Protobuf handlers exist (line 72 false branch & line 77 return nullptr)
+    fm.registerHandler(std::make_shared<JsonHandler>());
+    auto nullHandler = fm.handlerForFile("test.unknown_format");
+    QVERIFY(nullHandler == nullptr);
+
+    // Test registerHandler with nullptr (line 47 false branch for handler)
+    size_t prevCount = fm.handlers().size();
+    fm.registerHandler(nullptr);
+    QCOMPARE(fm.handlers().size(), prevCount);
+
+    // Test capacity limit 128 (line 47 false branch for size < 128)
+    for (int i = 0; i < 135; ++i) {
+        fm.registerHandler(std::make_shared<JsonHandler>());
+    }
+    QCOMPARE(fm.handlers().size(), static_cast<size_t>(128));
+
     // Restore default handlers
+    fm.clearHandlers();
     fm.registerDefaultHandlers();
     QVERIFY(fm.handlers().size() >= 6);
 }
@@ -1691,6 +1769,350 @@ void TestFormats::test_ProtobufExtendedSyntaxAndErrors()
     QCOMPARE(item.getChildItems().at(0), nullptr);
     QCOMPARE(item.getChildItems().at(1), nullptr);
     QCOMPARE(item.getChildItems().at(2), nullptr);
+}
+
+void TestFormats::test_FormatsBranchAndConditionCoverage()
+{
+    // 1. SystemRDL Lexer & Parser Edge Cases
+    SystemRdlHandler rdlHandler;
+    RegMapTreeModel model;
+    RegConfigWindow config;
+
+    // Lexer: '->', escaped quotes in string, unclosed string at EOF, 'h number, _identifier
+    // Single line comment without trailing newline, unclosed block comment, unclosed preproc comment
+    {
+        QString rdlLexer = "addrmap _top_map {\n"
+                           "    name = \"escaped \\\"string\\\" test\";\n"
+                           "    reg {\n"
+                           "        field {\n"
+                           "            hw = wo;\n"
+                           "        } _fld1[31:0] = 'h12_34;\n"
+                           "        _fld1->reset = 'b101;\n"
+                           "    } _reg1 @ 0x0;\n"
+                           "// comment at eof without newline"; // no \n at eof
+        QString path = "work/test_formats/rdl_lexer.rdl";
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+        f.write(rdlLexer.toUtf8());
+        f.close();
+        FormatResult res = rdlHandler.read(path, &model, &config);
+        QVERIFY(res.success);
+    }
+
+    // Unclosed comments and unclosed string at EOF
+    {
+        QString badComments = "/* unclosed block comment at eof";
+        QString p1 = "work/test_formats/unclosed_block.rdl";
+        QFile f1(p1);
+        QVERIFY(f1.open(QIODevice::WriteOnly));
+        f1.write(badComments.toUtf8());
+        f1.close();
+        rdlHandler.read(p1, &model, &config);
+
+        QString badPreproc = "<% unclosed preproc at eof";
+        QString p2 = "work/test_formats/unclosed_preproc.rdl";
+        QFile f2(p2);
+        QVERIFY(f2.open(QIODevice::WriteOnly));
+        f2.write(badPreproc.toUtf8());
+        f2.close();
+        rdlHandler.read(p2, &model, &config);
+
+        QString badStrEof = "\"unclosed string at eof";
+        QString p3 = "work/test_formats/unclosed_str.rdl";
+        QFile f3(p3);
+        QVERIFY(f3.open(QIODevice::WriteOnly));
+        f3.write(badStrEof.toUtf8());
+        f3.close();
+        rdlHandler.read(p3, &model, &config);
+    }
+
+    // Parser edge cases: non-number regwidth, non-ident sw, non-string desc, field range without bracket, etc.
+    {
+        QString rdlErr = "addrmap {\n"
+                         "    default regwidth = not_number;\n"
+                         "    default sw = 12345;\n"
+                         "    reg {\n"
+                         "        desc = 12345;\n"
+                         "        field {\n"
+                         "            desc = 12345;\n"
+                         "            sw = 12345;\n"
+                         "            hw = 12345;\n"
+                         "        } fld_err[msb:not_num];\n"
+                         "        field fld_err2[7:0;\n"
+                         "        field fld_err3 = not_num;\n"
+                         "    } R_ERR @ not_num;\n"
+                         "};\n";
+        QString p = "work/test_formats/rdl_parser_errs.rdl";
+        QFile f(p);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(rdlErr.toUtf8());
+        f.close();
+        rdlHandler.read(p, &model, &config);
+    }
+
+    // SystemRDL, SVD, CSV, IP-XACT Exporters with mixed tree hierarchy
+    {
+        RegMapTreeModel mixedModel;
+        QVariantMap rootData;
+        rootData["Type"] = "root";
+        rootData["Name"] = "Root";
+        RegMapTreeItem *customRoot = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+
+        // Blk with empty name
+        QVariantMap blkData;
+        blkData["Type"] = "blk";
+        blkData["Name"] = "";
+        RegMapTreeItem *blk = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, customRoot);
+        customRoot->appendChild(blk);
+
+        // Add a non-blk (mem) child to root
+        QVariantMap memData;
+        memData["Type"] = "mem";
+        memData["Name"] = "MEM0";
+        RegMapTreeItem *memRoot = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, customRoot);
+        customRoot->appendChild(memRoot);
+
+        // Add a non-reg (mem) child to blk
+        RegMapTreeItem *memBlk = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, blk);
+        blk->appendChild(memBlk);
+
+        // Reg under blk
+        QVariantMap regData;
+        regData["Type"] = "reg";
+        regData["Name"] = "REG0";
+        regData["Offset/LSB"] = "0x0";
+        regData["Description"] = "Reg Desc";
+        RegMapTreeItem *reg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, blk);
+        blk->appendChild(reg);
+
+        // Add a non-fld (reg) child to reg
+        RegMapTreeItem *regChild = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, reg);
+        reg->appendChild(regChild);
+
+        // Field with hwAccess "wo", "ro", "rw", "na", ""
+        QVariantMap fldData1;
+        fldData1["Type"] = "fld";
+        fldData1["Name"] = "F_WO";
+        fldData1["Offset/LSB"] = "0";
+        fldData1["Size/Width"] = "4";
+        fldData1["Access Policy"] = "WO";
+        fldData1["HW Access"] = "WO";
+        fldData1["Reset Value"] = "0x0";
+        fldData1["Has Reset"] = "false";
+        RegMapTreeItem *fld1 = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData1, reg);
+        reg->appendChild(fld1);
+
+        QVariantMap fldData2;
+        fldData2["Type"] = "fld";
+        fldData2["Name"] = "F_RO";
+        fldData2["Offset/LSB"] = "4";
+        fldData2["Size/Width"] = "4";
+        fldData2["Access Policy"] = "RO";
+        fldData2["HW Access"] = "ro";
+        fldData2["Reset Value"] = "0xA";
+        fldData2["Has Reset"] = "true";
+        RegMapTreeItem *fld2 = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData2, reg);
+        reg->appendChild(fld2);
+
+        QVariantMap fldData3;
+        fldData3["Type"] = "fld";
+        fldData3["Name"] = "F_EMPTY_RESET";
+        fldData3["Offset/LSB"] = "8";
+        fldData3["Size/Width"] = "4";
+        fldData3["Access Policy"] = "RW";
+        fldData3["HW Access"] = "rw";
+        fldData3["Reset Value"] = "";
+        fldData3["Has Reset"] = "true";
+        RegMapTreeItem *fld3 = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData3, reg);
+        reg->appendChild(fld3);
+
+        mixedModel.setRootItem(customRoot);
+
+        // Export mixedModel with all handlers
+        CmsisSvdHandler svdHandler;
+        CsvHandler csvHandler;
+        IpxactHandler ipxHandler;
+
+        QVERIFY(rdlHandler.write("work/test_formats/mixed_export.rdl", &mixedModel, &config).success);
+        QVERIFY(svdHandler.write("work/test_formats/mixed_export.svd", &mixedModel, &config).success);
+        QVERIFY(csvHandler.write("work/test_formats/mixed_export.csv", &mixedModel, &config).success);
+        QVERIFY(ipxHandler.write("work/test_formats/mixed_export.xml", &mixedModel, &config).success);
+    }
+
+    // 2. CMSIS-SVD Access types and tag variations
+    {
+        CmsisSvdHandler svdHandler;
+        QString svdXml = R"(<?xml version="1.0" encoding="utf-8"?>
+<device schemaVersion="1.3" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance">
+    <name>SVD_TEST</name>
+    <peripherals>
+        <peripheral>
+            <name>PERIPH_A</name>
+            <baseAddress>0x40000000</baseAddress>
+            <description>Peripheral A</description>
+            <registers>
+                <register>
+                    <name>REG_A</name>
+                    <addressOffset>0x0</addressOffset>
+                    <size>32</size>
+                    <access>write-only</access>
+                    <resetValue>0x1234</resetValue>
+                    <fields>
+                        <field>
+                            <name>F_WO</name>
+                            <bitRange>[7:0]</bitRange>
+                            <access>writeonce</access>
+                        </field>
+                        <field>
+                            <name>F_BAD_RANGE</name>
+                            <bitRange>invalid_range</bitRange>
+                        </field>
+                    </fields>
+                </register>
+                <register>
+                    <name>REG_B</name>
+                    <addressOffset>0x4</addressOffset>
+                    <access>read-writeOnce</access>
+                </register>
+            </registers>
+        </peripheral>
+        <!-- Field outside register to stimulate currentReg == nullptr -->
+        <field>
+            <name>ORPHAN_FIELD</name>
+            <bitOffset>0</bitOffset>
+            <bitWidth>1</bitWidth>
+        </field>
+    </peripherals>
+</device>
+)";
+        QString svdPath = "work/test_formats/svd_coverage.svd";
+        QFile f(svdPath);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+        f.write(svdXml.toUtf8());
+        f.close();
+        FormatResult res = svdHandler.read(svdPath, &model, &config);
+        QVERIFY(res.success);
+    }
+
+    // 3. CSV Handler: short rows, empty rows, delimiter/quote variations
+    {
+        CsvHandler csvHandler;
+        QString csvContent = "Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description\n"
+                             "\n" // empty record
+                             "\"\"\n" // record with 1 empty string
+                             "blk\n" // row with 1 item
+                             "blk,BLK_SHORT\n" // row with 2 items
+                             "reg,BLK_SHORT,REG_SHORT\n" // row with 3 items
+                             "mem,BLK_SHORT,MEM_REG,MEM_FLD,0x0,32,RW,0x0,false,false,false,\"Quote \\\"with\\\" comma, and \\n newline\"\n";
+        QString csvPath = "work/test_formats/csv_coverage.csv";
+        QFile f(csvPath);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+        f.write(csvContent.toUtf8());
+        f.close();
+        FormatResult res = csvHandler.read(csvPath, &model, &config);
+        QVERIFY(res.success);
+    }
+
+    // 4. IP-XACT Handler: read-write access, baseAddress, register tags, field outside reg
+    {
+        IpxactHandler ipxHandler;
+        QString ipxXml = R"(<?xml version="1.0" encoding="UTF-8"?>
+<spirit:component xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009">
+    <spirit:memoryMaps>
+        <spirit:memoryMap>
+            <spirit:addressBlock>
+                <spirit:name>BLK_IPX</spirit:name>
+                <spirit:baseAddress>0x40001000</spirit:baseAddress>
+                <spirit:range>0x1000</spirit:range>
+                <spirit:width>32</spirit:width>
+                <spirit:register>
+                    <spirit:name>REG_RW</spirit:name>
+                    <spirit:description>Test Reg</spirit:description>
+                    <spirit:addressOffset>0x0</spirit:addressOffset>
+                    <spirit:size>32</spirit:size>
+                    <spirit:access>read-write</spirit:access>
+                    <spirit:field>
+                        <spirit:name>F_RW</spirit:name>
+                        <spirit:bitOffset>0</spirit:bitOffset>
+                        <spirit:bitWidth>16</spirit:bitWidth>
+                        <spirit:access>read-write</spirit:access>
+                    </spirit:field>
+                </spirit:register>
+                <!-- Field outside register -->
+                <spirit:field>
+                    <spirit:name>ORPHAN_IPX</spirit:name>
+                    <spirit:bitOffset>0</spirit:bitOffset>
+                    <spirit:bitWidth>1</spirit:bitWidth>
+                </spirit:field>
+            </spirit:addressBlock>
+        </spirit:memoryMap>
+    </spirit:memoryMaps>
+</spirit:component>
+)";
+        QString ipxPath = "work/test_formats/ipx_coverage.xml";
+        QFile f(ipxPath);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+        f.write(ipxXml.toUtf8());
+        f.close();
+        FormatResult res = ipxHandler.read(ipxPath, &model, &config);
+        QVERIFY(res.success);
+    }
+
+    // 5. SystemRDL: unclosed comments, top-level name, anonymous constructs, bit range errors
+    {
+        SystemRdlHandler rdlHandler;
+        QString unclosedTagRdl = "<% unclosed ruby tag at EOF";
+        QString p1 = "work/test_formats/unclosed_tag.rdl";
+        QFile f1(p1);
+        if (f1.open(QIODevice::WriteOnly | QIODevice::Text)) { f1.write(unclosedTagRdl.toUtf8()); f1.close(); }
+        rdlHandler.read(p1, &model, &config);
+
+        QString unclosedCommentRdl = "/* unclosed comment at EOF";
+        QString p2 = "work/test_formats/unclosed_comment.rdl";
+        QFile f2(p2);
+        if (f2.open(QIODevice::WriteOnly | QIODevice::Text)) { f2.write(unclosedCommentRdl.toUtf8()); f2.close(); }
+        rdlHandler.read(p2, &model, &config);
+
+        QString rdlCornerCases = R"(
+            name = "ProjectNameTest";
+            addrmap TopMap {
+                default;
+                default = 123;
+                default sw = rw
+                regfile BareBlock;
+                reg {
+                    field { desc = "F"; } anon_fld;
+                } anon_reg;
+                reg RangeReg {
+                    field FBad[7:bad];
+                    field FReset;
+                    FReset->reset = bad_num;
+                } r_bad;
+            };
+        )";
+        QString p3 = "work/test_formats/corner_cases.rdl";
+        QFile f3(p3);
+        if (f3.open(QIODevice::WriteOnly | QIODevice::Text)) { f3.write(rdlCornerCases.toUtf8()); f3.close(); }
+        rdlHandler.read(p3, &model, &config);
+    }
+
+    // 6. CSV: 'Block' header, unclosed quote at EOF, and trailing empty field record
+    {
+        CsvHandler csvHandler;
+        QString csvBlockHeader = "Block,Register,Field\n"
+                                 "BLK1,REG1,FLD1\n"
+                                 "\"unclosed quote at EOF";
+        QString p = "work/test_formats/csv_block_header.csv";
+        QFile f(p);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) { f.write(csvBlockHeader.toUtf8()); f.close(); }
+        csvHandler.read(p, &model, &config);
+
+        QString csvTrailingComma = "Type,Block,Register\nblk,BLK_T,\n";
+        QString p2 = "work/test_formats/csv_trailing.csv";
+        QFile f2(p2);
+        if (f2.open(QIODevice::WriteOnly | QIODevice::Text)) { f2.write(csvTrailingComma.toUtf8()); f2.close(); }
+        csvHandler.read(p2, &model, &config);
+    }
 }
 
 QTEST_MAIN(TestFormats)

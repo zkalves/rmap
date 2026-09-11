@@ -74,6 +74,11 @@ void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext*
     }
     m_childItems = childItems;
     m_itemData = data[ "itemData" ].toMap();
+    if (m_itemData.contains("Access Policy") && !m_itemData.contains("SW Access")) {
+        m_itemData["SW Access"] = m_itemData["Access Policy"];
+    } else if (m_itemData.contains("SW Access") && !m_itemData.contains("Access Policy")) {
+        m_itemData["Access Policy"] = m_itemData["SW Access"];
+    }
 }
 
 RegMapTreeItem *RegMapTreeItem::child(int row) const
@@ -114,6 +119,14 @@ QVariant RegMapTreeItem::data(const QString &column) const
     if (column == "Size/Width" && m_itemData.contains("Size"))
     {
         return m_itemData["Size"];
+    }
+    if ((column == "SW Access" || column == "Access Policy") && m_itemData.contains("SW Access"))
+    {
+        return m_itemData["SW Access"];
+    }
+    if ((column == "SW Access" || column == "Access Policy") && m_itemData.contains("Access Policy"))
+    {
+        return m_itemData["Access Policy"];
     }
     return QVariant();
 }
@@ -172,6 +185,10 @@ bool RegMapTreeItem::setData(const QString &column, const QVariant &value)
         m_itemData["Size"] = value;
         m_itemData["Size/Width"] = value;
     }
+    if (column == "SW Access" || column == "Access Policy") {
+        m_itemData["SW Access"] = value;
+        m_itemData["Access Policy"] = value;
+    }
     return true;
 }
 
@@ -213,6 +230,7 @@ QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::possibleChildren() const noex
     {
         case RegMapTreeItem::e_rmmKind::root: possible_children = { RegMapTreeItem::e_rmmKind::blk, RegMapTreeItem::e_rmmKind::mem, RegMapTreeItem::e_rmmKind::map }; break;
         case RegMapTreeItem::e_rmmKind::blk : possible_children = { RegMapTreeItem::e_rmmKind::mem, RegMapTreeItem::e_rmmKind::map, RegMapTreeItem::e_rmmKind::reg, RegMapTreeItem::e_rmmKind::blk}; break;
+        case RegMapTreeItem::e_rmmKind::map : possible_children = { RegMapTreeItem::e_rmmKind::reg, RegMapTreeItem::e_rmmKind::mem }; break;
         case RegMapTreeItem::e_rmmKind::reg : possible_children = { RegMapTreeItem::e_rmmKind::fld}; break;
         default: break;
     }

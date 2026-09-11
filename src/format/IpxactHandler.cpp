@@ -22,10 +22,16 @@ namespace {
 
 QString ipxactAccessToUvm(const QString &acc) {
     QString a = acc.toLower().trimmed();
-    if (a == "read-write" || a == "rw") return "RW";
-    if (a == "read-only" || a == "ro" || a == "r") return "RO";
-    if (a == "write-only" || a == "wo" || a == "w") return "WO";
-    if (a == "read-writeonce" || a == "w1c") return "W1C";
+    if (a == "read-write") return "RW";
+    if (a == "rw") return "RW";
+    if (a == "read-only") return "RO";
+    if (a == "ro") return "RO";
+    if (a == "r") return "RO";
+    if (a == "write-only") return "WO";
+    if (a == "wo") return "WO";
+    if (a == "w") return "WO";
+    if (a == "read-writeonce") return "W1C";
+    if (a == "w1c") return "W1C";
     if (a == "w0c") return "W0C";
     if (a == "rc") return "RC";
     if (a == "rs") return "RS";
@@ -63,7 +69,7 @@ FormatResult IpxactHandler::read(const QString &filepath, RegMapTreeModel *model
 
     QXmlStreamReader xml(&file);
 
-    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "Access Policy", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
+    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
     QVariantMap rootData;
     for (const QString &c : cols) rootData[c] = c;
     RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
@@ -104,7 +110,7 @@ FormatResult IpxactHandler::read(const QString &filepath, RegMapTreeModel *model
                 regData["Offset/LSB"] = "0x0";
                 regData["Size/Width"] = QString::number(globalWidth);
                 regData["Name"] = "REG";
-                regData["Access Policy"] = "RW";
+                regData["SW Access"] = "RW";
                 regData["HW Access"] = "RO";
                 regData["Reset Value"] = "0x0";
                 regData["Description"] = "";
@@ -160,7 +166,7 @@ FormatResult IpxactHandler::read(const QString &filepath, RegMapTreeModel *model
                     fldData["Offset/LSB"] = QString::number(bitOffset);
                     fldData["Size/Width"] = QString::number(bitWidth);
                     fldData["Name"] = fldName;
-                    fldData["Access Policy"] = access;
+                    fldData["SW Access"] = access;
                     fldData["HW Access"] = (access == "RO") ? "WO" : "RO";
                     fldData["Reset Value"] = QString("0x%1").arg(resetVal, 0, 16);
                     fldData["Is Rand"] = "true";
@@ -289,7 +295,7 @@ FormatResult IpxactHandler::write(const QString &filepath, RegMapTreeModel *mode
                 }
                 xml.writeTextElement("ipxact:bitOffset", fld->data("Offset/LSB").toString().trimmed());
                 xml.writeTextElement("ipxact:bitWidth", fld->data("Size/Width").toString().trimmed());
-                xml.writeTextElement("ipxact:access", uvmAccessToIpxact(fld->data("Access Policy").toString().trimmed()));
+                xml.writeTextElement("ipxact:access", uvmAccessToIpxact(fld->data("SW Access").toString().trimmed()));
 
                 if (fld->data("Has Reset").toString().toLower() == "true") {
                     xml.writeStartElement("ipxact:resets");

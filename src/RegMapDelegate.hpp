@@ -75,6 +75,8 @@ public:
     bool editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index) override;
 };
 
+using RegSwAccessDelegate = RegAccessPolicyDelegate;
+
 // Delegate for Hardware Access Policies (RO, RW, WO, NA, W1C, etc.)
 class RegHwAccessDelegate : public QStyledItemDelegate
 {

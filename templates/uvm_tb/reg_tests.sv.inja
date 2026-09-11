@@ -104,4 +104,56 @@ class {{ lower(blk.name) }}_reg_access_test extends {{ lower(blk.name) }}_base_t
     phase.drop_objection(this);
   endtask
 endclass : {{ lower(blk.name) }}_reg_access_test
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+
+
+// =============================================================================
+// 5. IEEE 1800.2 Standard Memory Walk Test (uvm_mem_walk_seq)
+// =============================================================================
+class {{ lower(blk.name) }}_mem_walk_test extends {{ lower(blk.name) }}_base_test;
+  `uvm_component_utils({{ lower(blk.name) }}_mem_walk_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+    uvm_mem_walk_seq seq;
+    phase.raise_objection(this);
+
+    `uvm_info("TEST", "Starting IEEE 1800.2 uvm_mem_walk_seq...", UVM_LOW)
+    seq = uvm_mem_walk_seq::type_id::create("seq");
+    seq.model = env.reg_model;
+    seq.start(null);
+
+    `uvm_info("TEST", "Completed IEEE 1800.2 uvm_mem_walk_seq successfully!", UVM_LOW)
+    phase.drop_objection(this);
+  endtask
+endclass : {{ lower(blk.name) }}_mem_walk_test
+
+
+// =============================================================================
+// 6. IEEE 1800.2 Standard Memory Access Test (uvm_mem_access_seq)
+// =============================================================================
+class {{ lower(blk.name) }}_mem_access_test extends {{ lower(blk.name) }}_base_test;
+  `uvm_component_utils({{ lower(blk.name) }}_mem_access_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+    uvm_mem_access_seq seq;
+    phase.raise_objection(this);
+
+    `uvm_info("TEST", "Starting IEEE 1800.2 uvm_mem_access_seq...", UVM_LOW)
+    seq = uvm_mem_access_seq::type_id::create("seq");
+    seq.model = env.reg_model;
+    seq.start(null);
+
+    `uvm_info("TEST", "Completed IEEE 1800.2 uvm_mem_access_seq successfully!", UVM_LOW)
+    phase.drop_objection(this);
+  endtask
+endclass : {{ lower(blk.name) }}_mem_access_test
+{% endif %}
 {% endfor %}

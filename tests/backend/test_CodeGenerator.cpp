@@ -21,10 +21,18 @@ class TestCodeGenerator : public QObject
 private slots:
     void initTestCase() {
         QDir("work").removeRecursively();
+        QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
         QDir().mkpath("work");
     }
     void cleanupTestCase() {
         QDir("work").removeRecursively();
+        QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
     }
     void testHelperUpperAndLower();
     void testHelperToHexAndToDec();
@@ -33,6 +41,7 @@ private slots:
     void testHelperSvHex();
     void testFullGenerationCHeader();
     void testFullGenerationUvmModel();
+    void testUvmCookbookRalFeatures();
     void testMultiSourceTemplateMappings();
     void testNewNamingAndTypeHelpers();
     void testFullGenerationGenericRtl();
@@ -331,6 +340,155 @@ void TestCodeGenerator::testFullGenerationUvmModel()
     QVERIFY(content.contains("class spi_block_reg_block extends uvm_reg_block;"));
     QVERIFY(content.contains("class status_reg extends uvm_reg;"));
     QVERIFY(content.contains("this.tx_ready.configure("));
+}
+
+void TestCodeGenerator::testUvmCookbookRalFeatures()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SoC_Root";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json parentBlk;
+    parentBlk["name"] = "TOP_SUBSYSTEM";
+    parentBlk["hdl_path"] = "tb_top.dut.soc";
+
+    // Custom Map
+    json ahbMap;
+    ahbMap["name"] = "AHB_MAP";
+    ahbMap["base_hex"] = "32'h1000";
+    ahbMap["n_bytes"] = 4;
+    ahbMap["endianness"] = "UVM_LITTLE_ENDIAN";
+    ahbMap["byte_addressing"] = 1;
+    parentBlk["maps"] = json::array({ahbMap});
+
+    // FIFO Register with custom HDL path and test disables
+    json fifoReg;
+    fifoReg["name"] = "RX_FIFO";
+    fifoReg["offset_hex"] = "32'h0000";
+    fifoReg["size_width"] = 32;
+    fifoReg["access"] = "RO";
+    fifoReg["hdl_path"] = "dut.soc.rx_fifo_dff";
+    fifoReg["is_fifo"] = true;
+    fifoReg["fifo_depth"] = 16;
+    fifoReg["no_reg_test"] = true;
+    fifoReg["no_bit_bash_test"] = true;
+    fifoReg["no_reset_test"] = true;
+    fifoReg["no_access_test"] = true;
+
+    json fld;
+    fld["name"] = "DATA";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 8;
+    fld["access"] = "RO";
+    fld["volatile"] = true;
+    fld["reset_hex"] = "0x00";
+    fld["has_reset"] = true;
+    fld["is_rand"] = false;
+    fld["individually_accessible"] = 0;
+    fifoReg["fields"] = json::array({fld});
+
+    // Indirect register with callbacks
+    json indReg;
+    indReg["name"] = "MEM_WINDOW";
+    indReg["offset_hex"] = "32'h0004";
+    indReg["size_width"] = 32;
+    indReg["access"] = "RW";
+    indReg["is_indirect"] = true;
+    indReg["index_reg"] = "RX_FIFO";
+    indReg["has_callbacks"] = true;
+    indReg["fields"] = json::array();
+
+    parentBlk["registers"] = json::array({fifoReg, indReg});
+
+    // Memory with depth, word width, HDL path, test disables
+    json mem;
+    mem["name"] = "SRAM_BUF";
+    mem["offset_hex"] = "32'h4000";
+    mem["size_width"] = 8192;
+    mem["depth"] = 2048;
+    mem["word_width"] = 32;
+    mem["access"] = "RW";
+    mem["hdl_path"] = "dut.soc.sram_arr";
+    mem["no_mem_test"] = true;
+    mem["no_walk_test"] = true;
+    mem["no_access_test"] = true;
+    parentBlk["memories"] = json::array({mem});
+
+    // Sub-block
+    json subBlk;
+    subBlk["name"] = "GPIO";
+    subBlk["offset_hex"] = "32'h0800";
+    subBlk["registers"] = json::array();
+    subBlk["memories"] = json::array();
+    subBlk["blocks"] = json::array();
+    parentBlk["blocks"] = json::array({subBlk});
+
+    root["blocks"] = json::array({parentBlk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/uvm/ral_features_model.sv"});
+
+    GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
+    QVERIFY(!report.has_errors());
+
+    QFile out("work/uvm/ral_features_model.sv");
+    QVERIFY(out.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = out.readAll();
+    out.close();
+
+    // Verify FIFO register inheritance and depth
+    QVERIFY(content.contains("class rx_fifo_reg extends uvm_reg_fifo;"));
+    QVERIFY(content.contains("super.new(name, 16, 32, UVM_CVR_ALL);"));
+
+    // Verify individually_accessible = 0
+    QVERIFY(content.contains("this.data.configure(this, 8, 0, \"RO\", true, 0x00, true, false, 0);"));
+
+    // Verify custom map declaration and creation
+    QVERIFY(content.contains("uvm_reg_map ahb_map;"));
+    QVERIFY(content.contains("this.ahb_map = create_map(\"AHB_MAP\", 32'h1000, 4, UVM_LITTLE_ENDIAN, 1);"));
+
+    // Verify register added to default_map and AHB_map
+    QVERIFY(content.contains("this.default_map.add_reg(this.rx_fifo, 32'h0000, \"RO\");"));
+    QVERIFY(content.contains("this.ahb_map.add_reg(this.rx_fifo, 32'h0000, \"RO\");"));
+
+    // Verify custom HDL backdoor path
+    QVERIFY(content.contains("this.rx_fifo.add_hdl_path_slice(\"dut.soc.rx_fifo_dff\", 0, 32);"));
+
+    // Verify register test disables
+    QVERIFY(content.contains("NO_REG_TEST"));
+    QVERIFY(content.contains("NO_REG_HW_RESET_TEST"));
+    QVERIFY(content.contains("NO_REG_BIT_BASH_TEST"));
+    QVERIFY(content.contains("NO_REG_ACCESS_TEST"));
+
+    // Verify memory creation and test disables
+    QVERIFY(content.contains("this.sram_buf = new(\"SRAM_BUF\", 2048, 32, \"RW\");"));
+    QVERIFY(content.contains("this.sram_buf.configure(this, \"dut.soc.sram_arr\");"));
+    QVERIFY(content.contains("this.ahb_map.add_mem(this.sram_buf, 32'h4000);"));
+    QVERIFY(content.contains("NO_MEM_TEST"));
+    QVERIFY(content.contains("NO_MEM_WALK_TEST"));
+
+    // Verify sub-block integration via add_submap
+    QVERIFY(content.contains("rand gpio_reg_block gpio;"));
+    QVERIFY(content.contains("this.gpio = gpio_reg_block::type_id::create(\"GPIO\");"));
+    QVERIFY(content.contains("this.default_map.add_submap(this.gpio.default_map, 32'h0800);"));
+    QVERIFY(content.contains("this.ahb_map.add_submap(this.gpio.default_map, 32'h0800);"));
+
+    // Verify indirect register extends uvm_reg_indirect_data
+    QVERIFY(content.contains("class mem_window_reg extends uvm_reg_indirect_data;"));
+    QVERIFY(content.contains("this.mem_window.configure(this.rx_fifo, null, this, null);"));
+
+    // Verify callback class generated
+    QVERIFY(content.contains("class mem_window_cbs extends uvm_reg_cbs;"));
+    QVERIFY(content.contains("uvm_reg_cb::add(this, cb);"));
+
+    // Verify block-level and register-level functional coverage
+    QVERIFY(content.contains("covergroup top_subsystem_reg_access_cg with function sample(uvm_reg_addr_t addr, bit is_read);"));
+
+    // Verify block HDL path and lock_model
+    QVERIFY(content.contains("this.add_hdl_path(\"tb_top.dut.soc\", \"RTL\");"));
+    QVERIFY(content.contains("this.lock_model();"));
 }
 
 void TestCodeGenerator::testMultiSourceTemplateMappings()
@@ -1677,6 +1835,9 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "snake_camel={{ snake_case(\"camelCaseWord\") }}\n"
         "sv_hex_str={{ sv_hex(\"0x123\", \"16\") }}\n"
         "sv_hex_quoted={{ sv_hex(\"\\\"0x1234\\\"\", \"16\") }}\n"
+        "sv_hex_lead_quote={{ sv_hex(\"\\\"0x123\", \"16\") }}\n"
+        "sv_hex_trail_quote={{ sv_hex(\"0x123\\\"\", \"16\") }}\n"
+        "sv_hex_short={{ sv_hex(\"a\", \"16\") }}\n"
         "sv_hex_bad={{ sv_hex(\"not_num\", \"invalid\") }}\n"
         "sv_hex_no_width={{ sv_hex(255) }}\n"
         "sv_hex_zero_width={{ sv_hex(255, 0) }}\n"
@@ -1696,6 +1857,9 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "snake_aB={{ snake_case(\"aB\") }}\n"
         "snake_abcDef={{ snake_case(\"ABCDef\") }}\n"
         "snake_consec={{ snake_case(\"foo--bar  baz\") }}\n"
+        "snake_lead_dash={{ snake_case(\"-leading\") }}\n"
+        "snake_lead_quote={{ snake_case(\"\\\"foo\") }}\n"
+        "snake_trail_quote={{ snake_case(\"foo\\\"\") }}\n"
         "camel_num={{ camel_case(123) }}\n"
         "camel_quote={{ camel_case(\"\\\"ctrl_status\\\"\") }}\n"
         "camel_dash={{ camel_case(\"ctrl-status flag\") }}\n"
@@ -1751,6 +1915,12 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
     QVERIFY(content.contains("snake_aB=a_b"));
     QVERIFY(content.contains("snake_abcDef=abc_def"));
     QVERIFY(content.contains("snake_consec=foo_bar_baz"));
+    QVERIFY(content.contains("snake_lead_dash=leading"));
+    QVERIFY(content.contains("snake_lead_quote=\"foo"));
+    QVERIFY(content.contains("snake_trail_quote=foo\""));
+    QVERIFY(content.contains("sv_hex_lead_quote=16'h0000"));
+    QVERIFY(content.contains("sv_hex_trail_quote=16'h0123"));
+    QVERIFY(content.contains("sv_hex_short=16'h0000"));
     QVERIFY(content.contains("camel_num=123"));
     QVERIFY(content.contains("camel_quote=ctrlStatus"));
     QVERIFY(content.contains("camel_dash=ctrlStatusFlag"));
@@ -2149,6 +2319,7 @@ void TestCodeGenerator::testCommandLineInterface()
 
         auto [codeExpDefault, outExpDefault] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--export"});
         QCOMPARE(codeExpDefault, 0);
+        QDir("examples/rmt/peripherals/work").removeRecursively();
 
         auto [codeLintFail, outLintFail] = runRmap({"-f", "examples/rmt/validation/invalid_overlap.rmt", "--lint"});
         QCOMPARE(codeLintFail, 1);
@@ -2217,6 +2388,141 @@ void TestCodeGenerator::testCommandLineInterface()
 
         auto [codeExpShortFail, outExpShortFail] = runRmap({"-e"});
         QCOMPARE(codeExpShortFail, 1);
+    }
+
+    // 16. sv_hex helper with string width argument
+    {
+        CodeGenerator cg;
+        QDir().mkpath("work/test_tmpl");
+        QFile fSv("work/test_tmpl/sv_hex_str.inja");
+        if (fSv.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fSv.write("{{ sv_hex(255, \"32\") }}");
+            fSv.close();
+        }
+        std::vector<TemplateMapping> mappings;
+        mappings.push_back({"work/test_tmpl/sv_hex_str.inja", "work/test_tmpl/sv_hex_str.txt"});
+        json emptyObj = json::object();
+        emptyObj["name"] = "sv_hex_test";
+        GenerationReport report = cg.generate(emptyObj, "work/test_tmpl", "work/test_tmpl", mappings);
+        QVERIFY(!report.has_errors());
+        QFile out("work/test_tmpl/sv_hex_str.txt");
+        QVERIFY(out.open(QIODevice::ReadOnly | QIODevice::Text));
+        QCOMPARE(out.readAll().trimmed(), QString("32'h00FF"));
+        out.close();
+    }
+
+    // 17. generate with reg_width 0 and decreasing register offsets
+    {
+        CodeGenerator cg;
+        json padRoot = json::object();
+        padRoot["name"] = "PAD_ROOT";
+        padRoot["reg_width"] = 0; // stimulates regBytes == 0 -> 4
+        json padBlk = json::object();
+        padBlk["name"] = "PAD_BLK";
+        padBlk["offset_hex"] = "0x0";
+        json padReg1 = json::object();
+        padReg1["offset_hex"] = "0x10";
+        padReg1["name"] = "REG1";
+        padReg1["fields"] = json::array();
+        json padReg2 = json::object();
+        padReg2["offset_hex"] = "0x04"; // decreasing offset -> padBytes = 0
+        padReg2["name"] = "REG2";
+        padReg2["fields"] = json::array();
+        padBlk["registers"] = json::array({padReg1, padReg2});
+        padRoot["blocks"] = json::array({padBlk});
+
+        QFile fPad("work/test_tmpl/pad_test.inja");
+        if (fPad.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fPad.write("{% for b in blocks %}{{ b.name }}{% endfor %}");
+            fPad.close();
+        }
+        std::vector<TemplateMapping> mappings;
+        mappings.push_back({"work/test_tmpl/pad_test.inja", "work/test_tmpl/pad_test.txt"});
+        GenerationReport report = cg.generate(padRoot, "work/test_tmpl", "work/test_tmpl", mappings);
+        QVERIFY(!report.has_errors());
+    }
+
+    // 18. runPythonScript with mismatched json types, script failure, and timeout
+    {
+        CodeGenerator cg;
+        json badTypesJson = json::object();
+        badTypesJson["name"] = 12345; // not a string
+        badTypesJson["project_name"] = true; // not a string
+        badTypesJson["version"] = json::array(); // not a string
+        badTypesJson["reg_width"] = "not_a_num"; // not a number
+
+        QString failScript = "work/test_fail_script.py";
+        QFile fFail(failScript);
+        if (fFail.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fFail.write("import sys\nsys.stderr.write('fatal script error\\n')\nsys.exit(2)\n");
+            fFail.close();
+            std::string stdout_str, stderr_str;
+            bool ok = cg.runPythonScript(failScript.toStdString(), badTypesJson, "", &stdout_str, &stderr_str);
+            QVERIFY(!ok);
+            QVERIFY(stderr_str.find("fatal script error") != std::string::npos);
+        }
+
+        QString timeoutScript = "work/test_timeout_script.py";
+        QFile fTimeout(timeoutScript);
+        if (fTimeout.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fTimeout.write("import time\ntime.sleep(2)\n");
+            fTimeout.close();
+            qputenv("RMAP_PYTHON_TIMEOUT", "150"); // 150 ms timeout
+            std::string stdout_str, stderr_str;
+            bool ok = cg.runPythonScript(timeoutScript.toStdString(), json::object(), "", &stdout_str, &stderr_str);
+            QVERIFY(!ok);
+            qunsetenv("RMAP_PYTHON_TIMEOUT");
+        }
+    }
+
+    // 19. Sim template mappings, directory scanning with .tmpl, and python failure to stdout
+    {
+        CodeGenerator cg;
+
+        // .tmpl template extension stripping during directory scanning (exercises line 556)
+        QDir().mkpath("work/test_tmpl_scan");
+        QFile fTmpl("work/test_tmpl_scan/my_template.tmpl");
+        if (fTmpl.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fTmpl.write("dummy template");
+            fTmpl.close();
+        }
+        GenerationReport rTmpl = cg.parseDirectory(json::object(), "work/test_tmpl_scan", "work/out_tmpl_scan");
+        Q_UNUSED(rTmpl);
+
+        // Python script that fails and outputs to stdout only (empty stderr -> exercises pyErr.empty() ? pyOut : pyErr)
+        QString failStdoutScript = "work/test_fail_stdout.py";
+        QFile fOut(failStdoutScript);
+        if (fOut.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fOut.write("import sys\nprint('stdout error message')\nsys.exit(3)\n");
+            fOut.close();
+        }
+        GenerationReport r = cg.generate(json::object(), "templates", "work", {}, "", failStdoutScript.toStdString());
+        QVERIFY(r.has_errors());
+
+        // Generate with RTL, UVM, and SIM Makefile templates together (exercises lines 433, 443, 451)
+        std::vector<TemplateMapping> simMappings;
+        simMappings.push_back({"templates/rtl/reg_map.sv.inja", "work/sim_test/rtl/reg_map.sv"});
+        simMappings.push_back({"templates/uvm/reg_model.sv.inja", "work/sim_test/uvm/reg_model.sv"});
+        simMappings.push_back({"templates/sim/Makefile.inja", "work/sim_test/sim/Makefile"});
+
+        json simJson = json::object();
+        simJson["name"] = "SIM_PERIPH";
+        simJson["version"] = "1.0.0"; // exercises string version on line 710
+        simJson["reg_width"] = 32;
+        json blk = json::object();
+        blk["name"] = "B1";
+        blk["registers"] = json::array();
+        simJson["blocks"] = json::array({blk});
+
+        GenerationReport simRep = cg.generate(simJson, "templates", "work/sim_test", simMappings);
+        QVERIFY(!simRep.has_errors());
+
+        // Sim directory resolution when target is a directory path ending with '/'
+        QDir().mkpath("work/sim_test/sim_dir");
+        std::vector<TemplateMapping> simDirMappings;
+        simDirMappings.push_back({"templates/sim/Makefile.inja", "work/sim_test/sim_dir/"});
+        GenerationReport simDirRep = cg.generate(simJson, "templates", "work/sim_test", simDirMappings);
+        QVERIFY(!simDirRep.has_errors());
     }
 }
 

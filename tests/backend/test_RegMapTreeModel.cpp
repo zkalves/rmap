@@ -33,6 +33,7 @@ private slots:
     void testIndexAndDataRolesEdgeCases();
     void testLinterExtendedRules();
     void testModelCoverageEdgeCases();
+    void testUvmCookbookRalProperties();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders()
@@ -707,6 +708,250 @@ void TestRegMapTreeModel::testModelCoverageEdgeCases()
     rootItem->appendChild(mapChild);
     nlohmann::json mapJson = model.extractJsonData(32);
     Q_UNUSED(mapJson);
+
+    // 21. setRootItem with the SAME root item (exercises line 280: m_rootItem == item)
+    model.setRootItem(model.getRootItem());
+
+    // 22. checkData with 64-bit field width
+    QModelIndex reg0 = model.index(0, 0, blkIdx);
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, reg0));
+    model.setData(model.index(0, 1, reg0), "0", Qt::EditRole);
+    model.setData(model.index(0, 2, reg0), "64", Qt::EditRole); // width == 64
+    model.setData(model.index(0, 3, reg0), "WIDE_FLD", Qt::EditRole);
+    QStringList wideErrs = model.checkData(64);
+    Q_UNUSED(wideErrs);
+
+    // 23. extractJsonData with regWidth < 8
+    nlohmann::json zeroWidthJson = model.extractJsonData(0);
+    Q_UNUSED(zeroWidthJson);
+
+    // 24. computeBlockCrc32 and computeTreeCrc32 with non-array "registers", "fields", "blocks"
+    nlohmann::json badRootJson;
+    badRootJson["blocks"] = "not_an_array";
+    badRootJson["registers"] = "not_an_array";
+    uint32_t c1 = RegMapTreeModel::computeTreeCrc32(badRootJson);
+    Q_UNUSED(c1);
+
+    nlohmann::json badBlkJson;
+    badBlkJson["name"] = "B1";
+    badBlkJson["registers"] = 12345; // not an array
+    uint32_t c2 = RegMapTreeModel::computeBlockCrc32(badBlkJson);
+    Q_UNUSED(c2);
+
+    nlohmann::json badFldJson;
+    badFldJson["name"] = "B2";
+    nlohmann::json singleReg;
+    singleReg["name"] = "R1";
+    singleReg["fields"] = "not_an_array";
+    badFldJson["registers"] = nlohmann::json::array({singleReg});
+    uint32_t c3 = RegMapTreeModel::computeBlockCrc32(badFldJson);
+    Q_UNUSED(c3);
+
+    // 25. checkData with mem child item (with size == 0 and non-zero)
+    QVariantMap memDataZero;
+    memDataZero["Type"] = "mem";
+    memDataZero["Name"] = "MEM_ZERO";
+    memDataZero["Offset/LSB"] = "0x1000";
+    memDataZero["Size/Width"] = "0"; // size_bytes == 0 -> size_bytes = 4
+    RegMapTreeItem *memItemZero = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memDataZero, rootItem);
+    rootItem->appendChild(memItemZero);
+
+    QVariantMap memDataNonZero;
+    memDataNonZero["Type"] = "mem";
+    memDataNonZero["Name"] = "MEM_NONZERO";
+    memDataNonZero["Offset/LSB"] = "0x2000";
+    memDataNonZero["Size/Width"] = "1024";
+    RegMapTreeItem *memItemNonZero = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memDataNonZero, rootItem);
+    rootItem->appendChild(memItemNonZero);
+
+    QStringList memErrs = model.checkData(32);
+    Q_UNUSED(memErrs);
+
+    // 26. extractJsonData with mem nodes (size_width == 0 -> 1024)
+    nlohmann::json memExtracted = model.extractJsonData(32);
+    Q_UNUSED(memExtracted);
+
+    // 27. computeTreeCrc32 with JSON object missing "blocks" key entirely
+    nlohmann::json emptyRootObj = nlohmann::json::object();
+    uint32_t cEmpty = RegMapTreeModel::computeTreeCrc32(emptyRootObj);
+    Q_UNUSED(cEmpty);
+
+    nlohmann::json emptyBlkObj = nlohmann::json::object();
+    uint32_t cEmptyBlk = RegMapTreeModel::computeBlockCrc32(emptyBlkObj);
+    Q_UNUSED(cEmptyBlk);
+}
+
+void TestRegMapTreeModel::testUvmCookbookRalProperties()
+{
+    RegMapTreeModel model;
+    RegMapTreeItem *root = model.getRootItem();
+
+    // 1. Test Block with custom map
+    QVariantMap blkData;
+    blkData["Name"] = "SUB_SYSTEM";
+    blkData["Offset/LSB"] = "0x0000";
+    blkData["HDL Path"] = "tb_top.dut.subsys";
+    RegMapTreeItem *blk = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, root);
+    root->appendChild(blk);
+
+    // Add map under block
+    QVariantMap mapData;
+    mapData["Name"] = "AHB_MAP";
+    mapData["Offset/LSB"] = "0x1000";
+    mapData["Size/Width"] = "4";
+    mapData["Endianness"] = "UVM_LITTLE_ENDIAN";
+    mapData["Byte Addressing"] = "true";
+    RegMapTreeItem *mapItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData, blk);
+    blk->appendChild(mapItem);
+
+    // Verify map possible children
+    auto mapChildren = mapItem->possibleChildren();
+    QVERIFY(mapChildren.contains(RegMapTreeItem::e_rmmKind::reg));
+    QVERIFY(mapChildren.contains(RegMapTreeItem::e_rmmKind::mem));
+
+    // Add register with HDL Path, test disables, and FIFO attributes
+    QVariantMap regData;
+    regData["Name"] = "FIFO_REG";
+    regData["Offset/LSB"] = "0x00";
+    regData["Size/Width"] = "32";
+    regData["HDL Path"] = "dut.subsys.fifo_reg_q";
+    regData["NO_REG_BIT_BASH_TEST"] = "true";
+    regData["NO_REG_HW_RESET_TEST"] = "true";
+    regData["Reg Type"] = "fifo";
+    regData["FIFO Depth"] = "16";
+    RegMapTreeItem *regItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, blk);
+    blk->appendChild(regItem);
+
+    // Add field with Individually Accessible attribute
+    QVariantMap fldData;
+    fldData["Name"] = "DATA";
+    fldData["Offset/LSB"] = "0";
+    fldData["Size/Width"] = "8";
+    fldData["Access Policy"] = "W1";
+    fldData["Individually Accessible"] = "false";
+    RegMapTreeItem *fldItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData, regItem);
+    regItem->appendChild(fldItem);
+
+    // Add memory with depth, word width, HDL path, and NO_MEM_WALK_TEST
+    QVariantMap memData;
+    memData["Name"] = "PACKET_RAM";
+    memData["Offset/LSB"] = "0x2000";
+    memData["Size/Width"] = "4096";
+    memData["Depth"] = "1024";
+    memData["Word Width"] = "32";
+    memData["HDL Path"] = "dut.subsys.packet_ram_mem";
+    memData["NO_MEM_WALK_TEST"] = "true";
+    memData["NO_MEM_ACCESS_TEST"] = "true";
+    RegMapTreeItem *memItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, blk);
+    blk->appendChild(memItem);
+
+    // Add indirect register with Index Reg and Callbacks
+    QVariantMap indData;
+    indData["Name"] = "INDIRECT_DATA";
+    indData["Offset/LSB"] = "0x08";
+    indData["Size/Width"] = "32";
+    indData["Reg Type"] = "indirect";
+    indData["Index Reg"] = "FIFO_REG";
+    indData["Has Callbacks"] = "true";
+    RegMapTreeItem *indItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, indData, blk);
+    blk->appendChild(indItem);
+
+    // Extract JSON and verify UVM RAL properties
+    nlohmann::json rootJson = model.extractJsonData(32);
+    QVERIFY(rootJson.contains("blocks"));
+    QCOMPARE(rootJson["blocks"].size(), 1);
+
+    const auto &blkJson = rootJson["blocks"][0];
+    QCOMPARE(blkJson["name"].get<std::string>(), std::string("SUB_SYSTEM"));
+    QCOMPARE(blkJson["hdl_path"].get<std::string>(), std::string("tb_top.dut.subsys"));
+
+    // Maps verification
+    QVERIFY(blkJson.contains("maps"));
+    QCOMPARE(blkJson["maps"].size(), 1);
+    const auto &extractedMapJson = blkJson["maps"][0];
+    QCOMPARE(extractedMapJson["name"].get<std::string>(), std::string("AHB_MAP"));
+    QCOMPARE(extractedMapJson["base_addr"].get<uint64_t>(), 0x1000ULL);
+    QCOMPARE(extractedMapJson["n_bytes"].get<uint64_t>(), 4ULL);
+    QCOMPARE(extractedMapJson["endianness"].get<std::string>(), std::string("UVM_LITTLE_ENDIAN"));
+    QCOMPARE(extractedMapJson["byte_addressing"].get<int>(), 1);
+
+    // Register verification
+    QVERIFY(blkJson.contains("registers"));
+    QCOMPARE(blkJson["registers"].size(), 2);
+    const auto &extractedRegJson = blkJson["registers"][0];
+    QCOMPARE(extractedRegJson["name"].get<std::string>(), std::string("FIFO_REG"));
+    QCOMPARE(extractedRegJson["hdl_path"].get<std::string>(), std::string("dut.subsys.fifo_reg_q"));
+    QCOMPARE(extractedRegJson["no_bit_bash_test"].get<bool>(), true);
+    QCOMPARE(extractedRegJson["no_reset_test"].get<bool>(), true);
+    QCOMPARE(extractedRegJson["is_fifo"].get<bool>(), true);
+    QCOMPARE(extractedRegJson["fifo_depth"].get<uint64_t>(), 16ULL);
+
+    const auto &extractedIndJson = blkJson["registers"][1];
+    QCOMPARE(extractedIndJson["name"].get<std::string>(), std::string("INDIRECT_DATA"));
+    QCOMPARE(extractedIndJson["is_indirect"].get<bool>(), true);
+    QCOMPARE(extractedIndJson["index_reg"].get<std::string>(), std::string("FIFO_REG"));
+    QCOMPARE(extractedIndJson["has_callbacks"].get<bool>(), true);
+
+    // Field verification
+    QVERIFY(extractedRegJson.contains("fields"));
+    QCOMPARE(extractedRegJson["fields"].size(), 1);
+    const auto &extractedFld = extractedRegJson["fields"][0];
+    QCOMPARE(extractedFld["name"].get<std::string>(), std::string("DATA"));
+    QCOMPARE(extractedFld["access"].get<std::string>(), std::string("W1"));
+    QCOMPARE(extractedFld["individually_accessible"].get<int>(), 0);
+
+    // Memory verification
+    QVERIFY(blkJson.contains("memories"));
+    QCOMPARE(blkJson["memories"].size(), 1);
+    const auto &extractedMem = blkJson["memories"][0];
+    QCOMPARE(extractedMem["name"].get<std::string>(), std::string("PACKET_RAM"));
+    QCOMPARE(extractedMem["depth"].get<uint64_t>(), 1024ULL);
+    QCOMPARE(extractedMem["word_width"].get<uint64_t>(), 32ULL);
+    QCOMPARE(extractedMem["hdl_path"].get<std::string>(), std::string("dut.subsys.packet_ram_mem"));
+    QCOMPARE(extractedMem["no_walk_test"].get<bool>(), true);
+    QCOMPARE(extractedMem["no_access_test"].get<bool>(), true);
+
+    // Also verify NO_REG_TEST and NO_MEM_TEST omnibus flags
+    QVariantMap allDisableReg;
+    allDisableReg["Name"] = "DIS_REG";
+    allDisableReg["Offset/LSB"] = "0x04";
+    allDisableReg["Size/Width"] = "32";
+    allDisableReg["NO_REG_TEST"] = "true";
+    RegMapTreeItem *disRegItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, allDisableReg, blk);
+    blk->appendChild(disRegItem);
+
+    QVariantMap allDisableMem;
+    allDisableMem["Name"] = "DIS_MEM";
+    allDisableMem["Offset/LSB"] = "0x4000";
+    allDisableMem["Size/Width"] = "1024";
+    allDisableMem["NO_MEM_TEST"] = "true";
+    RegMapTreeItem *disMemItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, allDisableMem, blk);
+    blk->appendChild(disMemItem);
+
+    nlohmann::json rootDisJson = model.extractJsonData(32);
+    const auto &disBlk = rootDisJson["blocks"][0];
+    bool foundDisReg = false;
+    for (const auto &r : disBlk["registers"]) {
+        if (r["name"] == "DIS_REG") {
+            foundDisReg = true;
+            QCOMPARE(r["no_reg_test"].get<bool>(), true);
+            QCOMPARE(r["no_reset_test"].get<bool>(), true);
+            QCOMPARE(r["no_bit_bash_test"].get<bool>(), true);
+            QCOMPARE(r["no_access_test"].get<bool>(), true);
+        }
+    }
+    QVERIFY(foundDisReg);
+
+    bool foundDisMem = false;
+    for (const auto &m : disBlk["memories"]) {
+        if (m["name"] == "DIS_MEM") {
+            foundDisMem = true;
+            QCOMPARE(m["no_mem_test"].get<bool>(), true);
+            QCOMPARE(m["no_walk_test"].get<bool>(), true);
+            QCOMPARE(m["no_access_test"].get<bool>(), true);
+        }
+    }
+    QVERIFY(foundDisMem);
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

@@ -461,6 +461,12 @@ void TestThemeManager::testEnsureWindowOnScreen()
     QVERIFY(widget.width() >= 400);
     QVERIFY(widget.height() >= 300);
 
+    // Test 1b: defaultSize smaller than minSize (exercises minSize fallback)
+    widget.resize(10, 10);
+    AppSettings::ensureWindowOnScreen(&widget, QSize(450, 350), QSize(200, 150));
+    QVERIFY(widget.width() >= 450);
+    QVERIFY(widget.height() >= 350);
+
     // Test 2: Window moved far offscreen (negative coordinates) is brought back
     widget.move(-5000, -5000);
     AppSettings::ensureWindowOnScreen(&widget, QSize(400, 300), QSize(600, 400));
@@ -993,6 +999,81 @@ void TestThemeManager::testThemeEdgeCasesAndCoverage()
         QVERIFY(!sysPaths.isEmpty());
         ThemeManager::setSystemThemePathsOverride(false);
         QVERIFY(!ThemeManager::systemThemePathsOverride());
+
+        // Test searchPaths when local directory does not contain themes/ and when paths already contain local/user paths
+        {
+            QString origCwd = QDir::currentPath();
+            QDir().mkpath("work/empty_test_cwd");
+            QDir::setCurrent("work/empty_test_cwd");
+            QStringList emptyCwdPaths = tm.searchPaths();
+            QVERIFY(!emptyCwdPaths.isEmpty());
+            QDir::setCurrent(origCwd);
+
+            // Add local and user theme dirs explicitly to trigger !paths.contains() false branches
+            tm.addSearchPath(tm.localThemesDir());
+            tm.addSearchPath(tm.userThemesDir());
+            QStringList dupPaths = tm.searchPaths();
+            QVERIFY(!dupPaths.isEmpty());
+        }
+
+        // Test all access policy synonyms: W0S, WS, W0C, WC, W1, W0, RS
+        QVERIFY(tm.currentTheme().accessColors("W0S", false).bg.isValid());
+        QVERIFY(tm.currentTheme().accessColors("WS", false).bg.isValid());
+        QVERIFY(tm.currentTheme().accessColors("W0C", false).bg.isValid());
+        QVERIFY(tm.currentTheme().accessColors("WC", false).bg.isValid());
+        QVERIFY(tm.currentTheme().accessColors("W1", false).bg.isValid());
+        QVERIFY(tm.currentTheme().accessColors("W0", false).bg.isValid());
+        QVERIFY(tm.currentTheme().accessColors("RS", false).bg.isValid());
+
+        // Test partial theme json parsing (triggers !v.isUndefined() false branches)
+        {
+            QJsonObject partialJson;
+            partialJson["id"] = "partial_schema_theme";
+            partialJson["name"] = "Partial Schema Theme";
+            QJsonObject apObj;
+            QJsonObject rwObj;
+            rwObj["bg"] = "#112233"; // missing border, text
+            apObj["rw"] = rwObj;
+            partialJson["accessPolicies"] = apObj;
+
+            QJsonObject cbObj;
+            QJsonObject cbRwObj;
+            cbRwObj["bg"] = "#445566"; // missing border, text
+            cbObj["rw"] = cbRwObj;
+            partialJson["colorBlind"] = cbObj;
+
+            ColorScheme partialScheme;
+            QVERIFY(partialScheme.fromJson(partialJson));
+            QCOMPARE(partialScheme.rwColors.bg, QColor("#112233"));
+            QCOMPARE(partialScheme.cbRw.bg, QColor("#445566"));
+        }
+
+        // Test setTheme with nonexistent .json file, unreadable file, array json, and parse error
+        {
+            QVERIFY(!tm.setTheme("nonexistent_theme_file.json"));
+
+            QDir().mkpath("work/test_themes");
+            QString corruptPath = "work/test_themes/corrupt.json";
+            QFile fCorrupt(corruptPath);
+            QVERIFY(fCorrupt.open(QIODevice::WriteOnly));
+            fCorrupt.write("{ this is invalid json syntax ::: ");
+            fCorrupt.close();
+            QVERIFY(!tm.setTheme(corruptPath));
+
+            QString arrayPath = "work/test_themes/array.json";
+            QFile fArray(arrayPath);
+            QVERIFY(fArray.open(QIODevice::WriteOnly));
+            fArray.write("[ 1, 2, 3 ]");
+            fArray.close();
+            QVERIFY(!tm.setTheme(arrayPath));
+
+            QString invalidSchemePath = "work/test_themes/bad_scheme.json";
+            QFile fBad(invalidSchemePath);
+            QVERIFY(fBad.open(QIODevice::WriteOnly));
+            fBad.write("{ \"foo\": \"bar\" }"); // missing required id and name
+            fBad.close();
+            QVERIFY(!tm.setTheme(invalidSchemePath));
+        }
     }
 }
 
