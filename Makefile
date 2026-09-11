@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -81,9 +81,10 @@ coverage:
 	@cd build && cmake .. -DCMAKE_INSTALL_PREFIX="$(PREFIX)" -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
 	@cmake --build build --parallel $(JOBS)
 	@rm -rf work
-	@mkdir -p work/coverage
+	@mkdir -p work/coverage work/test_templates
 	@find build -name "*.gcda" -delete 2>/dev/null || true
 	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "unit" --output-on-failure
+	@python3 tests/test_template.py all
 	@python3 script/generate_coverage.py --build-dir build --html work/coverage/index.html --markdown work/coverage/coverage.md --json work/coverage/coverage.json --summary
 
 # Run coverage and update the Code Coverage Metrics report on the GitHub main page (README.md)
@@ -92,6 +93,13 @@ coverage-report: coverage
 
 # Convenience alias for test-unit
 test check: test-unit
+
+# Clean up profiling counter data (.gcda) to prevent checksum mismatches after code changes
+clean-gcda clean-coverage:
+	@find build -name "*.gcda" -delete 2>/dev/null || true
+	@find . -maxdepth 1 -name "*.gcov*" -delete 2>/dev/null || true
+	@rm -rf work/coverage/gcov 2>/dev/null || true
+	@echo "Removed all stale .gcda coverage profile files and temporary gcov artifacts."
 
 # Clean up build directory and test artifacts
 clean:

@@ -14,6 +14,10 @@
 #include "../RegMapTreeItem.hpp"
 #include "../RegConfigWindow.hpp"
 
+QString IpxactHandler::formatName() const { return QStringLiteral("IP-XACT (IEEE 1685)"); }
+QStringList IpxactHandler::supportedExtensions() const { return {QStringLiteral("xml"), QStringLiteral("ipxact")}; }
+QString IpxactHandler::fileFilter() const { return QStringLiteral("IP-XACT IEEE 1685 (*.xml *.ipxact)"); }
+
 namespace {
 
 QString ipxactAccessToUvm(const QString &acc) {

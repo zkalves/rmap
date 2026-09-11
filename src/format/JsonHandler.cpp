@@ -15,6 +15,23 @@
 
 using json = nlohmann::json;
 
+namespace {
+QString extractOffset(const json &j)
+{
+    if (j.contains("offset_hex") && j["offset_hex"].is_string()) {
+        return QString::fromStdString(j["offset_hex"].get<std::string>());
+    }
+    if (j.contains("offset_lsb") && j["offset_lsb"].is_number()) {
+        return QString("0x%1").arg(j["offset_lsb"].get<uint64_t>(), 0, 16);
+    }
+    return QStringLiteral("0x0");
+}
+} // namespace
+
+QString JsonHandler::formatName() const { return QStringLiteral("JSON Schema"); }
+QStringList JsonHandler::supportedExtensions() const { return {QStringLiteral("json")}; }
+QString JsonHandler::fileFilter() const { return QStringLiteral("JSON Register Map (*.json)"); }
+
 FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
 {
     FormatResult result;
@@ -74,8 +91,7 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
                 for (const auto &regJson : blkJson["registers"]) {
                     QVariantMap regData;
                     regData["Type"] = "reg";
-                    regData["Offset/LSB"] = regJson.contains("offset_hex") ? QString::fromStdString(regJson["offset_hex"].get<std::string>()) :
-                                            (regJson.contains("offset_lsb") ? QString("0x%1").arg(regJson["offset_lsb"].get<uint64_t>(), 0, 16) : "0x0");
+                    regData["Offset/LSB"] = extractOffset(regJson);
                     regData["Size/Width"] = QString::number(regWidth);
                     regData["Name"] = regJson.contains("name") ? QString::fromStdString(regJson["name"].get<std::string>()) : "REG";
                     regData["Access Policy"] = regJson.contains("access") ? QString::fromStdString(regJson["access"].get<std::string>()) : "RW";
@@ -90,16 +106,16 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
                         for (const auto &fldJson : regJson["fields"]) {
                             QVariantMap fldData;
                             fldData["Type"] = "fld";
-                            fldData["Offset/LSB"] = fldJson.contains("offset_lsb") ? QString::number(fldJson["offset_lsb"].get<uint64_t>()) : "0";
-                            fldData["Size/Width"] = fldJson.contains("size_width") ? QString::number(fldJson["size_width"].get<uint64_t>()) : "1";
-                            fldData["Name"] = fldJson.contains("name") ? QString::fromStdString(fldJson["name"].get<std::string>()) : "FIELD";
-                            fldData["Access Policy"] = fldJson.contains("access") ? QString::fromStdString(fldJson["access"].get<std::string>()) : "RW";
-                            fldData["HW Access"] = fldJson.contains("hw_access") ? QString::fromStdString(fldJson["hw_access"].get<std::string>()) : "RO";
-                            fldData["Reset Value"] = fldJson.contains("reset_hex") ? QString::fromStdString(fldJson["reset_hex"].get<std::string>()) : "0x0";
-                            fldData["Is Rand"] = (fldJson.contains("is_rand") && fldJson["is_rand"].get<bool>()) ? "true" : "false";
-                            fldData["Volatile"] = (fldJson.contains("volatile") && fldJson["volatile"].get<bool>()) ? "true" : "false";
-                            fldData["Has Reset"] = (fldJson.contains("has_reset") && fldJson["has_reset"].get<bool>()) ? "true" : "false";
-                            fldData["Description"] = fldJson.contains("description") ? QString::fromStdString(fldJson["description"].get<std::string>()) : "";
+                            fldData["Offset/LSB"] = (fldJson.contains("offset_lsb") && fldJson["offset_lsb"].is_number()) ? QString::number(fldJson["offset_lsb"].get<uint64_t>()) : "0";
+                            fldData["Size/Width"] = (fldJson.contains("size_width") && fldJson["size_width"].is_number()) ? QString::number(fldJson["size_width"].get<uint64_t>()) : "1";
+                            fldData["Name"] = (fldJson.contains("name") && fldJson["name"].is_string()) ? QString::fromStdString(fldJson["name"].get<std::string>()) : "FIELD";
+                            fldData["Access Policy"] = (fldJson.contains("access") && fldJson["access"].is_string()) ? QString::fromStdString(fldJson["access"].get<std::string>()) : "RW";
+                            fldData["HW Access"] = (fldJson.contains("hw_access") && fldJson["hw_access"].is_string()) ? QString::fromStdString(fldJson["hw_access"].get<std::string>()) : "RO";
+                            fldData["Reset Value"] = (fldJson.contains("reset_hex") && fldJson["reset_hex"].is_string()) ? QString::fromStdString(fldJson["reset_hex"].get<std::string>()) : "0x0";
+                            fldData["Is Rand"] = (fldJson.contains("is_rand") && fldJson["is_rand"].is_boolean() && fldJson["is_rand"].get<bool>()) ? "true" : "false";
+                            fldData["Volatile"] = (fldJson.contains("volatile") && fldJson["volatile"].is_boolean() && fldJson["volatile"].get<bool>()) ? "true" : "false";
+                            fldData["Has Reset"] = (fldJson.contains("has_reset") && fldJson["has_reset"].is_boolean() && fldJson["has_reset"].get<bool>()) ? "true" : "false";
+                            fldData["Description"] = (fldJson.contains("description") && fldJson["description"].is_string()) ? QString::fromStdString(fldJson["description"].get<std::string>()) : "";
 
                             RegMapTreeItem *fldItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData, regItem);
                             regItem->appendChild(fldItem);
@@ -114,9 +130,8 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
         for (const auto &memJson : rootJson["memories"]) {
             QVariantMap memData;
             memData["Type"] = "mem";
-            memData["Offset/LSB"] = memJson.contains("offset_hex") ? QString::fromStdString(memJson["offset_hex"].get<std::string>()) :
-                                    (memJson.contains("offset_lsb") ? QString("0x%1").arg(memJson["offset_lsb"].get<uint64_t>(), 0, 16) : "0x0");
-            memData["Size/Width"] = memJson.contains("size_width") ? QString::number(memJson["size_width"].get<uint64_t>()) : "4096";
+            memData["Offset/LSB"] = extractOffset(memJson);
+            memData["Size/Width"] = (memJson.contains("size_width") && memJson["size_width"].is_number()) ? QString::number(memJson["size_width"].get<uint64_t>()) : "4096";
             memData["Name"] = memJson.contains("name") ? QString::fromStdString(memJson["name"].get<std::string>()) : "MEMORY";
             memData["Access Policy"] = memJson.contains("access") ? QString::fromStdString(memJson["access"].get<std::string>()) : "RW";
             memData["HW Access"] = memJson.contains("hw_access") ? QString::fromStdString(memJson["hw_access"].get<std::string>()) : "RO";

@@ -12,11 +12,9 @@
 
 class ProtobufHandler : public IFormatHandler {
 public:
-    QString formatName() const override { return "Protobuf"; }
-    QStringList supportedExtensions() const override { return {"rmt", "rmb"}; }
-    QString fileFilter() const override {
-        return "Protobuf Register Map (*.rmt *.rmb);;Text Format (*.rmt);;Binary Format (*.rmb)";
-    }
+    QString formatName() const override;
+    QStringList supportedExtensions() const override;
+    QString fileFilter() const override;
 
     FormatResult read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
     FormatResult write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;

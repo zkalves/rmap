@@ -5,3 +5,9 @@ work/
 _site/
 .pelican-cache/
 .python_packages/
+*.gcno
+*.gcda
+*.gcov
+*.gcov.json.gz
+*.info
+

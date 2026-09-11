@@ -23,7 +23,7 @@ struct FormatResult {
 
 class IFormatHandler {
 public:
-    virtual ~IFormatHandler() = default;
+    virtual ~IFormatHandler();
 
     virtual QString formatName() const = 0;
     virtual QStringList supportedExtensions() const = 0;

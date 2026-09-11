@@ -55,6 +55,8 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(RegMapWindow)
 
+    friend class TestRegMapWindow;
+
     public:
         explicit RegMapWindow(const QString &rmap_filename = QString(), QWidget *parent = nullptr);
         ~RegMapWindow() override;
@@ -70,6 +72,7 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         RegMapTreeModel* model() const { return m_model; }
         QUndoStack* getUndoStack() const { return m_undoStack; }
         QUndoStack* undoStack() const { return m_undoStack; }
+        void insertChild(RegMapTreeItem::e_rmmKind kind);
 
         RegConfigWindow* configWindow() const { return m_config_window; }
         PreferencesWindow* preferencesWindow() const { return m_pref_window; }
@@ -104,6 +107,11 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
 
         void saveWindowStateToSettings();
         void restoreWindowStateFromSettings();
+
+        // Export resolution helpers (exposed for testing and modularity)
+        static std::string resolveExportOutputFolder(const QString &outDir, const protormap::Config *cfg);
+        static void resolveExportProjectName(const protormap::Config *cfg, const QString &filename, nlohmann::json &jsonData);
+        bool isExportPythonEnabled(const protormap::Config *cfg) const;
 
     protected:
         void closeEvent(QCloseEvent *event) override;
@@ -160,7 +168,6 @@ class RegMapWindow : public QMainWindow, private Ui::rmap
         bool                    m_is_regmap_modified = false;
 
         void fileNew(void);
-        void insertChild(RegMapTreeItem::e_rmmKind kind);
         void regmap_modified(void);
         void regmap_notModified(void);
         void connectModelSignals(void);

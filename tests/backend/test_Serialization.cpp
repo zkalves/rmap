@@ -34,6 +34,8 @@ private slots:
     void testRoundTripTextAndBinary();
     void testConfigTemplateFoldersAndEnabled();
     void testConfigPythonScriptEnabled();
+    void testParseInvalidRmt();
+    void testSerializationContextEdgeCases();
 };
 
 void TestSerialization::testParseSpiRmt()
@@ -305,6 +307,55 @@ void TestSerialization::testConfigPythonScriptEnabled()
     QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg2));
     QVERIFY(restoredCfg2.has_python_script_enabled());
     QCOMPARE(restoredCfg2.python_script_enabled(), false);
+}
+
+void TestSerialization::testParseInvalidRmt()
+{
+    std::string invalid_proto = "this is totally invalid protobuf { [[[ invalid";
+    google::protobuf::io::ArrayInputStream input(invalid_proto.data(), static_cast<int>(invalid_proto.size()));
+    protormap::RegModel reg_model;
+    google::protobuf::TextFormat::Parser parser;
+    ProtobufLogCollector errorCollector;
+    parser.RecordErrorsTo(&errorCollector);
+    bool success = parser.Parse(&input, &reg_model);
+    QVERIFY(!success);
+    QVERIFY(!errorCollector.string().empty());
+    QVERIFY(errorCollector.string().find("ERROR") != std::string::npos);
+}
+
+void TestSerialization::testSerializationContextEdgeCases()
+{
+    SerializationContext context;
+    // Invalid handle
+    QVERIFY(context.deserialize<RegMapTreeItem>(QVariant()) == nullptr);
+    // Out-of-bounds indices (triggers line 86 of SerializationContext.hpp)
+    QVERIFY(context.deserialize<RegMapTreeItem>(QVariant(-1)) == nullptr);
+    QVERIFY(context.deserialize<RegMapTreeItem>(QVariant(99999)) == nullptr);
+
+    // Nullptr serialize
+    QVERIFY(!context.serialize<RegMapTreeItem>(nullptr).isValid());
+
+    // Valid object serialize and repeat serialize
+    RegMapTreeItem item;
+    QVariant h1 = context.serialize(&item);
+    QVERIFY(h1.isValid());
+    QVariant h2 = context.serialize(&item);
+    QCOMPARE(h1, h2);
+
+    // Repeat deserialize
+    RegMapTreeItem *d1 = context.deserialize<RegMapTreeItem>(h1);
+    QCOMPARE(d1, &item);
+    RegMapTreeItem *d2 = context.deserialize<RegMapTreeItem>(h1);
+    QCOMPARE(d2, &item);
+
+    // append_record
+    QVariantMap recordMap;
+    recordMap["Name"] = "Dummy";
+    context.append_record(&item, recordMap);
+
+    // clear
+    context.clear();
+    QVERIFY(context.deserialize<RegMapTreeItem>(h1) == nullptr);
 }
 
 QTEST_MAIN(TestSerialization)

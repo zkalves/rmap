@@ -13,26 +13,6 @@
 #include "CodeGenerator.hpp"
 
 void CodeGenerator::registerHelpers(Environment &env) {
-    // Helper: {{ upper(str) }}
-    env.add_callback("upper", 1, [](Arguments& args) {
-        std::string str = args.at(0)->is_string() ? args.at(0)->get<std::string>() : args.at(0)->dump();
-        if (str.size() >= 2 && str.front() == '"' && str.back() == '"') {
-            str = str.substr(1, str.size() - 2);
-        }
-        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-        return str;
-    });
-
-    // Helper: {{ lower(str) }}
-    env.add_callback("lower", 1, [](Arguments& args) {
-        std::string str = args.at(0)->is_string() ? args.at(0)->get<std::string>() : args.at(0)->dump();
-        if (str.size() >= 2 && str.front() == '"' && str.back() == '"') {
-            str = str.substr(1, str.size() - 2);
-        }
-        std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-        return str;
-    });
-
     // Helper: {{ to_hex(val, width) }}
     env.add_callback("to_hex", 2, [](Arguments& args) {
         uint64_t val = 0;
@@ -242,10 +222,13 @@ std::string CodeGenerator::resolveTemplatePath(
 
     // Fallback: check global/installed default templates directory
     QString defTmplDir = PathUtils::defaultTemplatesDir();
-    if (!defTmplDir.isEmpty() && defTmplDir != "./templates") {
-        std::string resFallback = PathUtils::resolvePath(expTmpl, defTmplDir.toStdString(), expBase);
-        if (QFile::exists(QString::fromStdString(resFallback))) {
-            return resFallback;
+    if (!defTmplDir.isEmpty()) {
+        std::string defStr = defTmplDir.toStdString();
+        if (defStr != expDefault) {
+            std::string resFallback = PathUtils::resolvePath(expTmpl, defStr, expBase);
+            if (QFile::exists(QString::fromStdString(resFallback))) {
+                return resFallback;
+            }
         }
     }
 
@@ -320,8 +303,9 @@ std::string CodeGenerator::resolveOutputPath(
     // Dynamic variable expansion
     if (!expOut.isEmpty()) {
         std::string rawBlockName;
-        if (context.contains("blocks") && context["blocks"].is_array() && !context["blocks"].empty()) {
-            rawBlockName = context["blocks"][0].value("name", "");
+        auto ctxBlksIt = context.find("blocks");
+        if (ctxBlksIt != context.end() && ctxBlksIt->is_array() && !ctxBlksIt->empty()) {
+            rawBlockName = (*ctxBlksIt)[0].value("name", "");
         }
         if (rawBlockName.empty()) {
             rawBlockName = context.value("name", "");
@@ -356,7 +340,7 @@ std::string CodeGenerator::resolveOutputPath(
         expOut = PathUtils::normalizeSeparators(expOut);
     }
 
-    QString targetDirOrFile = expOut.isEmpty() ? expDefaultOut : expOut;
+    QString targetDirOrFile = PathUtils::normalizeSeparators(expOut.isEmpty() ? expDefaultOut : expOut);
 
     // Resolve directory/file against base_dir if relative
     QString resolved = PathUtils::resolvePath(targetDirOrFile, QString::fromStdString(PathUtils::expandEnvVars(base_dir)));
@@ -365,18 +349,21 @@ std::string CodeGenerator::resolveOutputPath(
     QFileInfo outInfo(resolved);
     bool isKnownFileWithoutExt = outInfo.fileName().compare("makefile", Qt::CaseInsensitive) == 0;
     // If output is explicitly a directory, ends with a slash separator, or has no file extension (folder path)
-    if (!isKnownFileWithoutExt && (targetDirOrFile.endsWith('/') || targetDirOrFile.endsWith('\\') || (outInfo.exists() && outInfo.isDir()) || !outInfo.fileName().contains('.'))) {
+    if (!isKnownFileWithoutExt && (targetDirOrFile.endsWith('/') || (outInfo.exists() && outInfo.isDir()) || !outInfo.fileName().contains('.'))) {
         QString finalSubPath = relSubPath;
         if (!category.isEmpty()) {
-            QString normTarget = PathUtils::normalizeSeparators(targetDirOrFile);
-            if (normTarget.endsWith("/" + category, Qt::CaseInsensitive) || normTarget.endsWith("/" + category + "/", Qt::CaseInsensitive) || normTarget == category) {
+            QString normTarget = targetDirOrFile;
+            if (normTarget.endsWith('/')) {
+                normTarget.chop(1);
+            }
+            if (normTarget.endsWith("/" + category, Qt::CaseInsensitive) || normTarget.compare(category, Qt::CaseInsensitive) == 0) {
                 finalSubPath = baseFileName;
             }
         }
         return PathUtils::normalizeSeparators(QDir(resolved).filePath(finalSubPath)).toStdString();
     }
 
-    return PathUtils::normalizeSeparators(resolved).toStdString();
+    return resolved.toStdString();
 }
 
 GenerationReport CodeGenerator::generate(
@@ -391,21 +378,24 @@ GenerationReport CodeGenerator::generate(
 
     // Ensure memory gap padding is present if raw json data didn't go through model extraction
     json preparedJson = json_data;
-    if (!preparedJson.contains("reg_width_bytes")) {
+    auto regWidthBytesIt = preparedJson.find("reg_width_bytes");
+    if (regWidthBytesIt == preparedJson.end()) {
         uint32_t width = preparedJson.value("reg_width", 32U);
-        preparedJson["reg_width_bytes"] = width > 0 ? (width / 8) : 4;
+        preparedJson["reg_width_bytes"] = (width > 0) ? (width / 8) : 4;
     }
-    if (preparedJson.contains("blocks") && preparedJson["blocks"].is_array()) {
+    auto blksIt = preparedJson.find("blocks");
+    if (blksIt != preparedJson.end() && blksIt->is_array()) {
         uint64_t regBytes = preparedJson.value("reg_width_bytes", 4ULL);
         if (regBytes == 0) regBytes = 4;
-        for (auto &blk : preparedJson["blocks"]) {
-            if (blk.contains("registers") && blk["registers"].is_array()) {
+        for (auto &blk : *blksIt) {
+            auto regsIt = blk.find("registers");
+            if (regsIt != blk.end() && regsIt->is_array()) {
                 uint64_t currentOffset = 0;
-                for (auto &r : blk["registers"]) {
+                for (auto &r : *regsIt) {
                     if (!r.contains("pad_words_before")) {
                         uint64_t regOffset = r.value("offset_lsb", 0ULL);
                         uint64_t padBytes = (regOffset > currentOffset) ? (regOffset - currentOffset) : 0;
-                        uint64_t padWords = (regBytes > 0) ? (padBytes / regBytes) : 0;
+                        uint64_t padWords = padBytes / regBytes;
                         r["pad_bytes_before"] = padBytes;
                         r["pad_words_before"] = padWords;
                     }
@@ -430,10 +420,13 @@ GenerationReport CodeGenerator::generate(
         QString normOut = PathUtils::normalizeSeparators(QString::fromStdString(resolvedOut));
         QFileInfo outFi(normOut);
 
-        if (tmplPath.contains("/rtl/", Qt::CaseInsensitive) && tmplPath.endsWith(".sv.inja", Qt::CaseInsensitive) && !tmplPath.contains("_tb", Qt::CaseInsensitive)) {
-            resolvedRtlOut = normOut;
-        } else if (tmplPath.contains("/uvm/", Qt::CaseInsensitive) && tmplPath.endsWith(".sv.inja", Qt::CaseInsensitive) && !tmplPath.contains("_tb", Qt::CaseInsensitive)) {
-            resolvedUvmOut = normOut;
+        bool isSvInja = tmplPath.endsWith(".sv.inja", Qt::CaseInsensitive) && !tmplPath.contains("_tb", Qt::CaseInsensitive);
+        if (isSvInja) {
+            if (tmplPath.contains("/rtl/", Qt::CaseInsensitive)) {
+                resolvedRtlOut = normOut;
+            } else if (tmplPath.contains("/uvm/", Qt::CaseInsensitive)) {
+                resolvedUvmOut = normOut;
+            }
         }
 
         if (tmplPath.contains("/sim/", Qt::CaseInsensitive) || normOut.contains("/sim/", Qt::CaseInsensitive)) {
@@ -605,24 +598,28 @@ bool CodeGenerator::runPythonScript(
         return false;
     }
 
-    QString pythonExe = PathUtils::expandEnvVars(QString::fromStdString(qgetenv("RMAP_PYTHON").toStdString()));
-    if (pythonExe.trimmed().isEmpty()) {
-        pythonExe = PathUtils::expandEnvVars(QString::fromStdString(qgetenv("PYTHON").toStdString()));
+    QString pythonExe = PathUtils::expandEnvVars(QString::fromLocal8Bit(qgetenv("RMAP_PYTHON"))).trimmed();
+    if (pythonExe.isEmpty()) {
+        pythonExe = PathUtils::expandEnvVars(QString::fromLocal8Bit(qgetenv("PYTHON"))).trimmed();
     }
-    if (pythonExe.trimmed().isEmpty()) {
+    if (pythonExe.isEmpty()) {
         pythonExe = QStandardPaths::findExecutable("python3");
     }
-    if (pythonExe.trimmed().isEmpty()) {
+    if (pythonExe.isEmpty()) {
         pythonExe = QStandardPaths::findExecutable("python");
     }
-    if (pythonExe.trimmed().isEmpty()) {
+    if (pythonExe.isEmpty()) {
         if (stderr_str) *stderr_str = "Python interpreter ('python3' or 'python') not found in system PATH.";
         return false;
     }
 
     std::string jsonDump = json_data.dump(2);
 
-    QTemporaryFile tempJsonFile(QDir::tempPath() + "/rmap_context_XXXXXX.json");
+    QString tempDirPath = QString::fromLocal8Bit(qgetenv("RMAP_TMPDIR"));
+    if (tempDirPath.isEmpty()) {
+        tempDirPath = QDir::tempPath();
+    }
+    QTemporaryFile tempJsonFile(tempDirPath + "/rmap_context_XXXXXX.json");
     if (!tempJsonFile.open()) {
         if (stderr_str) *stderr_str = "Failed to create temporary file for register map JSON context.";
         return false;
@@ -701,17 +698,21 @@ with open(script_path, 'r', encoding='utf-8') as f:
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("RMAP_JSON_FILE", tempJsonPath);
     env.insert("RMAP_JSON_DATA", QString::fromUtf8(jsonDump.c_str()));
-    if (json_data.contains("name") && json_data["name"].is_string()) {
-        env.insert("RMAP_NAME", QString::fromStdString(json_data["name"]));
+    auto nameIt = json_data.find("name");
+    if (nameIt != json_data.end() && nameIt->is_string()) {
+        env.insert("RMAP_NAME", QString::fromStdString(nameIt->get<std::string>()));
     }
-    if (json_data.contains("project_name") && json_data["project_name"].is_string()) {
-        env.insert("RMAP_PROJECT_NAME", QString::fromStdString(json_data["project_name"]));
+    auto projIt = json_data.find("project_name");
+    if (projIt != json_data.end() && projIt->is_string()) {
+        env.insert("RMAP_PROJECT_NAME", QString::fromStdString(projIt->get<std::string>()));
     }
-    if (json_data.contains("project_version") && json_data["project_version"].is_string()) {
-        env.insert("RMAP_PROJECT_VERSION", QString::fromStdString(json_data["project_version"]));
+    auto verIt = json_data.find("project_version");
+    if (verIt != json_data.end() && verIt->is_string()) {
+        env.insert("RMAP_PROJECT_VERSION", QString::fromStdString(verIt->get<std::string>()));
     }
-    if (json_data.contains("reg_width") && json_data["reg_width"].is_number()) {
-        env.insert("RMAP_REG_WIDTH", QString::number(json_data.value("reg_width", 32U)));
+    auto widthIt = json_data.find("reg_width");
+    if (widthIt != json_data.end() && widthIt->is_number()) {
+        env.insert("RMAP_REG_WIDTH", QString::number(widthIt->get<uint32_t>()));
     }
     process.setProcessEnvironment(env);
 
@@ -733,7 +734,15 @@ with open(script_path, 'r', encoding='utf-8') as f:
     process.write(jsonDump.data(), static_cast<qint64>(jsonDump.size()));
     process.closeWriteChannel();
 
-    bool finished = process.waitForFinished(60000);
+    int timeoutMs = 60000;
+    QByteArray envTimeout = qgetenv("RMAP_PYTHON_TIMEOUT");
+    if (!envTimeout.isEmpty()) {
+        bool ok = false;
+        int parsed = envTimeout.toInt(&ok);
+        if (ok && parsed > 0) timeoutMs = parsed;
+    }
+
+    bool finished = process.waitForFinished(timeoutMs);
     if (!finished) {
         process.kill();
         process.waitForFinished(1000);

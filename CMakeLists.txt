@@ -85,6 +85,7 @@ set(core_sources
     src/RegBitfieldBarWidget.cpp
     src/BlockMemoryMapWidget.cpp
     src/CodeGenerator.cpp
+    src/UndoCommands.cpp
     src/format/FormatManager.cpp
     src/format/ProtobufHandler.cpp
     src/format/SystemRdlHandler.cpp

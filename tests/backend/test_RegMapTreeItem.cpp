@@ -25,9 +25,17 @@ private slots:
 
 void TestRegMapTreeItem::testNodeCreationAndKinds()
 {
+    // Default constructor
+    RegMapTreeItem defaultItem;
+    QCOMPARE(defaultItem.kindString(), QString("root"));
+    QCOMPARE(defaultItem.parentItem(), nullptr);
+    QCOMPARE(defaultItem.row(), 0);
+    QCOMPARE(defaultItem.columnCount(), 0);
+
     QVariantMap emptyData;
     RegMapTreeItem rootItem(RegMapTreeItem::e_rmmKind::root, emptyData);
     QCOMPARE(rootItem.kindString(), QString("root"));
+    QCOMPARE(rootItem.columnCount(), 0);
 
     RegMapTreeItem blkItem(RegMapTreeItem::e_rmmKind::blk, emptyData);
     QCOMPARE(blkItem.kindString(), QString("blk"));
@@ -43,6 +51,12 @@ void TestRegMapTreeItem::testNodeCreationAndKinds()
 
     RegMapTreeItem mapItem(RegMapTreeItem::e_rmmKind::map, emptyData);
     QCOMPARE(mapItem.kindString(), QString("map"));
+
+    // Invalid/custom kind for switch default branch
+    RegMapTreeItem customItem(static_cast<RegMapTreeItem::e_rmmKind>(99), emptyData);
+    QCOMPARE(customItem.kindString(), QString(""));
+    QCOMPARE(customItem.icon(), QString(""));
+    QVERIFY(customItem.possibleChildren().isEmpty());
 }
 
 void TestRegMapTreeItem::testHierarchyAndRelationships()
@@ -84,6 +98,10 @@ void TestRegMapTreeItem::testHierarchyAndRelationships()
     QCOMPARE(blkChildren.size(), 2);
     QCOMPARE(blkChildren[0], reg1);
     QCOMPARE(blkChildren[1], reg2);
+    QCOMPARE(blk->childItems().size(), 2);
+    QCOMPARE(blk->childItemsRef().size(), 2);
+    QCOMPARE(root->row(), 0);
+    QCOMPARE(root->child(-1), nullptr);
 
     delete root; // Automatically deletes children recursively
 }
@@ -102,9 +120,18 @@ void TestRegMapTreeItem::testDataRetrieval()
     data["Description"] = "Control Register";
 
     RegMapTreeItem item(RegMapTreeItem::e_rmmKind::reg, data);
+    QCOMPARE(item.columnCount(), 9);
     QCOMPARE(item.data("Name").toString(), QString("CTRL"));
     QCOMPARE(item.data("Offset/LSB").toString(), QString("0x10"));
+    // Fallback from Offset/LSB -> Offset and LSB
+    QCOMPARE(item.data("Offset").toString(), QString("0x10"));
+    QCOMPARE(item.data("LSB").toString(), QString("0x10"));
+
     QCOMPARE(item.data("Size/Width").toString(), QString("32"));
+    // Fallback from Size/Width -> Size and Width
+    QCOMPARE(item.data("Size").toString(), QString("32"));
+    QCOMPARE(item.data("Width").toString(), QString("32"));
+
     QCOMPARE(item.data("Access Policy").toString(), QString("RW"));
     QCOMPARE(item.data("Reset Value").toString(), QString("0x0"));
     QCOMPARE(item.data("Is Rand").toString(), QString("true"));
@@ -113,6 +140,23 @@ void TestRegMapTreeItem::testDataRetrieval()
     QCOMPARE(item.data("Description").toString(), QString("Control Register"));
 
     QVERIFY(!item.data("NonExistentColumn").isValid());
+
+    // Test reverse fallbacks (Offset -> Offset/LSB, Size -> Size/Width)
+    QVariantMap revData;
+    revData["Offset"] = "0x20";
+    revData["Size"] = "16";
+    RegMapTreeItem revItem(RegMapTreeItem::e_rmmKind::reg, revData);
+    QCOMPARE(revItem.data("Offset/LSB").toString(), QString("0x20"));
+    QCOMPARE(revItem.data("Size/Width").toString(), QString("16"));
+
+    // Test setData synchronization for Offset/LSB and Size/Width
+    revItem.setData("LSB", "0x30");
+    QCOMPARE(revItem.data("Offset").toString(), QString("0x30"));
+    QCOMPARE(revItem.data("Offset/LSB").toString(), QString("0x30"));
+
+    revItem.setData("Width", "8");
+    QCOMPARE(revItem.data("Size").toString(), QString("8"));
+    QCOMPARE(revItem.data("Size/Width").toString(), QString("8"));
 }
 
 void TestRegMapTreeItem::testSerializationRoundtrip()
@@ -131,11 +175,65 @@ void TestRegMapTreeItem::testSerializationRoundtrip()
     QVariantMap serialData;
     root->serialize(serialData, &context);
 
-    QCOMPARE(serialData["kind"].value<RegMapTreeItem::e_rmmKind>(), RegMapTreeItem::e_rmmKind::root);
+    QCOMPARE(static_cast<int>(serialData["kind"].value<RegMapTreeItem::e_rmmKind>()), static_cast<int>(RegMapTreeItem::e_rmmKind::root));
     QVERIFY(serialData.contains("id"));
     QVERIFY(serialData.contains("childItems"));
 
     delete root;
+
+    // Test deserialize on a standalone item with invalid/out-of-bounds children
+    QVariantMap dummyData;
+    dummyData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::blk);
+    dummyData["parent"] = QVariant();
+    dummyData["childItems"] = QList<QVariant>{ QVariant(), QVariant(-1), QVariant(99999) };
+    QVariantMap itemData;
+    itemData["Name"] = "DESER_BLK";
+    dummyData["itemData"] = itemData;
+
+    RegMapTreeItem deserItem;
+    deserItem.deserialize(dummyData, &context);
+    QCOMPARE(static_cast<int>(deserItem.kind()), static_cast<int>(RegMapTreeItem::e_rmmKind::blk));
+    QCOMPARE(deserItem.data("Name").toString(), QString("DESER_BLK"));
+
+    // Full hierarchy deserialize with parent and children
+    SerializationContext deserCtx;
+    QVariantMap rootRecord;
+    rootRecord["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::root);
+    rootRecord["id"] = 0;
+    rootRecord["parent"] = QVariant();
+    rootRecord["childItems"] = QList<QVariant>{1};
+    QVariantMap rootItemData;
+    rootItemData["Name"] = "ROOT";
+    rootRecord["itemData"] = rootItemData;
+
+    QVariantMap regRecord;
+    regRecord["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+    regRecord["id"] = 1;
+    regRecord["parent"] = 0;
+    regRecord["childItems"] = QList<QVariant>();
+    QVariantMap regItemData;
+    regItemData["Name"] = "REG0";
+    regRecord["itemData"] = regItemData;
+
+    deserCtx.append_record<RegMapTreeItem>(nullptr, rootRecord);
+    deserCtx.append_record<RegMapTreeItem>(nullptr, regRecord);
+
+    // Test invalid and out-of-range handles (covers L81, 85, 86)
+    QVERIFY(deserCtx.deserialize<RegMapTreeItem>(QVariant()) == nullptr);
+    QVERIFY(deserCtx.deserialize<RegMapTreeItem>(QVariant(-1)) == nullptr);
+    QVERIFY(deserCtx.deserialize<RegMapTreeItem>(QVariant(9999)) == nullptr);
+
+    // Deserialize root -> automatically deserializes reg child too (covers L88-105)
+    RegMapTreeItem* deserRoot = deserCtx.deserialize<RegMapTreeItem>(QVariant(0));
+    QVERIFY(deserRoot != nullptr);
+    QCOMPARE(deserRoot->childCount(), 1);
+    QCOMPARE(deserRoot->child(0)->data("Name").toString(), QString("REG0"));
+
+    // Calling deserialize again on already-deserialized object returns cached pointer (covers L90-91)
+    RegMapTreeItem* reRoot = deserCtx.deserialize<RegMapTreeItem>(QVariant(0));
+    QCOMPARE(reRoot, deserRoot);
+
+    delete deserRoot;
 }
 
 void TestRegMapTreeItem::testPossibleChildren()
@@ -200,7 +298,13 @@ void TestRegMapTreeItem::testItemMutationAndChildRemoval()
     QCOMPARE(blk->childCount(), 2);
     blk->child(0)->setData("Name", "Reg0_Inserted");
     QCOMPARE(blk->child(0)->data("Name").toString(), QString("Reg0_Inserted"));
-    QCOMPARE(blk->child(1)->data("Name").toString(), QString("Reg2"));
+    // Test invalid insertChildren (out-of-bounds)
+    QVERIFY(!blk->insertChildren(RegMapTreeItem::e_rmmKind::reg, -1, 1, cols));
+    QVERIFY(!blk->insertChildren(RegMapTreeItem::e_rmmKind::reg, 100, 1, cols));
+
+    // Test invalid removeChildren (out-of-bounds)
+    QVERIFY(!blk->removeChildren(-1, 1));
+    QVERIFY(!blk->removeChildren(0, 100));
 
     delete root;
 }
@@ -227,10 +331,14 @@ void TestRegMapTreeItem::testIconsAndKindString()
     QString iconBlk = blk.icon();
     QString iconReg = reg.icon();
     QString iconFld = fld.icon();
+    QString iconMem = mem.icon();
+    QString iconMap = map.icon();
     QVERIFY(iconRoot.isEmpty());
     QVERIFY(!iconBlk.isEmpty());
     QVERIFY(!iconReg.isEmpty());
     QVERIFY(!iconFld.isEmpty());
+    QVERIFY(!iconMem.isEmpty());
+    QVERIFY(!iconMap.isEmpty());
 }
 
 QTEST_MAIN(TestRegMapTreeItem)

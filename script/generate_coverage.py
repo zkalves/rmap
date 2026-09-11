@@ -35,8 +35,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import defaultdict, deque
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -68,7 +69,7 @@ def categorize_subsystem(rel_path: str) -> str:
     return "System Services & Utilities"
 
 
-def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
+def parse_gcov_data(build_dir: Path, source_dir: Path, gcov_dir: Optional[Path] = None) -> Dict[str, Any]:
     """Run gcov on build artifacts and aggregate all 6 coverage metrics."""
     gcda_files = list(build_dir.glob("**/*.gcda"))
     if not gcda_files:
@@ -78,108 +79,184 @@ def parse_gcov_data(build_dir: Path, source_dir: Path) -> Dict[str, Any]:
     gcov_flags = get_gcov_flags()
     all_files_data: Dict[str, Dict[str, Any]] = {}
 
-    with tempfile.TemporaryDirectory(prefix="rmap_gcov_") as tmp_dir_str:
-        tmp_dir = Path(tmp_dir_str)
+    target_dir = gcov_dir if gcov_dir is not None else (PROJECT_ROOT / "work" / "coverage" / "gcov")
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-        for gcda in sorted(gcda_files):
-            obj = gcda.with_suffix(".o")
-            if not obj.exists():
-                continue
+    # Clean up stale .gcov* files from target_dir before running
+    for old_file in target_dir.glob("*.gcov*"):
+        try:
+            old_file.unlink()
+        except OSError:
+            pass
 
-            if "src" not in gcda.parts:
-                continue
+    for gcda in sorted(gcda_files):
+        obj = gcda.with_suffix(".o")
+        if not obj.exists():
+            continue
 
-            src_rel = Path(*gcda.parts[gcda.parts.index("src"):])
-            src_str = str(src_rel)
-            if src_str.endswith(".gcda"):
-                src_str = src_str[:-5]
-            src_cand = PROJECT_ROOT / src_str
+        if "src" not in gcda.parts:
+            continue
 
-            if not src_cand.exists():
-                continue
+        src_rel = Path(*gcda.parts[gcda.parts.index("src"):])
+        src_str = str(src_rel)
+        if src_str.endswith(".gcda"):
+            src_str = src_str[:-5]
+        src_cand = PROJECT_ROOT / src_str
 
-            cmd = ["gcov"] + gcov_flags + ["-o", str(obj.resolve()), str(src_cand.resolve())]
-            subprocess.run(cmd, cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not src_cand.exists():
+            continue
 
-            # Process all produced json.gz files
-            for gz in tmp_dir.glob("*.gcov.json.gz"):
-                try:
-                    with gzip.open(gz, "rt", encoding="utf-8") as f_in:
-                        data = json.load(f_in)
-                except Exception:
-                    gz.unlink(missing_ok=True)
-                    continue
+        cmd = ["gcov"] + gcov_flags + ["-o", str(obj.resolve()), str(src_cand.resolve())]
+        subprocess.run(cmd, cwd=target_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-                for f in data.get("files", []):
-                    f_path_str = f.get("file", "")
-                    if not f_path_str:
-                        continue
-                    f_path = Path(f_path_str).resolve()
+    # Process all produced json.gz files
+    for gz in target_dir.glob("*.gcov.json.gz"):
+        try:
+            with gzip.open(gz, "rt", encoding="utf-8") as f_in:
+                data = json.load(f_in)
+        except Exception:
+            continue
 
-                    # Filter: must be inside source_dir and hand-written source
-                    try:
-                        f_rel = f_path.relative_to(PROJECT_ROOT)
-                    except ValueError:
-                        continue
-
-                    f_rel_str = str(f_rel).replace("\\", "/")
-                    if not f_rel_str.startswith("src/"):
-                        continue
-                    if any(bad in f_rel_str for bad in ["/proto/", "_autogen", "/work/", "/build/", "mocs_compilation"]):
-                        continue
-
-                    if f_rel_str not in all_files_data:
-                        all_files_data[f_rel_str] = {
-                            "file": f_rel_str,
-                            "subsystem": categorize_subsystem(f_rel_str),
-                            "lines": {},
-                            "funcs": {},
-                            "branches": {},
-                            "conds": [],
-                            "calls": [],
-                            "blocks_total": 0,
-                            "blocks_exec": 0,
-                        }
-
-                    entry = all_files_data[f_rel_str]
-
-                    # Aggregate Lines
-                    for l in f.get("lines", []):
-                        ln = l.get("line_number", 0)
-                        cnt = l.get("count", 0)
-                        entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
-
-                        # Aggregate Branches on this line
-                        for bi, b in enumerate(l.get("branches", [])):
-                            b_key = (ln, bi)
-                            entry["branches"][b_key] = entry["branches"].get(b_key, 0) + b.get("count", 0)
-
-                        # Aggregate Conditions
-                        entry["conds"].extend(l.get("conditions", []))
-
-                        # Aggregate Calls
-                        entry["calls"].extend(l.get("calls", []))
-
-                    # Aggregate Functions & Blocks
-                    for fn in f.get("functions", []):
-                        name = fn.get("demangled_name") or fn.get("name", "unknown")
-                        exec_cnt = fn.get("execution_count", 0)
-                        entry["funcs"][name] = entry["funcs"].get(name, 0) + exec_cnt
-                        entry["blocks_total"] += fn.get("blocks", 0)
-                        entry["blocks_exec"] += fn.get("blocks_executed", 0)
-
-                gz.unlink(missing_ok=True)
+        process_gcov_json(data, all_files_data)
 
     return all_files_data
 
 
-def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def process_gcov_json(data: Dict[str, Any], all_files_data: Dict[str, Dict[str, Any]]) -> None:
+    """Process single gcov JSON structure and aggregate metrics into all_files_data."""
+    for f in data.get("files", []):
+        f_path_str = f.get("file", "")
+        if not f_path_str:
+            continue
+        f_path = Path(f_path_str).resolve()
+
+        # Filter: must be inside source_dir and hand-written source
+        try:
+            f_rel = f_path.relative_to(PROJECT_ROOT)
+        except ValueError:
+            continue
+
+        f_rel_str = str(f_rel).replace("\\", "/")
+        if not f_rel_str.startswith("src/"):
+            continue
+        if any(bad in f_rel_str for bad in ["/proto/", "_autogen", "/work/", "/build/", "mocs_compilation"]):
+            continue
+
+        if f_rel_str not in all_files_data:
+            all_files_data[f_rel_str] = {
+                "file": f_rel_str,
+                "subsystem": categorize_subsystem(f_rel_str),
+                "lines": {},
+                "funcs": {},
+                "branches": {},
+                "conds": [],
+                "calls": [],
+                "blocks_total": 0,
+                "blocks_exec": 0,
+            }
+
+        entry = all_files_data[f_rel_str]
+
+        # Map lines by function to resolve exception landing pad blocks in CFG
+        fn_lines: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for l in f.get("lines", []):
+            fn_lines[l.get("function_name", "")].append(l)
+
+        fn_landing_pads: Dict[str, Set[int]] = {}
+        for fn_name, flist in fn_lines.items():
+            throw_dsts = set()
+            adj = defaultdict(set)
+            all_source_blocks = set()
+
+            for l in flist:
+                for b in l.get("branches", []):
+                    s = b.get("source_block_id")
+                    d_blk = b.get("destination_block_id")
+                    if s is not None and d_blk is not None:
+                        adj[s].add(d_blk)
+                        all_source_blocks.add(s)
+                    if b.get("throw", False) and d_blk is not None and d_blk != 1:
+                        throw_dsts.add(d_blk)
+
+            landing_pads = {blk for blk in throw_dsts if isinstance(blk, int) and blk != 1}
+            queue = deque(list(landing_pads))
+            while queue:
+                curr = queue.popleft()
+                if not isinstance(curr, int) or curr == 1:
+                    continue
+                for nxt in adj.get(curr, set()):
+                    if isinstance(nxt, int) and nxt not in landing_pads and nxt != 1:  # 1 is exit block
+                        landing_pads.add(nxt)
+                        queue.append(nxt)
+                nxt_seq = curr + 1
+                if nxt_seq not in landing_pads and nxt_seq != 1:
+                    normal_predecessor = False
+                    for s, dsts in adj.items():
+                        if s not in landing_pads and nxt_seq in dsts:
+                            normal_predecessor = True
+                            break
+                    if not normal_predecessor and nxt_seq in all_source_blocks:
+                        landing_pads.add(nxt_seq)
+                        queue.append(nxt_seq)
+
+            fn_landing_pads[fn_name] = landing_pads
+
+        # Aggregate Lines
+        for l in f.get("lines", []):
+            ln = l.get("line_number", 0)
+            cnt = l.get("count", 0)
+            entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
+            fn_name = l.get("function_name", "")
+            lp = fn_landing_pads.get(fn_name, set())
+
+            # Aggregate Branches on this line
+            for bi, b in enumerate(l.get("branches", [])):
+                b_key = (ln, bi)
+                cnt_br = b.get("count", 0)
+                is_throw = bool(b.get("throw", False))
+                s_blk = b.get("source_block_id")
+                is_landing = bool(s_blk is not None and s_blk in lp)
+                if b_key not in entry["branches"]:
+                    entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw, "landing_pad": is_landing}
+                else:
+                    if isinstance(entry["branches"][b_key], dict):
+                        entry["branches"][b_key]["count"] += cnt_br
+                        if is_landing:
+                            entry["branches"][b_key]["landing_pad"] = True
+                    else:
+                        entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw, "landing_pad": is_landing}
+
+            # Aggregate Conditions
+            unexec_b = [b for b in l.get("branches", []) if b.get("count", 0) == 0]
+            line_is_landing = bool(unexec_b and all(b.get("throw", False) or (b.get("source_block_id") is not None and b.get("source_block_id") in lp) for b in unexec_b))
+            for c in l.get("conditions", []):
+                c_dict = dict(c)
+                if line_is_landing and c.get("covered", 0) == 0:
+                    c_dict["landing_pad"] = True
+                entry["conds"].append(c_dict)
+
+            # Aggregate Calls
+            entry["calls"].extend(l.get("calls", []))
+
+        # Aggregate Functions & Blocks
+        for fn in f.get("functions", []):
+            name = fn.get("demangled_name") or fn.get("name", "unknown")
+            exec_cnt = fn.get("execution_count", 0)
+            entry["funcs"][name] = entry["funcs"].get(name, 0) + exec_cnt
+            entry["blocks_total"] += fn.get("blocks", 0)
+            entry["blocks_exec"] += fn.get("blocks_executed", 0)
+
+    return all_files_data
+
+
+def compute_metrics(all_files_data: Dict[str, Dict[str, Any]], exclude_throw_branches: bool = True) -> Dict[str, Any]:
     """Compute summary statistics for all 6 coverage metrics."""
     file_stats = []
 
     tot_lines_exec = tot_lines = 0
     tot_funcs_exec = tot_funcs = 0
     tot_branches_exec = tot_branches = 0
+    tot_branches_raw_exec = tot_branches_raw = 0
     tot_conds_exec = tot_conds = 0
     tot_calls_exec = tot_calls = 0
     tot_blocks_exec = tot_blocks = 0
@@ -195,11 +272,34 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         fn_tot = len(d["funcs"])
         fn_cov = sum(1 for c in d["funcs"].values() if c > 0)
 
-        br_tot = len(d["branches"])
-        br_cov = sum(1 for c in d["branches"].values() if c > 0)
+        br_tot = 0
+        br_cov = 0
+        raw_br_tot = 0
+        raw_br_cov = 0
 
-        cd_tot = sum(c.get("count", 0) for c in d["conds"])
-        cd_cov = sum(c.get("covered", 0) for c in d["conds"])
+        for b_val in d["branches"].values():
+            if isinstance(b_val, dict):
+                cnt = b_val.get("count", 0)
+                is_throw = b_val.get("throw", False)
+                is_landing = b_val.get("landing_pad", False)
+            else:
+                cnt = b_val
+                is_throw = False
+                is_landing = False
+
+            raw_br_tot += 1
+            if cnt > 0:
+                raw_br_cov += 1
+
+            if exclude_throw_branches and (is_throw or is_landing):
+                continue
+
+            br_tot += 1
+            if cnt > 0:
+                br_cov += 1
+
+        cd_tot = sum(c.get("count", 0) for c in d["conds"] if not (exclude_throw_branches and c.get("landing_pad", False)))
+        cd_cov = sum(c.get("covered", 0) for c in d["conds"] if not (exclude_throw_branches and c.get("landing_pad", False)))
 
         cl_tot = len(d["calls"])
         cl_cov = sum(1 for c in d["calls"] if c.get("returned", 0) > 0)
@@ -213,6 +313,8 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         tot_funcs_exec += fn_cov
         tot_branches += br_tot
         tot_branches_exec += br_cov
+        tot_branches_raw += raw_br_tot
+        tot_branches_raw_exec += raw_br_cov
         tot_conds += cd_tot
         tot_conds_exec += cd_cov
         tot_calls += cl_tot
@@ -226,6 +328,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
                 "lines_tot": 0, "lines_cov": 0,
                 "funcs_tot": 0, "funcs_cov": 0,
                 "branches_tot": 0, "branches_cov": 0,
+                "branches_raw_tot": 0, "branches_raw_cov": 0,
                 "conds_tot": 0, "conds_cov": 0,
                 "calls_tot": 0, "calls_cov": 0,
                 "blocks_tot": 0, "blocks_cov": 0,
@@ -237,6 +340,8 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         sm["funcs_cov"] += fn_cov
         sm["branches_tot"] += br_tot
         sm["branches_cov"] += br_cov
+        sm["branches_raw_tot"] += raw_br_tot
+        sm["branches_raw_cov"] += raw_br_cov
         sm["conds_tot"] += cd_tot
         sm["conds_cov"] += cd_cov
         sm["calls_tot"] += cl_tot
@@ -250,6 +355,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
             "lines": {"total": l_tot, "covered": l_cov, "percent": round((l_cov / l_tot * 100) if l_tot else 0.0, 2)},
             "functions": {"total": fn_tot, "covered": fn_cov, "percent": round((fn_cov / fn_tot * 100) if fn_tot else 0.0, 2)},
             "branches": {"total": br_tot, "covered": br_cov, "percent": round((br_cov / br_tot * 100) if br_tot else 0.0, 2)},
+            "branches_raw": {"total": raw_br_tot, "covered": raw_br_cov, "percent": round((raw_br_cov / raw_br_tot * 100) if raw_br_tot else 0.0, 2)},
             "conditions": {"total": cd_tot, "covered": cd_cov, "percent": round((cd_cov / cd_tot * 100) if cd_tot else 0.0, 2)},
             "calls": {"total": cl_tot, "covered": cl_cov, "percent": round((cl_cov / cl_tot * 100) if cl_tot else 0.0, 2)},
             "blocks": {"total": blk_tot, "covered": blk_cov, "percent": round((blk_cov / blk_tot * 100) if blk_tot else 0.0, 2)},
@@ -262,6 +368,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
             "lines": {"total": sm["lines_tot"], "covered": sm["lines_cov"], "percent": round((sm["lines_cov"] / sm["lines_tot"] * 100) if sm["lines_tot"] else 0.0, 2)},
             "functions": {"total": sm["funcs_tot"], "covered": sm["funcs_cov"], "percent": round((sm["funcs_cov"] / sm["funcs_tot"] * 100) if sm["funcs_tot"] else 0.0, 2)},
             "branches": {"total": sm["branches_tot"], "covered": sm["branches_cov"], "percent": round((sm["branches_cov"] / sm["branches_tot"] * 100) if sm["branches_tot"] else 0.0, 2)},
+            "branches_raw": {"total": sm["branches_raw_tot"], "covered": sm["branches_raw_cov"], "percent": round((sm["branches_raw_cov"] / sm["branches_raw_tot"] * 100) if sm["branches_raw_tot"] else 0.0, 2)},
             "conditions": {"total": sm["conds_tot"], "covered": sm["conds_cov"], "percent": round((sm["conds_cov"] / sm["conds_tot"] * 100) if sm["conds_tot"] else 0.0, 2)},
             "calls": {"total": sm["calls_tot"], "covered": sm["calls_cov"], "percent": round((sm["calls_cov"] / sm["calls_tot"] * 100) if sm["calls_tot"] else 0.0, 2)},
             "blocks": {"total": sm["blocks_tot"], "covered": sm["blocks_cov"], "percent": round((sm["blocks_cov"] / sm["blocks_tot"] * 100) if sm["blocks_tot"] else 0.0, 2)},
@@ -271,6 +378,7 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]
         "lines": {"total": tot_lines, "covered": tot_lines_exec, "percent": round((tot_lines_exec / tot_lines * 100) if tot_lines else 0.0, 2)},
         "functions": {"total": tot_funcs, "covered": tot_funcs_exec, "percent": round((tot_funcs_exec / tot_funcs * 100) if tot_funcs else 0.0, 2)},
         "branches": {"total": tot_branches, "covered": tot_branches_exec, "percent": round((tot_branches_exec / tot_branches * 100) if tot_branches else 0.0, 2)},
+        "branches_raw": {"total": tot_branches_raw, "covered": tot_branches_raw_exec, "percent": round((tot_branches_raw_exec / tot_branches_raw * 100) if tot_branches_raw else 0.0, 2)},
         "conditions": {"total": tot_conds, "covered": tot_conds_exec, "percent": round((tot_conds_exec / tot_conds * 100) if tot_conds else 0.0, 2)},
         "calls": {"total": tot_calls, "covered": tot_calls_exec, "percent": round((tot_calls_exec / tot_calls * 100) if tot_calls else 0.0, 2)},
         "blocks": {"total": tot_blocks, "covered": tot_blocks_exec, "percent": round((tot_blocks_exec / tot_blocks * 100) if tot_blocks else 0.0, 2)},
@@ -312,11 +420,13 @@ def render_console_summary(metrics: Dict[str, Any]) -> str:
     metrics_order = [
         ("Lines", s["lines"]),
         ("Functions", s["functions"]),
-        ("Branches", s["branches"]),
+        ("Branches (Decision)", s["branches"]),
         ("Conditions (MC/DC)", s["conditions"]),
         ("Calls", s["calls"]),
         ("Basic Blocks", s["blocks"]),
     ]
+    if "branches_raw" in s and s["branches_raw"]["total"] != s["branches"]["total"]:
+        metrics_order.append(("  ↳ Raw (w/ Unwind)", s["branches_raw"]))
 
     for name, data in metrics_order:
         pct = data["percent"]
@@ -354,7 +464,7 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
     metrics_rows = [
         ("**Lines**", s["lines"]),
         ("**Functions**", s["functions"]),
-        ("**Branches**", s["branches"]),
+        ("**Branches (Decision)**", s["branches"]),
         ("**Conditions (MC/DC)**", s["conditions"]),
         ("**Calls**", s["calls"]),
         ("**Basic Blocks**", s["blocks"]),
@@ -365,6 +475,13 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
         icon = "✅" if pct >= 50.0 else "⚠️"
         md.append(f"| {label} | {data['covered']:,} | {data['total']:,} | **{pct:.2f}%** | {icon} |")
 
+    if "branches_raw" in s and s["branches_raw"]["total"] != s["branches"]["total"]:
+        raw = s["branches_raw"]
+        md.append(f"| *Branches (Raw w/ Unwind)* | {raw['covered']:,} | {raw['total']:,} | *{raw['percent']:.2f}%* | ℹ️ |")
+
+    md.append("")
+    md.append("> [!NOTE]")
+    md.append("> **Branch Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`) are excluded from decision branches and shown transparently in raw metrics.")
     md.append("")
     md.append("### Architectural Subsystems Breakdown")
     md.append("")
@@ -737,15 +854,17 @@ def main():
     parser.add_argument("--fail-under-branches", type=float, default=0.0, help="Fail if branch coverage is below this threshold")
     parser.add_argument("--fail-under-functions", type=float, default=0.0, help="Fail if function coverage is below this threshold")
     parser.add_argument("--fail-under-conditions", type=float, default=0.0, help="Fail if condition coverage is below this threshold")
+    parser.add_argument("--include-throw-branches", action="store_true", help="Include compiler-synthesized exception unwinding landing pads in branch metrics")
+    parser.add_argument("--gcov-dir", type=Path, default=PROJECT_ROOT / "work" / "coverage" / "gcov", help="Directory where temporary gcov intermediate files are generated (default: work/coverage/gcov)")
 
     args = parser.parse_args()
 
-    raw_data = parse_gcov_data(args.build_dir, args.source_dir)
+    raw_data = parse_gcov_data(args.build_dir, args.source_dir, gcov_dir=args.gcov_dir)
     if not raw_data:
         print("No coverage data could be processed.", file=sys.stderr)
         sys.exit(1)
 
-    metrics = compute_metrics(raw_data)
+    metrics = compute_metrics(raw_data, exclude_throw_branches=not args.include_throw_branches)
 
     if args.summary or not any([args.markdown, args.html, args.json, args.github_step_summary, args.update_readme]):
         print(render_console_summary(metrics))

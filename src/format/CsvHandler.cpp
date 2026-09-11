@@ -15,11 +15,24 @@
 
 namespace {
 
+inline bool isNonEmptyRecord(const QStringList &rec) {
+    if (rec.isEmpty()) return false;
+    return rec.size() > 1 || !rec[0].isEmpty();
+}
+
 QString escapeCsv(const QString &field, char16_t delimiter) {
-    if (field.contains(QChar(delimiter)) || field.contains('"') || field.contains('\n') || field.contains('\r')) {
+    bool needsQuotes = false;
+    for (const QChar &ch : field) {
+        char16_t u = ch.unicode();
+        if (u == delimiter || u == '"' || u == '\n' || u == '\r') {
+            needsQuotes = true;
+            break;
+        }
+    }
+    if (needsQuotes) {
         QString escaped = field;
-        escaped.replace("\"", "\"\"");
-        return QString("\"%1\"").arg(escaped);
+        escaped.replace('"', "\"\"");
+        return "\"" + escaped + "\"";
     }
     return field;
 }
@@ -56,7 +69,7 @@ std::vector<QStringList> parseCsvLines(const QString &content, char16_t delimite
                 }
                 currentRecord.append(currentField.trimmed());
                 currentField.clear();
-                if (!currentRecord.isEmpty() && (currentRecord.size() > 1 || !currentRecord[0].isEmpty())) {
+                if (isNonEmptyRecord(currentRecord)) {
                     records.push_back(currentRecord);
                 }
                 currentRecord.clear();
@@ -68,7 +81,7 @@ std::vector<QStringList> parseCsvLines(const QString &content, char16_t delimite
 
     if (!currentField.isEmpty() || !currentRecord.isEmpty()) {
         currentRecord.append(currentField.trimmed());
-        if (!currentRecord.isEmpty() && (currentRecord.size() > 1 || !currentRecord[0].isEmpty())) {
+        if (isNonEmptyRecord(currentRecord)) {
             records.push_back(currentRecord);
         }
     }
@@ -78,11 +91,18 @@ std::vector<QStringList> parseCsvLines(const QString &content, char16_t delimite
 
 } // anonymous namespace
 
+QString CsvHandler::formatName() const { return QStringLiteral("CSV Spreadsheet"); }
+QStringList CsvHandler::supportedExtensions() const {
+    static const QStringList exts = {QStringLiteral("csv"), QStringLiteral("tsv")};
+    return exts;
+}
+QString CsvHandler::fileFilter() const { return QStringLiteral("CSV Table (*.csv *.tsv)"); }
+
 FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
 {
     FormatResult result;
     QFile file(filepath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (!file.open(QIODevice::ReadOnly)) {
         result.success = false;
         result.errorMessage = QString("Cannot open CSV file: %1").arg(file.errorString());
         return result;

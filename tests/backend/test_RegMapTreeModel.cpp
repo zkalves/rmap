@@ -9,6 +9,12 @@
 #include "RegMapTreeModel.hpp"
 #include "RegMapTreeItem.hpp"
 
+class TestableRegMapTreeModel : public RegMapTreeModel
+{
+public:
+    using RegMapTreeModel::createIndex;
+};
+
 class TestRegMapTreeModel : public QObject
 {
     Q_OBJECT
@@ -24,6 +30,9 @@ private slots:
     void testCrc32AndMemoryGapPadding();
     void testAsicLinterDrc();
     void testMemoryOverlapValidation();
+    void testIndexAndDataRolesEdgeCases();
+    void testLinterExtendedRules();
+    void testModelCoverageEdgeCases();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders()
@@ -293,6 +302,13 @@ void TestRegMapTreeModel::testCrc32AndMemoryGapPadding()
     json extractedRestored = model.extractJsonData(32);
     uint32_t crc3 = extractedRestored["regmap_crc32"].get<uint32_t>();
     QCOMPARE(crc1, crc3);
+
+    // Insert a second block to exercise multi-block sorting lambda
+    model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    model.setData(model.index(1, 3, QModelIndex()), "BLK_SECOND", Qt::EditRole);
+    model.setData(model.index(1, 1, QModelIndex()), "0x1000", Qt::EditRole);
+    json multiBlkJson = model.extractJsonData(32);
+    QCOMPARE(multiBlkJson["blocks"].size(), (size_t)2);
 }
 
 void TestRegMapTreeModel::testAsicLinterDrc()
@@ -400,6 +416,297 @@ void TestRegMapTreeModel::testMemoryOverlapValidation()
     QVERIFY(model.checkData(32).isEmpty());
     QVERIFY(!model.isIndexInvalid(model.index(0, 1, blkIndex)));
     QVERIFY(!model.isIndexInvalid(model.index(1, 1, blkIndex)));
+}
+
+void TestRegMapTreeModel::testIndexAndDataRolesEdgeCases()
+{
+    RegMapTreeModel model;
+
+    // 1. Column count with valid and invalid parent
+    QCOMPARE(model.columnCount(QModelIndex()), 11);
+
+    // 2. Index navigation boundaries
+    QVERIFY(!model.index(-1, 0, QModelIndex()).isValid());
+    QVERIFY(!model.index(0, -1, QModelIndex()).isValid());
+    QVERIFY(!model.index(100, 0, QModelIndex()).isValid());
+    QVERIFY(!model.index(0, 100, QModelIndex()).isValid());
+
+    // 3. Parent of invalid index
+    QVERIFY(!model.parent(QModelIndex()).isValid());
+
+    // 4. Flags of invalid index
+    QCOMPARE(model.flags(QModelIndex()), Qt::NoItemFlags);
+
+    // 5. Data of invalid index
+    QVERIFY(!model.data(QModelIndex(), Qt::DisplayRole).isValid());
+
+    // 6. Header data edge cases
+    QCOMPARE(model.headerData(1, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Offset"));
+    QCOMPARE(model.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Size"));
+    QCOMPARE(model.headerData(3, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Name"));
+    QVERIFY(model.headerData(99, Qt::Horizontal, Qt::DisplayRole).toString().isEmpty());
+    QVERIFY(!model.headerData(0, Qt::Vertical, Qt::DisplayRole).isValid());
+    QVERIFY(!model.headerData(0, Qt::Horizontal, Qt::EditRole).isValid());
+
+    // 7. Refresh header data
+    model.refreshHeaderData();
+
+    // 8. RowCount when parent.column() > 0
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkCol1 = model.index(0, 1, QModelIndex());
+    QCOMPARE(model.rowCount(blkCol1), 0);
+
+    // 9. Invalid insertion kinds
+    // Cannot insert field or reg at root
+    QVERIFY(!model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, QModelIndex()));
+    QVERIFY(!model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, QModelIndex()));
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    // Cannot insert field under block
+    QVERIFY(!model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, blkIndex));
+
+    // Insert reg under blk
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex));
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    // Cannot insert block under reg
+    QVERIFY(!model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, regIndex));
+
+    // Insert mem under blk
+    QVERIFY(model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::mem, blkIndex));
+    QModelIndex memIndex = model.index(1, 0, blkIndex);
+    QCOMPARE(model.data(model.index(1, 2, blkIndex), Qt::DisplayRole).toString(), QString("1024"));
+
+    // 10. Parent pointers
+    QCOMPARE(model.parent(blkIndex), QModelIndex());
+    QCOMPARE(model.parent(regIndex), blkIndex);
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+    QModelIndex fldIndex = model.index(0, 0, regIndex);
+    QCOMPARE(model.parent(fldIndex), regIndex);
+
+    // 11. Flags on root vs block vs field
+    QVERIFY(!(model.flags(model.index(0, 0, QModelIndex())) & Qt::ItemIsEditable));
+    QVERIFY(model.flags(model.index(0, 3, QModelIndex())) & Qt::ItemIsEditable);
+
+    // 12. Data roles: DecorationRole, BackgroundRole, ToolTipRole, FontRole
+    QVariant iconVar = model.data(model.index(0, 0, QModelIndex()), Qt::DecorationRole);
+    QVERIFY(!model.data(model.index(0, 1, QModelIndex()), Qt::DecorationRole).isValid());
+    QVERIFY(!model.data(model.index(0, 3, QModelIndex()), Qt::FontRole).isValid());
+    QVERIFY(!model.data(model.index(0, 3, QModelIndex()), Qt::BackgroundRole).isValid());
+    QVERIFY(!model.data(model.index(0, 3, QModelIndex()), Qt::ToolTipRole).isValid());
+
+    // Set invalid index via checkData error (empty name)
+    model.setData(model.index(0, 3, QModelIndex()), "", Qt::EditRole);
+    model.checkData(32);
+    QVERIFY(model.data(model.index(0, 3, QModelIndex()), Qt::BackgroundRole).isValid());
+    QCOMPARE(model.data(model.index(0, 3, QModelIndex()), Qt::ToolTipRole).toString(),
+             tr("Invalid value, address collision, or register width violation"));
+
+    // 13. SetData with role != EditRole or invalid index
+    QVERIFY(!model.setData(model.index(0, 3, QModelIndex()), "TEST", Qt::DisplayRole));
+    QVERIFY(!model.setData(QModelIndex(), "TEST", Qt::EditRole));
+
+    // 14. Padding hex offsets on reg vs fld
+    model.setData(model.index(0, 1, blkIndex), "0x10", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIndex), Qt::DisplayRole).toString(), QString("0x0010"));
+
+    QModelIndex fldOffset = model.index(0, 1, regIndex);
+    model.setData(fldOffset, "4", Qt::EditRole);
+    QCOMPARE(model.data(fldOffset, Qt::DisplayRole).toString(), QString("4"));
+
+    // 15. SetRootItem and clear
+    QVERIFY(model.clear());
+    QCOMPARE(model.rowCount(QModelIndex()), 0);
+
+    QVariantMap rootData;
+    rootData["Type"] = "root";
+    RegMapTreeItem *newRoot = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+    model.setRootItem(newRoot);
+    QCOMPARE(model.getRootItem(), newRoot);
+}
+
+void TestRegMapTreeModel::testLinterExtendedRules()
+{
+    RegMapTreeModel model;
+
+    // 1. Block with empty Name
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+    model.setData(model.index(0, 3, QModelIndex()), "", Qt::EditRole);
+
+    QStringList errs = model.checkData(32);
+    QVERIFY(errs.join("\n").contains("empty Name"));
+
+    model.setData(model.index(0, 3, QModelIndex()), "VALID_BLOCK", Qt::EditRole);
+
+    // 2. Field with bit width 0
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+    QModelIndex regIndex = model.index(0, 0, blkIndex);
+    model.setData(model.index(0, 1, blkIndex), "0x0", Qt::EditRole);
+    model.setData(model.index(0, 3, blkIndex), "REG1", Qt::EditRole);
+
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+    QModelIndex fldIndex = model.index(0, 0, regIndex);
+    model.setData(model.index(0, 1, regIndex), "0", Qt::EditRole);
+    model.setData(model.index(0, 2, regIndex), "0", Qt::EditRole);
+    model.setData(model.index(0, 3, regIndex), "ZERO_WIDTH_FLD", Qt::EditRole);
+
+    QStringList errWidth0 = model.checkData(32);
+    QVERIFY(errWidth0.join("\n").contains("invalid bit width 0"));
+
+    // 3. Field exceeding register width
+    model.setData(model.index(0, 1, regIndex), "30", Qt::EditRole);
+    model.setData(model.index(0, 2, regIndex), "8", Qt::EditRole);
+    QStringList errExceed = model.checkData(32);
+    QVERIFY(errExceed.join("\n").contains("exceeds register width (32 bits)"));
+
+    // Fix field
+    model.setData(model.index(0, 1, regIndex), "0", Qt::EditRole);
+    model.setData(model.index(0, 2, regIndex), "8", Qt::EditRole);
+    QVERIFY(model.checkData(32).isEmpty());
+
+    // 4. Register without fields, reset value overflow
+    model.removeRows(0, 1, regIndex);
+    model.setData(model.index(0, 6, blkIndex), "0x100000000", Qt::EditRole);
+    QStringList errRegReset = model.checkData(32);
+    QVERIFY(errRegReset.join("\n").contains("overflows register width (32 bits)"));
+}
+
+void TestRegMapTreeModel::testModelCoverageEdgeCases()
+{
+    TestableRegMapTreeModel model;
+
+    // 1. Data with invalid internalPointer item -> covers L140
+    QModelIndex fakeNullIdx = model.createIndex(0, 0, nullptr);
+    QCOMPARE(model.data(fakeNullIdx, Qt::DisplayRole), QVariant());
+
+    // 2. Parent with invalid internalPointer childItem -> covers L248
+    QCOMPARE(model.parent(fakeNullIdx), QModelIndex());
+
+    // 3. Qt::DecorationRole on col 0 with empty icon -> covers L153
+    QVariantMap emptyData;
+    RegMapTreeItem customItem(static_cast<RegMapTreeItem::e_rmmKind>(99), emptyData);
+    QModelIndex customIdx = model.createIndex(0, 0, &customItem);
+    QCOMPARE(model.data(customIdx, Qt::DecorationRole), QVariant());
+
+    // 4. recursiveExtractJsonData(nullptr, 32) -> covers L581
+    nlohmann::json nullJson = model.recursiveExtractJsonData(nullptr, 32);
+    QVERIFY(nullJson.is_null() || nullJson.empty());
+
+    // 5. computeTreeCrc32 with direct registers array -> covers L755-758
+    nlohmann::json rootWithRegs;
+    rootWithRegs["registers"] = nlohmann::json::array({
+        { {"name", "DIRECT_REG"}, {"offset_lsb", 0x10}, {"size_width", 32}, {"access", "RW"}, {"reset_val", 0x1234} }
+    });
+    uint32_t crc = RegMapTreeModel::computeTreeCrc32(rootWithRegs);
+    QVERIFY(crc != 0);
+
+    // 6. Binary string parsing ("0b...") -> covers L64
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex()));
+    QModelIndex blkIdx = model.index(0, 0, QModelIndex());
+    // Column 0 DisplayRole returns kindString -> covers L179
+    QCOMPARE(model.data(blkIdx, Qt::DisplayRole).toString(), QString("blk"));
+
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QModelIndex regIdx = model.index(0, 0, blkIdx);
+    model.setData(model.index(0, 1, blkIdx), "0x0", Qt::EditRole);
+    model.setData(model.index(0, 6, blkIdx), "0b1010", Qt::EditRole); // binary reset value
+    QCOMPARE(model.data(model.index(0, 6, blkIdx), Qt::DisplayRole).toString(), QString("0b1010"));
+
+    // 7. Multiple fields with out-of-order offsets -> covers L658 (std::sort comparator)
+    QVERIFY(model.insertRows(0, 2, RegMapTreeItem::e_rmmKind::fld, regIdx));
+    QModelIndex fld0 = model.index(0, 0, regIdx);
+    QModelIndex fld1 = model.index(1, 0, regIdx);
+    model.setData(model.index(0, 1, regIdx), "8", Qt::EditRole);
+    model.setData(model.index(0, 2, regIdx), "4", Qt::EditRole);
+    model.setData(model.index(0, 3, regIdx), "FLD_HIGH", Qt::EditRole);
+    model.setData(model.index(1, 1, regIdx), "0", Qt::EditRole);
+    model.setData(model.index(1, 2, regIdx), "4", Qt::EditRole);
+    model.setData(model.index(1, 3, regIdx), "FLD_LOW", Qt::EditRole);
+
+    // 8. Memories with out-of-order offsets -> covers L626-627, 663-666
+    QVERIFY(model.insertRows(1, 2, RegMapTreeItem::e_rmmKind::mem, QModelIndex()));
+    model.setData(model.index(1, 1, QModelIndex()), "0x2000", Qt::EditRole);
+    model.setData(model.index(1, 3, QModelIndex()), "MEM2", Qt::EditRole);
+    model.setData(model.index(2, 1, QModelIndex()), "0x1000", Qt::EditRole);
+    model.setData(model.index(2, 3, QModelIndex()), "MEM1", Qt::EditRole);
+
+    // 9. Root item with empty Name and Description -> covers L762, L765
+    model.getRootItem()->setData("Name", "");
+    model.getRootItem()->setData("Description", "");
+    nlohmann::json extracted = model.extractJsonData(32);
+    QCOMPARE(QString::fromStdString(extracted["name"]), QString("regmap"));
+    QCOMPARE(QString::fromStdString(extracted["description"]), QString("Hardware Register Map Specification"));
+    QVERIFY(extracted.contains("memories"));
+    QCOMPARE(extracted["memories"].size(), 2);
+    QCOMPARE(QString::fromStdString(extracted["memories"][0]["name"]), QString("MEM1"));
+
+    // 10. padHexOffset with invalid hex, and with > 32-bit address
+    model.setData(model.index(0, 1, blkIdx), "0xNOT_HEX", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIdx), Qt::DisplayRole).toString(), QString("0xNOT_HEX"));
+    model.setData(model.index(0, 1, blkIdx), "0x10000", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x00010000"));
+    model.setData(model.index(0, 1, blkIdx), "0x100000000", Qt::EditRole);
+    QCOMPARE(model.data(model.index(0, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x0000000100000000"));
+
+    // 11. insertRow with prevOffset >= 0x100000000 (exercises formatHex with >= 0x100000000)
+    QVERIFY(model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QCOMPARE(model.data(model.index(1, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x0000000100000004"));
+
+    // 12. insertRow when prevSize == 0 (exercises byteSize = (prevSize == 0) ? 4 : prevSize / 8)
+    model.setData(model.index(1, 2, blkIdx), "0", Qt::EditRole);
+    QVERIFY(model.insertRows(2, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QCOMPARE(model.data(model.index(2, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x0000000100000008"));
+
+    // 13. checkData with regWidth == 0 (defaults to 4 bytes for registers)
+    QStringList zeroWidthErrors = model.checkData(0);
+    Q_UNUSED(zeroWidthErrors);
+
+    // 14. checkData with 64-bit regWidth and register with no fields
+    RegMapTreeModel model64;
+    model64.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+    model64.setData(model64.index(0, 3, QModelIndex()), "BLK64", Qt::EditRole);
+    QModelIndex b64 = model64.index(0, 0, QModelIndex());
+    model64.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, b64);
+    model64.setData(model64.index(0, 3, b64), "REG64_NO_FLD", Qt::EditRole);
+    model64.setData(model64.index(0, 6, b64), "0xFFFFFFFFFFFFFFFF", Qt::EditRole);
+    QStringList errs64 = model64.checkData(64);
+    QCOMPARE(errs64.size(), 0);
+
+    // 15. Memory with size_bytes == 0 in checkData (defaults to 4 bytes)
+    model.setData(model.index(1, 2, QModelIndex()), "0", Qt::EditRole);
+    QStringList memZeroSizeErrs = model.checkData(32);
+    Q_UNUSED(memZeroSizeErrs);
+
+    // 16. data() with Qt::UserRole (non-display role fallback)
+    QCOMPARE(model.data(blkIdx, Qt::UserRole), QVariant());
+
+    // 17. insertRow after a register with offset in [0x10000, 0x100000000) (exercises line 75 of formatHex)
+    model.setData(model.index(2, 1, blkIdx), "0x10000", Qt::EditRole);
+    model.setData(model.index(2, 2, blkIdx), "32", Qt::EditRole);
+    QVERIFY(model.insertRows(3, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx));
+    QCOMPARE(model.data(model.index(3, 1, blkIdx), Qt::DisplayRole).toString(), QString("0x00010004"));
+
+    // 18. Memory inside a block in checkData (childKind == mem)
+    QVERIFY(model.insertRows(4, 1, RegMapTreeItem::e_rmmKind::mem, blkIdx));
+    model.setData(model.index(4, 1, blkIdx), "0x20000", Qt::EditRole);
+    model.setData(model.index(4, 2, blkIdx), "1024", Qt::EditRole);
+    model.setData(model.index(4, 3, blkIdx), "BLK_MEM", Qt::EditRole);
+    QStringList blkMemErrs = model.checkData(32);
+    Q_UNUSED(blkMemErrs);
+
+    // 19. Empty access policy and HW access in extractJsonData
+    model.setData(model.index(3, 4, blkIdx), "", Qt::EditRole);
+    model.setData(model.index(3, 5, blkIdx), "", Qt::EditRole);
+    nlohmann::json emptyAccessJson = model.extractJsonData(32);
+    Q_UNUSED(emptyAccessJson);
+
+    // 20. Child item of kind 'map' in extractJsonData
+    QVariantMap mapData;
+    mapData["Name"] = "SYS_MAP";
+    RegMapTreeItem *rootItem = model.getRootItem();
+    RegMapTreeItem *mapChild = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData, rootItem);
+    rootItem->appendChild(mapChild);
+    nlohmann::json mapJson = model.extractJsonData(32);
+    Q_UNUSED(mapJson);
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

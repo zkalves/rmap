@@ -45,210 +45,183 @@ ColorBlindMode stringToColorBlindMode(const QString &str)
     return ColorBlindMode::None;
 }
 
+namespace {
+const QList<ColorBlindModeInfo> s_colorBlindModes = {
+    { ColorBlindMode::Universal, QStringLiteral("universal"), QStringLiteral("Universal (Barrier-Free Okabe-Ito)"), QStringLiteral("Universally distinguishable across all cone deficiencies") },
+    { ColorBlindMode::Deuteranopia, QStringLiteral("deuteranopia"), QStringLiteral("Deuteranopia (Green-Blind / Weak)"), QStringLiteral("Optimized for medium-wavelength cone deficiency (~6% of males)") },
+    { ColorBlindMode::Protanopia, QStringLiteral("protanopia"), QStringLiteral("Protanopia (Red-Blind / Weak)"), QStringLiteral("Optimized for long-wavelength cone deficiency (~2% of males)") },
+    { ColorBlindMode::Tritanopia, QStringLiteral("tritanopia"), QStringLiteral("Tritanopia (Blue-Blind / Weak)"), QStringLiteral("Optimized for short-wavelength cone deficiency") },
+    { ColorBlindMode::Achromatopsia, QStringLiteral("achromatopsia"), QStringLiteral("Achromatopsia (Monochrome / Grayscale)"), QStringLiteral("High-contrast luminance steps for complete color blindness") }
+};
+
+enum class AccessKind {
+    RW,
+    RO,
+    WO,
+    W1S,
+    W1C,
+    RC,
+    NA
+};
+
+AccessKind parseAccessKind(QStringView a)
+{
+    if (a == u"RW") return AccessKind::RW;
+    if (a == u"RO") return AccessKind::RO;
+    if (a == u"WO") return AccessKind::WO;
+    if (a == u"W1S" || a == u"W0S" || a == u"WS") return AccessKind::W1S;
+    if (a == u"W1C" || a == u"W0C" || a == u"WC" || a == u"W1" || a == u"W0") return AccessKind::W1C;
+    if (a == u"RC" || a == u"RS") return AccessKind::RC;
+    return AccessKind::NA;
+}
+} // namespace
+
 const QList<ColorBlindModeInfo>& availableColorBlindModes()
 {
-    static const QList<ColorBlindModeInfo> modes = {
-        { ColorBlindMode::Universal, QStringLiteral("universal"), QStringLiteral("Universal (Barrier-Free Okabe-Ito)"), QStringLiteral("Universally distinguishable across all cone deficiencies") },
-        { ColorBlindMode::Deuteranopia, QStringLiteral("deuteranopia"), QStringLiteral("Deuteranopia (Green-Blind / Weak)"), QStringLiteral("Optimized for medium-wavelength cone deficiency (~6% of males)") },
-        { ColorBlindMode::Protanopia, QStringLiteral("protanopia"), QStringLiteral("Protanopia (Red-Blind / Weak)"), QStringLiteral("Optimized for long-wavelength cone deficiency (~2% of males)") },
-        { ColorBlindMode::Tritanopia, QStringLiteral("tritanopia"), QStringLiteral("Tritanopia (Blue-Blind / Weak)"), QStringLiteral("Optimized for short-wavelength cone deficiency") },
-        { ColorBlindMode::Achromatopsia, QStringLiteral("achromatopsia"), QStringLiteral("Achromatopsia (Monochrome / Grayscale)"), QStringLiteral("High-contrast luminance steps for complete color blindness") }
-    };
-    return modes;
+    return s_colorBlindModes;
 }
 
 AccessColors ColorScheme::getAccessColors(const QString &access, ColorBlindMode mode) const
 {
     QString a = access.toUpper().trimmed();
+    AccessKind kind = parseAccessKind(a);
 
     if (mode == ColorBlindMode::None) {
-        if (a == "RW") return rwColors;
-        if (a == "RO") return roColors;
-        if (a == "WO") return woColors;
-        if (a.startsWith("W1C") || a == "W1C" || a.startsWith("W0C") || a == "W0C" || a == "WC") return w1cColors;
-        if (a.startsWith("W1S") || a == "W1S" || a.startsWith("W0S") || a == "WS") return w1cColors;
-        if (a == "RC" || a == "RS") return rcColors;
-        return naColors;
+        switch (kind) {
+        case AccessKind::RW:  return rwColors;
+        case AccessKind::RO:  return roColors;
+        case AccessKind::WO:  return woColors;
+        case AccessKind::W1C:
+        case AccessKind::W1S: return w1cColors;
+        case AccessKind::RC:  return rcColors;
+        case AccessKind::NA:
+        default:              return naColors;
+        }
     }
 
     AccessColors c;
 
     // Check custom color-blind overrides first if available (for universal mode)
     if (hasCustomColorBlind && mode == ColorBlindMode::Universal) {
-        if (a == "RO" || a == "RC" || a == "RS") return cbRo;
-        if (a == "WO") return cbWo;
-        if (a.startsWith("W1") || a.startsWith("W0") || a == "WC" || a == "WS") return cbW1c;
-        if (a == "RW") return cbRw;
-        return cbNa;
+        switch (kind) {
+        case AccessKind::RO:
+        case AccessKind::RC:  return cbRo;
+        case AccessKind::WO:  return cbWo;
+        case AccessKind::W1C:
+        case AccessKind::W1S: return cbW1c;
+        case AccessKind::RW:  return cbRw;
+        case AccessKind::NA:
+        default:              return cbNa;
+        }
     }
 
     switch (mode) {
     case ColorBlindMode::Universal: {
         // Universal Okabe-Ito / Wong barrier-free palette
-        if (a == "RW") {
-            c.bg = QColor(128, 222, 234);
-            c.border = QColor(0, 96, 100);
-            c.text = QColor(0, 50, 60);
-        } else if (a == "RO") {
-            c.bg = QColor(159, 168, 218);
-            c.border = QColor(26, 35, 126);
-            c.text = QColor(15, 20, 80);
-        } else if (a == "WO") {
-            c.bg = QColor(206, 147, 216);
-            c.border = QColor(74, 20, 140);
-            c.text = QColor(50, 10, 80);
-        } else if (a == "W1S" || a == "W0S" || a == "WS") {
-            c.bg = QColor(255, 224, 130);
-            c.border = QColor(183, 129, 3);
-            c.text = QColor(74, 48, 0);
-        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
-            c.bg = QColor(255, 138, 101);
-            c.border = QColor(191, 54, 12);
-            c.text = QColor(100, 20, 0);
-        } else if (a == "RC" || a == "RS") {
-            c.bg = QColor(179, 157, 219);
-            c.border = QColor(49, 27, 146);
-            c.text = QColor(26, 0, 75);
-        } else {
-            c.bg = QColor(207, 216, 220);
-            c.border = QColor(55, 71, 79);
-            c.text = QColor(40, 40, 40);
+        switch (kind) {
+        case AccessKind::RW:
+            c.bg = QColor(128, 222, 234); c.border = QColor(0, 96, 100); c.text = QColor(0, 50, 60); break;
+        case AccessKind::RO:
+            c.bg = QColor(159, 168, 218); c.border = QColor(26, 35, 126); c.text = QColor(15, 20, 80); break;
+        case AccessKind::WO:
+            c.bg = QColor(206, 147, 216); c.border = QColor(74, 20, 140); c.text = QColor(50, 10, 80); break;
+        case AccessKind::W1S:
+            c.bg = QColor(255, 224, 130); c.border = QColor(183, 129, 3); c.text = QColor(74, 48, 0); break;
+        case AccessKind::W1C:
+            c.bg = QColor(255, 138, 101); c.border = QColor(191, 54, 12); c.text = QColor(100, 20, 0); break;
+        case AccessKind::RC:
+            c.bg = QColor(179, 157, 219); c.border = QColor(49, 27, 146); c.text = QColor(26, 0, 75); break;
+        case AccessKind::NA:
+        default:
+            c.bg = QColor(207, 216, 220); c.border = QColor(55, 71, 79); c.text = QColor(40, 40, 40); break;
         }
         break;
     }
 
     case ColorBlindMode::Protanopia: {
         // Protanopia: Red-blind / Red-weak (L-cone deficiency)
-        if (a == "RW") {
-            c.bg = QColor(147, 197, 253); // Sky Blue
-            c.border = QColor(29, 78, 216);
-            c.text = QColor(23, 37, 84);
-        } else if (a == "RO") {
-            c.bg = QColor(165, 243, 252); // Pale Cyan
-            c.border = QColor(8, 145, 178);
-            c.text = QColor(22, 78, 99);
-        } else if (a == "WO") {
-            c.bg = QColor(254, 240, 138); // Yellow
-            c.border = QColor(161, 98, 7);
-            c.text = QColor(69, 26, 3);
-        } else if (a == "W1S" || a == "W0S" || a == "WS") {
-            c.bg = QColor(254, 249, 195);
-            c.border = QColor(133, 77, 14);
-            c.text = QColor(66, 32, 6);
-        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
-            c.bg = QColor(254, 215, 170); // Warm Peach
-            c.border = QColor(194, 65, 12);
-            c.text = QColor(67, 20, 7);
-        } else if (a == "RC" || a == "RS") {
-            c.bg = QColor(199, 210, 254); // Indigo
-            c.border = QColor(67, 56, 202);
-            c.text = QColor(30, 27, 75);
-        } else {
-            c.bg = QColor(226, 232, 240);
-            c.border = QColor(71, 85, 105);
-            c.text = QColor(15, 23, 42);
+        switch (kind) {
+        case AccessKind::RW:
+            c.bg = QColor(147, 197, 253); c.border = QColor(29, 78, 216); c.text = QColor(23, 37, 84); break;
+        case AccessKind::RO:
+            c.bg = QColor(165, 243, 252); c.border = QColor(8, 145, 178); c.text = QColor(22, 78, 99); break;
+        case AccessKind::WO:
+            c.bg = QColor(254, 240, 138); c.border = QColor(161, 98, 7); c.text = QColor(69, 26, 3); break;
+        case AccessKind::W1S:
+            c.bg = QColor(254, 249, 195); c.border = QColor(133, 77, 14); c.text = QColor(66, 32, 6); break;
+        case AccessKind::W1C:
+            c.bg = QColor(254, 215, 170); c.border = QColor(194, 65, 12); c.text = QColor(67, 20, 7); break;
+        case AccessKind::RC:
+            c.bg = QColor(199, 210, 254); c.border = QColor(67, 56, 202); c.text = QColor(30, 27, 75); break;
+        case AccessKind::NA:
+        default:
+            c.bg = QColor(226, 232, 240); c.border = QColor(71, 85, 105); c.text = QColor(15, 23, 42); break;
         }
         break;
     }
 
     case ColorBlindMode::Deuteranopia: {
         // Deuteranopia: Green-blind / Green-weak (M-cone deficiency)
-        if (a == "RW") {
-            c.bg = QColor(153, 246, 228); // Teal
-            c.border = QColor(15, 118, 110);
-            c.text = QColor(19, 78, 74);
-        } else if (a == "RO") {
-            c.bg = QColor(191, 219, 254); // Blue
-            c.border = QColor(30, 64, 175);
-            c.text = QColor(23, 37, 84);
-        } else if (a == "WO") {
-            c.bg = QColor(253, 224, 71); // Amber Yellow
-            c.border = QColor(161, 98, 7);
-            c.text = QColor(66, 32, 6);
-        } else if (a == "W1S" || a == "W0S" || a == "WS") {
-            c.bg = QColor(254, 240, 138);
-            c.border = QColor(180, 83, 9);
-            c.text = QColor(69, 26, 3);
-        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
-            c.bg = QColor(251, 146, 60); // Tangerine
-            c.border = QColor(154, 52, 18);
-            c.text = QColor(67, 20, 7);
-        } else if (a == "RC" || a == "RS") {
-            c.bg = QColor(221, 214, 254); // Violet
-            c.border = QColor(109, 40, 217);
-            c.text = QColor(46, 16, 101);
-        } else {
-            c.bg = QColor(226, 232, 240);
-            c.border = QColor(71, 85, 105);
-            c.text = QColor(15, 23, 42);
+        switch (kind) {
+        case AccessKind::RW:
+            c.bg = QColor(153, 246, 228); c.border = QColor(15, 118, 110); c.text = QColor(19, 78, 74); break;
+        case AccessKind::RO:
+            c.bg = QColor(191, 219, 254); c.border = QColor(30, 64, 175); c.text = QColor(23, 37, 84); break;
+        case AccessKind::WO:
+            c.bg = QColor(253, 224, 71); c.border = QColor(161, 98, 7); c.text = QColor(66, 32, 6); break;
+        case AccessKind::W1S:
+            c.bg = QColor(254, 240, 138); c.border = QColor(180, 83, 9); c.text = QColor(69, 26, 3); break;
+        case AccessKind::W1C:
+            c.bg = QColor(251, 146, 60); c.border = QColor(154, 52, 18); c.text = QColor(67, 20, 7); break;
+        case AccessKind::RC:
+            c.bg = QColor(221, 214, 254); c.border = QColor(109, 40, 217); c.text = QColor(46, 16, 101); break;
+        case AccessKind::NA:
+        default:
+            c.bg = QColor(226, 232, 240); c.border = QColor(71, 85, 105); c.text = QColor(15, 23, 42); break;
         }
         break;
     }
 
     case ColorBlindMode::Tritanopia: {
         // Tritanopia: Blue-blind / Blue-weak (S-cone deficiency)
-        if (a == "RW") {
-            c.bg = QColor(204, 251, 241); // Mint Cyan
-            c.border = QColor(15, 118, 110);
-            c.text = QColor(19, 78, 74);
-        } else if (a == "RO") {
-            c.bg = QColor(254, 205, 211); // Rose Red
-            c.border = QColor(190, 18, 60);
-            c.text = QColor(76, 5, 25);
-        } else if (a == "WO") {
-            c.bg = QColor(254, 215, 170); // Warm Peach
-            c.border = QColor(194, 65, 12);
-            c.text = QColor(67, 20, 7);
-        } else if (a == "W1S" || a == "W0S" || a == "WS") {
-            c.bg = QColor(255, 228, 230);
-            c.border = QColor(159, 18, 57);
-            c.text = QColor(76, 5, 25);
-        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
-            c.bg = QColor(251, 207, 232); // Magenta
-            c.border = QColor(157, 23, 77);
-            c.text = QColor(80, 7, 36);
-        } else if (a == "RC" || a == "RS") {
-            c.bg = QColor(245, 208, 254); // Fuchsia
-            c.border = QColor(134, 25, 143);
-            c.text = QColor(74, 4, 78);
-        } else {
-            c.bg = QColor(226, 232, 240);
-            c.border = QColor(51, 65, 85);
-            c.text = QColor(15, 23, 42);
+        switch (kind) {
+        case AccessKind::RW:
+            c.bg = QColor(204, 251, 241); c.border = QColor(15, 118, 110); c.text = QColor(19, 78, 74); break;
+        case AccessKind::RO:
+            c.bg = QColor(254, 205, 211); c.border = QColor(190, 18, 60); c.text = QColor(76, 5, 25); break;
+        case AccessKind::WO:
+            c.bg = QColor(254, 215, 170); c.border = QColor(194, 65, 12); c.text = QColor(67, 20, 7); break;
+        case AccessKind::W1S:
+            c.bg = QColor(255, 228, 230); c.border = QColor(159, 18, 57); c.text = QColor(76, 5, 25); break;
+        case AccessKind::W1C:
+            c.bg = QColor(251, 207, 232); c.border = QColor(157, 23, 77); c.text = QColor(80, 7, 36); break;
+        case AccessKind::RC:
+            c.bg = QColor(245, 208, 254); c.border = QColor(134, 25, 143); c.text = QColor(74, 4, 78); break;
+        case AccessKind::NA:
+        default:
+            c.bg = QColor(226, 232, 240); c.border = QColor(51, 65, 85); c.text = QColor(15, 23, 42); break;
         }
         break;
     }
 
     case ColorBlindMode::Achromatopsia: {
         // Achromatopsia: Complete color blindness (Distinct luminance steps)
-        if (a == "RW") {
-            c.bg = QColor(224, 224, 224); // 88% luminance
-            c.border = QColor(0, 0, 0);
-            c.text = QColor(0, 0, 0);
-        } else if (a == "RO") {
-            c.bg = QColor(255, 255, 255); // 100% luminance
-            c.border = QColor(0, 0, 0);
-            c.text = QColor(0, 0, 0);
-        } else if (a == "WO") {
-            c.bg = QColor(34, 34, 34); // 13% luminance
-            c.border = QColor(255, 255, 255);
-            c.text = QColor(255, 255, 255);
-        } else if (a == "W1S" || a == "W0S" || a == "WS") {
-            c.bg = QColor(136, 136, 136); // 53% luminance
-            c.border = QColor(0, 0, 0);
-            c.text = QColor(255, 255, 255);
-        } else if (a.startsWith("W1") || a.startsWith("W0") || a == "WC") {
-            c.bg = QColor(85, 85, 85); // 33% luminance
-            c.border = QColor(255, 255, 255);
-            c.text = QColor(255, 255, 255);
-        } else if (a == "RC" || a == "RS") {
-            c.bg = QColor(170, 170, 170); // 67% luminance
-            c.border = QColor(0, 0, 0);
-            c.text = QColor(0, 0, 0);
-        } else {
-            c.bg = QColor(51, 51, 51); // 20% luminance
-            c.border = QColor(119, 119, 119);
-            c.text = QColor(204, 204, 204);
+        switch (kind) {
+        case AccessKind::RW:
+            c.bg = QColor(224, 224, 224); c.border = QColor(0, 0, 0); c.text = QColor(0, 0, 0); break;
+        case AccessKind::RO:
+            c.bg = QColor(255, 255, 255); c.border = QColor(0, 0, 0); c.text = QColor(0, 0, 0); break;
+        case AccessKind::WO:
+            c.bg = QColor(34, 34, 34); c.border = QColor(255, 255, 255); c.text = QColor(255, 255, 255); break;
+        case AccessKind::W1S:
+            c.bg = QColor(136, 136, 136); c.border = QColor(0, 0, 0); c.text = QColor(255, 255, 255); break;
+        case AccessKind::W1C:
+            c.bg = QColor(85, 85, 85); c.border = QColor(255, 255, 255); c.text = QColor(255, 255, 255); break;
+        case AccessKind::RC:
+            c.bg = QColor(170, 170, 170); c.border = QColor(0, 0, 0); c.text = QColor(0, 0, 0); break;
+        case AccessKind::NA:
+        default:
+            c.bg = QColor(51, 51, 51); c.border = QColor(119, 119, 119); c.text = QColor(204, 204, 204); break;
         }
         break;
     }
@@ -265,7 +238,7 @@ AccessColors ColorScheme::getAccessColors(const QString &access, bool colorBlind
     return getAccessColors(access, colorBlind ? ColorBlindMode::Universal : ColorBlindMode::None);
 }
 
-QPalette ColorScheme::generatePalette() const
+QPalette ColorScheme::generatePalette() const noexcept
 {
     QPalette p;
     p.setColor(QPalette::Window, windowBg);
@@ -342,17 +315,17 @@ QString ColorScheme::generateStyleSheet() const
     qss += QString("QSplitter::handle { background-color: %1; }\n")
                .arg(border.name());
 
-    qss += QString("QScrollBar:vertical { background: %1; width: 12px; margin: 0px; }\n"
-                   "QScrollBar::handle:vertical { background: %2; min-height: 20px; border-radius: 4px; margin: 2px; }\n"
-                   "QScrollBar::handle:vertical:hover { background: %3; }\n"
-                   "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }\n")
-               .arg(windowBg.name(), border.name(), buttonHover.name());
+    QString vsb = QStringLiteral("QScrollBar:vertical { background: %1; width: 12px; margin: 0px; }\n"
+                                 "QScrollBar::handle:vertical { background: %2; min-height: 20px; border-radius: 4px; margin: 2px; }\n"
+                                 "QScrollBar::handle:vertical:hover { background: %3; }\n"
+                                 "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }\n");
+    qss += vsb.arg(windowBg.name(), border.name(), buttonHover.name());
 
-    qss += QString("QScrollBar:horizontal { background: %1; height: 12px; margin: 0px; }\n"
-                   "QScrollBar::handle:horizontal { background: %2; min-width: 20px; border-radius: 4px; margin: 2px; }\n"
-                   "QScrollBar::handle:horizontal:hover { background: %3; }\n"
-                   "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }\n")
-               .arg(windowBg.name(), border.name(), buttonHover.name());
+    QString hsb = QStringLiteral("QScrollBar:horizontal { background: %1; height: 12px; margin: 0px; }\n"
+                                 "QScrollBar::handle:horizontal { background: %2; min-width: 20px; border-radius: 4px; margin: 2px; }\n"
+                                 "QScrollBar::handle:horizontal:hover { background: %3; }\n"
+                                 "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }\n");
+    qss += hsb.arg(windowBg.name(), border.name(), buttonHover.name());
 
     return qss;
 }
@@ -381,8 +354,9 @@ bool ColorScheme::fromJson(const QJsonObject &obj)
     *this = ColorScheme::createDefault(schemeId);
     this->id = schemeId;
 
-    if (obj.contains("name") && obj["name"].isString()) {
-        this->name = obj["name"].toString().trimmed();
+    QJsonValue nameVal = obj.value("name");
+    if (nameVal.isString()) {
+        this->name = nameVal.toString().trimmed();
     }
     if (obj.contains("isDark")) {
         this->isDark = obj["isDark"].toBool(this->isDark);
@@ -390,8 +364,10 @@ bool ColorScheme::fromJson(const QJsonObject &obj)
 
     QJsonObject baseObj = obj.value("base").toObject();
     auto getBaseColor = [&](const QString &key, const QColor &def) -> QColor {
-        if (baseObj.contains(key)) return parseColor(baseObj.value(key), def);
-        if (obj.contains(key)) return parseColor(obj.value(key), def);
+        QJsonValue v = baseObj.value(key);
+        if (!v.isUndefined()) return parseColor(v, def);
+        v = obj.value(key);
+        if (!v.isUndefined()) return parseColor(v, def);
         return def;
     };
 
@@ -415,8 +391,10 @@ bool ColorScheme::fromJson(const QJsonObject &obj)
 
     QJsonObject rsvdObj = obj.value("reserved").toObject();
     auto getRsvdColor = [&](const QString &key, const QString &flatKey, const QColor &def) -> QColor {
-        if (rsvdObj.contains(key)) return parseColor(rsvdObj.value(key), def);
-        if (obj.contains(flatKey)) return parseColor(obj.value(flatKey), def);
+        QJsonValue v = rsvdObj.value(key);
+        if (!v.isUndefined()) return parseColor(v, def);
+        v = obj.value(flatKey);
+        if (!v.isUndefined()) return parseColor(v, def);
         return def;
     };
 
@@ -429,14 +407,18 @@ bool ColorScheme::fromJson(const QJsonObject &obj)
     QJsonObject apObj = obj.value("accessPolicies").toObject();
     auto getAccess = [&](const QString &key, const AccessColors &def) -> AccessColors {
         QJsonObject o = apObj.value(key).toObject();
-        if (o.isEmpty() && obj.contains(key) && obj.value(key).isObject()) {
-            o = obj.value(key).toObject();
+        if (o.isEmpty()) {
+            QJsonValue v = obj.value(key);
+            if (v.isObject()) o = v.toObject();
         }
         if (o.isEmpty()) return def;
         AccessColors res = def;
-        if (o.contains("bg")) res.bg = parseColor(o.value("bg"), def.bg);
-        if (o.contains("border")) res.border = parseColor(o.value("border"), def.border);
-        if (o.contains("text")) res.text = parseColor(o.value("text"), def.text);
+        QJsonValue v = o.value("bg");
+        if (!v.isUndefined()) res.bg = parseColor(v, def.bg);
+        v = o.value("border");
+        if (!v.isUndefined()) res.border = parseColor(v, def.border);
+        v = o.value("text");
+        if (!v.isUndefined()) res.text = parseColor(v, def.text);
         return res;
     };
 
@@ -447,15 +429,19 @@ bool ColorScheme::fromJson(const QJsonObject &obj)
     rcColors  = getAccess("rc", rcColors);
     naColors  = getAccess("na", naColors);
 
-    if (obj.contains("colorBlind") && obj.value("colorBlind").isObject()) {
-        QJsonObject cbObj = obj.value("colorBlind").toObject();
+    QJsonValue cbVal = obj.value("colorBlind");
+    if (cbVal.isObject()) {
+        QJsonObject cbObj = cbVal.toObject();
         auto getCb = [&](const QString &key, const AccessColors &def) -> AccessColors {
             QJsonObject o = cbObj.value(key).toObject();
             if (o.isEmpty()) return def;
             AccessColors res = def;
-            if (o.contains("bg")) res.bg = parseColor(o.value("bg"), def.bg);
-            if (o.contains("border")) res.border = parseColor(o.value("border"), def.border);
-            if (o.contains("text")) res.text = parseColor(o.value("text"), def.text);
+            QJsonValue v = o.value("bg");
+            if (!v.isUndefined()) res.bg = parseColor(v, def.bg);
+            v = o.value("border");
+            if (!v.isUndefined()) res.border = parseColor(v, def.border);
+            v = o.value("text");
+            if (!v.isUndefined()) res.text = parseColor(v, def.text);
             return res;
         };
         hasCustomColorBlind = true;
@@ -511,7 +497,7 @@ QJsonObject ColorScheme::toJson() const
     rsvd["rulerText"] = rulerText.name();
     root["reserved"] = rsvd;
 
-    auto accessToJson = [](const AccessColors &c) {
+    auto accessToJson = [](const AccessColors &c) noexcept -> QJsonObject {
         QJsonObject o;
         o["bg"] = c.bg.name();
         o["border"] = c.border.name();
@@ -542,7 +528,7 @@ QJsonObject ColorScheme::toJson() const
     return root;
 }
 
-QList<ColorScheme> ColorScheme::builtInDefaults()
+QList<ColorScheme> ColorScheme::builtInDefaults() noexcept
 {
     QList<ColorScheme> list;
 
@@ -953,7 +939,7 @@ const QList<ColorScheme>& ThemeManager::availableThemes() const
     return m_themes;
 }
 
-QStringList ThemeManager::themeIds() const
+QStringList ThemeManager::themeIds() const noexcept
 {
     QStringList ids;
     for (const auto &t : m_themes) {
@@ -962,7 +948,7 @@ QStringList ThemeManager::themeIds() const
     return ids;
 }
 
-QStringList ThemeManager::themeNames() const
+QStringList ThemeManager::themeNames() const noexcept
 {
     QStringList names;
     for (const auto &t : m_themes) {
@@ -992,17 +978,17 @@ QString ThemeManager::currentThemeName() const
 bool ThemeManager::setTheme(const QString &idOrName)
 {
     QString key = idOrName.trimmed();
-    if (key.isEmpty() || key.compare("solarized", Qt::CaseInsensitive) == 0 ||
-        key.compare("solarized8", Qt::CaseInsensitive) == 0 ||
-        key.compare("solarized8_dark", Qt::CaseInsensitive) == 0 ||
-        key.compare("solarized_dark", Qt::CaseInsensitive) == 0 ||
-        key.compare("default", Qt::CaseInsensitive) == 0 ||
-        key.compare("dark", Qt::CaseInsensitive) == 0) {
+    QString k = key.toLower();
+    k.replace('-', '_');
+    if (k.isEmpty() || k == "solarized" || k == "solarized8" || k == "solarized8_dark" ||
+        k == "solarized_dark" || k == "default" || k == "dark") {
         key = "solarized8";
-    } else if (key.compare("solarized8_light", Qt::CaseInsensitive) == 0 ||
-               key.compare("solarized_light", Qt::CaseInsensitive) == 0 ||
-               key.compare("light", Qt::CaseInsensitive) == 0) {
+    } else if (k == "solarized8_light" || k == "solarized_light" || k == "light") {
         key = "solarized8_light";
+    } else if (k == "high_contrast" || k == "high_contrast_dark") {
+        key = "high_contrast_dark";
+    } else if (k == "high_contrast_light") {
+        key = "high_contrast_light";
     }
 
     // If key points to an existing JSON file, load it
@@ -1171,6 +1157,18 @@ QString ThemeManager::localThemesDir()
     return QDir::current().filePath("themes");
 }
 
+static bool s_systemThemePathsOverride = false;
+
+void ThemeManager::setSystemThemePathsOverride(bool override)
+{
+    s_systemThemePathsOverride = override;
+}
+
+bool ThemeManager::systemThemePathsOverride()
+{
+    return s_systemThemePathsOverride;
+}
+
 QStringList ThemeManager::searchPaths() const
 {
     QStringList paths;
@@ -1194,13 +1192,13 @@ QStringList ThemeManager::searchPaths() const
     // 3. Installed system paths
     QString appDir = QCoreApplication::applicationDirPath();
     QString installPath = QDir(appDir + "/../share/rmap/themes").canonicalPath();
-    if (!installPath.isEmpty() && !paths.contains(installPath)) {
-        paths.append(installPath);
+    if ((!installPath.isEmpty() || s_systemThemePathsOverride) && !paths.contains(installPath)) {
+        paths.append(installPath.isEmpty() ? appDir + "/../share/rmap/themes" : installPath);
     }
-    if (QDir("/usr/local/share/rmap/themes").exists() && !paths.contains("/usr/local/share/rmap/themes")) {
+    if ((QDir("/usr/local/share/rmap/themes").exists() || s_systemThemePathsOverride) && !paths.contains("/usr/local/share/rmap/themes")) {
         paths.append("/usr/local/share/rmap/themes");
     }
-    if (QDir("/usr/share/rmap/themes").exists() && !paths.contains("/usr/share/rmap/themes")) {
+    if ((QDir("/usr/share/rmap/themes").exists() || s_systemThemePathsOverride) && !paths.contains("/usr/share/rmap/themes")) {
         paths.append("/usr/share/rmap/themes");
     }
 

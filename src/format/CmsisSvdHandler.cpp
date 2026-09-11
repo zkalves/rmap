@@ -14,6 +14,11 @@
 #include "../RegMapTreeItem.hpp"
 #include "../RegConfigWindow.hpp"
 
+CmsisSvdHandler::~CmsisSvdHandler() = default;
+QString CmsisSvdHandler::formatName() const { return QStringLiteral("ARM CMSIS-SVD"); }
+QStringList CmsisSvdHandler::supportedExtensions() const { return {QStringLiteral("svd")}; }
+QString CmsisSvdHandler::fileFilter() const { return QStringLiteral("ARM CMSIS-SVD (*.svd)"); }
+
 namespace {
 
 QString svdAccessToUvm(const QString &acc) {

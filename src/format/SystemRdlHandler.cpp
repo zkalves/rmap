@@ -14,6 +14,10 @@
 #include "../RegMapTreeItem.hpp"
 #include "../RegConfigWindow.hpp"
 
+QString SystemRdlHandler::formatName() const { return QStringLiteral("SystemRDL"); }
+QStringList SystemRdlHandler::supportedExtensions() const { return {QStringLiteral("rdl"), QStringLiteral("systemrdl")}; }
+QString SystemRdlHandler::fileFilter() const { return QStringLiteral("SystemRDL (*.rdl *.systemrdl)"); }
+
 namespace {
 
 enum class TokenType {
@@ -247,12 +251,10 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
 
     size_t idx = 0;
     auto peek = [&](size_t offset = 0) -> Token {
-        if (idx + offset < tokens.size()) return tokens[idx + offset];
-        return {TokenType::Eof, "", 0};
+        return tokens[std::min(idx + offset, tokens.size() - 1)];
     };
     auto consume = [&]() -> Token {
-        if (idx < tokens.size()) return tokens[idx++];
-        return {TokenType::Eof, "", 0};
+        return tokens[std::min(idx++, tokens.size() - 1)];
     };
 
     uint64_t nextRegOffset = 0;
@@ -292,18 +294,17 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
 
         if (tok.type == TokenType::Ident && tok.text == "default") {
             consume(); // default
-            if (peek().type == TokenType::Ident && peek().text == "regwidth") {
-                consume();
+            if (peek().type == TokenType::Ident) {
+                QString defName = consume().text;
                 if (peek().type == TokenType::Equals) consume();
-                if (peek().type == TokenType::Number) {
+                if (defName == "regwidth" && peek().type == TokenType::Number) {
                     defaultRegWidth = parseRdlNumber(consume().text);
-                }
-            } else if (peek().type == TokenType::Ident && peek().text == "sw") {
-                consume();
-                if (peek().type == TokenType::Equals) consume();
-                if (peek().type == TokenType::Ident) {
+                } else if (defName == "sw" && peek().type == TokenType::Ident) {
                     defaultSw = rdlSwToAccess(consume().text);
                 }
+            }
+            while (idx < tokens.size() && peek().type != TokenType::Semicolon && peek().type != TokenType::Eof) {
+                consume();
             }
             if (peek().type == TokenType::Semicolon) consume();
             continue;
@@ -340,15 +341,13 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
 
                 while (idx < tokens.size() && peek().type != TokenType::RBrace && peek().type != TokenType::Eof) {
                     Token inner = peek();
-                    if (inner.type == TokenType::Ident && inner.text == "name") {
-                        consume();
+                    if (inner.type == TokenType::Ident && (inner.text == "name" || inner.text == "desc")) {
+                        QString prop = consume().text;
                         if (peek().type == TokenType::Equals) consume();
-                        if (peek().type == TokenType::String) regName = consume().text;
-                        if (peek().type == TokenType::Semicolon) consume();
-                    } else if (inner.type == TokenType::Ident && inner.text == "desc") {
-                        consume();
-                        if (peek().type == TokenType::Equals) consume();
-                        if (peek().type == TokenType::String) regDesc = consume().text;
+                        if (peek().type == TokenType::String) {
+                            if (prop == "name") regName = consume().text;
+                            else regDesc = consume().text;
+                        }
                         if (peek().type == TokenType::Semicolon) consume();
                     } else if (inner.type == TokenType::Ident && inner.text == "field") {
                         consume(); // field
@@ -388,17 +387,11 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
                                         else fld.hwAccess = h.toUpper();
                                     }
                                     if (peek().type == TokenType::Semicolon) consume();
-                                } else if (fprop.type == TokenType::Ident && (fprop.text == "rclr" || fprop.text == "rc")) {
-                                    consume();
-                                    fld.access = "RC";
-                                    if (peek().type == TokenType::Semicolon) consume();
-                                } else if (fprop.type == TokenType::Ident && (fprop.text == "w1clr" || fprop.text == "w1c")) {
-                                    consume();
-                                    fld.access = "W1C";
-                                    if (peek().type == TokenType::Semicolon) consume();
-                                } else if (fprop.type == TokenType::Ident && (fprop.text == "w1set" || fprop.text == "w1s")) {
-                                    consume();
-                                    fld.access = "W1S";
+                                } else if (fprop.type == TokenType::Ident) {
+                                    QString pt = consume().text.toLower();
+                                    if (pt == "rclr" || pt == "rc") fld.access = "RC";
+                                    else if (pt == "w1clr" || pt == "w1c") fld.access = "W1C";
+                                    else if (pt == "w1set" || pt == "w1s") fld.access = "W1S";
                                     if (peek().type == TokenType::Semicolon) consume();
                                 } else {
                                     consume();
@@ -629,8 +622,10 @@ FormatResult SystemRdlHandler::write(const QString &filepath, RegMapTreeModel *m
                     out << "            hw = " << hwAccess << ";\n";
                     out << "        } " << fldName << "[" << msb << ":" << lsb << "]";
 
-                    if (fld->data("Has Reset").toString().toLower() == "true" || !resetVal.isEmpty()) {
-                        out << " = " << resetVal;
+                    const bool hasExplicitReset = (fld->data("Has Reset").toString().compare("true", Qt::CaseInsensitive) == 0);
+                    const bool hasResetValue = !resetVal.isEmpty();
+                    if (hasExplicitReset || hasResetValue) {
+                        out << " = " << (hasResetValue ? resetVal : QStringLiteral("0"));
                     }
                     out << ";\n";
                 }

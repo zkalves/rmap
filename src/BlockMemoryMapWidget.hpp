@@ -49,6 +49,12 @@ public:
     void setColorBlindMode(ColorBlindMode mode);
     bool isColorBlindMode() const { return m_colorBlindMode != ColorBlindMode::None; }
     ColorBlindMode colorBlindMode() const { return m_colorBlindMode; }
+    int selectedIndex() const { return m_selectedIndex; }
+    int hoveredIndex() const { return m_hoveredIndex; }
+    const QVector<QRectF>& blockRects() const { return m_blockRects; }
+
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
 signals:
     void registerClicked(int childRow, RegMapTreeItem *regItem);
@@ -58,8 +64,6 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
-    QSize sizeHint() const override;
-    QSize minimumSizeHint() const override;
 
 private:
     void computeBlocks();

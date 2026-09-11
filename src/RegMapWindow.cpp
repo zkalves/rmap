@@ -35,16 +35,21 @@
 #include "RmapVersion.hpp"
 #include "format/FormatManager.hpp"
 
+namespace {
+uint64_t parseNumericCell(const QString &str)
+{
+    QString s = str.trimmed();
+    if (s.startsWith("0b", Qt::CaseInsensitive)) {
+        return s.mid(2).toULongLong(nullptr, 2);
+    }
+    return s.toULongLong(nullptr, 0);
+}
+} // namespace
+
 // Helper to convert QVariant numbers (hex/dec/bin string) to uint64_t
 static uint64_t parseNumericValue(const QVariant& var)
 {
-    QString str = var.toString().trimmed();
-    if (str.startsWith("0x", Qt::CaseInsensitive)) {
-        return str.mid(2).toULongLong(nullptr, 16);
-    } else if (str.startsWith("0b", Qt::CaseInsensitive)) {
-        return str.mid(2).toULongLong(nullptr, 2);
-    }
-    return str.toULongLong(nullptr, 10);
+    return parseNumericCell(var.toString());
 }
 
 // Helper to pad hex offset string written in hex (0x format)
@@ -65,6 +70,74 @@ static QString padHexOffsetString(const QString &input, int minDigits = 4)
     return s;
 }
 
+// Recursive helper for strict lint checking (non-empty descriptions and byte alignment)
+static void performStrictLintChecks(RegMapTreeItem* item, uint32_t regWidth, QStringList &warnings)
+{
+    if (!item) return;
+    QString kind = item->kindString();
+    QString name = item->data("Name").toString();
+    QString desc = item->data("Description").toString();
+
+    if ((kind == "reg" || kind == "fld") && desc.trimmed().isEmpty()) {
+        warnings.append(QString("Missing description for %1 '%2'").arg(kind.toUpper(), name));
+    }
+    if (kind == "reg") {
+        bool ok = false;
+        QString offStr = item->data("Offset/LSB").toString().trimmed();
+        uint64_t off = offStr.toULongLong(&ok, 0);
+        uint64_t alignBytes = regWidth / 8;
+        if (ok && alignBytes > 0 && (off % alignBytes != 0)) {
+            warnings.append(QString("Register '%1' offset 0x%2 is not %3-byte aligned")
+                            .arg(name, QString::number(off, 16).toUpper(), QString::number(alignBytes)));
+        }
+    }
+    for (RegMapTreeItem* child : item->getChildItems()) {
+        performStrictLintChecks(child, regWidth, warnings);
+    }
+}
+
+struct RegSummary {
+    QString blockName;
+    QString regName;
+    QString offset;
+    QString access;
+    QString reset;
+    std::map<QString, QString> fields; // name -> "lsb:width:access:reset"
+};
+
+static void gatherRegs(RegMapTreeModel &model, std::map<QString, RegSummary> &map)
+{
+    RegMapTreeItem *root = model.getRootItem();
+    if (!root) return;
+    for (RegMapTreeItem *blk : root->getChildItems()) {
+        if (!blk || blk->kindString() != "blk") continue;
+        QString bName = blk->data("Name").toString();
+        for (RegMapTreeItem *reg : blk->getChildItems()) {
+            if (!reg || reg->kindString() != "reg") continue;
+            QString rName = reg->data("Name").toString();
+            QString key = bName + "::" + rName;
+            RegSummary s;
+            s.blockName = bName;
+            s.regName = rName;
+            s.offset = reg->data("Offset/LSB").toString();
+            s.access = reg->data("Access Policy").toString();
+            s.reset = reg->data("Reset Value").toString();
+            for (RegMapTreeItem *fld : reg->getChildItems()) {
+                if (fld && fld->kindString() == "fld") {
+                    QString fName = fld->data("Name").toString();
+                    QString fSig = QString("%1:%2:%3:%4")
+                        .arg(fld->data("Offset/LSB").toString())
+                        .arg(fld->data("Size/Width").toString())
+                        .arg(fld->data("Access Policy").toString())
+                        .arg(fld->data("Reset Value").toString());
+                    s.fields[fName] = fSig;
+                }
+            }
+            map[key] = s;
+        }
+    }
+}
+
 class TreeFilterProxyModel : public QSortFilterProxyModel {
     Q_OBJECT
 public:
@@ -82,37 +155,11 @@ public:
 
 protected:
     bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override {
-        if (!sourceModel() || !source_left.isValid() || !source_right.isValid()) return false;
-
-        // Offset / LSB column (1) -> sort numerically
-        if (source_left.column() == 1) {
-            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString().trimmed();
-            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString().trimmed();
-
-            uint64_t l_val = 0, r_val = 0;
-            if (l_str.startsWith("0x", Qt::CaseInsensitive)) l_val = l_str.mid(2).toULongLong(nullptr, 16);
-            else if (l_str.startsWith("0b", Qt::CaseInsensitive)) l_val = l_str.mid(2).toULongLong(nullptr, 2);
-            else l_val = l_str.toULongLong(nullptr, 10);
-
-            if (r_str.startsWith("0x", Qt::CaseInsensitive)) r_val = r_str.mid(2).toULongLong(nullptr, 16);
-            else if (r_str.startsWith("0b", Qt::CaseInsensitive)) r_val = r_str.mid(2).toULongLong(nullptr, 2);
-            else r_val = r_str.toULongLong(nullptr, 10);
-
-            return l_val < r_val;
-        } else if (source_left.column() == 2 || source_left.column() == 6) { // Size, Reset
-            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString().trimmed();
-            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString().trimmed();
-
-            uint64_t l_val = 0, r_val = 0;
-            if (l_str.startsWith("0x", Qt::CaseInsensitive)) l_val = l_str.mid(2).toULongLong(nullptr, 16);
-            else if (l_str.startsWith("0b", Qt::CaseInsensitive)) l_val = l_str.mid(2).toULongLong(nullptr, 2);
-            else l_val = l_str.toULongLong(nullptr, 10);
-
-            if (r_str.startsWith("0x", Qt::CaseInsensitive)) r_val = r_str.mid(2).toULongLong(nullptr, 16);
-            else if (r_str.startsWith("0b", Qt::CaseInsensitive)) r_val = r_str.mid(2).toULongLong(nullptr, 2);
-            else r_val = r_str.toULongLong(nullptr, 10);
-
-            return l_val < r_val;
+        int col = source_left.column();
+        if (col == 1 || col == 2 || col == 6) { // Offset / LSB, Size, Reset
+            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString();
+            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString();
+            return parseNumericCell(l_str) < parseNumericCell(r_str);
         }
         return QSortFilterProxyModel::lessThan(source_left, source_right);
     }
@@ -178,21 +225,10 @@ public:
     FieldSortProxyModel(QObject* parent = nullptr) : QSortFilterProxyModel(parent) {}
 protected:
     bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override {
-        if (!sourceModel() || !source_left.isValid() || !source_right.isValid()) return false;
         if (source_left.column() == 1) { // Sort by Offset
-            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString().trimmed();
-            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString().trimmed();
-
-            uint64_t l_val = 0, r_val = 0;
-            if (l_str.startsWith("0x", Qt::CaseInsensitive)) l_val = l_str.mid(2).toULongLong(nullptr, 16);
-            else if (l_str.startsWith("0b", Qt::CaseInsensitive)) l_val = l_str.mid(2).toULongLong(nullptr, 2);
-            else l_val = l_str.toULongLong(nullptr, 10);
-
-            if (r_str.startsWith("0x", Qt::CaseInsensitive)) r_val = r_str.mid(2).toULongLong(nullptr, 16);
-            else if (r_str.startsWith("0b", Qt::CaseInsensitive)) r_val = r_str.mid(2).toULongLong(nullptr, 2);
-            else r_val = r_str.toULongLong(nullptr, 10);
-
-            return l_val < r_val;
+            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString();
+            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString();
+            return parseNumericCell(l_str) < parseNumericCell(r_str);
         }
         return QSortFilterProxyModel::lessThan(source_left, source_right);
     }
@@ -621,9 +657,9 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     connect(actionDeleteItem,   &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
 
     // Ergonomic power-user shortcuts
-    actionAddReg->setShortcuts({QKeySequence("Ctrl+Shift+R"), QKeySequence("Ctrl+Return"), QKeySequence("Ctrl+Enter")});
-    actionAddRegField->setShortcuts({QKeySequence("Ctrl+Shift+F"), QKeySequence("Ctrl+Shift+Return"), QKeySequence("Ctrl+Shift+Enter")});
-    actionDeleteItem->setShortcuts({QKeySequence::Delete, QKeySequence("Del")});
+    actionAddReg->setShortcut(QKeySequence("Ctrl+Shift+R"));
+    actionAddRegField->setShortcut(QKeySequence("Ctrl+Shift+F"));
+    actionDeleteItem->setShortcut(QKeySequence::Delete);
     actionDuplicate->setShortcut(QKeySequence("Ctrl+D"));
     connect(actionCheck,        &QAction::triggered, this, &RegMapWindow::btnCheck);
     connect(actionExport,       &QAction::triggered, this, &RegMapWindow::btnExport);
@@ -649,22 +685,25 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
 
     restoreWindowStateFromSettings();
 
-    if (!m_rmap_filename.isNull() && !m_rmap_filename.isEmpty()) {
+    if (!m_rmap_filename.isEmpty()) {
         fileOpen(rmap_filename);
     } else {
         updatePaneVisibility();
     }
 
-    this->treeView->setItemDelegateForColumn(1, new RegHexDecBinDelegate(this));       // Offset
-    this->treeView->setItemDelegateForColumn(2, new RegHexDecBinDelegate(this));       // Size
-    this->treeView->setItemDelegateForColumn(3, new RegStrDelegate(this));             // Name
-    this->treeView->setItemDelegateForColumn(4, new RegAccessPolicyDelegate(this));   // SW Access
-    this->treeView->setItemDelegateForColumn(5, new RegHwAccessDelegate(this));       // HW Access
-    this->treeView->setItemDelegateForColumn(6, new RegHexDecBinDelegate(this));       // Reset Value
-    this->treeView->setItemDelegateForColumn(7, new RegBoolDelegate(this));           // Is Rand
-    this->treeView->setItemDelegateForColumn(8, new RegBoolDelegate(this));           // Volatile
-    this->treeView->setItemDelegateForColumn(9, new RegBoolDelegate(this));           // Has Reset
-    this->treeView->setItemDelegateForColumn(10, new RegMapDelegate(this));          // Description
+    auto *hexDelegate = new RegHexDecBinDelegate(this);
+    auto *boolDelegate = new RegBoolDelegate(this);
+
+    this->treeView->setItemDelegateForColumn(1, hexDelegate);                              // Offset
+    this->treeView->setItemDelegateForColumn(2, hexDelegate);                              // Size
+    this->treeView->setItemDelegateForColumn(3, new RegStrDelegate(this));                 // Name
+    this->treeView->setItemDelegateForColumn(4, new RegAccessPolicyDelegate(this));       // SW Access
+    this->treeView->setItemDelegateForColumn(5, new RegHwAccessDelegate(this));           // HW Access
+    this->treeView->setItemDelegateForColumn(6, hexDelegate);                              // Reset Value
+    this->treeView->setItemDelegateForColumn(7, boolDelegate);                             // Is Rand
+    this->treeView->setItemDelegateForColumn(8, boolDelegate);                             // Volatile
+    this->treeView->setItemDelegateForColumn(9, boolDelegate);                             // Has Reset
+    this->treeView->setItemDelegateForColumn(10, new RegMapDelegate(this));               // Description
 }
 
 RegMapWindow::~RegMapWindow()
@@ -739,9 +778,15 @@ void RegMapWindow::onToggleColorBlindMode(bool checked)
         actionColorBlindMode->setChecked(checked);
     }
     if (m_colorBlindActionGroup) {
-        QString curType = AppSettings::instance().colorBlindTypeString();
-        for (auto *act : m_colorBlindActionGroup->actions()) {
-            act->setChecked(checked && (act->data().toString() == curType));
+        if (!checked) {
+            for (auto *act : m_colorBlindActionGroup->actions()) {
+                act->setChecked(false);
+            }
+        } else {
+            QString curType = AppSettings::instance().colorBlindTypeString();
+            for (auto *act : m_colorBlindActionGroup->actions()) {
+                act->setChecked(act->data().toString() == curType);
+            }
         }
     }
     if (this->treeView) {
@@ -751,11 +796,13 @@ void RegMapWindow::onToggleColorBlindMode(bool checked)
         m_fieldsTableView->viewport()->update();
     }
     if (this->statusBar()) {
-        this->statusBar()->showMessage(
-            checked ? tr("Colour-Blind Mode (%1) Enabled").arg(colorBlindModeToString(AppSettings::instance().colorBlindType()))
-                    : tr("Standard Colour Palette Active"),
-            3000
-        );
+        QString msg;
+        if (checked) {
+            msg = tr("Colour-Blind Mode (%1) Enabled").arg(colorBlindModeToString(AppSettings::instance().colorBlindType()));
+        } else {
+            msg = tr("Standard Colour Palette Active");
+        }
+        this->statusBar()->showMessage(msg, 3000);
     }
 }
 
@@ -812,6 +859,9 @@ void RegMapWindow::setColourBlindType(ColorBlindMode mode)
 
 ColorBlindMode RegMapWindow::colourBlindType() const
 {
+    if (!isColourBlindMode()) {
+        return ColorBlindMode::None;
+    }
     return AppSettings::instance().colorBlindType();
 }
 
@@ -825,20 +875,31 @@ void RegMapWindow::setupColorBlindMenu(void)
     rebuildColorBlindMenu();
 
     connect(m_colorBlindMenu, &QMenu::aboutToShow, this, [this]() {
-        bool isCb = isColourBlindMode();
-        QString activeType = AppSettings::instance().colorBlindTypeString();
         if (m_colorBlindActionGroup) {
-            for (auto *act : m_colorBlindActionGroup->actions()) {
-                act->setChecked(isCb && act->data().toString() == activeType);
+            if (!isColourBlindMode()) {
+                for (auto *act : m_colorBlindActionGroup->actions()) {
+                    act->setChecked(false);
+                }
+            } else {
+                QString activeType = AppSettings::instance().colorBlindTypeString();
+                for (auto *act : m_colorBlindActionGroup->actions()) {
+                    act->setChecked(act->data().toString() == activeType);
+                }
             }
         }
     });
 
     connect(&ThemeManager::instance(), &ThemeManager::colorBlindModeChanged, this, [this](ColorBlindMode mode) {
         if (m_colorBlindActionGroup) {
-            QString curType = colorBlindModeToString(mode);
-            for (auto *act : m_colorBlindActionGroup->actions()) {
-                act->setChecked(mode != ColorBlindMode::None && act->data().toString() == curType);
+            if (mode == ColorBlindMode::None) {
+                for (auto *act : m_colorBlindActionGroup->actions()) {
+                    act->setChecked(false);
+                }
+            } else {
+                QString curType = colorBlindModeToString(mode);
+                for (auto *act : m_colorBlindActionGroup->actions()) {
+                    act->setChecked(act->data().toString() == curType);
+                }
             }
         }
     });
@@ -1108,10 +1169,8 @@ void RegMapWindow::restoreWindowStateFromSettings()
     } else {
         QSize sz = AppSettings::instance().mainWindowSize();
         QPoint p = AppSettings::instance().mainWindowPos();
-        if (sz.isValid() && sz.width() > 0 && sz.height() > 0) {
+        if (!sz.isEmpty()) {
             resize(sz);
-        } else {
-            resize(1200, 800);
         }
         if (!p.isNull()) {
             move(p);
@@ -1404,69 +1463,53 @@ void RegMapWindow::btnExport(void)
 
     CodeGenerator cg;
     std::string template_folder = cfg->templatefolder();
-    if (template_folder.empty() || (template_folder == PathUtils::DEFAULT_TEMPLATES_DIR && !QDir("./templates").exists())) {
-        template_folder = PathUtils::defaultTemplatesDir().toStdString();
+    std::string default_output  = resolveExportOutputFolder(QString(), cfg);
+
+    json jsonData = m_model->extractJsonData(regWidth);
+    resolveExportProjectName(cfg, m_rmap_filename, jsonData);
+    jsonData["project_name"] = cfg->project_name();
+    jsonData["project_version"] = cfg->project_version();
+    for (const auto& [key, value] : cfg->custom_parameters()) {
+        jsonData[key] = value;
     }
-    std::string default_output  = cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder();
 
-    try {
-        json jsonData = m_model->extractJsonData(regWidth);
-        if (!cfg->project_name().empty()) {
-            jsonData["name"] = cfg->project_name();
-        } else if (!m_rmap_filename.isEmpty() && (jsonData.value("name", "").empty() || jsonData["name"] == "regmap")) {
-            QFileInfo fi(m_rmap_filename);
-            QString base = fi.baseName();
-            if (!base.isEmpty()) {
-                jsonData["name"] = base.toStdString();
-            }
+    std::vector<TemplateMapping> mappings;
+    for (const auto& entry : cfg->template_outputs()) {
+        if (!entry.template_filename().empty() && (!entry.has_enabled() || entry.enabled())) {
+            mappings.push_back({entry.template_filename(), entry.output_filepath()});
         }
-        jsonData["project_name"] = cfg->project_name();
-        jsonData["project_version"] = cfg->project_version();
-        for (const auto& [key, value] : cfg->custom_parameters()) {
-            jsonData[key] = value;
+    }
+
+    std::string pythonScript = "";
+    bool pyEnabled = isExportPythonEnabled(cfg);
+    if (pyEnabled && !cfg->pythonscript().empty()) {
+        pythonScript = cfg->pythonscript();
+    }
+
+    GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
+
+    if (!report.errors.empty()) {
+        QString errorMsg = tr("Code generation completed with errors:\n\n");
+        for (const auto& err : report.errors) {
+            errorMsg += QString("• %1: %2\n").arg(QString::fromStdString(err.first), QString::fromStdString(err.second));
         }
-
-        std::vector<TemplateMapping> mappings;
-        for (const auto& entry : cfg->template_outputs()) {
-            if (!entry.template_filename().empty() && (!entry.has_enabled() || entry.enabled())) {
-                mappings.push_back({entry.template_filename(), entry.output_filepath()});
-            }
-        }
-
-        std::string pythonScript = "";
-        bool pyEnabled = cfg->has_python_script_enabled() ? cfg->python_script_enabled() : (m_config_window ? m_config_window->isPythonScriptEnabled() : !cfg->pythonscript().empty());
-        if (pyEnabled && !cfg->pythonscript().empty()) {
-            pythonScript = cfg->pythonscript();
-        }
-
-        GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
-
-        if (!report.errors.empty()) {
-            QString errorMsg = tr("Code generation completed with errors:\n\n");
-            for (const auto& err : report.errors) {
-                errorMsg += QString("• %1: %2\n").arg(QString::fromStdString(err.first), QString::fromStdString(err.second));
-            }
-            if (!report.success_files.empty()) {
-                errorMsg += tr("\nSuccessfully generated files:\n");
-                for (const auto& f : report.success_files) {
-                    errorMsg += QString("• %1\n").arg(QString::fromStdString(f));
-                }
-            }
-            QMessageBox::warning(this, tr("Export Issues Detected"), errorMsg, QMessageBox::Ok);
-        } else if (report.success_files.empty()) {
-            QMessageBox::information(this, tr("Export Notice"),
-                tr("No template files were found or specified for generation.\n"
-                   "Please check template paths in the Configuration dialog."), QMessageBox::Ok);
-        } else {
-            QString successMsg = tr("Code generation completed successfully!\n\nGenerated files:\n");
+        if (!report.success_files.empty()) {
+            errorMsg += tr("\nSuccessfully generated files:\n");
             for (const auto& f : report.success_files) {
-                successMsg += QString("• %1\n").arg(QString::fromStdString(f));
+                errorMsg += QString("• %1\n").arg(QString::fromStdString(f));
             }
-            QMessageBox::information(this, tr("Export Successful"), successMsg, QMessageBox::Ok);
         }
-    } catch (const std::exception& e) {
-        QMessageBox::critical(this, tr("Export Error"),
-                tr("Failed to generate files:\n%1").arg(e.what()), QMessageBox::Ok);
+        QMessageBox::warning(this, tr("Export Issues Detected"), errorMsg, QMessageBox::Ok);
+    } else if (report.success_files.empty()) {
+        QMessageBox::information(this, tr("Export Notice"),
+            tr("No template files were found or specified for generation.\n"
+               "Please check template paths in the Configuration dialog."), QMessageBox::Ok);
+    } else {
+        QString successMsg = tr("Code generation completed successfully!\n\nGenerated files:\n");
+        for (const auto& f : report.success_files) {
+            successMsg += QString("• %1\n").arg(QString::fromStdString(f));
+        }
+        QMessageBox::information(this, tr("Export Successful"), successMsg, QMessageBox::Ok);
     }
 
     delete cfg;
@@ -1502,6 +1545,7 @@ void RegMapWindow::connectModelSignals(void)
     if (!m_model) return;
     connect(m_model, &RegMapTreeModel::dataChanged, this, [this](const QModelIndex &topLeft, const QModelIndex &bottomRight) {
         Q_UNUSED(topLeft); Q_UNUSED(bottomRight);
+        regmap_modified();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
         }
@@ -1521,6 +1565,7 @@ void RegMapWindow::connectModelSignals(void)
     });
     connect(m_model, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex &parent, int first, int last) {
         Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+        regmap_modified();
         updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
@@ -1531,6 +1576,7 @@ void RegMapWindow::connectModelSignals(void)
     });
     connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex &parent, int first, int last) {
         Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+        regmap_modified();
         updatePaneVisibility();
         if (m_bitfieldBar) {
             m_bitfieldBar->refresh();
@@ -1573,7 +1619,7 @@ void RegMapWindow::connectFieldsTableSignals(void)
             return;
         }
         QModelIndex firstIdx = selected.indexes().value(0);
-        if (firstIdx.isValid() && m_bitfieldBar && m_fieldProxy) {
+        if (firstIdx.isValid()) {
             QModelIndex sourceIdx = m_fieldProxy->mapToSource(firstIdx);
             m_bitfieldBar->setSelectedField(sourceIdx.row());
         }
@@ -1720,7 +1766,11 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
             default: ;
         }
         m_data["id"]   = item.id();
-        m_data["parent"]= item.parent_id();
+        if (item.kind() == protormap::RegItem_Kind_ROOT || (item.parent_id() == item.id() && item.id() == 0)) {
+            m_data["parent"] = QVariant();
+        } else {
+            m_data["parent"] = item.parent_id();
+        }
         for (const auto &child : item.child_id()) {
             childItemsList.append(child);
         }
@@ -1751,10 +1801,14 @@ bool RegMapWindow::fileSave(QString fname)
 
     FormatResult res = FormatManager::instance().saveFile(expanded, m_model, m_config_window);
     if (!res.success) {
-        QMessageBox::critical(this,
-                tr("Failed to write output file"),
-                tr("Error writing to file: %1\n%2").arg(fname, res.errorMessage),
-                QMessageBox::Ok);
+        if (this->isVisible()) {
+            QMessageBox::critical(this,
+                    tr("Failed to write output file"),
+                    tr("Error writing to file: %1\n%2").arg(fname, res.errorMessage),
+                    QMessageBox::Ok);
+        } else {
+            std::cerr << "Error writing to file: " << fname.toStdString() << " - " << res.errorMessage.toStdString() << std::endl;
+        }
         return false;
     }
 
@@ -1813,7 +1867,7 @@ void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind)
                 // Ascend ancestor hierarchy to find the nearest parent capable of accepting 'kind'
                 RegMapTreeItem *curr = selectedItem;
                 QModelIndex currSource = source_index;
-                while (curr && curr->parentItem()) {
+                while (curr && curr->parentItem() && curr->parentItem() != curr) {
                     RegMapTreeItem *p = curr->parentItem();
                     QModelIndex pSource = currSource.parent();
                     if (p->possibleChildren().contains(kind)) {
@@ -1911,17 +1965,6 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current, const QModelInd
     QModelIndex source_current = m_treeProxy->mapToSource(current);
     QModelIndex source_col0 = m_model->index(source_current.row(), 0, source_current.parent());
     RegMapTreeItem *item = m_model->getItem(source_col0);
-    if (!item) {
-        if (m_fieldsTableView) m_fieldsTableView->setRootIndex(QModelIndex());
-        if (m_bitfieldBar) m_bitfieldBar->clear();
-        m_currentRegItem = nullptr;
-        m_currentBlkItem = nullptr;
-        if (m_rightStackedWidget && m_emptyViewWidget) {
-            m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
-        }
-        return;
-    }
-
     if (item->kindString() == "reg") {
         m_currentRegItem = item;
         m_currentBlkItem = nullptr;
@@ -1999,7 +2042,7 @@ void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem)
 void RegMapWindow::navigateToRegister(int childRow, RegMapTreeItem *regItem)
 {
     Q_UNUSED(regItem);
-    if (!m_model || !m_treeProxy || !this->treeView || !m_currentBlkItem) return;
+    if (!m_currentBlkItem) return;
 
     QModelIndex blkProxy = this->treeView->currentIndex();
     if (!blkProxy.isValid()) return;
@@ -2032,6 +2075,7 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
     }
 
     QMenu menu(this);
+    menu.setObjectName("treeContextMenu");
     if (index.isValid()) {
         QAction* duplicateAction = menu.addAction(tr("Duplicate"));
         QAction* deleteAction = menu.addAction(tr("Delete"));
@@ -2039,8 +2083,7 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
             if (senderWidget == this->treeView) {
                 duplicateItem(index);
             } else {
-                QModelIndex source = m_fieldProxy->mapToSource(index);
-                duplicateItem(m_treeProxy->mapFromSource(source));
+                duplicateItem(index);
             }
         });
         connect(deleteAction, &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
@@ -2050,13 +2093,15 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos)
 
 void RegMapWindow::duplicateSelectedRegister(void)
 {
-    QModelIndex proxyIndex = this->treeView->currentIndex();
-    if (!proxyIndex.isValid() && m_fieldsTableView && m_fieldsTableView->hasFocus()) {
+    QModelIndex proxyIndex;
+    if (m_fieldsTableView && m_fieldsTableView->hasFocus()) {
         QModelIndex fieldProxyIdx = m_fieldsTableView->currentIndex();
         if (fieldProxyIdx.isValid()) {
-            QModelIndex srcFldIdx = m_fieldProxy->mapToSource(fieldProxyIdx);
-            proxyIndex = m_treeProxy->mapFromSource(srcFldIdx);
+            proxyIndex = fieldProxyIdx;
         }
+    }
+    if (!proxyIndex.isValid()) {
+        proxyIndex = this->treeView->currentIndex();
     }
     if (!proxyIndex.isValid() && m_currentRegItem) {
         RegMapTreeItem *blk = m_currentRegItem->parentItem();
@@ -2076,7 +2121,14 @@ void RegMapWindow::duplicateSelectedRegister(void)
 
 void RegMapWindow::duplicateItem(const QModelIndex &index)
 {
-    QModelIndex source_index = m_treeProxy->mapToSource(index);
+    QModelIndex source_index;
+    if (index.model() == m_fieldProxy) {
+        source_index = m_fieldProxy->mapToSource(index);
+    } else if (index.model() == m_model) {
+        source_index = index;
+    } else {
+        source_index = m_treeProxy->mapToSource(index);
+    }
     RegMapTreeItem* item = m_model->getItem(source_index);
     if (!item || item->kindString() == "root") return;
 
@@ -2108,12 +2160,23 @@ void RegMapWindow::duplicateItem(const QModelIndex &index)
     m_undoStack->push(new DuplicateItemCommand(m_model, row, parent, storedData));
 
     QModelIndex new_source = m_model->index(row, 0, parent);
-    QModelIndex new_proxy = m_treeProxy->mapFromSource(new_source);
-    if (new_proxy.isValid()) {
-        this->treeView->setCurrentIndex(new_proxy);
-        this->treeView->scrollTo(new_proxy);
-        if (this->treeView->selectionModel()) {
-            this->treeView->selectionModel()->select(new_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    if (index.model() == m_fieldProxy && m_fieldsTableView && m_fieldProxy) {
+        QModelIndex new_fld_proxy = m_fieldProxy->mapFromSource(new_source);
+        if (new_fld_proxy.isValid()) {
+            m_fieldsTableView->setCurrentIndex(new_fld_proxy);
+            m_fieldsTableView->scrollTo(new_fld_proxy);
+            if (m_fieldsTableView->selectionModel()) {
+                m_fieldsTableView->selectionModel()->select(new_fld_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            }
+        }
+    } else {
+        QModelIndex new_proxy = m_treeProxy->mapFromSource(new_source);
+        if (new_proxy.isValid()) {
+            this->treeView->setCurrentIndex(new_proxy);
+            this->treeView->scrollTo(new_proxy);
+            if (this->treeView->selectionModel()) {
+                this->treeView->selectionModel()->select(new_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            }
         }
     }
     this->treeView->viewport()->update();
@@ -2141,85 +2204,116 @@ bool RegMapWindow::headlessExport(const QString &out_dir)
 
     CodeGenerator cg;
     std::string template_folder = cfg->templatefolder();
-    if (template_folder.empty() || (template_folder == PathUtils::DEFAULT_TEMPLATES_DIR && !QDir("./templates").exists())) {
-        template_folder = PathUtils::defaultTemplatesDir().toStdString();
-    }
-    std::string default_output = out_dir.isEmpty() ? (cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder()) : PathUtils::expandEnvVars(out_dir).toStdString();
+    std::string default_output = resolveExportOutputFolder(out_dir, cfg);
 
-    try {
-        json jsonData = m_model->extractJsonData(regWidth);
-        if (!cfg->project_name().empty()) {
-            jsonData["name"] = cfg->project_name();
-        } else if (!m_rmap_filename.isEmpty() && (jsonData.value("name", "").empty() || jsonData["name"] == "regmap")) {
-            QFileInfo fi(m_rmap_filename);
+    json jsonData = m_model->extractJsonData(regWidth);
+    resolveExportProjectName(cfg, m_rmap_filename, jsonData);
+    jsonData["project_name"] = cfg->project_name();
+    jsonData["project_version"] = cfg->project_version();
+    for (const auto& [key, value] : cfg->custom_parameters()) {
+        jsonData[key] = value;
+    }
+
+    std::string defaultOut = cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder();
+    QString cfgOut = PathUtils::normalizeSeparators(QString::fromStdString(defaultOut));
+
+    std::vector<TemplateMapping> mappings;
+    for (const auto& entry : cfg->template_outputs()) {
+        if (entry.template_filename().empty()) continue;
+        if (entry.has_enabled() && !entry.enabled()) continue;
+
+        if (!out_dir.isEmpty()) {
+            QString entryOut = QString::fromStdString(entry.output_filepath());
+            QString normalizedEntryOut = PathUtils::normalizeSeparators(entryOut);
+
+            QString relPath;
+            if (normalizedEntryOut.startsWith(cfgOut + "/", Qt::CaseInsensitive)) {
+                relPath = normalizedEntryOut.mid(cfgOut.length() + 1);
+            } else if (normalizedEntryOut.startsWith("./" + cfgOut + "/", Qt::CaseInsensitive)) {
+                relPath = normalizedEntryOut.mid(cfgOut.length() + 3);
+            } else if (normalizedEntryOut.startsWith("work/", Qt::CaseInsensitive)) {
+                relPath = normalizedEntryOut.mid(5);
+            } else if (normalizedEntryOut.startsWith("./work/", Qt::CaseInsensitive)) {
+                relPath = normalizedEntryOut.mid(7);
+            } else {
+                relPath = normalizedEntryOut;
+            }
+
+            QString expOutDir = PathUtils::expandEnvVars(out_dir);
+            QString absOutDir = QDir(QDir::currentPath()).absoluteFilePath(expOutDir);
+            QString customOut = PathUtils::normalizeSeparators(QDir(absOutDir).filePath(relPath));
+            mappings.push_back({entry.template_filename(), customOut.toStdString()});
+        } else {
+            mappings.push_back({entry.template_filename(), entry.output_filepath()});
+        }
+    }
+
+    std::string pythonScript = "";
+    bool pyEnabled = isExportPythonEnabled(cfg);
+    if (pyEnabled && !cfg->pythonscript().empty()) {
+        pythonScript = cfg->pythonscript();
+    }
+
+    GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
+
+    if (!report.errors.empty()) {
+        std::cerr << "Code generation completed with errors:" << std::endl;
+        for (const auto& err : report.errors) {
+            std::cerr << err.first << ": " << err.second << std::endl;
+        }
+        delete cfg;
+        return false;
+    }
+    std::cout << "Successfully exported " << report.success_files.size() << " files." << std::endl;
+
+    delete cfg;
+    return true;
+}
+
+std::string RegMapWindow::resolveExportOutputFolder(const QString &outDir, const protormap::Config *cfg)
+{
+    if (!outDir.isEmpty()) {
+        return PathUtils::expandEnvVars(outDir).toStdString();
+    }
+    if (cfg && !cfg->outputfolder().empty()) {
+        return cfg->outputfolder();
+    }
+    return PathUtils::DEFAULT_OUTPUT_DIR;
+}
+
+void RegMapWindow::resolveExportProjectName(const protormap::Config *cfg, const QString &filename, nlohmann::json &jsonData)
+{
+    if (cfg && !cfg->project_name().empty()) {
+        jsonData["name"] = cfg->project_name();
+        return;
+    }
+    if (!filename.isEmpty()) {
+        std::string currentName;
+        if (jsonData.is_object()) {
+            currentName = jsonData.value("name", "");
+        }
+        if (currentName.empty() || currentName == "regmap") {
+            QFileInfo fi(filename);
             QString base = fi.baseName();
             if (!base.isEmpty()) {
                 jsonData["name"] = base.toStdString();
             }
         }
-        jsonData["project_name"] = cfg->project_name();
-        jsonData["project_version"] = cfg->project_version();
-        for (const auto& [key, value] : cfg->custom_parameters()) {
-            jsonData[key] = value;
-        }
+    }
+}
 
-        std::vector<TemplateMapping> mappings;
-        for (const auto& entry : cfg->template_outputs()) {
-            if (!entry.template_filename().empty() && (!entry.has_enabled() || entry.enabled())) {
-                if (!out_dir.isEmpty()) {
-                    QString entryOut = QString::fromStdString(entry.output_filepath());
-                    QString cfgOut = QString::fromStdString(cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder());
-                    cfgOut = PathUtils::normalizeSeparators(cfgOut);
-                    QString normalizedEntryOut = PathUtils::normalizeSeparators(entryOut);
-
-                    QString relPath;
-                    if (normalizedEntryOut.startsWith(cfgOut + "/", Qt::CaseInsensitive)) {
-                        relPath = normalizedEntryOut.mid(cfgOut.length() + 1);
-                    } else if (normalizedEntryOut.startsWith("./" + cfgOut + "/", Qt::CaseInsensitive)) {
-                        relPath = normalizedEntryOut.mid(cfgOut.length() + 3);
-                    } else if (normalizedEntryOut.startsWith("work/", Qt::CaseInsensitive)) {
-                        relPath = normalizedEntryOut.mid(5);
-                    } else if (normalizedEntryOut.startsWith("./work/", Qt::CaseInsensitive)) {
-                        relPath = normalizedEntryOut.mid(7);
-                    } else {
-                        relPath = normalizedEntryOut;
-                    }
-
-                    QString expOutDir = PathUtils::expandEnvVars(out_dir);
-                    QString absOutDir = QDir(QDir::currentPath()).absoluteFilePath(expOutDir);
-                    QString customOut = PathUtils::normalizeSeparators(QDir(absOutDir).filePath(relPath));
-                    mappings.push_back({entry.template_filename(), customOut.toStdString()});
-                } else {
-                    mappings.push_back({entry.template_filename(), entry.output_filepath()});
-                }
-            }
-        }
-
-        std::string pythonScript = "";
-        bool pyEnabled = cfg->has_python_script_enabled() ? cfg->python_script_enabled() : (m_config_window ? m_config_window->isPythonScriptEnabled() : !cfg->pythonscript().empty());
-        if (pyEnabled && !cfg->pythonscript().empty()) {
-            pythonScript = cfg->pythonscript();
-        }
-
-        GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
-
-        if (!report.errors.empty()) {
-            std::cerr << "Code generation completed with errors:" << std::endl;
-            for (const auto& err : report.errors) {
-                std::cerr << err.first << ": " << err.second << std::endl;
-            }
-            delete cfg;
-            return false;
-        }
-        std::cout << "Successfully exported " << report.success_files.size() << " files." << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Export Exception: " << e.what() << std::endl;
-        delete cfg;
+bool RegMapWindow::isExportPythonEnabled(const protormap::Config *cfg) const
+{
+    if (!cfg) {
         return false;
     }
-
-    delete cfg;
-    return true;
+    if (cfg->has_python_script_enabled()) {
+        return cfg->python_script_enabled();
+    }
+    if (m_config_window) {
+        return m_config_window->isPythonScriptEnabled();
+    }
+    return !cfg->pythonscript().empty();
 }
 
 bool RegMapWindow::headlessLint(bool strict, const QString &format, const QString &outFile)
@@ -2233,29 +2327,7 @@ bool RegMapWindow::headlessLint(bool strict, const QString &format, const QStrin
 
     // Strict checks: check for empty descriptions or unaligned offsets
     if (strict && m_model->getRootItem()) {
-        std::function<void(RegMapTreeItem*)> strictCheck = [&](RegMapTreeItem* item) {
-            if (!item) return;
-            QString kind = item->kindString();
-            QString name = item->data("Name").toString();
-            QString desc = item->data("Description").toString();
-
-            if ((kind == "reg" || kind == "fld") && desc.trimmed().isEmpty()) {
-                warnings.append(QString("Missing description for %1 '%2'").arg(kind.toUpper(), name));
-            }
-            if (kind == "reg") {
-                bool ok;
-                uint64_t off = item->data("Offset/LSB").toString().toULongLong(&ok, 16);
-                if (!ok) off = item->data("Offset/LSB").toString().toULongLong(&ok, 10);
-                uint64_t alignBytes = regWidth / 8;
-                if (ok && alignBytes > 0 && (off % alignBytes != 0)) {
-                    warnings.append(QString("Register '%1' offset 0x%2 is not %3-byte aligned").arg(name, QString::number(off, 16).toUpper(), QString::number(alignBytes)));
-                }
-            }
-            for (RegMapTreeItem* child : item->getChildItems()) {
-                strictCheck(child);
-            }
-        };
-        strictCheck(m_model->getRootItem());
+        performStrictLintChecks(m_model->getRootItem(), regWidth, warnings);
     }
 
     bool isPassed = errors.isEmpty() && (!strict || warnings.isEmpty());
@@ -2305,11 +2377,7 @@ bool RegMapWindow::headlessLint(bool strict, const QString &format, const QStrin
     } else if (fmt == "junit") {
         int totalTests = 1 + warnings.size();
         int failures = errors.size() + (strict ? warnings.size() : 0);
-        reportContent = QString(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-            "<testsuites name=\"rmap-lint\" tests=\"%1\" failures=\"%2\">\n"
-            "  <testsuite name=\"RegisterMapValidation\" tests=\"%1\" failures=\"%2\">\n"
-        ).arg(totalTests).arg(failures);
+        reportContent = QString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites name=\"rmap-lint\" tests=\"%1\" failures=\"%2\">\n  <testsuite name=\"RegisterMapValidation\" tests=\"%1\" failures=\"%2\">\n").arg(totalTests).arg(failures);
 
         if (errors.isEmpty()) {
             reportContent += "    <testcase name=\"AddressAndOverlapCheck\"/>\n";
@@ -2318,12 +2386,8 @@ bool RegMapWindow::headlessLint(bool strict, const QString &format, const QStrin
                              .arg(errors.join("\n"));
         }
         for (int i = 0; i < warnings.size(); ++i) {
-            if (strict) {
-                reportContent += QString("    <testcase name=\"StrictLint_%1\"><failure message=\"Strict Rule Violation\">%2</failure></testcase>\n")
-                                 .arg(i + 1).arg(warnings[i]);
-            } else {
-                reportContent += QString("    <testcase name=\"StrictLint_%1\"/>\n").arg(i + 1);
-            }
+            reportContent += QString("    <testcase name=\"StrictLint_%1\"><failure message=\"Strict Rule Violation\">%2</failure></testcase>\n")
+                             .arg(i + 1).arg(warnings[i]);
         }
         reportContent += "  </testsuite>\n</testsuites>\n";
     } else {
@@ -2353,6 +2417,7 @@ bool RegMapWindow::headlessLint(bool strict, const QString &format, const QStrin
             std::cout << "Lint report saved to: " << expOut.toStdString() << std::endl;
         } else {
             std::cerr << "Failed to write lint report to: " << expOut.toStdString() << std::endl;
+            return false;
         }
     } else {
         std::cout << reportContent.toStdString() << std::endl;
@@ -2381,52 +2446,9 @@ bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2, cons
         return false;
     }
 
-    // Build register lookup maps
-    struct RegSummary {
-        QString blockName;
-        QString regName;
-        QString offset;
-        QString access;
-        QString reset;
-        std::map<QString, QString> fields; // name -> "lsb:width:access:reset"
-    };
-
-    auto gatherRegs = [](RegMapTreeModel &model) -> std::map<QString, RegSummary> {
-        std::map<QString, RegSummary> map;
-        RegMapTreeItem *root = model.getRootItem();
-        if (!root) return map;
-        for (RegMapTreeItem *blk : root->getChildItems()) {
-            if (!blk || blk->kindString() != "blk") continue;
-            QString bName = blk->data("Name").toString();
-            for (RegMapTreeItem *reg : blk->getChildItems()) {
-                if (!reg || reg->kindString() != "reg") continue;
-                QString rName = reg->data("Name").toString();
-                QString key = bName + "::" + rName;
-                RegSummary s;
-                s.blockName = bName;
-                s.regName = rName;
-                s.offset = reg->data("Offset/LSB").toString();
-                s.access = reg->data("Access Policy").toString();
-                s.reset = reg->data("Reset Value").toString();
-                for (RegMapTreeItem *fld : reg->getChildItems()) {
-                    if (fld && fld->kindString() == "fld") {
-                        QString fName = fld->data("Name").toString();
-                        QString fSig = QString("%1:%2:%3:%4")
-                            .arg(fld->data("Offset/LSB").toString())
-                            .arg(fld->data("Size/Width").toString())
-                            .arg(fld->data("Access Policy").toString())
-                            .arg(fld->data("Reset Value").toString());
-                        s.fields[fName] = fSig;
-                    }
-                }
-                map[key] = s;
-            }
-        }
-        return map;
-    };
-
-    auto map1 = gatherRegs(model1);
-    auto map2 = gatherRegs(model2);
+    std::map<QString, RegSummary> map1, map2;
+    gatherRegs(model1, map1);
+    gatherRegs(model2, map2);
 
     QStringList addedRegs, removedRegs, modifiedRegs;
 
@@ -2507,8 +2529,10 @@ bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2, cons
             QTextStream(&f) << outputStr;
             f.close();
             std::cout << "Diff saved to: " << expOut.toStdString() << std::endl;
+        } else {
+            std::cerr << "Failed to write diff report to: " << expOut.toStdString() << std::endl;
+            return false;
         }
-    } else {
         std::cout << outputStr.toStdString() << std::endl;
     }
 

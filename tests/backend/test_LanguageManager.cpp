@@ -25,6 +25,7 @@ private slots:
     void testJsonTranslatorDirect();
     void testBuildTimeLanguageEnforcement();
     void testAppSettingsPersistence();
+    void testEdgeCasesAndFallbacks();
 };
 
 void TestLanguageManager::initTestCase()
@@ -69,6 +70,13 @@ void TestLanguageManager::testAvailableLanguages()
     QCOMPARE(esInfo.name, QString("Spanish"));
     QCOMPARE(esInfo.nativeName, QString("Español"));
     QCOMPARE(esInfo.displayName(), QString("Español (Spanish)"));
+
+    QStringList names = lm.languageNames();
+    QCOMPARE(names.size(), lm.availableLanguages().size());
+    LanguageInfo curInfo = lm.currentLanguageInfo();
+    QCOMPARE(curInfo.code, QString("en"));
+    LanguageInfo missingInfo = lm.languageInfo("nonexistent_code_xyz");
+    QVERIFY(missingInfo.code.isEmpty());
 }
 
 void TestLanguageManager::testSetLanguage()
@@ -95,6 +103,10 @@ void TestLanguageManager::testSetLanguage()
 
     // Invalid language
     QVERIFY(!lm.setLanguage("nonexistent_lang_xyz"));
+    QCOMPARE(lm.currentLanguage(), QString("en"));
+
+    // Empty language defaults to English
+    QVERIFY(lm.setLanguage(""));
     QCOMPARE(lm.currentLanguage(), QString("en"));
 }
 
@@ -162,6 +174,61 @@ void TestLanguageManager::testJsonTranslatorDirect()
 
     // Unknown string
     QVERIFY(jt.translate(nullptr, "Unknown String 123").isEmpty());
+
+    QCOMPARE(jt.translationCount(), 3);
+    QVERIFY(jt.translate(nullptr, "").isEmpty());
+    QVERIFY(jt.translate(nullptr, nullptr).isEmpty());
+
+    // Ampersand in source text mapped to plain key in translations
+    QByteArray ampersandJson = R"({
+        "language": "es",
+        "translations": {
+            "Save": "Guardar"
+        }
+    })";
+    JsonTranslator jtAmp;
+    QVERIFY(jtAmp.loadData(ampersandJson));
+    QCOMPARE(jtAmp.code(), QString("es"));
+    QCOMPARE(jtAmp.translate(nullptr, "&Save"), QString("Guardar"));
+
+    // Test code-only loadData which triggers QLocale fallbacks
+    QByteArray localeFallbackJson = R"({
+        "code": "es",
+        "translations": { "Hello": "Hola", "Empty": "" },
+        "contexts": { "Ctx": { "Key": "Val", "EmptyCtx": "" } }
+    })";
+    JsonTranslator jtLocale;
+    QVERIFY(jtLocale.loadData(localeFallbackJson));
+    QCOMPARE(jtLocale.code(), QString("es"));
+    QVERIFY(!jtLocale.name().isEmpty());
+    QVERIFY(!jtLocale.nativeName().isEmpty());
+    // empty translation strings in context & global
+    QVERIFY(jtLocale.translate("Ctx", "EmptyCtx").isEmpty());
+    QVERIFY(jtLocale.translate(nullptr, "Empty").isEmpty());
+    QVERIFY(jtLocale.translate("UnknownCtx", "Empty").isEmpty());
+    QVERIFY(jtLocale.translate("", "Hello").isEmpty() == false);
+
+    // Ampersand with empty translated string
+    QByteArray emptyAmpJson = R"({
+        "code": "es",
+        "translations": { "Clean": "", "&WithAmp": "" }
+    })";
+    JsonTranslator jtEmptyAmp;
+    QVERIFY(jtEmptyAmp.loadData(emptyAmpJson));
+    QVERIFY(jtEmptyAmp.translate(nullptr, "&Clean").isEmpty());
+    QVERIFY(jtEmptyAmp.translate(nullptr, "WithAmp").isEmpty());
+
+    // Empty dictionaries
+    JsonTranslator jtEmpty;
+    QVERIFY(jtEmpty.isEmpty());
+    QCOMPARE(jtEmpty.translationCount(), 0);
+    QVERIFY(!jtEmpty.loadData(R"({"code": "es"})"));
+
+    // Failure cases: invalid json, non-object, and missing resource
+    JsonTranslator jtErr;
+    QVERIFY(!jtErr.loadData("{ invalid json"));
+    QVERIFY(!jtErr.loadData("[]"));
+    QVERIFY(!jtErr.loadResource("/nonexistent/path/file.json"));
 }
 
 void TestLanguageManager::testBuildTimeLanguageEnforcement()
@@ -198,6 +265,102 @@ void TestLanguageManager::testAppSettingsPersistence()
     // Reset back to English
     AppSettings::instance().setLanguage("en");
     QCOMPARE(AppSettings::instance().language(), QString("en"));
+}
+
+void TestLanguageManager::testEdgeCasesAndFallbacks()
+{
+    // 1. Destructor coverage with active translator
+    {
+        LanguageManager localLm;
+        localLm.m_activeTranslator = new QTranslator(&localLm);
+        if (qApp) {
+            qApp->installTranslator(localLm.m_activeTranslator);
+        }
+    }
+
+    // 2. currentLanguageName & currentLanguageInfo fallback
+    LanguageManager &lm = LanguageManager::instance();
+    QString origLang = lm.m_currentLanguage;
+    lm.m_currentLanguage = "nonexistent_code_123";
+    QCOMPARE(lm.currentLanguageName(), QString("English"));
+    QCOMPARE(lm.currentLanguageInfo().code, QString("en"));
+
+    // Empty languages list fallback
+    QList<LanguageInfo> savedLangs = lm.m_languages;
+    lm.m_languages.clear();
+    QCOMPARE(lm.currentLanguageInfo().code, QString());
+    lm.m_languages = savedLangs;
+    lm.m_currentLanguage = origLang;
+
+    // 3. Fallback to dev path translations/rmap_%1.json
+    LanguageInfo devLang;
+    devLang.code = "es";
+    devLang.name = "SpanishDev";
+    devLang.nativeName = "Español";
+    devLang.resourcePath = "non_existent_res_path_xyz.json";
+    lm.m_languages.append(devLang);
+    QVERIFY(lm.setLanguage("SpanishDev"));
+    lm.m_languages.removeLast();
+
+    // 4. Missing translation file
+    LanguageInfo missingLang;
+    missingLang.code = "xyz_missing";
+    missingLang.name = "MissingLang";
+    missingLang.nativeName = "Missing";
+    missingLang.resourcePath = "definitely_not_a_valid_file_at_all.json";
+    lm.m_languages.append(missingLang);
+    QVERIFY(!lm.setLanguage("MissingLang"));
+    lm.m_languages.removeLast();
+
+    // 5. Invalid JSON translation resource
+    QTemporaryFile badJsonFile;
+    QVERIFY(badJsonFile.open());
+    badJsonFile.write("{ invalid json ");
+    badJsonFile.close();
+    LanguageInfo badLang;
+    badLang.code = "bad_json_lang";
+    badLang.name = "BadLang";
+    badLang.nativeName = "Bad";
+    badLang.resourcePath = badJsonFile.fileName();
+    lm.m_languages.append(badLang);
+    QVERIFY(!lm.setLanguage("BadLang"));
+    lm.m_languages.removeLast();
+
+    // 6. Native name lookups and LanguageInfo displayName branches
+    QVERIFY(lm.hasLanguage("Español"));
+    QVERIFY(lm.hasLanguage("Deutsch"));
+    QVERIFY(lm.hasLanguage("日本語"));
+    QCOMPARE(lm.languageInfo("Español").code, QString("es"));
+    QCOMPARE(lm.languageInfo("Deutsch").code, QString("de"));
+    QCOMPARE(lm.languageInfo("nonexistent_native_xyz").code, QString());
+
+    LanguageInfo liSame;
+    liSame.name = "English";
+    liSame.nativeName = "English";
+    QCOMPARE(liSame.displayName(), QString("English"));
+
+    LanguageInfo liEmptyNative;
+    liEmptyNative.name = "TestOnly";
+    liEmptyNative.nativeName = "";
+    QCOMPARE(liEmptyNative.displayName(), QString("TestOnly"));
+
+    // 7. Empty and whitespace setLanguage calls
+    QVERIFY(lm.setLanguage(""));
+    QCOMPARE(lm.currentLanguage(), QString("en"));
+    QVERIFY(lm.setLanguage("   "));
+    QCOMPARE(lm.currentLanguage(), QString("en"));
+
+    // 8. Switching from one non-English language to another (replaces active translator)
+    QVERIFY(lm.setLanguage("es"));
+    QCOMPARE(lm.currentLanguage(), QString("es"));
+    QVERIFY(lm.setLanguage("de"));
+    QCOMPARE(lm.currentLanguage(), QString("de"));
+    QVERIFY(lm.setLanguage("en"));
+    QCOMPARE(lm.currentLanguage(), QString("en"));
+
+    // Restore to English
+    lm.setLanguage("en");
+    QCOMPARE(lm.currentLanguage(), QString("en"));
 }
 
 QTEST_MAIN(TestLanguageManager)

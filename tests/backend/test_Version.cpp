@@ -20,6 +20,7 @@ private slots:
     void testSemVerFormat();
     void testGitAndBuildMetadata();
     void testVersionConsistency();
+    void testPrereleaseAndBuild();
 };
 
 void TestVersion::initTestCase()
@@ -96,6 +97,24 @@ void TestVersion::testVersionConsistency()
 
     QString actualVersion = QString::fromLatin1(rmap::version::string());
     QVERIFY(actualVersion.startsWith(expectedPrefix));
+}
+
+void TestVersion::testPrereleaseAndBuild()
+{
+    const char* pre = rmap::version::prerelease();
+    const char* bld = rmap::version::build();
+    QVERIFY(pre != nullptr);
+    QVERIFY(bld != nullptr);
+
+    QString fullStr = QString::fromLatin1(rmap::version::string());
+    QString preStr = QString::fromLatin1(pre);
+    if (!preStr.isEmpty()) {
+        QVERIFY(fullStr.contains(preStr));
+    }
+    QString bldStr = QString::fromLatin1(bld);
+    if (!bldStr.isEmpty()) {
+        QVERIFY(fullStr.contains(bldStr));
+    }
 }
 
 QTEST_MAIN(TestVersion)

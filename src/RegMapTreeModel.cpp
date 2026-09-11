@@ -189,13 +189,14 @@ Qt::ItemFlags RegMapTreeModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid())
     {
-        return (Qt::NoItemFlags);
+        return Qt::NoItemFlags;
     }
 
-    RegMapTreeItem *item = getItem(index);
-    return (index.column() != 0 && item && item->kind() != RegMapTreeItem::e_rmmKind::root)
-        ? (Qt::ItemIsEditable | QAbstractItemModel::flags(index))
-        : (QAbstractItemModel::flags(index));
+    Qt::ItemFlags f = QAbstractItemModel::flags(index);
+    if (index.column() != 0) {
+        f |= Qt::ItemIsEditable;
+    }
+    return f;
 }
 
 QVariant RegMapTreeModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -222,20 +223,11 @@ QModelIndex RegMapTreeModel::index(int row, int column, const QModelIndex &paren
     if (!hasIndex(row, column, parent))
         return QModelIndex();
 
-    RegMapTreeItem *parentItem;
+    RegMapTreeItem *parentItem = parent.isValid()
+        ? static_cast<RegMapTreeItem*>(parent.internalPointer())
+        : m_rootItem;
 
-    if (!parent.isValid())
-        parentItem = m_rootItem;
-    else
-        parentItem = static_cast<RegMapTreeItem*>(parent.internalPointer());
-
-    if (!parentItem)
-        return QModelIndex();
-
-    RegMapTreeItem *childItem = parentItem->child(row);
-    if (childItem)
-        return createIndex(row, column, childItem);
-    return QModelIndex();
+    return createIndex(row, column, parentItem->child(row));
 }
 
 QModelIndex RegMapTreeModel::parent(const QModelIndex &index) const
@@ -328,14 +320,32 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
         uint64_t prevOffset = parseNumericValue(prevItem->data("Offset/LSB"));
         uint64_t prevSize   = parseNumericValue(prevItem->data("Size/Width"));
 
-        if (childItem->kindString() == "reg") {
+        if (childItem->kind() == RegMapTreeItem::e_rmmKind::reg) {
             // Register offsets increment by size in bytes (e.g. +4 bytes for 32-bit reg)
             uint64_t byteSize = (prevSize == 0) ? 4 : (prevSize / 8);
             nextOffsetLsb = prevOffset + byteSize;
-        } else if (childItem->kindString() == "fld") {
+        } else if (childItem->kind() == RegMapTreeItem::e_rmmKind::fld) {
             // Field LSBs increment by field width in bits
             nextOffsetLsb = prevOffset + prevSize;
         }
+    }
+
+    const auto kind = childItem->kind();
+    const bool isRegOrMem = (kind == RegMapTreeItem::e_rmmKind::reg || kind == RegMapTreeItem::e_rmmKind::mem);
+    QString offsetVal;
+    if (isRegOrMem) {
+        offsetVal = QString::fromStdString(formatHex(nextOffsetLsb));
+    } else {
+        offsetVal = QString::number(nextOffsetLsb);
+    }
+
+    QString sizeVal;
+    if (kind == RegMapTreeItem::e_rmmKind::mem) {
+        sizeVal = QStringLiteral("1024");
+    } else if (kind == RegMapTreeItem::e_rmmKind::reg) {
+        sizeVal = QStringLiteral("32");
+    } else {
+        sizeVal = QStringLiteral("1");
     }
 
     for (int column = 1; column < columnCount(index); column++) {
@@ -343,11 +353,9 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
         QString colName = m_displayColumns[column];
 
         if (colName == "Offset/LSB") {
-            this->setData(child, (childItem->kindString() == "reg" || childItem->kindString() == "mem") ?
-                          QString::fromStdString(formatHex(nextOffsetLsb)) :
-                          QString::number(nextOffsetLsb), Qt::EditRole);
+            this->setData(child, offsetVal, Qt::EditRole);
         } else if (colName == "Size/Width") {
-            this->setData(child, (childItem->kindString() == "mem") ? "1024" : ((childItem->kindString() == "reg") ? "32" : "1"), Qt::EditRole);
+            this->setData(child, sizeVal, Qt::EditRole);
         } else if (colName == "Access Policy") {
             this->setData(child, "RW", Qt::EditRole);
         } else if (colName == "HW Access") {
@@ -385,15 +393,14 @@ bool RegMapTreeModel::clear(void)
 
 bool RegMapTreeModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
-    if (role != Qt::EditRole) return false;
+    if (role != Qt::EditRole || !index.isValid()) return false;
 
     RegMapTreeItem* item = getItem(index);
     if (!item) return false;
 
     QVariant finalValue = value;
     if (index.column() == 1) { // Offset/LSB
-        QString kind = item->kindString();
-        if (kind == "reg" || kind == "blk" || kind == "mem" || kind == "map") {
+        if (item->kind() != RegMapTreeItem::e_rmmKind::fld) {
             finalValue = padHexOffset(value.toString());
         }
     }
@@ -418,34 +425,38 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
 {
     if (!node) return;
 
-    std::string kind = node->kindString().toStdString();
-    QString nodeName = node->data("Name").toString();
+    const auto nodeKind = node->kind();
+    const QString nodeName = node->data("Name").toString();
 
     // Validate Name is not empty for meaningful nodes
-    if (kind != "root" && nodeName.trimmed().isEmpty()) {
-        m_invalidCells.insert(std::make_pair(node, 3)); // Name column
-        errors.append(tr("Found %1 node with an empty Name").arg(QString::fromStdString(kind).toUpper()));
-    } else if (kind != "root" && !nodeName.trimmed().isEmpty()) {
-        std::string lowerName = nodeName.trimmed().toLower().toStdString();
-        if (kReservedKeywords.find(lowerName) != kReservedKeywords.end()) {
+    if (nodeKind != RegMapTreeItem::e_rmmKind::root) {
+        QString trimmedName = nodeName.trimmed();
+        if (trimmedName.isEmpty()) {
             m_invalidCells.insert(std::make_pair(node, 3)); // Name column
-            errors.append(tr("%1 '%2' uses reserved keyword '%3' as identifier")
-                .arg(QString::fromStdString(kind).toUpper(), nodeName, nodeName));
+            errors.append(tr("Found %1 node with an empty Name").arg(node->kindString().toUpper()));
+        } else {
+            std::string lowerName = trimmedName.toLower().toStdString();
+            if (kReservedKeywords.find(lowerName) != kReservedKeywords.end()) {
+                m_invalidCells.insert(std::make_pair(node, 3)); // Name column
+                errors.append(tr("%1 '%2' uses reserved keyword '%3' as identifier")
+                    .arg(node->kindString().toUpper(), nodeName, nodeName));
+            }
         }
     }
 
     // 1. Validate Register & Memory Overlaps inside a Block
-    if (kind == "blk")
+    if (nodeKind == RegMapTreeItem::e_rmmKind::blk)
     {
         struct RegionInfo { RegMapTreeItem* item; uint64_t start; uint64_t end; QString name; QString type; };
         std::vector<RegionInfo> regions;
 
         for (RegMapTreeItem* child : node->getChildItems()) {
-            if (child->kindString().toStdString() == "reg") {
+            const auto childKind = child->kind();
+            if (childKind == RegMapTreeItem::e_rmmKind::reg) {
                 uint64_t offset = parseNumericValue(child->data("Offset/LSB"));
                 uint64_t size_bytes = (regWidth > 0) ? (regWidth / 8) : 4;
                 regions.push_back({child, offset, offset + size_bytes - 1, child->data("Name").toString(), "Register"});
-            } else if (child->kindString().toStdString() == "mem") {
+            } else if (childKind == RegMapTreeItem::e_rmmKind::mem) {
                 uint64_t offset = parseNumericValue(child->data("Offset/LSB"));
                 uint64_t size_bytes = parseNumericValue(child->data("Size/Width"));
                 if (size_bytes == 0) size_bytes = 4;
@@ -470,7 +481,7 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
         }
     }
     // 2. Validate Field Overlaps & Widths inside a Register
-    if (kind == "reg")
+    if (nodeKind == RegMapTreeItem::e_rmmKind::reg)
     {
         uint64_t reg_width = (regWidth == 0) ? 32 : regWidth;
 
@@ -478,7 +489,7 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
         std::vector<FieldInfo> fields;
 
         for (RegMapTreeItem* child : node->getChildItems()) {
-            if (child->kindString().toStdString() == "fld") {
+            if (child->kind() == RegMapTreeItem::e_rmmKind::fld) {
                 uint64_t lsb = parseNumericValue(child->data("Offset/LSB"));
                 uint64_t width = parseNumericValue(child->data("Size/Width"));
                 uint64_t msb = (width > 0) ? (lsb + width - 1) : lsb;
@@ -529,21 +540,21 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
                         .arg(fldName, nodeName, QString::number(reset_val, 16).toUpper()));
                 }
 
-                fields.push_back({child, lsb, msb, width, fldName});
+                if (width > 0) {
+                    fields.push_back({child, lsb, msb, width, fldName});
+                }
             }
         }
 
         for (size_t i = 0; i < fields.size(); ++i) {
             for (size_t j = i + 1; j < fields.size(); ++j) {
-                if (fields[i].width > 0 && fields[j].width > 0) {
-                    if (!(fields[i].msb < fields[j].lsb || fields[i].lsb > fields[j].msb)) {
-                        m_invalidCells.insert(std::make_pair(fields[i].item, 1));
-                        m_invalidCells.insert(std::make_pair(fields[j].item, 1));
-                        errors.append(tr("Field '%1' [bits %2:%3] overlaps with '%4' [bits %5:%6] in Register '%7'")
-                            .arg(fields[i].name, QString::number(fields[i].msb), QString::number(fields[i].lsb),
-                                 fields[j].name, QString::number(fields[j].msb), QString::number(fields[j].lsb),
-                                 nodeName));
-                    }
+                if (!(fields[i].msb < fields[j].lsb || fields[i].lsb > fields[j].msb)) {
+                    m_invalidCells.insert(std::make_pair(fields[i].item, 1));
+                    m_invalidCells.insert(std::make_pair(fields[j].item, 1));
+                    errors.append(tr("Field '%1' [bits %2:%3] overlaps with '%4' [bits %5:%6] in Register '%7'")
+                        .arg(fields[i].name, QString::number(fields[i].msb), QString::number(fields[i].lsb),
+                             fields[j].name, QString::number(fields[j].msb), QString::number(fields[j].lsb),
+                             nodeName));
                 }
             }
         }
@@ -563,7 +574,7 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
     }
 }
 
-QStringList RegMapTreeModel::checkData(uint32_t regWidth)
+QStringList RegMapTreeModel::checkData(uint32_t regWidth) noexcept
 {
     m_invalidCells.clear();
     QStringList errors;
@@ -624,16 +635,21 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
     {
         if (!child) continue;
         json child_json = recursiveExtractJsonData(child, regWidth);
-        std::string kind = child->kindString().toStdString();
-
-        if (kind == "blk") {
+        switch (child->kind()) {
+        case RegMapTreeItem::e_rmmKind::blk:
             blocks.push_back(child_json);
-        } else if (kind == "reg") {
+            break;
+        case RegMapTreeItem::e_rmmKind::reg:
             registers.push_back(child_json);
-        } else if (kind == "fld") {
+            break;
+        case RegMapTreeItem::e_rmmKind::fld:
             fields.push_back(child_json);
-        } else if (kind == "mem") {
+            break;
+        case RegMapTreeItem::e_rmmKind::mem:
             memories.push_back(child_json);
+            break;
+        default:
+            break;
         }
     }
 
@@ -649,12 +665,12 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
         });
 
         // Compute contiguous offset gaps (memory holes) for struct padding
-        uint64_t regBytes = (regWidth > 0 ? regWidth : 32) / 8;
+        uint64_t regBytes = (regWidth >= 8 ? regWidth : 32) / 8;
         uint64_t currentOffset = 0;
         for (auto &r : registers) {
             uint64_t regOffset = r.value("offset_lsb", 0ULL);
             uint64_t padBytes = (regOffset > currentOffset) ? (regOffset - currentOffset) : 0;
-            uint64_t padWords = (regBytes > 0) ? (padBytes / regBytes) : 0;
+            uint64_t padWords = padBytes / regBytes;
             r["pad_bytes_before"] = padBytes;
             r["pad_words_before"] = padWords;
             currentOffset = regOffset + regBytes;
@@ -726,13 +742,15 @@ uint32_t RegMapTreeModel::computeBlockCrc32(const json &blkJson)
 {
     std::string repr;
     repr += "blk:" + blkJson.value("name", "") + ":" + std::to_string(blkJson.value("offset_lsb", 0ULL)) + ";";
-    if (blkJson.contains("registers") && blkJson["registers"].is_array()) {
-        for (const auto &reg : blkJson["registers"]) {
+    auto regIt = blkJson.find("registers");
+    if (regIt != blkJson.end() && regIt->is_array()) {
+        for (const auto &reg : *regIt) {
             repr += "reg:" + reg.value("name", "") + ":" + std::to_string(reg.value("offset_lsb", 0ULL))
                  + ":" + std::to_string(reg.value("size_width", 0ULL)) + ":" + reg.value("access", "")
                  + ":" + std::to_string(reg.value("reset_val", 0ULL)) + ";";
-            if (reg.contains("fields") && reg["fields"].is_array()) {
-                for (const auto &fld : reg["fields"]) {
+            auto fldIt = reg.find("fields");
+            if (fldIt != reg.end() && fldIt->is_array()) {
+                for (const auto &fld : *fldIt) {
                     repr += "fld:" + fld.value("name", "") + ":" + std::to_string(fld.value("offset_lsb", 0ULL))
                          + ":" + std::to_string(fld.value("size_width", 0ULL)) + ":" + fld.value("access", "")
                          + ":" + std::to_string(fld.value("reset_val", 0ULL)) + ";";
@@ -746,13 +764,15 @@ uint32_t RegMapTreeModel::computeBlockCrc32(const json &blkJson)
 uint32_t RegMapTreeModel::computeTreeCrc32(const json &rootJson)
 {
     std::string repr;
-    if (rootJson.contains("blocks") && rootJson["blocks"].is_array()) {
-        for (const auto &blk : rootJson["blocks"]) {
+    auto blkIt = rootJson.find("blocks");
+    if (blkIt != rootJson.end() && blkIt->is_array()) {
+        for (const auto &blk : *blkIt) {
             repr += "b:" + blk.value("name", "") + ":" + std::to_string(blk.value("crc32", 0U)) + ";";
         }
     }
-    if (rootJson.contains("registers") && rootJson["registers"].is_array()) {
-        for (const auto &reg : rootJson["registers"]) {
+    auto regIt = rootJson.find("registers");
+    if (regIt != rootJson.end() && regIt->is_array()) {
+        for (const auto &reg : *regIt) {
             repr += "r:" + reg.value("name", "") + ":" + std::to_string(reg.value("offset_lsb", 0ULL))
                  + ":" + std::to_string(reg.value("size_width", 0ULL)) + ":" + reg.value("access", "")
                  + ":" + std::to_string(reg.value("reset_val", 0ULL)) + ";";
@@ -761,7 +781,7 @@ uint32_t RegMapTreeModel::computeTreeCrc32(const json &rootJson)
     return calculateCrc32(reinterpret_cast<const uint8_t*>(repr.data()), repr.size());
 }
 
-json RegMapTreeModel::extractJsonData(uint32_t regWidth)
+json RegMapTreeModel::extractJsonData(uint32_t regWidth) noexcept
 {
     json root_json = recursiveExtractJsonData(m_rootItem, regWidth);
     root_json["reg_width"]       = regWidth;
@@ -774,8 +794,9 @@ json RegMapTreeModel::extractJsonData(uint32_t regWidth)
         root_json["description"] = "Hardware Register Map Specification";
     }
 
-    if (root_json.contains("blocks") && root_json["blocks"].is_array()) {
-        for (auto &blk : root_json["blocks"]) {
+    auto blkIt = root_json.find("blocks");
+    if (blkIt != root_json.end() && blkIt->is_array()) {
+        for (auto &blk : *blkIt) {
             uint32_t bCrc = computeBlockCrc32(blk);
             blk["crc32"] = bCrc;
             blk["crc32_hex"] = ("0x" + QString("%1").arg(bCrc, 8, 16, QChar('0')).toUpper()).toStdString();

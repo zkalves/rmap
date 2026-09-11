@@ -12,11 +12,9 @@
 
 class CsvHandler : public IFormatHandler {
 public:
-    QString formatName() const override { return "CSV Spreadsheet"; }
-    QStringList supportedExtensions() const override { return {"csv", "tsv"}; }
-    QString fileFilter() const override {
-        return "CSV Table (*.csv *.tsv)";
-    }
+    QString formatName() const override;
+    QStringList supportedExtensions() const override;
+    QString fileFilter() const override;
 
     FormatResult read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
     FormatResult write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;

@@ -36,7 +36,7 @@ class RegConfigWindow : public QDialog, private Ui::config
 
     public:
         explicit RegConfigWindow(QWidget *parent = nullptr);
-        ~RegConfigWindow() override = default;
+        ~RegConfigWindow() override;
 
         protormap::Config* serialize(void);
         void deserialize(const protormap::Config &config);
@@ -56,7 +56,7 @@ class RegConfigWindow : public QDialog, private Ui::config
         QString baseDir() const;
 
         void setTemplateFolders(const QStringList &folders);
-        QStringList templateFolders() const;
+        QStringList templateFolders() const noexcept;
 
         void saveWindowStateToSettings();
         void restoreWindowStateFromSettings();

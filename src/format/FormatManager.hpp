@@ -27,12 +27,13 @@ public:
     FormatResult loadFile(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config);
     FormatResult saveFile(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config);
 
+    void registerDefaultHandlers();
+
     QString allFilterString() const;
     const std::vector<std::shared_ptr<IFormatHandler>>& handlers() const;
 
 private:
     FormatManager();
-    void registerDefaultHandlers();
 
     std::vector<std::shared_ptr<IFormatHandler>> m_handlers;
 };

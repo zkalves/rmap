@@ -12,11 +12,9 @@
 
 class IpxactHandler : public IFormatHandler {
 public:
-    QString formatName() const override { return "IP-XACT (IEEE 1685)"; }
-    QStringList supportedExtensions() const override { return {"xml", "ipxact"}; }
-    QString fileFilter() const override {
-        return "IP-XACT IEEE 1685 (*.xml *.ipxact)";
-    }
+    QString formatName() const override;
+    QStringList supportedExtensions() const override;
+    QString fileFilter() const override;
 
     FormatResult read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;
     FormatResult write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config) override;

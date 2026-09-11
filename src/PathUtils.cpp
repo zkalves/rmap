@@ -13,15 +13,21 @@
 
 namespace PathUtils {
 
+namespace {
+static const QRegularExpression multiSlashRegex("/{2,}");
+}
+
 QString normalizeSeparators(const QString &path)
 {
+    if (path.isEmpty()) {
+        return path;
+    }
     QString result = path;
     result.replace('\\', '/');
 
     // Collapse multiple consecutive slashes, except keep leading "//" if UNC path
     bool hasLeadingDoubleSlash = result.startsWith("//") && !result.startsWith("///");
-    static QRegularExpression multiSlash("/{2,}");
-    result.replace(multiSlash, "/");
+    result.replace(multiSlashRegex, "/");
     if (hasLeadingDoubleSlash && !result.startsWith("//")) {
         result.prepend('/');
     }
@@ -233,6 +239,18 @@ std::string resolvePath(const std::string &path, const std::string &primaryBaseD
     return resolvePath(QString::fromStdString(path), QString::fromStdString(primaryBaseDir), QString::fromStdString(secondaryBaseDir)).toStdString();
 }
 
+static bool s_installedOverride = false;
+
+void setInstalledOverride(bool enable)
+{
+    s_installedOverride = enable;
+}
+
+bool isInstalledOverride()
+{
+    return s_installedOverride;
+}
+
 QString defaultTemplatesDir()
 {
     // 1. Explicit environment variable override
@@ -243,25 +261,29 @@ QString defaultTemplatesDir()
         }
     }
 
-    // 2. Local "./templates" if it exists and contains template subfolders or files
-    QDir localTmpl("./templates");
-    if (localTmpl.exists() && (localTmpl.exists("rtl") || localTmpl.exists("c") || localTmpl.exists("uvm") || !localTmpl.isEmpty())) {
-        return QString::fromUtf8(DEFAULT_TEMPLATES_DIR);
+    // 2. Local "./templates" if it exists
+    if (!s_installedOverride) {
+        QDir localTemplates("./templates");
+        if (localTemplates.exists() && !localTemplates.isEmpty()) {
+            return QString("./templates");
+        }
     }
 
     // 3. Application-relative relocatable directory: <bin_dir>/../share/rmap/templates
-    QString appDir = QCoreApplication::applicationDirPath();
-    if (!appDir.isEmpty()) {
-        QDir relShare(appDir + "/../share/rmap/templates");
-        if (relShare.exists()) {
-            return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+    if (!s_installedOverride) {
+        QString appDir = QCoreApplication::applicationDirPath();
+        if (!appDir.isEmpty()) {
+            QDir relShare(appDir + "/../share/rmap/templates");
+            if (relShare.exists()) {
+                return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+            }
         }
     }
 
     // 4. Configured compile-time installation path (e.g. /usr/local/share/rmap/templates)
 #ifdef RMAP_INSTALL_TEMPLATES_DIR
     QString installDir = QString::fromUtf8(RMAP_INSTALL_TEMPLATES_DIR).trimmed();
-    if (!installDir.isEmpty() && QDir(installDir).exists()) {
+    if (s_installedOverride || (!installDir.isEmpty() && QDir(installDir).exists())) {
         return normalizeSeparators(installDir);
     }
 #endif
@@ -281,24 +303,28 @@ QString defaultExamplesDir()
     }
 
     // 2. Local "./examples" if it exists
-    QDir localEx("./examples");
-    if (localEx.exists() && (localEx.exists("rmt") || !localEx.isEmpty())) {
-        return QString("./examples");
+    if (!s_installedOverride) {
+        QDir localEx("./examples");
+        if (localEx.exists() && (localEx.exists("rmt") || !localEx.isEmpty())) {
+            return QString("./examples");
+        }
     }
 
     // 3. Application-relative relocatable directory: <bin_dir>/../share/rmap/examples
-    QString appDir = QCoreApplication::applicationDirPath();
-    if (!appDir.isEmpty()) {
-        QDir relShare(appDir + "/../share/rmap/examples");
-        if (relShare.exists()) {
-            return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+    if (!s_installedOverride) {
+        QString appDir = QCoreApplication::applicationDirPath();
+        if (!appDir.isEmpty()) {
+            QDir relShare(appDir + "/../share/rmap/examples");
+            if (relShare.exists()) {
+                return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+            }
         }
     }
 
     // 4. Configured compile-time installation path
 #ifdef RMAP_INSTALL_EXAMPLES_DIR
     QString installDir = QString::fromUtf8(RMAP_INSTALL_EXAMPLES_DIR).trimmed();
-    if (!installDir.isEmpty() && QDir(installDir).exists()) {
+    if (s_installedOverride || (!installDir.isEmpty() && QDir(installDir).exists())) {
         return normalizeSeparators(installDir);
     }
 #endif
@@ -318,24 +344,28 @@ QString defaultDocsDir()
     }
 
     // 2. Local "./docs" if it exists
-    QDir localDocs("./docs");
-    if (localDocs.exists() && !localDocs.isEmpty()) {
-        return QString("./docs");
+    if (!s_installedOverride) {
+        QDir localDocs("./docs");
+        if (localDocs.exists() && !localDocs.isEmpty()) {
+            return QString("./docs");
+        }
     }
 
     // 3. Application-relative relocatable directory: <bin_dir>/../share/doc/rmap
-    QString appDir = QCoreApplication::applicationDirPath();
-    if (!appDir.isEmpty()) {
-        QDir relDoc(appDir + "/../share/doc/rmap");
-        if (relDoc.exists()) {
-            return normalizeSeparators(relDoc.canonicalPath().isEmpty() ? relDoc.absolutePath() : relDoc.canonicalPath());
+    if (!s_installedOverride) {
+        QString appDir = QCoreApplication::applicationDirPath();
+        if (!appDir.isEmpty()) {
+            QDir relDoc(appDir + "/../share/doc/rmap");
+            if (relDoc.exists()) {
+                return normalizeSeparators(relDoc.canonicalPath().isEmpty() ? relDoc.absolutePath() : relDoc.canonicalPath());
+            }
         }
     }
 
     // 4. Configured compile-time installation path
 #ifdef RMAP_INSTALL_DOCDIR
     QString installDir = QString::fromUtf8(RMAP_INSTALL_DOCDIR).trimmed();
-    if (!installDir.isEmpty() && QDir(installDir).exists()) {
+    if (s_installedOverride || (!installDir.isEmpty() && QDir(installDir).exists())) {
         return normalizeSeparators(installDir);
     }
 #endif

@@ -34,6 +34,10 @@ private slots:
     void testApplicationMethods();
     void testAcceptAndClose();
     void testWindowSizePersistence();
+    void testLanguageChangeEvent();
+    void testMoveAndResizeEvents();
+    void testEmptyAppMetadataFallback();
+    void testRestoreStateWithValidPos();
 };
 
 void TestAboutWindow::testAboutWindowUIElements()
@@ -158,6 +162,61 @@ void TestAboutWindow::testWindowSizePersistence()
         QCOMPARE(AppSettings::instance().windowSize("AboutWindow"), QSize(650, 520));
         QCOMPARE(aboutWin2.size(), QSize(650, 520));
     }
+
+    AppSettings::instance().setConfigFilePath(origPath);
+}
+
+void TestAboutWindow::testLanguageChangeEvent()
+{
+    QString origName = QApplication::applicationName();
+    QApplication::setApplicationName("rmap");
+
+    AboutWindow aboutWin;
+    QEvent langChange(QEvent::LanguageChange);
+    QApplication::sendEvent(&aboutWin, &langChange);
+    QVERIFY(aboutWin.windowTitle().contains("rmap"));
+
+    QApplication::setApplicationName(origName);
+}
+
+void TestAboutWindow::testMoveAndResizeEvents()
+{
+    AboutWindow aboutWin;
+    QResizeEvent resizeEv(QSize(640, 480), QSize(620, 500));
+    QApplication::sendEvent(&aboutWin, &resizeEv);
+
+    QMoveEvent moveEv(QPoint(100, 100), QPoint(0, 0));
+    QApplication::sendEvent(&aboutWin, &moveEv);
+
+    QCloseEvent closeEv;
+    QApplication::sendEvent(&aboutWin, &closeEv);
+}
+
+void TestAboutWindow::testEmptyAppMetadataFallback()
+{
+    QString origVer = QApplication::applicationVersion();
+    QApplication::setApplicationVersion("");
+
+    AboutWindow aboutWin;
+    QCOMPARE(aboutWin.applicationVersion(), QStringLiteral("v0.2.0"));
+    QVERIFY(!aboutWin.applicationName().isEmpty());
+
+    QApplication::setApplicationVersion(origVer);
+}
+
+void TestAboutWindow::testRestoreStateWithValidPos()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString origPath = AppSettings::instance().configFilePath();
+    AppSettings::instance().setConfigFilePath(tempDir.path() + "/test_rmap_pos.conf");
+
+    AppSettings::instance().setWindowSize("AboutWindow", QSize(600, 450));
+    AppSettings::instance().setWindowPos("AboutWindow", QPoint(80, 80));
+
+    AboutWindow aboutWin;
+    QCOMPARE(aboutWin.size(), QSize(600, 450));
+    QCOMPARE(aboutWin.pos(), QPoint(80, 80));
 
     AppSettings::instance().setConfigFilePath(origPath);
 }

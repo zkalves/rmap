@@ -34,6 +34,8 @@ RegBitfieldBarWidget::RegBitfieldBarWidget(QWidget *parent)
     });
 }
 
+RegBitfieldBarWidget::~RegBitfieldBarWidget() = default;
+
 void RegBitfieldBarWidget::setRegister(RegMapTreeItem *regItem, uint32_t regWidth)
 {
     m_regItem = regItem;
@@ -195,6 +197,26 @@ void RegBitfieldBarWidget::setColorBlindMode(ColorBlindMode mode)
         m_colorBlindMode = mode;
         update();
     }
+}
+
+const QVector<BitfieldSlice>& RegBitfieldBarWidget::getSlices() const
+{
+    return m_slices;
+}
+
+const QVector<BitfieldSlice>& RegBitfieldBarWidget::slices() const
+{
+    return m_slices;
+}
+
+bool RegBitfieldBarWidget::isColorBlindMode() const
+{
+    return m_colorBlindMode != ColorBlindMode::None;
+}
+
+ColorBlindMode RegBitfieldBarWidget::colorBlindMode() const
+{
+    return m_colorBlindMode;
 }
 
 QColor RegBitfieldBarWidget::getAccessColor(const QString &access, bool isBackground) const
