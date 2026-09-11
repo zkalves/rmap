@@ -72,7 +72,7 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
 
     QXmlStreamReader xml(&file);
 
-    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "Access Policy", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
+    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
     QVariantMap rootData;
     for (const QString &c : cols) rootData[c] = c;
     RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
@@ -119,7 +119,7 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
                 regData["Offset/LSB"] = "0x0";
                 regData["Size/Width"] = QString::number(globalWidth);
                 regData["Name"] = "REG";
-                regData["Access Policy"] = "RW";
+                regData["SW Access"] = "RW";
                 regData["HW Access"] = "RO";
                 regData["Reset Value"] = "0x0";
                 regData["Description"] = "";
@@ -134,7 +134,7 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
             } else if (name == "size" && currentReg && !currentField) {
                 currentReg->setData("Size/Width", xml.readElementText());
             } else if (name == "access" && currentReg && !currentField) {
-                currentReg->setData("Access Policy", svdAccessToUvm(xml.readElementText()));
+                currentReg->setData("SW Access", svdAccessToUvm(xml.readElementText()));
             } else if (name == "resetValue" && currentReg && !currentField) {
                 QString rv = xml.readElementText();
                 currentReg->setData("Reset Value", QString("0x%1").arg(parseSvdNum(rv), 0, 16));
@@ -147,7 +147,7 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
                 fldData["Offset/LSB"] = "0";
                 fldData["Size/Width"] = "1";
                 fldData["Name"] = "FIELD";
-                fldData["Access Policy"] = currentReg ? currentReg->data("Access Policy").toString() : "RW";
+                fldData["SW Access"] = currentReg ? currentReg->data("SW Access").toString() : "RW";
                 fldData["HW Access"] = "RO";
                 fldData["Reset Value"] = "0x0";
                 fldData["Is Rand"] = "true";
@@ -174,7 +174,7 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
                     currentField->setData("Size/Width", QString::number(msb - lsb + 1));
                 }
             } else if (name == "access" && currentField) {
-                currentField->setData("Access Policy", svdAccessToUvm(xml.readElementText()));
+                currentField->setData("SW Access", svdAccessToUvm(xml.readElementText()));
             } else if (name == "description" && currentField) {
                 currentField->setData("Description", xml.readElementText());
             }
@@ -275,7 +275,7 @@ FormatResult CmsisSvdHandler::write(const QString &filepath, RegMapTreeModel *mo
             xml.writeTextElement("description", reg->data("Description").toString());
             xml.writeTextElement("addressOffset", reg->data("Offset/LSB").toString());
             xml.writeTextElement("size", QString::number(regWidth));
-            xml.writeTextElement("access", uvmAccessToSvd(reg->data("Access Policy").toString()));
+            xml.writeTextElement("access", uvmAccessToSvd(reg->data("SW Access").toString()));
             xml.writeTextElement("resetValue", reg->data("Reset Value").toString());
 
             if (reg->childCount() > 0) {
@@ -288,7 +288,7 @@ FormatResult CmsisSvdHandler::write(const QString &filepath, RegMapTreeModel *mo
                     xml.writeTextElement("description", fld->data("Description").toString());
                     xml.writeTextElement("bitOffset", fld->data("Offset/LSB").toString());
                     xml.writeTextElement("bitWidth", fld->data("Size/Width").toString());
-                    xml.writeTextElement("access", uvmAccessToSvd(fld->data("Access Policy").toString()));
+                    xml.writeTextElement("access", uvmAccessToSvd(fld->data("SW Access").toString()));
                     xml.writeEndElement(); // field
                 }
                 xml.writeEndElement(); // fields

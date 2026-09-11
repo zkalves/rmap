@@ -21,10 +21,18 @@ class TestCodeGenerator : public QObject
 private slots:
     void initTestCase() {
         QDir("work").removeRecursively();
+        QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
         QDir().mkpath("work");
     }
     void cleanupTestCase() {
         QDir("work").removeRecursively();
+        QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
     }
     void testHelperUpperAndLower();
     void testHelperToHexAndToDec();
@@ -2311,6 +2319,7 @@ void TestCodeGenerator::testCommandLineInterface()
 
         auto [codeExpDefault, outExpDefault] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--export"});
         QCOMPARE(codeExpDefault, 0);
+        QDir("examples/rmt/peripherals/work").removeRecursively();
 
         auto [codeLintFail, outLintFail] = runRmap({"-f", "examples/rmt/validation/invalid_overlap.rmt", "--lint"});
         QCOMPARE(codeLintFail, 1);

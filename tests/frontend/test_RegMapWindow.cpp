@@ -46,6 +46,9 @@ private slots:
         s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
         QDir().mkpath("work");
         qputenv("RMAP_CONFIG_FILE", "work/rmap_test.conf");
         AppSettings::instance().setConfigFilePath("work/rmap_test.conf");
@@ -56,6 +59,9 @@ private slots:
         AppSettings::instance().setColorBlindMode(false);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/rmt/features/work").removeRecursively();
+        QDir("examples/rmt/validation/work").removeRecursively();
         qInstallMessageHandler(s_originalHandler);
     }
     void testWindowInitAndFileOpen();
@@ -1759,6 +1765,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
             });
         });
         actExport->trigger();
+        QDir("examples/rmt/validation/work").removeRecursively();
     }
 
     // 5. Export with empty template table
@@ -3535,6 +3542,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
         // Run btnExport
         dismissModal(QString(), QMessageBox::Ok);
         win.btnExport();
+        QDir("examples/rmt/peripherals/work").removeRecursively();
     }
 
     // 5. Bitfield bar fieldClicked with out-of-range index and cleared selection

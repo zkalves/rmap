@@ -34,6 +34,8 @@ examples/
 │   ├── python_post_generate/ # Post-generation hook automation environment
 │   ├── template_folders/     # Multi-folder template search environment
 │   ├── diff/                 # Semantic register map diff environment
+│   ├── advanced_ral/         # Advanced UVM RAL constructs (indirect regs, FIFOs, callbacks, test exclusions)
+│   ├── format_conversion/    # Headless cross-conversion across SVD, SystemRDL, IP-XACT, JSON, CSV, and Protobuf
 │   └── soc_large_scale/      # Full SoC-scale multi-block subsystem environment
 │
 ├── rmt/                      # Native Protocol Buffer register maps (.rmt text & .rmb binary)
@@ -53,6 +55,7 @@ examples/
 │   │   ├── strict_validation.rmt# Strict linting compliant register map
 │   │   ├── python_post_generate.rmt# Automated post-generation execution hook
 │   │   ├── template_folders.rmt# Multi-directory template discovery configuration
+│   │   ├── advanced_ral.rmt / .rmb # Advanced UVM RAL constructs (indirect, FIFO, callbacks, test directives)
 │   │   ├── diff_v1.rmt       # Semantic diff base version
 │   │   └── diff_v2.rmt       # Semantic diff modified version (additions, deletions, mutations)
 │   └── validation/           # Negative test cases & linter rule validation
@@ -106,6 +109,12 @@ examples/
 - **`strict_validation.rmt`**: Strict lint-compliant register map adhering to full address alignment, exhaustive descriptions on blocks, registers, and fields, and valid non-overlapping bitfields.
 - **`python_post_generate.rmt`**: Integration with automated post-generation processing hooks (`examples/scripts/post_generate.py`).
 - **`template_folders.rmt`**: Multi-directory template discovery and custom template search paths (`custom_templates/`).
+- **`advanced_ral.rmt` & `advanced_ral.rmb`**: Advanced UVM RAL constructs derived from the UVM Cookbook:
+  - Indirect addressing registers (`uvm_reg_indirect_data` via index register pointer `CFG_INDEX`).
+  - Hardware streaming FIFO registers (`uvm_reg_fifo` with custom FIFO depth).
+  - Register callback hooks (`STATUS_CBS_cbs` extending `uvm_reg_cbs` with pre/post read/write hooks).
+  - Test sequence exclusion directives (`NO_REG_TEST`, `NO_REG_HW_RESET_TEST`, `NO_REG_BIT_BASH_TEST`, `NO_MEM_TEST`, `NO_MEM_WALK_TEST`, `NO_MEM_ACCESS_TEST`).
+  - Embedded functional coverage models (`val_cg` on register values, access covergroup on address map).
 - **`diff_v1.rmt` & `diff_v2.rmt`**: Semantic register map comparison reference pair demonstrating block, register, and field additions, deletions, offset mutations, and field property changes.
 
 ### 3. Validation & Linting (`rmt/validation/`)
@@ -152,7 +161,7 @@ Every feature and peripheral model includes a dedicated, self-contained executio
 ### Running Environments
 
 ```bash
-# Run autonomous verification across all 15 environments simultaneously
+# Run autonomous verification across all 17 environments simultaneously
 make test-examples
 
 # Or run from the examples directory:

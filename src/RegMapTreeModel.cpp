@@ -104,7 +104,7 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent)
                << tr("Offset/LSB")
                << tr("Size/Width")
                << tr("Name")
-               << tr("Access Policy")
+               << tr("SW Access")
                << tr("HW Access")
                << tr("Reset Value")
                << tr("Is Rand")
@@ -116,6 +116,7 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent)
     {
         data[str] = str;
     }
+    data["Access Policy"] = tr("SW Access");
     m_displayColumns = QVector<QString>::fromList(headerlist);
     m_rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, data);
 }
@@ -360,7 +361,7 @@ void RegMapTreeModel::initRow(int row, QModelIndex index)
             this->setData(child, offsetVal, Qt::EditRole);
         } else if (colName == "Size/Width") {
             this->setData(child, sizeVal, Qt::EditRole);
-        } else if (colName == "Access Policy") {
+        } else if (colName == "SW Access" || colName == "Access Policy") {
             this->setData(child, "RW", Qt::EditRole);
         } else if (colName == "HW Access") {
             if (kind == RegMapTreeItem::e_rmmKind::map || kind == RegMapTreeItem::e_rmmKind::blk) {
@@ -540,10 +541,10 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node, uint32_t regWidth
                 }
 
                 // Check contradictory access policy (SW=WO and HW=WO)
-                QString swAccess = child->data("Access Policy").toString().toUpper().trimmed();
+                QString swAccess = child->data("SW Access").toString().toUpper().trimmed();
                 QString hwAccess = child->data("HW Access").toString().toUpper().trimmed();
                 if (swAccess == "WO" && hwAccess == "WO") {
-                    m_invalidCells.insert(std::make_pair(child, 4)); // Access Policy
+                    m_invalidCells.insert(std::make_pair(child, 4)); // SW Access
                     m_invalidCells.insert(std::make_pair(child, 5)); // HW Access
                     errors.append(tr("Field '%1' in Register '%2' has contradictory access policy: both SW and HW are Write-Only")
                         .arg(fldName, nodeName));
@@ -614,7 +615,7 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
     item_json["kind"] = kind;
 
     std::string name = node->data("Name").toString().toStdString();
-    std::string access = node->data("Access Policy").toString().toStdString();
+    std::string access = node->data("SW Access").toString().toStdString();
     std::string sw_access = access.empty() ? "RW" : access;
     std::string hw_access_str = node->data("HW Access").toString().toStdString();
     std::string hw_access = hw_access_str.empty() ? "RO" : hw_access_str;

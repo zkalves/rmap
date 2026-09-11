@@ -145,7 +145,7 @@ void BlockMemoryMapWidget::computeBlocks()
             }
 
             QString name = child->data("Name").toString();
-            QString access = child->data("Access Policy").toString().trimmed().toUpper();
+            QString access = child->data("SW Access").toString().trimmed().toUpper();
             QString desc = child->data("Description").toString();
 
             // If access policy is not set on the register, infer from its bitfields
@@ -155,7 +155,7 @@ void BlockMemoryMapWidget::computeBlocks()
                 bool hasWO = false;
                 for (RegMapTreeItem *fld : child->getChildItems()) {
                     if (fld && fld->kindString() == "fld") {
-                        QString fAcc = fld->data("Access Policy").toString().trimmed().toUpper();
+                        QString fAcc = fld->data("SW Access").toString().trimmed().toUpper();
                         if (fAcc == "RW") hasRW = true;
                         else if (fAcc == "RO") hasRO = true;
                         else if (fAcc == "WO") hasWO = true;

@@ -74,6 +74,11 @@ void RegMapTreeItem::deserialize( const QVariantMap& data, SerializationContext*
     }
     m_childItems = childItems;
     m_itemData = data[ "itemData" ].toMap();
+    if (m_itemData.contains("Access Policy") && !m_itemData.contains("SW Access")) {
+        m_itemData["SW Access"] = m_itemData["Access Policy"];
+    } else if (m_itemData.contains("SW Access") && !m_itemData.contains("Access Policy")) {
+        m_itemData["Access Policy"] = m_itemData["SW Access"];
+    }
 }
 
 RegMapTreeItem *RegMapTreeItem::child(int row) const
@@ -114,6 +119,14 @@ QVariant RegMapTreeItem::data(const QString &column) const
     if (column == "Size/Width" && m_itemData.contains("Size"))
     {
         return m_itemData["Size"];
+    }
+    if ((column == "SW Access" || column == "Access Policy") && m_itemData.contains("SW Access"))
+    {
+        return m_itemData["SW Access"];
+    }
+    if ((column == "SW Access" || column == "Access Policy") && m_itemData.contains("Access Policy"))
+    {
+        return m_itemData["Access Policy"];
     }
     return QVariant();
 }
@@ -171,6 +184,10 @@ bool RegMapTreeItem::setData(const QString &column, const QVariant &value)
     if (column == "Size" || column == "Width" || column == "Size/Width") {
         m_itemData["Size"] = value;
         m_itemData["Size/Width"] = value;
+    }
+    if (column == "SW Access" || column == "Access Policy") {
+        m_itemData["SW Access"] = value;
+        m_itemData["Access Policy"] = value;
     }
     return true;
 }

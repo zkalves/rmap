@@ -71,7 +71,7 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
         projVersion = QString::fromStdString(rootJson["project_version"].get<std::string>());
     }
 
-    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "Access Policy", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
+    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
     QVariantMap rootData;
     for (const QString &c : cols) rootData[c] = c;
     RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
@@ -94,7 +94,7 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
                     regData["Offset/LSB"] = extractOffset(regJson);
                     regData["Size/Width"] = QString::number(regWidth);
                     regData["Name"] = regJson.contains("name") ? QString::fromStdString(regJson["name"].get<std::string>()) : "REG";
-                    regData["Access Policy"] = regJson.contains("access") ? QString::fromStdString(regJson["access"].get<std::string>()) : "RW";
+                    regData["SW Access"] = regJson.contains("access") ? QString::fromStdString(regJson["access"].get<std::string>()) : "RW";
                     regData["HW Access"] = regJson.contains("hw_access") ? QString::fromStdString(regJson["hw_access"].get<std::string>()) : "RO";
                     regData["Reset Value"] = regJson.contains("reset_hex") ? QString::fromStdString(regJson["reset_hex"].get<std::string>()) : "0x0";
                     regData["Description"] = regJson.contains("description") ? QString::fromStdString(regJson["description"].get<std::string>()) : "";
@@ -109,7 +109,7 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
                             fldData["Offset/LSB"] = (fldJson.contains("offset_lsb") && fldJson["offset_lsb"].is_number()) ? QString::number(fldJson["offset_lsb"].get<uint64_t>()) : "0";
                             fldData["Size/Width"] = (fldJson.contains("size_width") && fldJson["size_width"].is_number()) ? QString::number(fldJson["size_width"].get<uint64_t>()) : "1";
                             fldData["Name"] = (fldJson.contains("name") && fldJson["name"].is_string()) ? QString::fromStdString(fldJson["name"].get<std::string>()) : "FIELD";
-                            fldData["Access Policy"] = (fldJson.contains("access") && fldJson["access"].is_string()) ? QString::fromStdString(fldJson["access"].get<std::string>()) : "RW";
+                            fldData["SW Access"] = (fldJson.contains("access") && fldJson["access"].is_string()) ? QString::fromStdString(fldJson["access"].get<std::string>()) : "RW";
                             fldData["HW Access"] = (fldJson.contains("hw_access") && fldJson["hw_access"].is_string()) ? QString::fromStdString(fldJson["hw_access"].get<std::string>()) : "RO";
                             fldData["Reset Value"] = (fldJson.contains("reset_hex") && fldJson["reset_hex"].is_string()) ? QString::fromStdString(fldJson["reset_hex"].get<std::string>()) : "0x0";
                             fldData["Is Rand"] = (fldJson.contains("is_rand") && fldJson["is_rand"].is_boolean() && fldJson["is_rand"].get<bool>()) ? "true" : "false";
@@ -133,7 +133,7 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
             memData["Offset/LSB"] = extractOffset(memJson);
             memData["Size/Width"] = (memJson.contains("size_width") && memJson["size_width"].is_number()) ? QString::number(memJson["size_width"].get<uint64_t>()) : "4096";
             memData["Name"] = memJson.contains("name") ? QString::fromStdString(memJson["name"].get<std::string>()) : "MEMORY";
-            memData["Access Policy"] = memJson.contains("access") ? QString::fromStdString(memJson["access"].get<std::string>()) : "RW";
+            memData["SW Access"] = memJson.contains("access") ? QString::fromStdString(memJson["access"].get<std::string>()) : "RW";
             memData["HW Access"] = memJson.contains("hw_access") ? QString::fromStdString(memJson["hw_access"].get<std::string>()) : "RO";
             memData["Description"] = memJson.contains("description") ? QString::fromStdString(memJson["description"].get<std::string>()) : "";
 

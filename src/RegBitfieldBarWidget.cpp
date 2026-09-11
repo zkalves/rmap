@@ -115,7 +115,7 @@ void RegBitfieldBarWidget::computeSlices()
             if (width == 0) width = 1;
             uint64_t msb = lsb + width - 1;
             QString name = child->data("Name").toString();
-            QString access = child->data("Access Policy").toString().trimmed().toUpper();
+            QString access = child->data("SW Access").toString().trimmed().toUpper();
             QString hwAccess = child->data("HW Access").toString().trimmed().toUpper();
             if (hwAccess.isEmpty()) hwAccess = "RO";
             uint64_t resetVal = parseNum(child->data("Reset Value"));

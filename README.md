@@ -173,7 +173,7 @@ make test
 # Run comprehensive template verification tests across all 15 output templates
 make test-templates
 
-# Run autonomous simulation and compilation across all 15 example environments
+# Run autonomous simulation and compilation across all 17 example environments
 make test-examples
 
 # Run complete verification suite

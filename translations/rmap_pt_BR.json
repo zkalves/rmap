@@ -45,6 +45,7 @@
     "Offset": "Deslocamento",
     "Size": "Tamanho",
     "Name": "Nome",
+    "SW Access": "Acesso SW",
     "Access Policy": "Política de Acesso",
     "HW Access": "Acesso HW",
     "Reset Value": "Valor de Reset",

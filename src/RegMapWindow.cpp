@@ -120,7 +120,7 @@ static void gatherRegs(RegMapTreeModel &model, std::map<QString, RegSummary> &ma
             s.blockName = bName;
             s.regName = rName;
             s.offset = reg->data("Offset/LSB").toString();
-            s.access = reg->data("Access Policy").toString();
+            s.access = reg->data("SW Access").toString();
             s.reset = reg->data("Reset Value").toString();
             for (RegMapTreeItem *fld : reg->getChildItems()) {
                 if (fld && fld->kindString() == "fld") { // GCOV_EXCL_BR_LINE - fld pointer is guaranteed non-null
@@ -128,7 +128,7 @@ static void gatherRegs(RegMapTreeModel &model, std::map<QString, RegSummary> &ma
                     QString fSig = QString("%1:%2:%3:%4")
                         .arg(fld->data("Offset/LSB").toString())
                         .arg(fld->data("Size/Width").toString())
-                        .arg(fld->data("Access Policy").toString())
+                        .arg(fld->data("SW Access").toString())
                         .arg(fld->data("Reset Value").toString());
                     s.fields[fName] = fSig;
                 }
@@ -194,7 +194,7 @@ protected:
         QString name = item->data("Name").toString().toLower();
         QString offset = item->data("Offset/LSB").toString().toLower();
         QString desc = item->data("Description").toString().toLower();
-        QString access = item->data("Access Policy").toString().toLower();
+        QString access = item->data("SW Access").toString().toLower();
         return name.contains(m_filterText) || offset.contains(m_filterText) ||
                desc.contains(m_filterText) || access.contains(m_filterText);
     }
@@ -328,7 +328,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     this->treeView->sortByColumn(1, Qt::AscendingOrder);
     this->treeView->setAlternatingRowColors(true);
     this->treeView->setColumnHidden(2, true); // Size (Register size is global in Config)
-    this->treeView->setColumnHidden(4, true); // SW Access Policy
+    this->treeView->setColumnHidden(4, true); // SW Access
     this->treeView->setColumnHidden(5, true); // HW Access Policy
     this->treeView->setColumnHidden(6, true); // Reset Value
     this->treeView->setColumnHidden(7, true); // Is Rand
@@ -476,7 +476,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
     m_fieldsTableView->setItemDelegateForColumn(1, new RegHexDecBinDelegate(this));       // LSB
     m_fieldsTableView->setItemDelegateForColumn(2, new RegHexDecBinDelegate(this));       // Size
     m_fieldsTableView->setItemDelegateForColumn(3, new RegStrDelegate(this));             // Name
-    m_fieldsTableView->setItemDelegateForColumn(4, new RegAccessPolicyDelegate(this));   // SW Access Policy
+    m_fieldsTableView->setItemDelegateForColumn(4, new RegAccessPolicyDelegate(this));   // SW Access
     m_fieldsTableView->setItemDelegateForColumn(5, new RegHwAccessDelegate(this));       // HW Access Policy
     m_fieldsTableView->setItemDelegateForColumn(6, new RegHexDecBinDelegate(this));       // Reset Value
     m_fieldsTableView->setItemDelegateForColumn(7, new RegBoolDelegate(this));           // Is Rand
@@ -1776,6 +1776,11 @@ protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationC
 
         for (const auto & [key, value] : item.itemdata()) {
             itemData[QString(key.c_str())] = QVariant(value.c_str());
+        }
+        if (itemData.contains("Access Policy") && !itemData.contains("SW Access")) {
+            itemData["SW Access"] = itemData["Access Policy"];
+        } else if (itemData.contains("SW Access") && !itemData.contains("Access Policy")) {
+            itemData["Access Policy"] = itemData["SW Access"];
         }
         m_data["itemData"] = QVariant(itemData);
 
