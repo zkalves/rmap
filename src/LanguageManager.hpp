@@ -33,12 +33,7 @@ struct LanguageInfo {
     QString resourcePath; // Embedded Qt resource path (e.g. ":/translations/rmap_es.json")
     bool isBuiltIn = true;
 
-    QString displayName() const {
-        if (nativeName.isEmpty() || nativeName == name) {
-            return name;
-        }
-        return QStringLiteral("%1 (%2)").arg(nativeName, name);
-    }
+    QString displayName() const;
 };
 
 class JsonTranslator : public QTranslator {
@@ -76,8 +71,8 @@ public:
     static LanguageManager& instance();
 
     const QList<LanguageInfo>& availableLanguages() const;
-    QStringList languageCodes() const;
-    QStringList languageNames() const;
+    QStringList languageCodes() const noexcept;
+    QStringList languageNames() const noexcept;
 
     QString currentLanguage() const;
     QString currentLanguageName() const;
@@ -89,6 +84,8 @@ public:
 
 signals:
     void languageChanged(const QString &languageCode);
+
+    friend class TestLanguageManager;
 
 private:
     LanguageManager();

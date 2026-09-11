@@ -26,6 +26,7 @@ set(BACKEND_TESTS
     test_ThemeManager
     test_LanguageManager
     test_Version
+    test_ProtobufLogCollector
 )
 
 foreach(test_name ${BACKEND_TESTS})
@@ -48,6 +49,9 @@ set(FRONTEND_TESTS
     test_PreferencesWindow
     test_AboutWindow
     test_Delegates
+    test_RegBitfieldBarWidget
+    test_BlockMemoryMapWidget
+    test_RegMapTreeView
 )
 
 foreach(test_name ${FRONTEND_TESTS})

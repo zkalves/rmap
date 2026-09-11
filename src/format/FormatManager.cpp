@@ -25,6 +25,8 @@
 #include "CsvHandler.hpp"
 #include "CmsisSvdHandler.hpp"
 
+IFormatHandler::~IFormatHandler() = default;
+
 FormatManager& FormatManager::instance()
 {
     static FormatManager s_instance;
@@ -103,10 +105,7 @@ FormatResult FormatManager::loadFile(const QString &filepath, RegMapTreeModel *m
     QString expanded = PathUtils::expandEnvVars(filepath);
     auto handler = handlerForFile(expanded);
     if (!handler) {
-        FormatResult res;
-        res.success = false;
-        res.errorMessage = QString("No format handler found for file: %1").arg(filepath);
-        return res;
+        return {false, QString("No format handler found for file: %1").arg(filepath), {}};
     }
     return handler->read(expanded, model, config);
 }
@@ -116,10 +115,7 @@ FormatResult FormatManager::saveFile(const QString &filepath, RegMapTreeModel *m
     QString expanded = PathUtils::expandEnvVars(filepath);
     auto handler = handlerForFile(expanded);
     if (!handler) {
-        FormatResult res;
-        res.success = false;
-        res.errorMessage = QString("No format handler found for file: %1").arg(filepath);
-        return res;
+        return {false, QString("No format handler found for file: %1").arg(filepath), {}};
     }
     return handler->write(expanded, model, config);
 }
