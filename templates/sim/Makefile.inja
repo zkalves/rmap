@@ -13,10 +13,26 @@ TEST        ?= $(BLOCK_NAME)_hw_reset_test
 SIM         ?= iverilog
 
 # Dynamic Relative Paths computed during rmap export (overridable via CLI / env)
-RTL_SRC     ?= {% if exists("sim_rel_rtl_path") %}{{ sim_rel_rtl_path }}{% else %}../rtl/reg_map.sv{% endif %}
-UVM_SRC     ?= {% if exists("sim_rel_uvm_path") %}{{ sim_rel_uvm_path }}{% else %}../uvm/reg_model.sv{% endif %}
-RTL_INC_DIR ?= {% if exists("sim_rel_rtl_dir") %}{{ sim_rel_rtl_dir }}{% else %}../rtl{% endif %}
-UVM_INC_DIR ?= {% if exists("sim_rel_uvm_dir") %}{{ sim_rel_uvm_dir }}{% else %}../uvm{% endif %}
+{% if exists("sim_rel_rtl_path") %}
+RTL_SRC     ?= {{ sim_rel_rtl_path }}
+{% else %}
+RTL_SRC     ?= ../rtl/reg_map.sv
+{% endif %}
+{% if exists("sim_rel_uvm_path") %}
+UVM_SRC     ?= {{ sim_rel_uvm_path }}
+{% else %}
+UVM_SRC     ?= ../uvm/reg_model.sv
+{% endif %}
+{% if exists("sim_rel_rtl_dir") %}
+RTL_INC_DIR ?= {{ sim_rel_rtl_dir }}
+{% else %}
+RTL_INC_DIR ?= ../rtl
+{% endif %}
+{% if exists("sim_rel_uvm_dir") %}
+UVM_INC_DIR ?= {{ sim_rel_uvm_dir }}
+{% else %}
+UVM_INC_DIR ?= ../uvm
+{% endif %}
 
 .PHONY: all help sim-rtl sim-verilator sim-pyuvm sim-uvm clean
 

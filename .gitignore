@@ -10,4 +10,4 @@ _site/
 *.gcov
 *.gcov.json.gz
 *.info
-
+*.pdf

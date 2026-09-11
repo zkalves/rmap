@@ -78,72 +78,44 @@ config {
     output_filepath: "./work/sim/Makefile"
   }
   reg_width: 32
-  project_name: "IoT_Sensor_Platform"
+  project_name: "Parametric_Peripheral"
+  project_version: "1.2.0"
+  custom_parameters {
+    key: "company_name"
+    value: "Acme_Semiconductors"
+  }
+  custom_parameters {
+    key: "target_frequency_mhz"
+    value: "500"
+  }
+  custom_parameters {
+    key: "bus_protocol"
+    value: "AXI4_Lite"
+  }
+  custom_parameters {
+    key: "silicon_process"
+    value: "TSMC_N16"
+  }
 }
 item {
   child_id: 1
-  itemData {
-    key: "Access Policy"
-    value: "Access Policy"
-  }
-  itemData {
-    key: "Description"
-    value: "Description"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "Has Reset"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "Is Rand"
-  }
-  itemData {
-    key: "Name"
-    value: "Name"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "Offset/LSB"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "Reset Value"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "Size/Width"
-  }
-  itemData {
-    key: "Type"
-    value: "Type"
-  }
-  itemData {
-    key: "Volatile"
-    value: "Volatile"
-  }
 }
 item {
   kind: BLK
   id: 1
   child_id: 2
-  child_id: 6
-  child_id: 8
-  itemData {
-    key: "Description"
-    value: ""
-  }
+  child_id: 5
   itemData {
     key: "Name"
-    value: "SENSOR_CORE"
+    value: "PARAMETRIC_CORE"
   }
   itemData {
     key: "Offset/LSB"
-    value: "0x0"
+    value: "0x0000"
   }
   itemData {
-    key: "Type"
-    value: "blk"
+    key: "Description"
+    value: "Parametric Core with Template Custom Parameters"
   }
 }
 item {
@@ -152,34 +124,25 @@ item {
   parent_id: 1
   child_id: 3
   child_id: 4
-  child_id: 5
-  itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "Sensor Hub Configuration Register"
-  }
   itemData {
     key: "Name"
-    value: "CONFIG"
+    value: "CONFIG_REG"
   }
   itemData {
     key: "Offset/LSB"
-    value: "0x0"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x0"
+    value: "0x00"
   }
   itemData {
     key: "Size/Width"
     value: "32"
   }
   itemData {
-    key: "Type"
-    value: "reg"
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Core Configuration and Clock Ratio"
   }
 }
 item {
@@ -187,44 +150,40 @@ item {
   id: 3
   parent_id: 2
   itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "Enable Sensor Hub Core"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "true"
-  }
-  itemData {
     key: "Name"
-    value: "ENABLE"
+    value: "CLK_RATIO"
   }
   itemData {
     key: "Offset/LSB"
     value: "0"
   }
   itemData {
-    key: "Reset Value"
-    value: "0x0"
-  }
-  itemData {
     key: "Size/Width"
-    value: "1"
+    value: "8"
   }
   itemData {
-    key: "Type"
-    value: "fld"
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x04"
+  }
+  itemData {
+    key: "Description"
+    value: "Clock Frequency Division Ratio"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
   }
   itemData {
     key: "Volatile"
     value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
   }
 }
 item {
@@ -232,249 +191,109 @@ item {
   id: 4
   parent_id: 2
   itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "Sampling Rate: 0=10Hz, 1=50Hz, 2=100Hz, 3=500Hz"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "true"
-  }
-  itemData {
     key: "Name"
-    value: "SAMPLE_RATE"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "4"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x1"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "4"
-  }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
-    key: "Volatile"
-    value: "false"
-  }
-}
-item {
-  kind: FLD
-  id: 5
-  parent_id: 2
-  itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "FIFO Watermark Interrupt Threshold"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "true"
-  }
-  itemData {
-    key: "Name"
-    value: "FIFO_THRESH"
+    value: "PROTOCOL_VER"
   }
   itemData {
     key: "Offset/LSB"
     value: "8"
   }
   itemData {
-    key: "Reset Value"
-    value: "0x10"
-  }
-  itemData {
     key: "Size/Width"
     value: "8"
   }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
-    key: "Volatile"
-    value: "false"
-  }
-}
-item {
-  kind: REG
-  id: 6
-  parent_id: 1
-  child_id: 7
   itemData {
     key: "Access Policy"
     value: "RO"
   }
   itemData {
-    key: "Description"
-    value: "Calibrated Temperature Reading"
+    key: "Reset Value"
+    value: "0x01"
   }
   itemData {
+    key: "Description"
+    value: "Hardware Protocol Version"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  itemData {
     key: "Name"
-    value: "TEMPERATURE"
+    value: "FREQ_MONITOR"
   }
   itemData {
     key: "Offset/LSB"
-    value: "0x4"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x0"
+    value: "0x04"
   }
   itemData {
     key: "Size/Width"
     value: "32"
   }
   itemData {
-    key: "Type"
-    value: "reg"
-  }
-}
-item {
-  kind: FLD
-  id: 7
-  parent_id: 6
-  itemData {
     key: "Access Policy"
     value: "RO"
   }
   itemData {
     key: "Description"
-    value: "Signed Q8.8 Fixed-Point Temperature (Celsius)"
+    value: "Target Frequency Monitor in MHz"
   }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "false"
-  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
   itemData {
     key: "Name"
-    value: "TEMP_DATA"
+    value: "MHZ_VAL"
   }
   itemData {
     key: "Offset/LSB"
     value: "0"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x0"
   }
   itemData {
     key: "Size/Width"
     value: "16"
   }
   itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
-    key: "Volatile"
-    value: "true"
-  }
-}
-item {
-  kind: REG
-  id: 8
-  parent_id: 1
-  child_id: 9
-  itemData {
     key: "Access Policy"
     value: "RO"
-  }
-  itemData {
-    key: "Description"
-    value: "Barometric Pressure Reading"
-  }
-  itemData {
-    key: "Name"
-    value: "PRESSURE"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "0x8"
   }
   itemData {
     key: "Reset Value"
-    value: "0x18BDD"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "32"
-  }
-  itemData {
-    key: "Type"
-    value: "reg"
-  }
-}
-item {
-  kind: FLD
-  id: 9
-  parent_id: 8
-  itemData {
-    key: "Access Policy"
-    value: "RO"
+    value: "0x01F4"
   }
   itemData {
     key: "Description"
-    value: "Atmospheric Pressure in Pascals"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
+    value: "Reported Core Frequency (500 MHz = 0x01F4)"
   }
   itemData {
     key: "Is Rand"
     value: "false"
   }
   itemData {
-    key: "Name"
-    value: "PRESSURE_PASCALS"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "0"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x18BDD"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "24"
-  }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
     key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
     value: "true"
   }
 }
 last_updated {
-  seconds: 1787698271
+  seconds: 1787445000
 }

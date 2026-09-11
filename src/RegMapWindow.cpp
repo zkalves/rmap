@@ -2523,8 +2523,9 @@ bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2, cons
             std::cerr << "Failed to write diff report to: " << expOut.toStdString() << std::endl;
             return false;
         }
-        std::cout << outputStr.toStdString() << std::endl;
     }
+
+    std::cout << outputStr.toStdString() << std::endl;
 
     return true;
 }

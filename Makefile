@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -72,8 +72,12 @@ test-templates: rmap
 	@mkdir -p work/test_templates
 	@python3 tests/test_template.py all
 
-# Run complete verification: unit tests and template verification
-test-all: test-unit test-templates
+# Run autonomous simulation and compilation across all example environments
+test-examples: rmap
+	@$(MAKE) -C examples all
+
+# Run complete verification: unit tests, template verification, and all example environments
+test-all: test-unit test-templates test-examples
 
 # Run automated unit tests with compiler code coverage and generate multi-metric summary
 coverage:
@@ -103,6 +107,7 @@ clean-gcda clean-coverage:
 
 # Clean up build directory and test artifacts
 clean:
+	@$(MAKE) -C examples clean 2>/dev/null || true
 	@rm -rf build work _site
 
 rebuild: clean all

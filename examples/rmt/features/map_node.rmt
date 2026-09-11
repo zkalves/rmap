@@ -78,72 +78,30 @@ config {
     output_filepath: "./work/sim/Makefile"
   }
   reg_width: 32
-  project_name: "IoT_Sensor_Platform"
+  project_name: "MultiMap_Subsystem"
+  project_version: "1.0.0"
 }
 item {
   child_id: 1
-  itemData {
-    key: "Access Policy"
-    value: "Access Policy"
-  }
-  itemData {
-    key: "Description"
-    value: "Description"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "Has Reset"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "Is Rand"
-  }
-  itemData {
-    key: "Name"
-    value: "Name"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "Offset/LSB"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "Reset Value"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "Size/Width"
-  }
-  itemData {
-    key: "Type"
-    value: "Type"
-  }
-  itemData {
-    key: "Volatile"
-    value: "Volatile"
-  }
+  child_id: 9
 }
 item {
   kind: BLK
   id: 1
   child_id: 2
-  child_id: 6
+  child_id: 5
   child_id: 8
   itemData {
-    key: "Description"
-    value: ""
-  }
-  itemData {
     key: "Name"
-    value: "SENSOR_CORE"
+    value: "BUS_ROUTER"
   }
   itemData {
     key: "Offset/LSB"
-    value: "0x0"
+    value: "0x0000"
   }
   itemData {
-    key: "Type"
-    value: "blk"
+    key: "Description"
+    value: "Multi-Bus Router and Bridge Subsystem"
   }
 }
 item {
@@ -152,56 +110,31 @@ item {
   parent_id: 1
   child_id: 3
   child_id: 4
-  child_id: 5
-  itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "Sensor Hub Configuration Register"
-  }
   itemData {
     key: "Name"
-    value: "CONFIG"
+    value: "ROUTER_CTRL"
   }
   itemData {
     key: "Offset/LSB"
-    value: "0x0"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x0"
+    value: "0x00"
   }
   itemData {
     key: "Size/Width"
     value: "32"
   }
   itemData {
-    key: "Type"
-    value: "reg"
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Router Control Configuration Register"
   }
 }
 item {
   kind: FLD
   id: 3
   parent_id: 2
-  itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "Enable Sensor Hub Core"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "true"
-  }
   itemData {
     key: "Name"
     value: "ENABLE"
@@ -211,20 +144,32 @@ item {
     value: "0"
   }
   itemData {
-    key: "Reset Value"
-    value: "0x0"
-  }
-  itemData {
     key: "Size/Width"
     value: "1"
   }
   itemData {
-    key: "Type"
-    value: "fld"
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Description"
+    value: "Enable Bus Router"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
   }
   itemData {
     key: "Volatile"
     value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
   }
 }
 item {
@@ -232,249 +177,192 @@ item {
   id: 4
   parent_id: 2
   itemData {
-    key: "Access Policy"
-    value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "Sampling Rate: 0=10Hz, 1=50Hz, 2=100Hz, 3=500Hz"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "true"
-  }
-  itemData {
     key: "Name"
-    value: "SAMPLE_RATE"
+    value: "ARB_MODE"
   }
   itemData {
     key: "Offset/LSB"
-    value: "4"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x1"
+    value: "1"
   }
   itemData {
     key: "Size/Width"
-    value: "4"
+    value: "3"
   }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
-    key: "Volatile"
-    value: "false"
-  }
-}
-item {
-  kind: FLD
-  id: 5
-  parent_id: 2
   itemData {
     key: "Access Policy"
     value: "RW"
-  }
-  itemData {
-    key: "Description"
-    value: "FIFO Watermark Interrupt Threshold"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "true"
-  }
-  itemData {
-    key: "Name"
-    value: "FIFO_THRESH"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "8"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x10"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "8"
-  }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
-    key: "Volatile"
-    value: "false"
-  }
-}
-item {
-  kind: REG
-  id: 6
-  parent_id: 1
-  child_id: 7
-  itemData {
-    key: "Access Policy"
-    value: "RO"
-  }
-  itemData {
-    key: "Description"
-    value: "Calibrated Temperature Reading"
-  }
-  itemData {
-    key: "Name"
-    value: "TEMPERATURE"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "0x4"
   }
   itemData {
     key: "Reset Value"
     value: "0x0"
   }
   itemData {
+    key: "Description"
+    value: "Arbitration Priority Mode"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  child_id: 7
+  itemData {
+    key: "Name"
+    value: "ROUTER_STATUS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
     key: "Size/Width"
     value: "32"
   }
   itemData {
-    key: "Type"
-    value: "reg"
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Router Status and Arbitration State"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Name"
+    value: "BUSY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Description"
+    value: "Bus Arbitration Busy Status"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
   }
 }
 item {
   kind: FLD
   id: 7
-  parent_id: 6
-  itemData {
-    key: "Access Policy"
-    value: "RO"
-  }
-  itemData {
-    key: "Description"
-    value: "Signed Q8.8 Fixed-Point Temperature (Celsius)"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
-  }
-  itemData {
-    key: "Is Rand"
-    value: "false"
-  }
+  parent_id: 5
   itemData {
     key: "Name"
-    value: "TEMP_DATA"
+    value: "ERR_COUNT"
   }
   itemData {
     key: "Offset/LSB"
-    value: "0"
+    value: "8"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
   }
   itemData {
     key: "Reset Value"
     value: "0x0"
   }
   itemData {
-    key: "Size/Width"
-    value: "16"
-  }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
-    key: "Volatile"
-    value: "true"
-  }
-}
-item {
-  kind: REG
-  id: 8
-  parent_id: 1
-  child_id: 9
-  itemData {
-    key: "Access Policy"
-    value: "RO"
-  }
-  itemData {
     key: "Description"
-    value: "Barometric Pressure Reading"
-  }
-  itemData {
-    key: "Name"
-    value: "PRESSURE"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "0x8"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x18BDD"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "32"
-  }
-  itemData {
-    key: "Type"
-    value: "reg"
-  }
-}
-item {
-  kind: FLD
-  id: 9
-  parent_id: 8
-  itemData {
-    key: "Access Policy"
-    value: "RO"
-  }
-  itemData {
-    key: "Description"
-    value: "Atmospheric Pressure in Pascals"
-  }
-  itemData {
-    key: "Has Reset"
-    value: "true"
+    value: "Bus Transaction Error Counter"
   }
   itemData {
     key: "Is Rand"
     value: "false"
   }
   itemData {
-    key: "Name"
-    value: "PRESSURE_PASCALS"
-  }
-  itemData {
-    key: "Offset/LSB"
-    value: "0"
-  }
-  itemData {
-    key: "Reset Value"
-    value: "0x18BDD"
-  }
-  itemData {
-    key: "Size/Width"
-    value: "24"
-  }
-  itemData {
-    key: "Type"
-    value: "fld"
-  }
-  itemData {
     key: "Volatile"
     value: "true"
   }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+item {
+  kind: MAP
+  id: 8
+  parent_id: 1
+  itemData {
+    key: "Name"
+    value: "APB_MAP"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0000"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4096"
+  }
+  itemData {
+    key: "Description"
+    value: "Peripheral APB 32-bit Address Map"
+  }
+}
+item {
+  kind: MAP
+  id: 9
+  itemData {
+    key: "Name"
+    value: "AXI_SYSTEM_MAP"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x80000000"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "65536"
+  }
+  itemData {
+    key: "Description"
+    value: "System AXI High-Speed Bus Address Map"
+  }
 }
 last_updated {
-  seconds: 1787698271
+  seconds: 1787445000
 }

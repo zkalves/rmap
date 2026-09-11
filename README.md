@@ -39,6 +39,7 @@
   - **Markdown Documentation**: Table-driven GitHub-flavored Markdown specification (`markdown/reg_doc.md.inja`).
   - **JSON Schema**: Formatted machine-readable JSON schema export (`json/reg_map.json.inja`).
 - **Post-Generation Python Script Execution**: Automatically launch a custom Python script upon code generation with the complete register map context and helper functions injected directly as globals (`name`, `blocks`, `reg_width`, etc.), virtual module (`import rmap`), CLI argument (`sys.argv[1]`), standard input, and environment variables.
+- **Dedicated Reference Examples & Autonomous Simulation Environments**: 15 complete, self-contained reference environments in `examples/environments/` with autonomous Makefiles, C firmware verification harnesses (`test_harness.c`), Rust PAC crates (`test_harness.rs`), and Python test harnesses (`test_harness.py`). Includes focused single-feature models and an extensive SoC-scale multi-block subsystem (`soc_large_scale.rmt`). Run all environments autonomously with `make test-examples`.
 - **Automated CI/CD Linter**: Headless validation engine (`--lint`, `--strict`) with machine-readable reports in **SARIF** (GitHub PR code scanning), **JUnit XML** (CI test dashboards), **JSON**, or human-readable **Text**.
 - **Semantic Register Map Diff Engine**: Headless structural diffing (`--diff`) comparing registers, addresses, bitfields, and access policies across versions with Text and Markdown reports.
 - **Curated Multi-Theme Engine & Configurable Colour Schemes**: Built-in dark, light, and high-contrast colour schemes (**Solarized 8 (Dark)** default, **Solarized 8 (Light)**, **Nord**, **Dracula**, **Monokai**, **Classic Light**, **High Contrast (Dark)**, **High Contrast (Light)**), easily customized and extended via declarative JSON files (`themes/*.json`, `~/.config/rmap/themes/`). Custom themes can be added or edited on the fly with a 1-click **Themes Folder...** shortcut in Preferences. User GUI settings persist in `~/.config/rmap/rmap.conf`.
@@ -169,8 +170,14 @@ make
 # Run automated unit test suites (100% pass rate)
 make test
 
-# Run comprehensive template verification tests across all 11 output formats
+# Run comprehensive template verification tests across all 15 output templates
 make test-templates
+
+# Run autonomous simulation and compilation across all 15 example environments
+make test-examples
+
+# Run complete verification suite
+make test-all
 ```
 
 ### Installation
