@@ -358,6 +358,37 @@ void TestLanguageManager::testEdgeCasesAndFallbacks()
     QVERIFY(lm.setLanguage("en"));
     QCOMPARE(lm.currentLanguage(), QString("en"));
 
+    // 9. Switch language by native name
+    QVERIFY(lm.setLanguage("Español"));
+    QCOMPARE(lm.currentLanguage(), QString("es"));
+    QVERIFY(lm.setLanguage("Deutsch"));
+    QCOMPARE(lm.currentLanguage(), QString("de"));
+
+    // 10. Switch language with nonexistent language code/name (returns false, falls back)
+    QVERIFY(!lm.setLanguage("nonexistent_unknown_xyz"));
+
+    // 11. JsonTranslator with context-only translations and missing name/nativeName metadata
+    {
+        JsonTranslator trans;
+        QJsonObject jsonDoc;
+        jsonDoc["code"] = "es";
+        // Omitting "name" and "nativeName" stimulates lines 66 and 69
+        QJsonObject ctxObj;
+        QJsonObject winObj;
+        winObj["Save"] = "Guardar";
+        ctxObj["RegMapWindow"] = winObj;
+        jsonDoc["contexts"] = ctxObj;
+        // "translations" object is omitted -> globalMap is empty!
+
+        QByteArray jsonBytes = QJsonDocument(jsonDoc).toJson();
+        QVERIFY(trans.loadData(jsonBytes));
+        QVERIFY(!trans.isEmpty());
+        QCOMPARE(trans.code(), QString("es"));
+        QVERIFY(!trans.name().isEmpty());
+        QVERIFY(!trans.nativeName().isEmpty());
+        QCOMPARE(trans.translate("RegMapWindow", "Save"), QString("Guardar"));
+    }
+
     // Restore to English
     lm.setLanguage("en");
     QCOMPARE(lm.currentLanguage(), QString("en"));

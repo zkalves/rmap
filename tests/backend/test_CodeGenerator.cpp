@@ -1677,6 +1677,9 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "snake_camel={{ snake_case(\"camelCaseWord\") }}\n"
         "sv_hex_str={{ sv_hex(\"0x123\", \"16\") }}\n"
         "sv_hex_quoted={{ sv_hex(\"\\\"0x1234\\\"\", \"16\") }}\n"
+        "sv_hex_lead_quote={{ sv_hex(\"\\\"0x123\", \"16\") }}\n"
+        "sv_hex_trail_quote={{ sv_hex(\"0x123\\\"\", \"16\") }}\n"
+        "sv_hex_short={{ sv_hex(\"a\", \"16\") }}\n"
         "sv_hex_bad={{ sv_hex(\"not_num\", \"invalid\") }}\n"
         "sv_hex_no_width={{ sv_hex(255) }}\n"
         "sv_hex_zero_width={{ sv_hex(255, 0) }}\n"
@@ -1696,6 +1699,9 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
         "snake_aB={{ snake_case(\"aB\") }}\n"
         "snake_abcDef={{ snake_case(\"ABCDef\") }}\n"
         "snake_consec={{ snake_case(\"foo--bar  baz\") }}\n"
+        "snake_lead_dash={{ snake_case(\"-leading\") }}\n"
+        "snake_lead_quote={{ snake_case(\"\\\"foo\") }}\n"
+        "snake_trail_quote={{ snake_case(\"foo\\\"\") }}\n"
         "camel_num={{ camel_case(123) }}\n"
         "camel_quote={{ camel_case(\"\\\"ctrl_status\\\"\") }}\n"
         "camel_dash={{ camel_case(\"ctrl-status flag\") }}\n"
@@ -1751,6 +1757,12 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases()
     QVERIFY(content.contains("snake_aB=a_b"));
     QVERIFY(content.contains("snake_abcDef=abc_def"));
     QVERIFY(content.contains("snake_consec=foo_bar_baz"));
+    QVERIFY(content.contains("snake_lead_dash=leading"));
+    QVERIFY(content.contains("snake_lead_quote=\"foo"));
+    QVERIFY(content.contains("snake_trail_quote=foo\""));
+    QVERIFY(content.contains("sv_hex_lead_quote=16'h0000"));
+    QVERIFY(content.contains("sv_hex_trail_quote=16'h0123"));
+    QVERIFY(content.contains("sv_hex_short=16'h0000"));
     QVERIFY(content.contains("camel_num=123"));
     QVERIFY(content.contains("camel_quote=ctrlStatus"));
     QVERIFY(content.contains("camel_dash=ctrlStatusFlag"));
@@ -2217,6 +2229,141 @@ void TestCodeGenerator::testCommandLineInterface()
 
         auto [codeExpShortFail, outExpShortFail] = runRmap({"-e"});
         QCOMPARE(codeExpShortFail, 1);
+    }
+
+    // 16. sv_hex helper with string width argument
+    {
+        CodeGenerator cg;
+        QDir().mkpath("work/test_tmpl");
+        QFile fSv("work/test_tmpl/sv_hex_str.inja");
+        if (fSv.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fSv.write("{{ sv_hex(255, \"32\") }}");
+            fSv.close();
+        }
+        std::vector<TemplateMapping> mappings;
+        mappings.push_back({"work/test_tmpl/sv_hex_str.inja", "work/test_tmpl/sv_hex_str.txt"});
+        json emptyObj = json::object();
+        emptyObj["name"] = "sv_hex_test";
+        GenerationReport report = cg.generate(emptyObj, "work/test_tmpl", "work/test_tmpl", mappings);
+        QVERIFY(!report.has_errors());
+        QFile out("work/test_tmpl/sv_hex_str.txt");
+        QVERIFY(out.open(QIODevice::ReadOnly | QIODevice::Text));
+        QCOMPARE(out.readAll().trimmed(), QString("32'h00FF"));
+        out.close();
+    }
+
+    // 17. generate with reg_width 0 and decreasing register offsets
+    {
+        CodeGenerator cg;
+        json padRoot = json::object();
+        padRoot["name"] = "PAD_ROOT";
+        padRoot["reg_width"] = 0; // stimulates regBytes == 0 -> 4
+        json padBlk = json::object();
+        padBlk["name"] = "PAD_BLK";
+        padBlk["offset_hex"] = "0x0";
+        json padReg1 = json::object();
+        padReg1["offset_hex"] = "0x10";
+        padReg1["name"] = "REG1";
+        padReg1["fields"] = json::array();
+        json padReg2 = json::object();
+        padReg2["offset_hex"] = "0x04"; // decreasing offset -> padBytes = 0
+        padReg2["name"] = "REG2";
+        padReg2["fields"] = json::array();
+        padBlk["registers"] = json::array({padReg1, padReg2});
+        padRoot["blocks"] = json::array({padBlk});
+
+        QFile fPad("work/test_tmpl/pad_test.inja");
+        if (fPad.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fPad.write("{% for b in blocks %}{{ b.name }}{% endfor %}");
+            fPad.close();
+        }
+        std::vector<TemplateMapping> mappings;
+        mappings.push_back({"work/test_tmpl/pad_test.inja", "work/test_tmpl/pad_test.txt"});
+        GenerationReport report = cg.generate(padRoot, "work/test_tmpl", "work/test_tmpl", mappings);
+        QVERIFY(!report.has_errors());
+    }
+
+    // 18. runPythonScript with mismatched json types, script failure, and timeout
+    {
+        CodeGenerator cg;
+        json badTypesJson = json::object();
+        badTypesJson["name"] = 12345; // not a string
+        badTypesJson["project_name"] = true; // not a string
+        badTypesJson["version"] = json::array(); // not a string
+        badTypesJson["reg_width"] = "not_a_num"; // not a number
+
+        QString failScript = "work/test_fail_script.py";
+        QFile fFail(failScript);
+        if (fFail.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fFail.write("import sys\nsys.stderr.write('fatal script error\\n')\nsys.exit(2)\n");
+            fFail.close();
+            std::string stdout_str, stderr_str;
+            bool ok = cg.runPythonScript(failScript.toStdString(), badTypesJson, "", &stdout_str, &stderr_str);
+            QVERIFY(!ok);
+            QVERIFY(stderr_str.find("fatal script error") != std::string::npos);
+        }
+
+        QString timeoutScript = "work/test_timeout_script.py";
+        QFile fTimeout(timeoutScript);
+        if (fTimeout.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fTimeout.write("import time\ntime.sleep(2)\n");
+            fTimeout.close();
+            qputenv("RMAP_PYTHON_TIMEOUT", "150"); // 150 ms timeout
+            std::string stdout_str, stderr_str;
+            bool ok = cg.runPythonScript(timeoutScript.toStdString(), json::object(), "", &stdout_str, &stderr_str);
+            QVERIFY(!ok);
+            qunsetenv("RMAP_PYTHON_TIMEOUT");
+        }
+    }
+
+    // 19. Sim template mappings, directory scanning with .tmpl, and python failure to stdout
+    {
+        CodeGenerator cg;
+
+        // .tmpl template extension stripping during directory scanning (exercises line 556)
+        QDir().mkpath("work/test_tmpl_scan");
+        QFile fTmpl("work/test_tmpl_scan/my_template.tmpl");
+        if (fTmpl.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fTmpl.write("dummy template");
+            fTmpl.close();
+        }
+        GenerationReport rTmpl = cg.parseDirectory(json::object(), "work/test_tmpl_scan", "work/out_tmpl_scan");
+        Q_UNUSED(rTmpl);
+
+        // Python script that fails and outputs to stdout only (empty stderr -> exercises pyErr.empty() ? pyOut : pyErr)
+        QString failStdoutScript = "work/test_fail_stdout.py";
+        QFile fOut(failStdoutScript);
+        if (fOut.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fOut.write("import sys\nprint('stdout error message')\nsys.exit(3)\n");
+            fOut.close();
+        }
+        GenerationReport r = cg.generate(json::object(), "templates", "work", {}, "", failStdoutScript.toStdString());
+        QVERIFY(r.has_errors());
+
+        // Generate with RTL, UVM, and SIM Makefile templates together (exercises lines 433, 443, 451)
+        std::vector<TemplateMapping> simMappings;
+        simMappings.push_back({"templates/rtl/reg_map.sv.inja", "work/sim_test/rtl/reg_map.sv"});
+        simMappings.push_back({"templates/uvm/reg_model.sv.inja", "work/sim_test/uvm/reg_model.sv"});
+        simMappings.push_back({"templates/sim/Makefile.inja", "work/sim_test/sim/Makefile"});
+
+        json simJson = json::object();
+        simJson["name"] = "SIM_PERIPH";
+        simJson["version"] = "1.0.0"; // exercises string version on line 710
+        simJson["reg_width"] = 32;
+        json blk = json::object();
+        blk["name"] = "B1";
+        blk["registers"] = json::array();
+        simJson["blocks"] = json::array({blk});
+
+        GenerationReport simRep = cg.generate(simJson, "templates", "work/sim_test", simMappings);
+        QVERIFY(!simRep.has_errors());
+
+        // Sim directory resolution when target is a directory path ending with '/'
+        QDir().mkpath("work/sim_test/sim_dir");
+        std::vector<TemplateMapping> simDirMappings;
+        simDirMappings.push_back({"templates/sim/Makefile.inja", "work/sim_test/sim_dir/"});
+        GenerationReport simDirRep = cg.generate(simJson, "templates", "work/sim_test", simDirMappings);
+        QVERIFY(!simDirRep.has_errors());
     }
 }
 

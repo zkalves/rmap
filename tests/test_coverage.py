@@ -357,6 +357,42 @@ class TestCoverageEngine(unittest.TestCase):
         self.assertEqual(len(entry["calls"]), 1)
         self.assertEqual(len(entry["branches"]), 6)
 
+    def test_exclusion_pragmas_and_synthetic_filtering(self):
+        mock_data = {
+            "src/Sample.cpp": {
+                "subsystem": "Core Architecture & Model",
+                "lines": {1: 1, 2: 1},
+                "funcs": {"test()": 1},
+                "branches": {
+                    (1, 0): {"count": 2, "throw": False, "synthetic": False, "excluded": False},
+                    (1, 1): {"count": 0, "throw": False, "synthetic": False, "excluded": False},
+                    (2, 0): {"count": 0, "throw": False, "synthetic": True, "excluded": False},   # Synthetic new/brace
+                    (2, 1): {"count": 0, "throw": False, "synthetic": False, "excluded": True},   # Excluded pragma
+                },
+                "conds": [
+                    {"count": 2, "covered": 2, "synthetic": False, "excluded": False},
+                    {"count": 2, "covered": 0, "synthetic": True, "excluded": False},
+                    {"count": 2, "covered": 0, "synthetic": False, "excluded": True},
+                ],
+                "calls": [],
+                "blocks_total": 2,
+                "blocks_exec": 1,
+            }
+        }
+        res = compute_metrics(mock_data, exclude_throw_branches=True)
+        s = res["summary"]
+        # Only (1, 0) and (1, 1) should be in decision branches
+        self.assertEqual(s["branches"]["total"], 2)
+        self.assertEqual(s["branches"]["covered"], 1)
+        self.assertEqual(s["branches"]["percent"], 50.0)
+        # Raw should have all 4
+        self.assertEqual(s["branches_raw"]["total"], 4)
+
+        # Only condition 0 should be counted
+        self.assertEqual(s["conditions"]["total"], 2)
+        self.assertEqual(s["conditions"]["covered"], 2)
+        self.assertEqual(s["conditions"]["percent"], 100.0)
+
 
 if __name__ == "__main__":
     unittest.main()

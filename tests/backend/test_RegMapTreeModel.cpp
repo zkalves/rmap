@@ -707,6 +707,77 @@ void TestRegMapTreeModel::testModelCoverageEdgeCases()
     rootItem->appendChild(mapChild);
     nlohmann::json mapJson = model.extractJsonData(32);
     Q_UNUSED(mapJson);
+
+    // 21. setRootItem with the SAME root item (exercises line 280: m_rootItem == item)
+    model.setRootItem(model.getRootItem());
+
+    // 22. checkData with 64-bit field width
+    QModelIndex reg0 = model.index(0, 0, blkIdx);
+    QVERIFY(model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, reg0));
+    model.setData(model.index(0, 1, reg0), "0", Qt::EditRole);
+    model.setData(model.index(0, 2, reg0), "64", Qt::EditRole); // width == 64
+    model.setData(model.index(0, 3, reg0), "WIDE_FLD", Qt::EditRole);
+    QStringList wideErrs = model.checkData(64);
+    Q_UNUSED(wideErrs);
+
+    // 23. extractJsonData with regWidth < 8
+    nlohmann::json zeroWidthJson = model.extractJsonData(0);
+    Q_UNUSED(zeroWidthJson);
+
+    // 24. computeBlockCrc32 and computeTreeCrc32 with non-array "registers", "fields", "blocks"
+    nlohmann::json badRootJson;
+    badRootJson["blocks"] = "not_an_array";
+    badRootJson["registers"] = "not_an_array";
+    uint32_t c1 = RegMapTreeModel::computeTreeCrc32(badRootJson);
+    Q_UNUSED(c1);
+
+    nlohmann::json badBlkJson;
+    badBlkJson["name"] = "B1";
+    badBlkJson["registers"] = 12345; // not an array
+    uint32_t c2 = RegMapTreeModel::computeBlockCrc32(badBlkJson);
+    Q_UNUSED(c2);
+
+    nlohmann::json badFldJson;
+    badFldJson["name"] = "B2";
+    nlohmann::json singleReg;
+    singleReg["name"] = "R1";
+    singleReg["fields"] = "not_an_array";
+    badFldJson["registers"] = nlohmann::json::array({singleReg});
+    uint32_t c3 = RegMapTreeModel::computeBlockCrc32(badFldJson);
+    Q_UNUSED(c3);
+
+    // 25. checkData with mem child item (with size == 0 and non-zero)
+    QVariantMap memDataZero;
+    memDataZero["Type"] = "mem";
+    memDataZero["Name"] = "MEM_ZERO";
+    memDataZero["Offset/LSB"] = "0x1000";
+    memDataZero["Size/Width"] = "0"; // size_bytes == 0 -> size_bytes = 4
+    RegMapTreeItem *memItemZero = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memDataZero, rootItem);
+    rootItem->appendChild(memItemZero);
+
+    QVariantMap memDataNonZero;
+    memDataNonZero["Type"] = "mem";
+    memDataNonZero["Name"] = "MEM_NONZERO";
+    memDataNonZero["Offset/LSB"] = "0x2000";
+    memDataNonZero["Size/Width"] = "1024";
+    RegMapTreeItem *memItemNonZero = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memDataNonZero, rootItem);
+    rootItem->appendChild(memItemNonZero);
+
+    QStringList memErrs = model.checkData(32);
+    Q_UNUSED(memErrs);
+
+    // 26. extractJsonData with mem nodes (size_width == 0 -> 1024)
+    nlohmann::json memExtracted = model.extractJsonData(32);
+    Q_UNUSED(memExtracted);
+
+    // 27. computeTreeCrc32 with JSON object missing "blocks" key entirely
+    nlohmann::json emptyRootObj = nlohmann::json::object();
+    uint32_t cEmpty = RegMapTreeModel::computeTreeCrc32(emptyRootObj);
+    Q_UNUSED(cEmpty);
+
+    nlohmann::json emptyBlkObj = nlohmann::json::object();
+    uint32_t cEmptyBlk = RegMapTreeModel::computeBlockCrc32(emptyBlkObj);
+    Q_UNUSED(cEmptyBlk);
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

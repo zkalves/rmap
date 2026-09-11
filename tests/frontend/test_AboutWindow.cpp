@@ -195,13 +195,19 @@ void TestAboutWindow::testMoveAndResizeEvents()
 void TestAboutWindow::testEmptyAppMetadataFallback()
 {
     QString origVer = QApplication::applicationVersion();
+    QString origName = QApplication::applicationName();
+
     QApplication::setApplicationVersion("");
 
     AboutWindow aboutWin;
     QCOMPARE(aboutWin.applicationVersion(), QStringLiteral("v0.2.0"));
     QVERIFY(!aboutWin.applicationName().isEmpty());
 
+    QApplication::setApplicationName("CustomRmap");
+    QCOMPARE(aboutWin.applicationName(), QStringLiteral("CustomRmap"));
+
     QApplication::setApplicationVersion(origVer);
+    QApplication::setApplicationName(origName);
 }
 
 void TestAboutWindow::testRestoreStateWithValidPos()

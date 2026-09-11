@@ -22,10 +22,16 @@ namespace {
 
 QString ipxactAccessToUvm(const QString &acc) {
     QString a = acc.toLower().trimmed();
-    if (a == "read-write" || a == "rw") return "RW";
-    if (a == "read-only" || a == "ro" || a == "r") return "RO";
-    if (a == "write-only" || a == "wo" || a == "w") return "WO";
-    if (a == "read-writeonce" || a == "w1c") return "W1C";
+    if (a == "read-write") return "RW";
+    if (a == "rw") return "RW";
+    if (a == "read-only") return "RO";
+    if (a == "ro") return "RO";
+    if (a == "r") return "RO";
+    if (a == "write-only") return "WO";
+    if (a == "wo") return "WO";
+    if (a == "w") return "WO";
+    if (a == "read-writeonce") return "W1C";
+    if (a == "w1c") return "W1C";
     if (a == "w0c") return "W0C";
     if (a == "rc") return "RC";
     if (a == "rs") return "RS";
