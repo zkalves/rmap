@@ -33,6 +33,7 @@ private slots:
     void testHelperSvHex();
     void testFullGenerationCHeader();
     void testFullGenerationUvmModel();
+    void testUvmCookbookRalFeatures();
     void testMultiSourceTemplateMappings();
     void testNewNamingAndTypeHelpers();
     void testFullGenerationGenericRtl();
@@ -331,6 +332,155 @@ void TestCodeGenerator::testFullGenerationUvmModel()
     QVERIFY(content.contains("class spi_block_reg_block extends uvm_reg_block;"));
     QVERIFY(content.contains("class status_reg extends uvm_reg;"));
     QVERIFY(content.contains("this.tx_ready.configure("));
+}
+
+void TestCodeGenerator::testUvmCookbookRalFeatures()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SoC_Root";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json parentBlk;
+    parentBlk["name"] = "TOP_SUBSYSTEM";
+    parentBlk["hdl_path"] = "tb_top.dut.soc";
+
+    // Custom Map
+    json ahbMap;
+    ahbMap["name"] = "AHB_MAP";
+    ahbMap["base_hex"] = "32'h1000";
+    ahbMap["n_bytes"] = 4;
+    ahbMap["endianness"] = "UVM_LITTLE_ENDIAN";
+    ahbMap["byte_addressing"] = 1;
+    parentBlk["maps"] = json::array({ahbMap});
+
+    // FIFO Register with custom HDL path and test disables
+    json fifoReg;
+    fifoReg["name"] = "RX_FIFO";
+    fifoReg["offset_hex"] = "32'h0000";
+    fifoReg["size_width"] = 32;
+    fifoReg["access"] = "RO";
+    fifoReg["hdl_path"] = "dut.soc.rx_fifo_dff";
+    fifoReg["is_fifo"] = true;
+    fifoReg["fifo_depth"] = 16;
+    fifoReg["no_reg_test"] = true;
+    fifoReg["no_bit_bash_test"] = true;
+    fifoReg["no_reset_test"] = true;
+    fifoReg["no_access_test"] = true;
+
+    json fld;
+    fld["name"] = "DATA";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 8;
+    fld["access"] = "RO";
+    fld["volatile"] = true;
+    fld["reset_hex"] = "0x00";
+    fld["has_reset"] = true;
+    fld["is_rand"] = false;
+    fld["individually_accessible"] = 0;
+    fifoReg["fields"] = json::array({fld});
+
+    // Indirect register with callbacks
+    json indReg;
+    indReg["name"] = "MEM_WINDOW";
+    indReg["offset_hex"] = "32'h0004";
+    indReg["size_width"] = 32;
+    indReg["access"] = "RW";
+    indReg["is_indirect"] = true;
+    indReg["index_reg"] = "RX_FIFO";
+    indReg["has_callbacks"] = true;
+    indReg["fields"] = json::array();
+
+    parentBlk["registers"] = json::array({fifoReg, indReg});
+
+    // Memory with depth, word width, HDL path, test disables
+    json mem;
+    mem["name"] = "SRAM_BUF";
+    mem["offset_hex"] = "32'h4000";
+    mem["size_width"] = 8192;
+    mem["depth"] = 2048;
+    mem["word_width"] = 32;
+    mem["access"] = "RW";
+    mem["hdl_path"] = "dut.soc.sram_arr";
+    mem["no_mem_test"] = true;
+    mem["no_walk_test"] = true;
+    mem["no_access_test"] = true;
+    parentBlk["memories"] = json::array({mem});
+
+    // Sub-block
+    json subBlk;
+    subBlk["name"] = "GPIO";
+    subBlk["offset_hex"] = "32'h0800";
+    subBlk["registers"] = json::array();
+    subBlk["memories"] = json::array();
+    subBlk["blocks"] = json::array();
+    parentBlk["blocks"] = json::array({subBlk});
+
+    root["blocks"] = json::array({parentBlk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/uvm/ral_features_model.sv"});
+
+    GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
+    QVERIFY(!report.has_errors());
+
+    QFile out("work/uvm/ral_features_model.sv");
+    QVERIFY(out.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = out.readAll();
+    out.close();
+
+    // Verify FIFO register inheritance and depth
+    QVERIFY(content.contains("class rx_fifo_reg extends uvm_reg_fifo;"));
+    QVERIFY(content.contains("super.new(name, 16, 32, UVM_CVR_ALL);"));
+
+    // Verify individually_accessible = 0
+    QVERIFY(content.contains("this.data.configure(this, 8, 0, \"RO\", true, 0x00, true, false, 0);"));
+
+    // Verify custom map declaration and creation
+    QVERIFY(content.contains("uvm_reg_map ahb_map;"));
+    QVERIFY(content.contains("this.ahb_map = create_map(\"AHB_MAP\", 32'h1000, 4, UVM_LITTLE_ENDIAN, 1);"));
+
+    // Verify register added to default_map and AHB_map
+    QVERIFY(content.contains("this.default_map.add_reg(this.rx_fifo, 32'h0000, \"RO\");"));
+    QVERIFY(content.contains("this.ahb_map.add_reg(this.rx_fifo, 32'h0000, \"RO\");"));
+
+    // Verify custom HDL backdoor path
+    QVERIFY(content.contains("this.rx_fifo.add_hdl_path_slice(\"dut.soc.rx_fifo_dff\", 0, 32);"));
+
+    // Verify register test disables
+    QVERIFY(content.contains("NO_REG_TEST"));
+    QVERIFY(content.contains("NO_REG_HW_RESET_TEST"));
+    QVERIFY(content.contains("NO_REG_BIT_BASH_TEST"));
+    QVERIFY(content.contains("NO_REG_ACCESS_TEST"));
+
+    // Verify memory creation and test disables
+    QVERIFY(content.contains("this.sram_buf = new(\"SRAM_BUF\", 2048, 32, \"RW\");"));
+    QVERIFY(content.contains("this.sram_buf.configure(this, \"dut.soc.sram_arr\");"));
+    QVERIFY(content.contains("this.ahb_map.add_mem(this.sram_buf, 32'h4000);"));
+    QVERIFY(content.contains("NO_MEM_TEST"));
+    QVERIFY(content.contains("NO_MEM_WALK_TEST"));
+
+    // Verify sub-block integration via add_submap
+    QVERIFY(content.contains("rand gpio_reg_block gpio;"));
+    QVERIFY(content.contains("this.gpio = gpio_reg_block::type_id::create(\"GPIO\");"));
+    QVERIFY(content.contains("this.default_map.add_submap(this.gpio.default_map, 32'h0800);"));
+    QVERIFY(content.contains("this.ahb_map.add_submap(this.gpio.default_map, 32'h0800);"));
+
+    // Verify indirect register extends uvm_reg_indirect_data
+    QVERIFY(content.contains("class mem_window_reg extends uvm_reg_indirect_data;"));
+    QVERIFY(content.contains("this.mem_window.configure(this.rx_fifo, null, this, null);"));
+
+    // Verify callback class generated
+    QVERIFY(content.contains("class mem_window_cbs extends uvm_reg_cbs;"));
+    QVERIFY(content.contains("uvm_reg_cb::add(this, cb);"));
+
+    // Verify block-level and register-level functional coverage
+    QVERIFY(content.contains("covergroup top_subsystem_reg_access_cg with function sample(uvm_reg_addr_t addr, bit is_read);"));
+
+    // Verify block HDL path and lock_model
+    QVERIFY(content.contains("this.add_hdl_path(\"tb_top.dut.soc\", \"RTL\");"));
+    QVERIFY(content.contains("this.lock_model();"));
 }
 
 void TestCodeGenerator::testMultiSourceTemplateMappings()

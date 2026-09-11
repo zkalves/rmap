@@ -1996,7 +1996,7 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current, const QModelInd
         if (m_rightStackedWidget && m_regViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
             m_rightStackedWidget->setCurrentWidget(m_regViewWidget);
         }
-    } else if (item->kindString() == "blk" || item->kindString() == "map") {
+    } else if (item->kindString() == "blk" || item->kindString() == "map" || item->kindString() == "mem") {
         updateBlockView(item);
     } else {
         m_currentRegItem = nullptr;

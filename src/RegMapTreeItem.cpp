@@ -213,6 +213,7 @@ QVector<RegMapTreeItem::e_rmmKind> RegMapTreeItem::possibleChildren() const noex
     {
         case RegMapTreeItem::e_rmmKind::root: possible_children = { RegMapTreeItem::e_rmmKind::blk, RegMapTreeItem::e_rmmKind::mem, RegMapTreeItem::e_rmmKind::map }; break;
         case RegMapTreeItem::e_rmmKind::blk : possible_children = { RegMapTreeItem::e_rmmKind::mem, RegMapTreeItem::e_rmmKind::map, RegMapTreeItem::e_rmmKind::reg, RegMapTreeItem::e_rmmKind::blk}; break;
+        case RegMapTreeItem::e_rmmKind::map : possible_children = { RegMapTreeItem::e_rmmKind::reg, RegMapTreeItem::e_rmmKind::mem }; break;
         case RegMapTreeItem::e_rmmKind::reg : possible_children = { RegMapTreeItem::e_rmmKind::fld}; break;
         default: break;
     }
