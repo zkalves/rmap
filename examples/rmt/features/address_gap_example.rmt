@@ -6,12 +6,76 @@ config {
     output_filepath: "./work/c/sparse_reg_map.h"
   }
   template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
     template_filename: "./templates/uvm/reg_model.sv.inja"
     output_filepath: "./work/uvm/sparse_uvm_reg_model.sv"
   }
   template_outputs {
+    template_filename: "./templates/rust/reg_map.rs.inja"
+    output_filepath: "./work/rust/reg_map.rs"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
     template_filename: "./templates/html/reg_doc.html.inja"
     output_filepath: "./work/html/sparse_reg_doc.html"
+  }
+  template_outputs {
+    template_filename: "./templates/markdown/reg_doc.md.inja"
+    output_filepath: "./work/markdown/reg_doc.md"
+  }
+  template_outputs {
+    template_filename: "./templates/systemrdl/reg_map.rdl.inja"
+    output_filepath: "./work/systemrdl/reg_map.rdl"
+  }
+  template_outputs {
+    template_filename: "./templates/ipxact/reg_map.xml.inja"
+    output_filepath: "./work/ipxact/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/svd/reg_map.xml.inja"
+    output_filepath: "./work/svd/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl_tb/tb_reg_map.sv.inja"
+    output_filepath: "./work/sim/tb_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/pyuvm_tb/tb_pyuvm.py.inja"
+    output_filepath: "./work/sim/tb_pyuvm.py"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_if.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_if.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_pkg.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_pkg.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_env.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_env.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_tests.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_tests.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/tb_top.sv.inja"
+    output_filepath: "./work/sim/uvm/tb_top.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/sim/Makefile.inja"
+    output_filepath: "./work/sim/Makefile"
   }
   reg_width: 32
 }
@@ -257,6 +321,10 @@ item {
   itemData {
     key: "Reset Value"
     value: "0x1"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
   }
   itemData {
     key: "Size/Width"
@@ -636,6 +704,10 @@ item {
     value: "0x1"
   }
   itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
     key: "Size/Width"
     value: "8"
   }
@@ -665,6 +737,10 @@ item {
     value: "0x2"
   }
   itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
     key: "Size/Width"
     value: "8"
   }
@@ -692,6 +768,10 @@ item {
   itemData {
     key: "Reset Value"
     value: "0xA55A"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
   }
   itemData {
     key: "Size/Width"

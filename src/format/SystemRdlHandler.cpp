@@ -242,7 +242,7 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
     }
 
     // Root container
-    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "Access Policy", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
+    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
     QVariantMap rootData;
     for (const QString &c : cols) rootData[c] = c;
     RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
@@ -503,7 +503,7 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
             regData["Offset/LSB"] = formatRdlNumberHex(regOffset);
             regData["Size/Width"] = QString::number(defaultRegWidth);
             regData["Name"] = regName;
-            regData["Access Policy"] = defaultSw;
+            regData["SW Access"] = defaultSw;
             regData["Reset Value"] = "0x0";
             regData["Description"] = regDesc;
             RegMapTreeItem *regItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, currentBlock);
@@ -516,7 +516,7 @@ FormatResult SystemRdlHandler::read(const QString &filepath, RegMapTreeModel *mo
                 fldData["Offset/LSB"] = QString::number(f.lsb);
                 fldData["Size/Width"] = QString::number(f.width);
                 fldData["Name"] = f.name;
-                fldData["Access Policy"] = f.access;
+                fldData["SW Access"] = f.access;
                 fldData["HW Access"] = f.hwAccess;
                 fldData["Reset Value"] = formatRdlNumberHex(f.resetVal);
                 fldData["Is Rand"] = "true";
@@ -618,7 +618,7 @@ FormatResult SystemRdlHandler::write(const QString &filepath, RegMapTreeModel *m
                     uint32_t width = fld->data("Size/Width").toString().toUInt();
                     if (width == 0) width = 1;
                     uint32_t msb = lsb + width - 1;
-                    QString access = fld->data("Access Policy").toString().trimmed();
+                    QString access = fld->data("SW Access").toString().trimmed();
                     QString hwAccess = fld->data("HW Access").toString().trimmed().toLower();
                     if (hwAccess.isEmpty() || hwAccess == "ro") hwAccess = "r";
                     else if (hwAccess == "wo") hwAccess = "w";

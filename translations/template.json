@@ -45,6 +45,7 @@
     "Offset": "Offset",
     "Size": "Size",
     "Name": "Name",
+    "SW Access": "SW Access",
     "Access Policy": "Access Policy",
     "HW Access": "HW Access",
     "Reset Value": "Reset Value",

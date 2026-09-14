@@ -7,23 +7,93 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
   `uvm_object_utils({{ lower(blk.name) }}_reg_block)
 
   {% for reg in blk.registers %}
+  {% if existsIn(reg, "has_callbacks") and reg.has_callbacks %}
+  // Callback Hook Class for Register: {{ reg.name }}
+  class {{ lower(reg.name) }}_cbs extends uvm_reg_cbs;
+    `uvm_object_utils({{ lower(reg.name) }}_cbs)
+
+    function new(string name = "{{ lower(reg.name) }}_cbs");
+      super.new(name);
+    endfunction
+
+    virtual task pre_write(uvm_reg_item rw);
+    endtask
+
+    virtual task post_write(uvm_reg_item rw);
+    endtask
+
+    virtual task pre_read(uvm_reg_item rw);
+    endtask
+
+    virtual task post_read(uvm_reg_item rw);
+    endtask
+
+    virtual function void post_predict(input uvm_reg_field fld,
+                                       input uvm_reg_data_t previous,
+                                       inout uvm_reg_data_t value,
+                                       input uvm_predict_e kind,
+                                       input uvm_path_e path,
+                                       input uvm_reg_map map);
+    endfunction
+  endclass
+  {% endif %}
+
   // Register: {{ reg.name }} @ {{ reg.offset_hex }}
-  class {{ lower(reg.name) }}_reg extends uvm_reg;
+  class {{ lower(reg.name) }}_reg extends {% if existsIn(reg, "is_fifo") and reg.is_fifo %}uvm_reg_fifo{% else %}{% if existsIn(reg, "is_indirect") and reg.is_indirect %}uvm_reg_indirect_data{% else %}uvm_reg{% endif %}{% endif %};
     `uvm_object_utils({{ lower(reg.name) }}_reg)
 
+    {% if not (existsIn(reg, "is_indirect") and reg.is_indirect) %}
     {% for fld in reg.fields %}
     rand uvm_reg_field {{ lower(fld.name) }};
     {% endfor %}
+    {% endif %}
+
+    {% if not (existsIn(reg, "is_fifo") and reg.is_fifo) and not (existsIn(reg, "is_indirect") and reg.is_indirect) and length(reg.fields) > 0 %}
+    covergroup val_cg with function sample(uvm_reg_data_t val);
+      option.per_instance = 1;
+      option.name = "{{ reg.name }}_val_cov";
+      {% for fld in reg.fields %}
+      {{ lower(fld.name) }}_val: coverpoint val[{{ msb(fld.size_width, fld.offset_lsb) }}:{{ fld.offset_lsb }}];
+      {% endfor %}
+    endgroup
+
+    virtual function void sample(uvm_reg_data_t data, uvm_reg_data_t byte_en, bit is_read, uvm_reg_map map);
+      super.sample(data, byte_en, is_read, map);
+      if (get_coverage(UVM_CVR_FIELD_VALS) || get_coverage(UVM_CVR_REG_BITS)) begin
+        if (val_cg != null) val_cg.sample(data);
+      end
+    endfunction
+
+    virtual function void sample_values();
+      super.sample_values();
+      if (get_coverage(UVM_CVR_FIELD_VALS) || get_coverage(UVM_CVR_REG_BITS)) begin
+        if (val_cg != null) val_cg.sample(this.get());
+      end
+    endfunction
+    {% endif %}
 
     function new(string name = "{{ reg.name }}");
-      super.new(name, {{ reg.size_width }}, UVM_CVR_ALL);
+      super.new(name, {% if existsIn(reg, "is_fifo") and reg.is_fifo %}{{ reg.fifo_depth }}, {{ reg.size_width }}{% else %}{{ reg.size_width }}{% endif %}, UVM_CVR_ALL);
+      {% if not (existsIn(reg, "is_fifo") and reg.is_fifo) and not (existsIn(reg, "is_indirect") and reg.is_indirect) and length(reg.fields) > 0 %}
+      if (has_coverage(UVM_CVR_FIELD_VALS) || has_coverage(UVM_CVR_REG_BITS)) begin
+        val_cg = new();
+      end
+      {% endif %}
     endfunction
 
     virtual function void build();
+      {% if not (existsIn(reg, "is_indirect") and reg.is_indirect) %}
       {% for fld in reg.fields %}
       this.{{ lower(fld.name) }} = uvm_reg_field::type_id::create("{{ fld.name }}");
-      this.{{ lower(fld.name) }}.configure(this, {{ fld.size_width }}, {{ fld.offset_lsb }}, "{{ upper(fld.access) }}", {% if existsIn(fld, "volatile") %}{{ fld.volatile }}{% else %}0{% endif %}, {% if existsIn(fld, "reset_hex") %}{{ fld.reset_hex }}{% else %}0{% endif %}, {% if existsIn(fld, "has_reset") %}{{ fld.has_reset }}{% else %}1{% endif %}, {% if existsIn(fld, "is_rand") %}{{ fld.is_rand }}{% else %}1{% endif %}, 1);
+      this.{{ lower(fld.name) }}.configure(this, {{ fld.size_width }}, {{ fld.offset_lsb }}, "{{ upper(fld.access) }}", {% if existsIn(fld, "volatile") %}{{ fld.volatile }}{% else %}0{% endif %}, {% if existsIn(fld, "reset_hex") %}{{ fld.reset_hex }}{% else %}0{% endif %}, {% if existsIn(fld, "has_reset") %}{{ fld.has_reset }}{% else %}1{% endif %}, {% if existsIn(fld, "is_rand") %}{{ fld.is_rand }}{% else %}1{% endif %}, {% if existsIn(fld, "individually_accessible") %}{{ fld.individually_accessible }}{% else %}1{% endif %});
       {% endfor %}
+      {% endif %}
+      {% if existsIn(reg, "has_callbacks") and reg.has_callbacks %}
+      begin
+        {{ lower(reg.name) }}_cbs cb = new("{{ lower(reg.name) }}_cbs");
+        uvm_reg_cb::add(this, cb);
+      end
+      {% endif %}
     endfunction
   endclass
   rand {{ lower(reg.name) }}_reg {{ lower(reg.name) }};
@@ -31,33 +101,156 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
 
   {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
   {% for mem in blk.memories %}
-  // Memory: {{ mem.name }} @ {{ mem.offset_hex }} (Size: {{ mem.size_width }} B)
+  // Memory: {{ mem.name }} @ {{ mem.offset_hex }}{% if existsIn(mem, "size_width") %} (Size: {{ mem.size_width }} B){% endif %}
   uvm_mem {{ lower(mem.name) }};
   {% endfor %}
   {% endif %}
 
+  {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+  {% for map in blk.maps %}
+  {% if lower(map.name) != "default_map" %}
+  uvm_reg_map {{ lower(map.name) }};
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if existsIn(blk, "blocks") and length(blk.blocks) > 0 %}
+  {% for sub in blk.blocks %}
+  rand {{ lower(sub.name) }}_reg_block {{ lower(sub.name) }};
+  {% endfor %}
+  {% endif %}
+
+  {% if length(blk.registers) > 0 or (existsIn(blk, "memories") and length(blk.memories) > 0) %}
+  covergroup {{ lower(blk.name) }}_reg_access_cg with function sample(uvm_reg_addr_t addr, bit is_read);
+    option.per_instance = 1;
+    option.name = "{{ blk.name }}_access_cov";
+    ADDR: coverpoint addr {
+      {% for reg in blk.registers %}
+      bins {{ lower(reg.name) }} = { {{ reg.offset_hex }} };
+      {% endfor %}
+      {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+      {% for mem in blk.memories %}
+      bins {{ lower(mem.name) }} = { {{ mem.offset_hex }} };
+      {% endfor %}
+      {% endif %}
+    }
+    RW: coverpoint is_read {
+      bins RD = {1};
+      bins WR = {0};
+    }
+    ACCESS: cross ADDR, RW;
+  endgroup
+
+  virtual function void sample(uvm_reg_addr_t offset, bit is_read, uvm_reg_map map);
+    if (get_coverage(UVM_CVR_ADDR_MAP)) begin
+      if ({{ lower(blk.name) }}_reg_access_cg != null) begin
+        {{ lower(blk.name) }}_reg_access_cg.sample(offset, is_read);
+      end
+    end
+  endfunction
+
+  virtual function void sample_values();
+    super.sample_values();
+  endfunction
+  {% endif %}
+
   function new(string name = "{{ blk.name }}");
-    super.new(name, UVM_CVR_ALL);
+    super.new(name, build_coverage(UVM_CVR_ALL));
   endfunction
 
   virtual function void build();
+    {% if length(blk.registers) > 0 or (existsIn(blk, "memories") and length(blk.memories) > 0) %}
+    if (has_coverage(UVM_CVR_ADDR_MAP)) begin
+      {{ lower(blk.name) }}_reg_access_cg = new();
+      set_coverage(UVM_CVR_ADDR_MAP);
+    end
+    {% endif %}
+
     this.default_map = create_map("default_map", 0, {{ reg_width_bytes }}, UVM_LITTLE_ENDIAN);
+    {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+    {% for map in blk.maps %}
+    {% if lower(map.name) != "default_map" %}
+    this.{{ lower(map.name) }} = create_map("{{ map.name }}", {{ map.base_hex }}, {{ map.n_bytes }}, {{ map.endianness }}, {{ map.byte_addressing }});
+    {% endif %}
+    {% endfor %}
+    {% endif %}
 
     {% for reg in blk.registers %}
     this.{{ lower(reg.name) }} = {{ lower(reg.name) }}_reg::type_id::create("{{ reg.name }}");
-    this.{{ lower(reg.name) }}.configure(this, null, "reg_{{ lower(reg.name) }}_q");
+    {% if existsIn(reg, "is_indirect") and reg.is_indirect %}
+    this.{{ lower(reg.name) }}.configure({% if existsIn(reg, "index_reg") and length(reg.index_reg) > 0 %}this.{{ lower(reg.index_reg) }}{% else %}null{% endif %}, null, this, null);
     this.{{ lower(reg.name) }}.build();
-    this.{{ lower(reg.name) }}.add_hdl_path_slice("reg_{{ lower(reg.name) }}_q", 0, {{ reg.size_width }});
+    {% else %}
+    this.{{ lower(reg.name) }}.configure(this, null, "{% if existsIn(reg, "hdl_path") and length(reg.hdl_path) > 0 %}{{ reg.hdl_path }}{% else %}reg_{{ lower(reg.name) }}_q{% endif %}");
+    this.{{ lower(reg.name) }}.build();
+    this.{{ lower(reg.name) }}.add_hdl_path_slice("{% if existsIn(reg, "hdl_path") and length(reg.hdl_path) > 0 %}{{ reg.hdl_path }}{% else %}reg_{{ lower(reg.name) }}_q{% endif %}", 0, {{ reg.size_width }});
+    {% endif %}
     this.default_map.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{{ upper(reg.access) }}");
+    {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+    {% for map in blk.maps %}
+    {% if lower(map.name) != "default_map" %}
+    this.{{ lower(map.name) }}.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{{ upper(reg.access) }}");
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% if existsIn(reg, "no_reg_test") and reg.no_reg_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_TEST", 1);
+    {% endif %}
+    {% if existsIn(reg, "no_reset_test") and reg.no_reset_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_HW_RESET_TEST", 1);
+    {% endif %}
+    {% if existsIn(reg, "no_bit_bash_test") and reg.no_bit_bash_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_BIT_BASH_TEST", 1);
+    {% endif %}
+    {% if existsIn(reg, "no_access_test") and reg.no_access_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_ACCESS_TEST", 1);
+    {% endif %}
     {% endfor %}
 
     {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
     {% for mem in blk.memories %}
-    this.{{ lower(mem.name) }} = new("{{ mem.name }}", {{ mem.size_width }} / {{ reg_width_bytes }}, {{ reg_width }}, "{{ upper(mem.access) }}");
-    this.{{ lower(mem.name) }}.configure(this);
+    this.{{ lower(mem.name) }} = new("{{ mem.name }}", {% if existsIn(mem, "depth") %}{{ mem.depth }}{% else %}{{ mem.size_width }} / {{ reg_width_bytes }}{% endif %}, {% if existsIn(mem, "word_width") %}{{ mem.word_width }}{% else %}{{ reg_width }}{% endif %}, "{{ upper(mem.access) }}");
+    this.{{ lower(mem.name) }}.configure(this, {% if existsIn(mem, "hdl_path") and length(mem.hdl_path) > 0 %}"{{ mem.hdl_path }}"{% else %}""{% endif %});
     this.default_map.add_mem(this.{{ lower(mem.name) }}, {{ mem.offset_hex }});
+    {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+    {% for map in blk.maps %}
+    {% if lower(map.name) != "default_map" %}
+    this.{{ lower(map.name) }}.add_mem(this.{{ lower(mem.name) }}, {{ mem.offset_hex }});
+    {% endif %}
     {% endfor %}
     {% endif %}
+    {% if existsIn(mem, "no_mem_test") and mem.no_mem_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_TEST", 1);
+    {% endif %}
+    {% if existsIn(mem, "no_walk_test") and mem.no_walk_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_WALK_TEST", 1);
+    {% endif %}
+    {% if existsIn(mem, "no_access_test") and mem.no_access_test %}
+    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_ACCESS_TEST", 1);
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    {% if existsIn(blk, "blocks") and length(blk.blocks) > 0 %}
+    {% for sub in blk.blocks %}
+    this.{{ lower(sub.name) }} = {{ lower(sub.name) }}_reg_block::type_id::create("{{ sub.name }}");
+    this.{{ lower(sub.name) }}.configure(this);
+    this.{{ lower(sub.name) }}.build();
+    this.default_map.add_submap(this.{{ lower(sub.name) }}.default_map, {{ sub.offset_hex }});
+    {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+    {% for map in blk.maps %}
+    {% if lower(map.name) != "default_map" %}
+    this.{{ lower(map.name) }}.add_submap(this.{{ lower(sub.name) }}.default_map, {{ sub.offset_hex }});
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    {% if existsIn(blk, "hdl_path") and length(blk.hdl_path) > 0 %}
+    this.add_hdl_path("{{ blk.hdl_path }}", "RTL");
+    {% endif %}
+    this.lock_model();
   endfunction
 endclass
 {% endfor %}

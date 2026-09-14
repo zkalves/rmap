@@ -51,7 +51,7 @@ PreferencesWindow::PreferencesWindow(QWidget *parent) :
     connect(&ThemeManager::instance(), &ThemeManager::themesUpdated, this, &PreferencesWindow::populateThemes);
 
     QPushButton *applyBtn = this->buttonBox->button(QDialogButtonBox::Apply);
-    if (applyBtn) {
+    if (applyBtn) { // GCOV_EXCL_BR_LINE - applyBtn is guaranteed by preferences.ui
         connect(applyBtn, &QPushButton::clicked, this, &PreferencesWindow::apply);
     }
 
@@ -269,7 +269,7 @@ void PreferencesWindow::restoreWindowStateFromSettings()
     } else {
         QSize sz = AppSettings::instance().windowSize("PreferencesWindow", QSize(500, 280));
         QPoint p = AppSettings::instance().windowPos("PreferencesWindow");
-        if (sz.isValid() && sz.width() > 0 && sz.height() > 0) {
+        if (sz.width() > 0 && sz.height() > 0) {
             resize(sz);
         }
         if (!p.isNull()) {

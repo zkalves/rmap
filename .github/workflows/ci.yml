@@ -56,12 +56,19 @@ jobs:
           - test_CodeGenerator
           - test_Formats
           - test_ThemeManager
+          - test_LanguageManager
           - test_Version
+          - test_ProtobufLogCollector
           - test_RegMapWindow
           - test_RegConfigWindow
           - test_PreferencesWindow
           - test_AboutWindow
           - test_Delegates
+          - test_RegBitfieldBarWidget
+          - test_BlockMemoryMapWidget
+          - test_RegMapTreeView
+          - test_Coverage
+          - test_SemVer
 
     steps:
       - name: Checkout repository

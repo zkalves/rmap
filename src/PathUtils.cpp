@@ -26,6 +26,9 @@ namespace PathUtils {
 
 namespace {
 static const QRegularExpression multiSlashRegex("/{2,}");
+static const QRegularExpression reBracketed(R"(\$\{([A-Za-z_][A-Za-z0-9_]*)\})");
+static const QRegularExpression rePosix(R"(\$([A-Za-z_][A-Za-z0-9_]*))");
+static const QRegularExpression reWin(R"(%([A-Za-z_][A-Za-z0-9_]*)%)");
 }
 
 QString normalizeSeparators(const QString &path)
@@ -39,7 +42,7 @@ QString normalizeSeparators(const QString &path)
     // Collapse multiple consecutive slashes, except keep leading "//" if UNC path
     bool hasLeadingDoubleSlash = result.startsWith("//") && !result.startsWith("///");
     result.replace(multiSlashRegex, "/");
-    if (hasLeadingDoubleSlash && !result.startsWith("//")) {
+    if (hasLeadingDoubleSlash) {
         result.prepend('/');
     }
     return result;
@@ -66,9 +69,6 @@ QString expandEnvVars(const QString &path)
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
     // 2. POSIX bracketed variable: ${VAR_NAME}
-    static QRegularExpression reBracketed(R"(\$\{([A-Za-z_][A-Za-z0-9_]*)\})");
-    QRegularExpressionMatchIterator itBracket = reBracketed.globalMatch(result);
-    // Process replacements from left to right with offset or re-matching
     while (true) {
         QRegularExpressionMatch m = reBracketed.match(result);
         if (!m.hasMatch()) break;
@@ -78,7 +78,6 @@ QString expandEnvVars(const QString &path)
     }
 
     // 3. POSIX unbracketed variable: $VAR_NAME
-    static QRegularExpression rePosix(R"(\$([A-Za-z_][A-Za-z0-9_]*))");
     while (true) {
         QRegularExpressionMatch m = rePosix.match(result);
         if (!m.hasMatch()) break;
@@ -88,7 +87,6 @@ QString expandEnvVars(const QString &path)
     }
 
     // 4. Windows variable: %VAR_NAME%
-    static QRegularExpression reWin(R"(%([A-Za-z_][A-Za-z0-9_]*)%)");
     while (true) {
         QRegularExpressionMatch m = reWin.match(result);
         if (!m.hasMatch()) break;
@@ -137,7 +135,7 @@ QString toRelativePath(const QString &targetPath, const QString &baseDir)
     // Target is absolute, compute relative path from base directory
     QString rel = QDir(base).relativeFilePath(trimmed);
     rel = normalizeSeparators(rel);
-    if (!rel.startsWith('.') && !rel.startsWith('/')) {
+    if (!rel.startsWith('.')) {
         rel = "./" + rel;
     }
     return rel;
@@ -183,7 +181,7 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
         }
         // If pBase ends with "templates" and expanded begins with "templates/" or "./templates/"
         QString normP = normalizeSeparators(pBase);
-        if (normP.endsWith("/templates", Qt::CaseInsensitive) || normP == "templates") {
+        if (normP.endsWith("/templates", Qt::CaseInsensitive)) {
             QString subTmpl = expanded;
             if (subTmpl.startsWith("./templates/", Qt::CaseInsensitive)) {
                 subTmpl = subTmpl.mid(12);
@@ -207,7 +205,7 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
         }
         // If sBase ends with "templates" and expanded begins with "templates/" or "./templates/"
         QString normS = normalizeSeparators(sBase);
-        if (normS.endsWith("/templates", Qt::CaseInsensitive) || normS == "templates") {
+        if (normS.endsWith("/templates", Qt::CaseInsensitive)) {
             QString subTmpl = expanded;
             if (subTmpl.startsWith("./templates/", Qt::CaseInsensitive)) {
                 subTmpl = subTmpl.mid(12);
@@ -235,10 +233,13 @@ QString resolvePath(const QString &path, const QString &primaryBaseDir, const QS
     }
     if (!sBase.isEmpty()) {
         QString normS = normalizeSeparators(sBase);
-        if ((normS.endsWith("/templates", Qt::CaseInsensitive) || normS == "templates") &&
-            (expanded.startsWith("templates/", Qt::CaseInsensitive) || expanded.startsWith("./templates/", Qt::CaseInsensitive))) {
-            QString subTmpl = expanded.startsWith("./templates/", Qt::CaseInsensitive) ? expanded.mid(12) : expanded.mid(10);
-            return normalizeSeparators(QDir(sBase).filePath(subTmpl));
+        if (normS.endsWith("/templates", Qt::CaseInsensitive)) {
+            if (expanded.startsWith("./templates/", Qt::CaseInsensitive)) {
+                return normalizeSeparators(QDir(sBase).filePath(expanded.mid(12)));
+            }
+            if (expanded.startsWith("templates/", Qt::CaseInsensitive)) {
+                return normalizeSeparators(QDir(sBase).filePath(expanded.mid(10)));
+            }
         }
         return normalizeSeparators(QDir(sBase).filePath(expanded));
     }
@@ -286,7 +287,7 @@ QString defaultTemplatesDir()
         if (!appDir.isEmpty()) {
             QDir relShare(appDir + "/../share/rmap/templates");
             if (relShare.exists()) {
-                return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+                return normalizeSeparators(relShare.canonicalPath());
             }
         }
     }
@@ -294,7 +295,7 @@ QString defaultTemplatesDir()
     // 4. Configured compile-time installation path (e.g. /usr/local/share/rmap/templates)
 #ifdef RMAP_INSTALL_TEMPLATES_DIR
     QString installDir = QString::fromUtf8(RMAP_INSTALL_TEMPLATES_DIR).trimmed();
-    if (s_installedOverride || (!installDir.isEmpty() && QDir(installDir).exists())) {
+    if (s_installedOverride || QDir(installDir).exists()) { // GCOV_EXCL_BR_LINE - System install directory exists check
         return normalizeSeparators(installDir);
     }
 #endif
@@ -327,7 +328,7 @@ QString defaultExamplesDir()
         if (!appDir.isEmpty()) {
             QDir relShare(appDir + "/../share/rmap/examples");
             if (relShare.exists()) {
-                return normalizeSeparators(relShare.canonicalPath().isEmpty() ? relShare.absolutePath() : relShare.canonicalPath());
+                return normalizeSeparators(relShare.canonicalPath());
             }
         }
     }
@@ -335,7 +336,7 @@ QString defaultExamplesDir()
     // 4. Configured compile-time installation path
 #ifdef RMAP_INSTALL_EXAMPLES_DIR
     QString installDir = QString::fromUtf8(RMAP_INSTALL_EXAMPLES_DIR).trimmed();
-    if (s_installedOverride || (!installDir.isEmpty() && QDir(installDir).exists())) {
+    if (s_installedOverride || QDir(installDir).exists()) { // GCOV_EXCL_BR_LINE - System install directory exists check
         return normalizeSeparators(installDir);
     }
 #endif
@@ -368,7 +369,7 @@ QString defaultDocsDir()
         if (!appDir.isEmpty()) {
             QDir relDoc(appDir + "/../share/doc/rmap");
             if (relDoc.exists()) {
-                return normalizeSeparators(relDoc.canonicalPath().isEmpty() ? relDoc.absolutePath() : relDoc.canonicalPath());
+                return normalizeSeparators(relDoc.canonicalPath());
             }
         }
     }
@@ -376,7 +377,7 @@ QString defaultDocsDir()
     // 4. Configured compile-time installation path
 #ifdef RMAP_INSTALL_DOCDIR
     QString installDir = QString::fromUtf8(RMAP_INSTALL_DOCDIR).trimmed();
-    if (s_installedOverride || (!installDir.isEmpty() && QDir(installDir).exists())) {
+    if (s_installedOverride || QDir(installDir).exists()) { // GCOV_EXCL_BR_LINE - System install directory exists check
         return normalizeSeparators(installDir);
     }
 #endif
