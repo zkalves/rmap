@@ -182,7 +182,7 @@ make test-all
 
 ### Installation
 
-Install the `rmap` executable, code generation templates (`<prefix>/share/rmap/templates`), sample models (`<prefix>/share/rmap/examples`), and documentation (`<prefix>/share/doc/rmap`) to your preferred directory using either Make or CMake. The application automatically discovers installed templates without requiring manual configuration:
+Install the `rmap` executable, code generation templates (`<prefix>/share/rmap/templates`), sample models (`<prefix>/share/rmap/examples`), and pre-rendered documentation in interactive HTML (`<prefix>/share/doc/rmap/html`) and split PDF formats (User Manual: `<prefix>/share/doc/rmap/rmap_user_manual.pdf` and Developer Guide: `<prefix>/share/doc/rmap/rmap_developer_guide.pdf`) to your preferred directory using either Make or CMake. The application automatically discovers installed templates without requiring manual configuration:
 
 #### With Make
 ```bash
@@ -271,14 +271,16 @@ Run code generation, linting, or diffing directly in Makefiles, CI/CD pipelines,
 ---
 
 ## Documentation
-
-Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap/):
-
-- [Getting Started Guide](https://zkalves.github.io/rmap/user/getting-started.html)
-- [GUI & Register Design](https://zkalves.github.io/rmap/user/gui-guide.html)
-- [CLI Reference & Automation](https://zkalves.github.io/rmap/user/cli-reference.html)
-- [Templates & Code Generation](https://zkalves.github.io/rmap/user/templates-and-codegen.html)
-- [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/user/architecture.html)
+ 
+Full documentation is available online on [GitHub Pages](https://zkalves.github.io/rmap/) and installed locally in **interactive HTML** (`share/doc/rmap/html`) and dedicated **split PDF manuals** (`share/doc/rmap/`):
+ 
+ - [Getting Started Guide](https://zkalves.github.io/rmap/user/getting-started.html)
+ - [GUI & Register Design](https://zkalves.github.io/rmap/user/gui-guide.html)
+ - [CLI Reference & Automation](https://zkalves.github.io/rmap/user/cli-reference.html)
+ - [Templates & Code Generation](https://zkalves.github.io/rmap/user/templates-and-codegen.html)
+ - [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/user/architecture.html)
+ - [Download User Manual (PDF)](https://zkalves.github.io/rmap/pdf/rmap_user_manual.pdf) (50-page user guide)
+ - [Download Developer Guide (PDF)](https://zkalves.github.io/rmap/pdf/rmap_developer_guide.pdf) (77-page C++ architecture manual)
 
 ---
 

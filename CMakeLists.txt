@@ -65,6 +65,7 @@ include(CTest)
 # Find Packages
 find_package(Qt6 COMPONENTS REQUIRED Core Widgets)
 find_package(Protobuf REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 if(BUILD_TESTING)
     find_package(Qt6 COMPONENTS REQUIRED Test)
 endif()
@@ -203,12 +204,60 @@ install(DIRECTORY examples/
     PATTERN ".*" EXCLUDE
 )
 
-install(DIRECTORY docs/
-    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+# Documentation Generation Target
+add_custom_target(docs
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/script/generate_docs.py
+        --project-root ${CMAKE_CURRENT_SOURCE_DIR}
+        --html-dir ${CMAKE_CURRENT_BINARY_DIR}/docs/html
+        --user-pdf ${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_user_manual.pdf
+        --dev-pdf ${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_developer_guide.pdf
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating HTML documentation, User Manual PDF, and Developer Guide PDF"
+)
+
+# Documentation Installation (HTML Portal, User Manual PDF & Developer Guide PDF)
+install(CODE "
+    if(NOT EXISTS \"${CMAKE_CURRENT_BINARY_DIR}/docs/html/index.html\"
+       OR NOT EXISTS \"${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_user_manual.pdf\"
+       OR NOT EXISTS \"${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_developer_guide.pdf\")
+        message(STATUS \"Generating HTML and PDF documentation for installation...\")
+        execute_process(
+            COMMAND \"${Python3_EXECUTABLE}\" \"${CMAKE_CURRENT_SOURCE_DIR}/script/generate_docs.py\"
+                --project-root \"${CMAKE_CURRENT_SOURCE_DIR}\"
+                --html-dir \"${CMAKE_CURRENT_BINARY_DIR}/docs/html\"
+                --user-pdf \"${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_user_manual.pdf\"
+                --dev-pdf \"${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_developer_guide.pdf\"
+            RESULT_VARIABLE _docs_res
+        )
+        if(NOT _docs_res EQUAL 0)
+            message(WARNING \"Documentation generation returned non-zero status: \${_docs_res}\")
+        endif()
+    endif()
+")
+
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/docs/html/"
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}/html
     PATTERN ".*" EXCLUDE
     PATTERN "*.pyc" EXCLUDE
     PATTERN "__pycache__" EXCLUDE
+    PATTERN "pdf" EXCLUDE
 )
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_user_manual.pdf"
+    "${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_developer_guide.pdf"
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}/pdf
+    OPTIONAL
+)
+
+# Relative symlink from html/pdf to ../pdf so HTML portal links resolve without duplicating files
+if(UNIX)
+    install(CODE "
+        execute_process(
+            COMMAND \"${CMAKE_COMMAND}\" -E create_symlink ../pdf \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DOCDIR}/html/pdf\"
+        )
+    ")
+endif()
 
 install(DIRECTORY translations
     DESTINATION ${CMAKE_INSTALL_DATADIR}/rmap

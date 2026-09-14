@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -116,9 +116,21 @@ clean:
 
 rebuild: clean all
 
-# Render documentation portal locally
+# Render documentation (HTML portal, User Manual PDF, and Developer Guide PDF)
 docs:
 	@./script/render_docs
+
+# Generate both User Manual and Developer Guide PDFs
+docs-pdf:
+	@python3 ./script/generate_docs.py --pdf-only
+
+# Generate User Manual PDF only
+docs-user:
+	@python3 ./script/generate_docs.py --user-only
+
+# Generate Developer Guide PDF only
+docs-dev:
+	@python3 ./script/generate_docs.py --dev-only
 
 # Serve documentation locally with Pelican
 docs-serve:
