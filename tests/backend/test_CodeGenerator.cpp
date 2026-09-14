@@ -489,6 +489,20 @@ void TestCodeGenerator::testUvmCookbookRalFeatures()
     // Verify block HDL path and lock_model
     QVERIFY(content.contains("this.add_hdl_path(\"tb_top.dut.soc\", \"RTL\");"));
     QVERIFY(content.contains("this.lock_model();"));
+
+    // Verify multi-version UVM compatibility macros and include guards
+    QVERIFY(content.contains("`ifndef SOC_ROOT_REG_MODEL_SV"));
+    QVERIFY(content.contains("`include \"uvm_macros.svh\""));
+    QVERIFY(content.contains("import uvm_pkg::*;"));
+    QVERIFY(content.contains("`ifndef UVM_DOOR_COMPAT_DEFINED"));
+    QVERIFY(content.contains("`ifdef UVM_VERSION"));
+    QVERIFY(content.contains("typedef uvm_door_e uvm_path_e;"));
+    QVERIFY(content.contains("typedef uvm_path_e uvm_door_e;"));
+    QVERIFY(content.contains("input uvm_door_e path"));
+    QVERIFY(content.contains("input uvm_path_e path"));
+    QVERIFY(content.contains("NO_REG_TESTS"));
+    QVERIFY(content.contains("NO_MEM_TESTS"));
+    QVERIFY(content.contains("`endif // SOC_ROOT_REG_MODEL_SV"));
 }
 
 void TestCodeGenerator::testMultiSourceTemplateMappings()
@@ -2517,6 +2531,26 @@ void TestCodeGenerator::testCommandLineInterface()
 
         GenerationReport simRep = cg.generate(simJson, "templates", "work/sim_test", simMappings);
         QVERIFY(!simRep.has_errors());
+
+        QFile simMk("work/sim_test/sim/Makefile");
+        QVERIFY(simMk.open(QIODevice::ReadOnly));
+        QString mkContent = QString::fromUtf8(simMk.readAll());
+        simMk.close();
+        QVERIFY(mkContent.contains("UVM_VER"));
+        QVERIFY(mkContent.contains("1800.2-2020"));
+        QVERIFY(mkContent.contains("VCS_UVM_FLAG"));
+        QVERIFY(mkContent.contains("XRUN_UVM_FLAG"));
+        QVERIFY(mkContent.contains("QUESTA_UVM_FLAG"));
+
+        // Test Makefile generation with custom_parameters UVM_VER override
+        simJson["custom_parameters"] = {{"UVM_VER", "1.2"}};
+        GenerationReport customRep = cg.generate(simJson, "templates", "work/sim_test", simMappings);
+        QVERIFY(!customRep.has_errors());
+        QFile customMk("work/sim_test/sim/Makefile");
+        QVERIFY(customMk.open(QIODevice::ReadOnly));
+        QString customContent = QString::fromUtf8(customMk.readAll());
+        customMk.close();
+        QVERIFY(customContent.contains("1.2"));
 
         // Sim directory resolution when target is a directory path ending with '/'
         QDir().mkpath("work/sim_test/sim_dir");

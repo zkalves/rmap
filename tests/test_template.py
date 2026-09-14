@@ -875,6 +875,7 @@ def test_uvm_tb(rmap_bin, work_dir):
     assert "class core_subsystem_hw_reset_test extends core_subsystem_base_test;" in tests_content
     assert "class core_subsystem_bit_bash_test extends core_subsystem_base_test;" in tests_content
     assert "class core_subsystem_reg_access_test extends core_subsystem_base_test;" in tests_content
+    assert "uvm_revision_string()" in tests_content
 
     with open(top_sv, "r", encoding="utf-8") as f:
         top_content = f.read()
@@ -906,6 +907,11 @@ def test_sim_makefile(rmap_bin, work_dir):
     assert "sim-pyuvm:" in content
     assert "sim-uvm:" in content
     assert "uvm-ieee" in content
+    assert "UVM_VER" in content
+    assert "1800.2-2020" in content
+    assert "1800.2-2017" in content
+    assert "1.2" in content
+    assert "1.1d" in content
 
     print("✓ Simulation Makefile template verified successfully.\n")
 

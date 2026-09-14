@@ -76,7 +76,7 @@ sim-pyuvm:
 
 sim-uvm:
 	@if [ -f work/sim/Makefile ]; then \
-		$(MAKE) -C work/sim sim-uvm SIM=$(SIM) || echo "INFO: Commercial UVM simulator not detected; skipping sim-uvm"; \
+		$(MAKE) -C work/sim sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) || echo "INFO: Commercial UVM simulator not detected; skipping sim-uvm"; \
 	fi
 
 clean:
