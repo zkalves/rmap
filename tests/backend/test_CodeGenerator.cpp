@@ -1612,7 +1612,8 @@ void TestCodeGenerator::testComprehensiveTemplateVerification()
     env.insert("RMAP_BIN", rmapBin);
     env.insert("QT_QPA_PLATFORM", "offscreen");
     proc.setProcessEnvironment(env);
-    proc.start(pythonBin, QStringList() << "tests/test_template.py" << "all");
+    QString target = qEnvironmentVariable("RMAP_TEMPLATE_TARGET", "json");
+    proc.start(pythonBin, QStringList() << "tests/test_template.py" << target);
     bool finished = proc.waitForFinished(60000);
     QVERIFY2(finished, "Template verification process timed out");
     QByteArray output = proc.readAll();

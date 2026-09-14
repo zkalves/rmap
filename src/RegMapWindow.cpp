@@ -2003,6 +2003,7 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current, const QModelInd
         }
     } else if (item->kindString() == "blk" || item->kindString() == "map" || item->kindString() == "mem") {
         updateBlockView(item);
+    // GCOV_EXCL_START - Defensive invariant: TreeFilterProxyModel filters out fields, so only reg/blk/map/mem can be selected in treeView
     } else {
         m_currentRegItem = nullptr;
         m_currentBlkItem = nullptr;
@@ -2010,6 +2011,7 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current, const QModelInd
             m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
         }
     }
+    // GCOV_EXCL_STOP
 }
 
 void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem)

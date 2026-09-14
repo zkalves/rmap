@@ -2253,6 +2253,16 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         SerializationContext ctxIn;
         regModel >> ctxIn;  // covers line 1722
+
+        // Test protobuf deserialization with SW Access only (covers line 1783)
+        protormap::RegModel swModel;
+        auto *swItem = swModel.add_item();
+        swItem->set_id(1);
+        swItem->set_parent_id(0);
+        swItem->set_kind(protormap::RegItem_Kind_REG);
+        (*swItem->mutable_itemdata())["SW Access"] = "RO";
+        SerializationContext ctxSw;
+        swModel >> ctxSw;
     }
 
     // 10. insertChild tree traversal and fallback branches (lines 1831-1832, 1845-1853, 1857)
@@ -2447,6 +2457,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         auto *model = win.getModel();
         QModelIndex blk0 = model->index(0, 0, QModelIndex());
         model->setData(model->index(0, 1, blk0), "0x44", Qt::EditRole);
+        win.m_is_regmap_modified = true;
         dismissModal(QString(), QMessageBox::Save);
         win.btnFileClose();
     }

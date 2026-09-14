@@ -157,6 +157,12 @@ void TestRegMapTreeItem::testDataRetrieval()
     revItem.setData("Width", "8");
     QCOMPARE(revItem.data("Size").toString(), QString("8"));
     QCOMPARE(revItem.data("Size/Width").toString(), QString("8"));
+
+    // Test SW Access and Access Policy mutual fallback in data()
+    QVariantMap swOnlyData;
+    swOnlyData["SW Access"] = "RO";
+    RegMapTreeItem swItem(RegMapTreeItem::e_rmmKind::reg, swOnlyData);
+    QCOMPARE(swItem.data("Access Policy").toString(), QString("RO"));
 }
 
 void TestRegMapTreeItem::testSerializationRoundtrip()
@@ -194,6 +200,28 @@ void TestRegMapTreeItem::testSerializationRoundtrip()
     deserItem.deserialize(dummyData, &context);
     QCOMPARE(static_cast<int>(deserItem.kind()), static_cast<int>(RegMapTreeItem::e_rmmKind::blk));
     QCOMPARE(deserItem.data("Name").toString(), QString("DESER_BLK"));
+
+    // Test deserialize with only Access Policy
+    QVariantMap apOnlyData;
+    apOnlyData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+    apOnlyData["childItems"] = QList<QVariant>();
+    QVariantMap apItemData;
+    apItemData["Access Policy"] = "WO";
+    apOnlyData["itemData"] = apItemData;
+    RegMapTreeItem apDeser;
+    apDeser.deserialize(apOnlyData, &context);
+    QCOMPARE(apDeser.data("SW Access").toString(), QString("WO"));
+
+    // Test deserialize with only SW Access
+    QVariantMap swOnlyDeserData;
+    swOnlyDeserData["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+    swOnlyDeserData["childItems"] = QList<QVariant>();
+    QVariantMap swItemData;
+    swItemData["SW Access"] = "W1C";
+    swOnlyDeserData["itemData"] = swItemData;
+    RegMapTreeItem swDeser;
+    swDeser.deserialize(swOnlyDeserData, &context);
+    QCOMPARE(swDeser.data("Access Policy").toString(), QString("W1C"));
 
     // Full hierarchy deserialize with parent and children
     SerializationContext deserCtx;

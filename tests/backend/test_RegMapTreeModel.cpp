@@ -44,7 +44,7 @@ void TestRegMapTreeModel::testModelStructureAndHeaders()
     QCOMPARE(model.headerData(1, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Offset"));
     QCOMPARE(model.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Size"));
     QCOMPARE(model.headerData(3, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Name"));
-    QCOMPARE(model.headerData(4, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Access Policy"));
+    QCOMPARE(model.headerData(4, Qt::Horizontal, Qt::DisplayRole).toString(), QString("SW Access"));
     QCOMPARE(model.headerData(5, Qt::Horizontal, Qt::DisplayRole).toString(), QString("HW Access"));
     QCOMPARE(model.headerData(6, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Reset Value"));
     QCOMPARE(model.headerData(7, Qt::Horizontal, Qt::DisplayRole).toString(), QString("Is Rand"));
@@ -123,6 +123,30 @@ void TestRegMapTreeModel::testJsonExtraction()
     model.setData(model.index(0, 3, regIndex), "ENABLE", Qt::EditRole);// Name: ENABLE
     model.setData(model.index(0, 4, regIndex), "RW", Qt::EditRole);    // Access: RW
 
+    // Add two maps to blkIndex to exercise map sorting lambda and comparator (L762-764)
+    model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::map, blkIndex);
+    model.setData(model.index(0, 1, blkIndex), "0x1000", Qt::EditRole);
+    model.setData(model.index(0, 3, blkIndex), "MAP1", Qt::EditRole);
+
+    model.insertRows(1, 1, RegMapTreeItem::e_rmmKind::map, blkIndex);
+    model.setData(model.index(1, 1, blkIndex), "0x0000", Qt::EditRole);
+    model.setData(model.index(1, 3, blkIndex), "MAP0", Qt::EditRole);
+
+    // Add map under regIndex to exercise else if (!maps.empty()) on non-block/non-root item (L767)
+    RegMapTreeItem *regItem = model.getItem(regIndex);
+    if (regItem) {
+        QVariantMap subMapData;
+        subMapData["Name"] = "SUB_MAP";
+        regItem->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, subMapData, regItem));
+    }
+
+    // Add a child with root kind to trigger switch default: break; (L746-747)
+    RegMapTreeItem *blkItem = model.getItem(blkIndex);
+    if (blkItem) {
+        QVariantMap emptyData;
+        blkItem->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, emptyData, blkItem));
+    }
+
     json extracted = model.extractJsonData(32);
     QCOMPARE(extracted["reg_width"].get<int>(), 32);
     QCOMPARE(extracted["reg_width_bytes"].get<int>(), 4);
@@ -135,6 +159,10 @@ void TestRegMapTreeModel::testJsonExtraction()
     QVERIFY(extracted["blocks"][0]["registers"][0].contains("fields"));
     QCOMPARE(extracted["blocks"][0]["registers"][0]["fields"].size(), (size_t)1);
     QCOMPARE(extracted["blocks"][0]["registers"][0]["fields"][0]["name"].get<std::string>(), std::string("ENABLE"));
+    QVERIFY(extracted["blocks"][0].contains("maps"));
+    QCOMPARE(extracted["blocks"][0]["maps"].size(), (size_t)2);
+    QCOMPARE(extracted["blocks"][0]["maps"][0]["name"].get<std::string>(), std::string("MAP0"));
+    QCOMPARE(extracted["blocks"][0]["maps"][1]["name"].get<std::string>(), std::string("MAP1"));
 }
 
 void TestRegMapTreeModel::testValidationRules()

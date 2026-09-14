@@ -5,8 +5,8 @@
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![Qt 6](https://img.shields.io/badge/Qt-6-green.svg)](https://www.qt.io/)
 <!-- COVERAGE_BADGES_START -->
-[![Line Coverage](https://img.shields.io/badge/Line_Coverage-99.9%25-brightgreen.svg)](#code-coverage-metrics)
-[![Function Coverage](https://img.shields.io/badge/Function_Coverage-99.8%25-brightgreen.svg)](#code-coverage-metrics)
+[![Line Coverage](https://img.shields.io/badge/Line_Coverage-100.0%25-brightgreen.svg)](#code-coverage-metrics)
+[![Function Coverage](https://img.shields.io/badge/Function_Coverage-100.0%25-brightgreen.svg)](#code-coverage-metrics)
 [![Branch Coverage](https://img.shields.io/badge/Branch_Coverage-95.2%25-brightgreen.svg)](#code-coverage-metrics)
 [![Condition Coverage](https://img.shields.io/badge/Condition_Coverage-91.9%25-brightgreen.svg)](#code-coverage-metrics)
 <!-- COVERAGE_BADGES_END -->
@@ -57,13 +57,13 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 
 | Metric | Covered | Total | Coverage Rate | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Lines** | 7,740 | 7,748 | **99.90%** | ✅ |
-| **Functions** | 564 | 565 | **99.82%** | ✅ |
-| **Branches (Decision)** | 11,564 | 12,147 | **95.20%** | ✅ |
-| **Conditions (MC/DC)** | 4,742 | 5,158 | **91.93%** | ✅ |
-| **Calls** | 16,291 | 20,452 | **79.65%** | ✅ |
-| **Basic Blocks** | 24,287 | 37,618 | **64.56%** | ✅ |
-| *Branches (Raw w/ Unwind)* | 12,626 | 21,324 | *59.21%* | ℹ️ |
+| **Lines** | 7,760 | 7,760 | **100.00%** | ✅ |
+| **Functions** | 565 | 565 | **100.00%** | ✅ |
+| **Branches (Decision)** | 11,688 | 12,277 | **95.20%** | ✅ |
+| **Conditions (MC/DC)** | 4,806 | 5,228 | **91.93%** | ✅ |
+| **Calls** | 16,388 | 20,569 | **79.67%** | ✅ |
+| **Basic Blocks** | 24,454 | 37,852 | **64.60%** | ✅ |
+| *Branches (Raw w/ Unwind)* | 12,750 | 21,514 | *59.26%* | ℹ️ |
 
 > [!NOTE]
 > **Branch & Condition Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`), allocation checks (`new`/`delete`), and destructor cleanups are excluded from decision branches and shown transparently in raw metrics. Standard exclusion pragmas (`// GCOV_EXCL_LINE`, `// LCOV_EXCL_START`/`STOP`, `// GCOV_EXCL_BR_LINE`) are honored.
@@ -73,10 +73,10 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | Subsystem | Lines (%) | Functions (%) | Branches (%) | Conditions (%) | Calls (%) | Blocks (%) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Code Generation Engine** | 100.0% (477/477) | 100.0% (20/20) | 96.5% (985/1021) | 92.8% (401/432) | 80.2% | 64.0% |
-| **Core Architecture & Model** | 99.5% (816/820) | 98.7% (77/78) | 87.7% (1504/1715) | 89.8% (668/744) | 77.2% | 59.2% |
+| **Core Architecture & Model** | 100.0% (832/832) | 100.0% (78/78) | 88.2% (1592/1804) | 89.9% (714/794) | 77.4% | 59.8% |
 | **Dialogs & Configuration** | 100.0% (796/796) | 100.0% (94/94) | 98.8% (822/832) | 96.9% (285/294) | 82.2% | 68.5% |
 | **Format Parsers & Serializers** | 100.0% (1402/1402) | 100.0% (63/63) | 95.8% (2978/3108) | 92.2% (1423/1544) | 79.3% | 65.1% |
-| **GUI Widgets & Main Window** | 99.8% (2540/2544) | 100.0% (181/181) | 96.7% (3121/3228) | 91.3% (1085/1188) | 79.8% | 64.9% |
+| **GUI Widgets & Main Window** | 100.0% (2544/2544) | 100.0% (181/181) | 96.6% (3157/3269) | 91.3% (1103/1208) | 79.8% | 64.9% |
 | **System Services & Utilities** | 100.0% (1709/1709) | 100.0% (129/129) | 96.0% (2154/2243) | 92.0% (880/956) | 80.2% | 65.7% |
 
 <details>
@@ -104,11 +104,11 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | `src/RegConfigWindow.cpp` | Dialogs & Configuration | 100.0% | 100.0% | 99.5% | 99.1% | 81.2% | 67.3% |
 | `src/RegConfigWindow.hpp` | Dialogs & Configuration | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
 | `src/RegMapDelegate.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 97.2% | 93.9% | 79.2% | 66.8% |
-| `src/RegMapTreeItem.cpp` | Core Architecture & Model | 100.0% | 100.0% | 97.5% | 95.2% | 82.1% | 75.3% |
-| `src/RegMapTreeModel.cpp` | Core Architecture & Model | 99.3% | 97.0% | 85.7% | 90.3% | 76.9% | 56.9% |
+| `src/RegMapTreeItem.cpp` | Core Architecture & Model | 100.0% | 100.0% | 95.1% | 93.8% | 79.9% | 72.5% |
+| `src/RegMapTreeModel.cpp` | Core Architecture & Model | 100.0% | 100.0% | 86.3% | 90.4% | 77.4% | 57.4% |
 | `src/RegMapTreeModel.hpp` | Core Architecture & Model | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 25.0% |
 | `src/RegMapTreeView.cpp` | Core Architecture & Model | 100.0% | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
-| `src/RegMapWindow.cpp` | GUI Widgets & Main Window | 99.8% | 100.0% | 96.9% | 90.3% | 79.5% | 64.1% |
+| `src/RegMapWindow.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 96.7% | 90.3% | 79.5% | 64.0% |
 | `src/RegMapWindow.hpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 100.0% | 0.0% | 75.0% | 100.0% |
 | `src/Serializable.hpp` | Core Architecture & Model | 100.0% | 100.0% | 0.0% | 0.0% | 0.0% | 25.0% |
 | `src/SerializationContext.hpp` | Core Architecture & Model | 100.0% | 100.0% | 93.3% | 66.7% | 61.5% | 64.0% |
