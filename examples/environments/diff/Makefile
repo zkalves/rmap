@@ -4,7 +4,14 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-RMAP      ?= ../../../build/bin/rmap
+# Locate templates directory: check local repository or relative folders, otherwise let rmap locate installed templates
+REPO_TEMPLATES ?= $(firstword $(wildcard $(CURDIR)/../../../templates $(CURDIR)/../../templates $(CURDIR)/../templates))
+ifneq ($(REPO_TEMPLATES),)
+  export RMAP_TEMPLATES_DIR ?= $(abspath $(REPO_TEMPLATES))
+endif
+
+# Locate rmap executable: check local build tree first, then search system PATH
+RMAP      ?= $(shell if [ -x "$(CURDIR)/../../../build/bin/rmap" ]; then echo "$(CURDIR)/../../../build/bin/rmap"; elif command -v rmap >/dev/null 2>&1; then command -v rmap; else echo "rmap"; fi)
 FILE_V1   ?= ../../rmt/features/diff_v1.rmt
 FILE_V2   ?= ../../rmt/features/diff_v2.rmt
 

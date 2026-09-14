@@ -138,4 +138,35 @@ rmap -f examples/rmt/peripherals/spi.rmt
 rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```
 
+---
+
+## 5. Verifying Installation with Bundled Examples
+
+**rmap** packages a rich suite of reference register maps and self-contained simulation environments in `<prefix>/share/rmap/examples` (and bundled templates in `<prefix>/share/rmap/templates`).
+
+Users can copy the `examples` folder to any workspace and run the test targets directly to verify their installation:
+
+```bash
+# Copy examples to a working directory
+cp -r /usr/local/share/rmap/examples ~/my_rmap_examples
+# (or for custom install prefix: cp -r ~/.local/share/rmap/examples ~/my_rmap_examples)
+
+cd ~/my_rmap_examples
+
+# Run full simulation and compilation across all 17 example environments
+make all
+
+# Or test an individual peripheral environment (e.g. SPI)
+cd environments/spi
+make all
+make compile-c
+make run-python
+make sim-rtl
+make clean
+```
+
+All environment Makefiles automatically discover the installed `rmap` executable from `PATH` and resolve the installed templates, requiring zero configuration.
+
+---
+
 [Next: GUI User Guide &rarr;](gui-guide.md)

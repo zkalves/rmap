@@ -542,7 +542,7 @@ GenerationReport CodeGenerator::parseDirectory(
     }
 
     QStringList filters;
-    filters << "*.inja" << "*.tmpl" << "*.txt" << "*.sv" << "*.h" << "*.cpp" << "*.rs" << "*.py" << "*.html" << "*.md" << "*.rdl" << "*.xml" << "*.json";
+    filters << "*.inja" << "*.tmpl";
 
     std::vector<TemplateMapping> mappings;
     QDirIterator it(QString::fromStdString(resolvedTmplFolder), filters, QDir::Files, QDirIterator::Subdirectories);
