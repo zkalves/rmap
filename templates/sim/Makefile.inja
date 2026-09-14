@@ -34,17 +34,102 @@ UVM_INC_DIR ?= {{ sim_rel_uvm_dir }}
 UVM_INC_DIR ?= ../uvm
 {% endif %}
 
+# -----------------------------------------------------------------------------
+# UVM Version Selection & Configuration
+# Supported UVM_VER choices:
+#   - 1800.2-2020 (default, aliases: 2020, 1800.2, ieee)
+#   - 1800.2-2017 (aliases: 2017, 1800.2-2017-1.1)
+#   - 1.2         (aliases: uvm-1.2)
+#   - 1.1d        (aliases: 1.1, uvm-1.1d)
+#
+# Examples:
+#   make sim-uvm SIM=vcs UVM_VER=1.2
+#   make sim-uvm SIM=xrun UVM_VER=1800.2-2020
+#   make sim-uvm SIM=mti UVM_VER=1.1d
+#   make sim-uvm SIM=vcs UVM_HOME=/path/to/uvm
+# -----------------------------------------------------------------------------
+{% if exists("custom_parameters") and existsIn(custom_parameters, "UVM_VER") %}
+UVM_VER       ?= {{ custom_parameters.UVM_VER }}
+{% else if exists("custom_parameters") and existsIn(custom_parameters, "uvm_version") %}
+UVM_VER       ?= {{ custom_parameters.uvm_version }}
+{% else %}
+UVM_VER       ?= 1800.2-2020
+{% endif %}
+ifdef UVM_VERSION
+  UVM_VER     := $(UVM_VERSION)
+endif
+
+# Auto-detect bundled UVM repository directory if present in workspace hierarchy
+UVM_REPO_DIR  ?= $(firstword $(wildcard ../../uvm ../../../uvm ../../../../uvm ../../../../../uvm))
+
+# Normalize UVM_VER and select simulator-specific flags and bundled folder
+ifeq ($(findstring 1.1,$(UVM_VER)),1.1)
+  UVM_VER_NORM    := 1.1d
+  UVM_SUBDIR      := uvm-1.1d
+  VCS_UVM_FLAG    := -ntb_opts uvm-1.1
+  XRUN_UVM_FLAG   := -uvm -uvmhome CDNS-1.1d
+  QUESTA_UVM_FLAG := -uvmhome 1.1d
+else ifeq ($(findstring 1.2,$(UVM_VER)),1.2)
+  UVM_VER_NORM    := 1.2
+  UVM_SUBDIR      := uvm-1.2
+  VCS_UVM_FLAG    := -ntb_opts uvm-1.2
+  XRUN_UVM_FLAG   := -uvm -uvmhome CDNS-1.2
+  QUESTA_UVM_FLAG := -uvmhome 1.2
+else ifeq ($(findstring 2017,$(UVM_VER)),2017)
+  UVM_VER_NORM    := 1800.2-2017
+  UVM_SUBDIR      := 1800.2-2017-1.1
+  VCS_UVM_FLAG    := -ntb_opts uvm-ieee
+  XRUN_UVM_FLAG   := -uvm -uvmhome CDNS-1800.2-2017
+  QUESTA_UVM_FLAG := -uvmhome 1800.2-2017
+else
+  # Default: IEEE 1800.2-2020
+  UVM_VER_NORM    := 1800.2-2020
+  UVM_SUBDIR      := 1800.2-2020
+  VCS_UVM_FLAG    := -ntb_opts uvm-ieee
+  XRUN_UVM_FLAG   := -uvm -uvmhome CDNS-1800.2
+  QUESTA_UVM_FLAG := -uvmhome 1800.2-2020
+endif
+
+# Resolve UVM_HOME: explicit override takes precedence over bundled directory
+ifndef UVM_HOME
+  ifneq ($(UVM_REPO_DIR),)
+    ifneq ($(wildcard $(UVM_REPO_DIR)/$(UVM_SUBDIR)),)
+      RESOLVED_UVM_HOME := $(UVM_REPO_DIR)/$(UVM_SUBDIR)
+    endif
+  endif
+else
+  RESOLVED_UVM_HOME := $(UVM_HOME)
+endif
+
+# Setup simulator options based on whether custom UVM_HOME or built-in library is used
+ifneq ($(RESOLVED_UVM_HOME),)
+  ifdef UVM_HOME
+    VCS_UVM_ARGS  := +incdir+$(RESOLVED_UVM_HOME)/src $(RESOLVED_UVM_HOME)/src/uvm_pkg.sv $(RESOLVED_UVM_HOME)/src/dpi/uvm_dpi.cc -CFLAGS -DVCS
+    XRUN_UVM_ARGS := -uvm -uvmhome $(RESOLVED_UVM_HOME)
+    MTI_UVM_ARGS  := +incdir+$(RESOLVED_UVM_HOME)/src $(RESOLVED_UVM_HOME)/src/uvm_pkg.sv $(RESOLVED_UVM_HOME)/src/dpi/uvm_dpi.cc
+  else
+    VCS_UVM_ARGS  := $(VCS_UVM_FLAG)
+    XRUN_UVM_ARGS := $(XRUN_UVM_FLAG)
+    MTI_UVM_ARGS  := +incdir+$(RESOLVED_UVM_HOME)/src $(RESOLVED_UVM_HOME)/src/uvm_pkg.sv $(RESOLVED_UVM_HOME)/src/dpi/uvm_dpi.cc
+  endif
+else
+  VCS_UVM_ARGS  := $(VCS_UVM_FLAG)
+  XRUN_UVM_ARGS := $(XRUN_UVM_FLAG)
+  MTI_UVM_ARGS  := $(QUESTA_UVM_FLAG)
+endif
+
 .PHONY: all help sim-rtl sim-verilator sim-pyuvm sim-uvm clean
 
 help:
 	@echo "Available Simulation Targets:"
-	@echo "  make sim-rtl           Run self-checking SystemVerilog testbench in Icarus Verilog"
-	@echo "  make sim-verilator     Run self-checking SystemVerilog testbench in Verilator"
-	@echo "  make sim-pyuvm         Run open-source Python UVM testbench (pyuvm + cocotb)"
-	@echo "  make sim-uvm SIM=vcs   Run IEEE 1800.2 (uvm-ieee) in Synopsys VCS"
-	@echo "  make sim-uvm SIM=xrun  Run IEEE 1800.2 in Cadence Xcelium"
-	@echo "  make sim-uvm SIM=mti   Run IEEE 1800.2 in Siemens Questa/ModelSim"
-	@echo "  make clean             Clean all simulation artifacts"
+	@echo "  make sim-rtl                         Run self-checking SystemVerilog testbench in Icarus Verilog"
+	@echo "  make sim-verilator                   Run self-checking SystemVerilog testbench in Verilator"
+	@echo "  make sim-pyuvm                       Run open-source Python UVM testbench (pyuvm + cocotb)"
+	@echo "  make sim-uvm SIM=vcs [UVM_VER=...]   Run UVM verification in Synopsys VCS (default: uvm-ieee)"
+	@echo "  make sim-uvm SIM=xrun [UVM_VER=...]  Run UVM verification in Cadence Xcelium"
+	@echo "  make sim-uvm SIM=mti [UVM_VER=...]   Run UVM verification in Siemens Questa/ModelSim"
+	@echo "  Supported UVM_VER: 1800.2-2020 (default), 1800.2-2017, 1.2, 1.1d (or UVM_HOME=<path>)"
+	@echo "  make clean                           Clean all simulation artifacts"
 
 # -----------------------------------------------------------------------------
 # 1. Open-Source RTL Testbench (Icarus Verilog)
@@ -67,24 +152,25 @@ sim-pyuvm:
 	MODULE=tb_pyuvm TOPLEVEL=$(DUT_MODULE) SIM=$(SIM) VERILOG_SOURCES="$(RTL_SRC)" make -f $$(cocotb-config --makefiles)/Makefile.sim
 
 # -----------------------------------------------------------------------------
-# 4. IEEE 1800.2 Standard (uvm-ieee) EDA Simulators
+# 4. UVM Verification Environment (Synopsys VCS, Cadence Xcelium, Siemens Questa)
 # -----------------------------------------------------------------------------
 sim-uvm:
+	@echo "Running UVM verification suite [UVM $(UVM_VER_NORM)] with simulator: $(SIM)..."
 	@case "$(SIM)" in \
 	  vcs) \
-	    vcs -sverilog -ntb_opts uvm-ieee +incdir+$(RTL_INC_DIR) +incdir+$(UVM_INC_DIR) +incdir+uvm \
+	    vcs -sverilog $(VCS_UVM_ARGS) +incdir+$(RTL_INC_DIR) +incdir+$(UVM_INC_DIR) +incdir+uvm \
 	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv -o simv && \
 	    ./simv +UVM_TESTNAME=$(TEST) ;; \
 	  xrun|xcelium) \
-	    xrun -uvm -uvmhome CDNS-1800.2 -incdir $(RTL_INC_DIR) -incdir $(UVM_INC_DIR) -incdir uvm \
+	    xrun $(XRUN_UVM_ARGS) -incdir $(RTL_INC_DIR) -incdir $(UVM_INC_DIR) -incdir uvm \
 	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv +UVM_TESTNAME=$(TEST) ;; \
 	  mti|questa) \
 	    vlib work && \
-	    vlog +incdir+$(RTL_INC_DIR) +incdir+$(UVM_INC_DIR) +incdir+uvm \
+	    vlog $(MTI_UVM_ARGS) +incdir+$(RTL_INC_DIR) +incdir+$(UVM_INC_DIR) +incdir+uvm \
 	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv && \
 	    vsim -c -do "run -all; quit" tb_top +UVM_TESTNAME=$(TEST) ;; \
 	  *) \
-	    echo "Specify SIM=vcs, SIM=xrun, or SIM=mti (or run 'make sim-rtl' for open-source)" ;; \
+	    echo "Specify SIM=vcs, SIM=xrun, or SIM=mti (e.g. 'make sim-uvm SIM=vcs UVM_VER=1.2')" ;; \
 	esac
 
 clean:
