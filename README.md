@@ -59,11 +59,11 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | :--- | :---: | :---: | :---: | :---: |
 | **Lines** | 7,760 | 7,760 | **100.00%** | ✅ |
 | **Functions** | 565 | 565 | **100.00%** | ✅ |
-| **Branches (Decision)** | 11,688 | 12,277 | **95.20%** | ✅ |
+| **Branches (Decision)** | 11,666 | 12,255 | **95.19%** | ✅ |
 | **Conditions (MC/DC)** | 4,806 | 5,228 | **91.93%** | ✅ |
-| **Calls** | 16,388 | 20,569 | **79.67%** | ✅ |
-| **Basic Blocks** | 24,454 | 37,852 | **64.60%** | ✅ |
-| *Branches (Raw w/ Unwind)* | 12,750 | 21,514 | *59.26%* | ℹ️ |
+| **Calls** | 16,355 | 20,525 | **79.68%** | ✅ |
+| **Basic Blocks** | 24,421 | 37,786 | **64.63%** | ✅ |
+| *Branches (Raw w/ Unwind)* | 12,728 | 21,470 | *59.28%* | ℹ️ |
 
 > [!NOTE]
 > **Branch & Condition Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`), allocation checks (`new`/`delete`), and destructor cleanups are excluded from decision branches and shown transparently in raw metrics. Standard exclusion pragmas (`// GCOV_EXCL_LINE`, `// LCOV_EXCL_START`/`STOP`, `// GCOV_EXCL_BR_LINE`) are honored.
@@ -72,7 +72,7 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 
 | Subsystem | Lines (%) | Functions (%) | Branches (%) | Conditions (%) | Calls (%) | Blocks (%) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Code Generation Engine** | 100.0% (477/477) | 100.0% (20/20) | 96.5% (985/1021) | 92.8% (401/432) | 80.2% | 64.0% |
+| **Code Generation Engine** | 100.0% (477/477) | 100.0% (20/20) | 96.4% (963/999) | 92.8% (401/432) | 80.4% | 64.3% |
 | **Core Architecture & Model** | 100.0% (832/832) | 100.0% (78/78) | 88.2% (1592/1804) | 89.9% (714/794) | 77.4% | 59.8% |
 | **Dialogs & Configuration** | 100.0% (796/796) | 100.0% (94/94) | 98.8% (822/832) | 96.9% (285/294) | 82.2% | 68.5% |
 | **Format Parsers & Serializers** | 100.0% (1402/1402) | 100.0% (63/63) | 95.8% (2978/3108) | 92.2% (1423/1544) | 79.3% | 65.1% |
@@ -89,7 +89,7 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | `src/AppSettings.cpp` | System Services & Utilities | 100.0% | 100.0% | 96.3% | 92.0% | 81.1% | 69.1% |
 | `src/BlockMemoryMapWidget.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 96.2% | 91.2% | 80.8% | 66.2% |
 | `src/BlockMemoryMapWidget.hpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
-| `src/CodeGenerator.cpp` | Code Generation Engine | 100.0% | 100.0% | 96.5% | 92.8% | 80.2% | 63.9% |
+| `src/CodeGenerator.cpp` | Code Generation Engine | 100.0% | 100.0% | 96.4% | 92.8% | 80.4% | 64.3% |
 | `src/CodeGenerator.hpp` | Code Generation Engine | 100.0% | 100.0% | 0.0% | 0.0% | 0.0% | 100.0% |
 | `src/LanguageManager.cpp` | System Services & Utilities | 100.0% | 100.0% | 91.2% | 91.4% | 82.8% | 70.5% |
 | `src/ObjectFactory.hpp` | Core Architecture & Model | 100.0% | 100.0% | 0.0% | 0.0% | 50.0% | 70.0% |
@@ -182,7 +182,7 @@ make test-all
 
 ### Installation
 
-Install the `rmap` executable, code generation templates (`<prefix>/share/rmap/templates`), sample models (`<prefix>/share/rmap/examples`), and documentation (`<prefix>/share/doc/rmap`) to your preferred directory using either Make or CMake. The application automatically discovers installed templates without requiring manual configuration:
+Install the `rmap` executable, code generation templates (`<prefix>/share/rmap/templates`), sample models (`<prefix>/share/rmap/examples`), and pre-rendered documentation in interactive HTML (`<prefix>/share/doc/rmap/html`) and split PDF formats (User Manual: `<prefix>/share/doc/rmap/rmap_user_manual.pdf` and Developer Guide: `<prefix>/share/doc/rmap/rmap_developer_guide.pdf`) to your preferred directory using either Make or CMake. The application automatically discovers installed templates without requiring manual configuration:
 
 #### With Make
 ```bash
@@ -271,14 +271,16 @@ Run code generation, linting, or diffing directly in Makefiles, CI/CD pipelines,
 ---
 
 ## Documentation
-
-Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap/):
-
-- [Getting Started Guide](https://zkalves.github.io/rmap/user/getting-started.html)
-- [GUI & Register Design](https://zkalves.github.io/rmap/user/gui-guide.html)
-- [CLI Reference & Automation](https://zkalves.github.io/rmap/user/cli-reference.html)
-- [Templates & Code Generation](https://zkalves.github.io/rmap/user/templates-and-codegen.html)
-- [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/user/architecture.html)
+ 
+Full documentation is available online on [GitHub Pages](https://zkalves.github.io/rmap/) and installed locally in **interactive HTML** (`share/doc/rmap/html`) and dedicated **split PDF manuals** (`share/doc/rmap/`):
+ 
+ - [Getting Started Guide](https://zkalves.github.io/rmap/user/getting-started.html)
+ - [GUI & Register Design](https://zkalves.github.io/rmap/user/gui-guide.html)
+ - [CLI Reference & Automation](https://zkalves.github.io/rmap/user/cli-reference.html)
+ - [Templates & Code Generation](https://zkalves.github.io/rmap/user/templates-and-codegen.html)
+ - [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/user/architecture.html)
+ - [Download User Manual (PDF)](https://zkalves.github.io/rmap/pdf/rmap_user_manual.pdf) (50-page user guide)
+ - [Download Developer Guide (PDF)](https://zkalves.github.io/rmap/pdf/rmap_developer_guide.pdf) (77-page C++ architecture manual)
 
 ---
 

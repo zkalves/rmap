@@ -11,3 +11,4 @@ _site/
 *.gcov.json.gz
 *.info
 *.pdf
+uvm/

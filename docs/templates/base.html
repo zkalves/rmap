@@ -7,6 +7,16 @@
     <meta name="generator" content="Pelican" />
     <title>{% block title %}{{ SITENAME|striptags }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ SITEURL }}/{{ THEME_STATIC_DIR }}/css/{{ CSS_FILE }}" />
+    <style>
+        /* Suppress Pygments syntax error borders / red boxes on unicode and ASCII diagrams */
+        .highlight .err,
+        span.err,
+        .err {
+            border: none !important;
+            color: inherit !important;
+            background: none !important;
+        }
+    </style>
     {% endblock head %}
 </head>
 

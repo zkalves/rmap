@@ -10,6 +10,7 @@ Welcome to the **rmap** C++ developer reference documentation. This documentatio
 - [**RegMapWindow**](RegMapWindow.md): Main top-level application window, dual-pane UI orchestration, undo/redo stack management, and headless CLI batch workflows.
 - [**RegConfigWindow**](RegConfigWindow.md): Non-modal project configuration dialog managing Inja template mappings, output destinations, register widths, and custom parameters.
 - [**PreferencesWindow**](PreferencesWindow.md): Non-modal user preferences dialog managing application themes and barrier-free color-blind accessibility modes.
+- [**AboutWindow**](AboutWindow.md): Non-modal application information dialog detailing semantic versioning, architectural features, components, and open-source licenses.
 
 ---
 
@@ -37,9 +38,10 @@ Welcome to the **rmap** C++ developer reference documentation. This documentatio
 
 ---
 
-## Code Generation & Utilities
+## Code Generation, Localization & Utilities
 
 - [**CodeGenerator**](CodeGenerator.md): Pantor Inja template rendering engine featuring 11 custom naming and bitwise helper callbacks for multi-target code and documentation generation.
 - [**ThemeManager**](ThemeManager.md): Multi-theme styling engine supporting 6 color schemes (Solarized 8, Nord, Dracula, Monokai, Classic) and Okabe-Ito / Wong CVD barrier-free palettes.
+- [**LanguageManager**](LanguageManager.md): Internationalization and localization engine managing runtime translation catalogs (en, es, de, fr, zh_CN, ja, pt_BR) and dynamic locale switching.
 - [**AppSettings**](AppSettings.md): Persistent user configuration manager for application geometry, splitter positions, and preferences (`~/.config/rmap/rmap.conf`).
 - [**PathUtils**](PathUtils.md): Cross-platform path utility library for environment variable expansion, path relativization, and multi-tiered fallback path resolution.

@@ -6,7 +6,7 @@ Welcome to the **rmap** documentation portal. **rmap** is a high-performance GUI
 
 ## 📚 Documentation Navigation
 
-```
+```text
 docs/
 ├── user/                       # User Guide & Operational Manuals
 │   ├── getting-started.md      # Installation, compilation, and quickstart
@@ -44,14 +44,21 @@ docs/
 ## 🛠️ Developer & C++ API Reference
 
 - [**C++ Developer Documentation Index**](dev/index.md): Complete index of classes, widgets, delegates, format handlers, and core utilities.
-- [**Application Entry Point (`src/main.cpp`)](dev/rmap.md): Startup sequence, headless auto-detection, and command-line argument parsing.
-- [**Main Window Controller (`RegMapWindow`)](dev/RegMapWindow.md): UI coordination, dock widgets, undo/redo stack, and headless handlers.
+- [**Application Entry Point (`src/main.cpp`)**](dev/rmap.md): Startup sequence, headless auto-detection, and command-line argument parsing.
+- [**Main Window Controller (`RegMapWindow`)**](dev/RegMapWindow.md): UI coordination, dock widgets, undo/redo stack, and headless handlers.
 - [**Tree Model (`RegMapTreeModel`)](dev/RegMapTreeModel.md): 11-column tree model, invalid cell tracking, and real-time validation.
 - [**Interactive Bitfield Visualizer (`RegBitfieldBarWidget`)](dev/RegBitfieldBarWidget.md): 32/64-bit continuous slice rendering, reserved slot hatching, and bidirectional selection.
 - [**Stacked Memory Map (`BlockMemoryMapWidget`)](dev/BlockMemoryMapWidget.md): Vertical memory map diagram with unmapped gap detection.
 - [**Template Engine (`CodeGenerator`)](dev/CodeGenerator.md): Pantor Inja integration, helper callbacks, and multi-source code generation.
 - [**Format Registry (`FormatManager`)](dev/FormatManager.md): Handlers for SystemRDL, IP-XACT, CMSIS-SVD, JSON, CSV, and Protobuf.
 - [**Theme Engine (`ThemeManager`)](dev/ThemeManager.md): Palettes for Solarized 8, Nord, Dracula, Monokai, Classic, and CVD Barrier-Free mode.
+
+---
+
+## 📖 Offline Reference Manuals (PDF)
+
+- [**rmap User Manual (PDF)**](pdf/rmap_user_manual.pdf): Complete 50-page user guide covering installation, interactive GUI operation, bitfield visualizer, CLI headless automation, Inja templating, and verification environments.
+- [**rmap Developer Guide (PDF)**](pdf/rmap_developer_guide.pdf): In-depth 77-page C++ architecture and API reference detailing Qt 6 models, custom delegates, visualizer widgets, multi-format registry, undo/redo stack, and serialization.
 
 ---
 
