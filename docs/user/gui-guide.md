@@ -6,7 +6,7 @@ The **rmap** graphical interface is designed specifically for hardware designers
 
 ## 1. Dual-Pane Layout & Visualizer
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │ Toolbar: [New] [Open] [Save] [Undo] [Redo] [Add Blk] [Add Reg] [Export]│
 ├──────────────────────────────┬─────────────────────────────────────────┤
@@ -71,7 +71,7 @@ Positioned at the top of the right panel, the bitfield bar provides instant grap
 
 When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the right pane automatically adapts to display the block's header and vertical address space memory map diagram:
 
-```
+```text
 ┌───────────────────────────────────────────────────────────────────────────┐
 │ Block: Sparse_Device   Offset: 0x0000   Description: [ Sparse Device Map ]│
 ├───────────────────────────────────────────────────────────────────────────┤

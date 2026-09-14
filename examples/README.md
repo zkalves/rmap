@@ -14,7 +14,7 @@ This directory contains curated reference register maps, multi-format exchange m
 
 ## Directory Overview
 
-```
+```text
 examples/
 ├── README.md                 # This comprehensive documentation guide
 ├── Makefile                  # Automated runner executing all example environments (make test-examples)
