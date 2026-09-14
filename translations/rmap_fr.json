@@ -45,6 +45,7 @@
     "Offset": "Décalage",
     "Size": "Taille",
     "Name": "Nom",
+    "SW Access": "Accès logiciel",
     "Access Policy": "Politique d'accès",
     "HW Access": "Accès matériel",
     "Reset Value": "Valeur de réinitialisation",

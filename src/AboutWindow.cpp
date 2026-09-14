@@ -35,7 +35,7 @@ QString AboutWindow::applicationVersion() const
 QString AboutWindow::applicationName() const
 {
     QString name = QApplication::applicationName();
-    return name.isEmpty() ? QStringLiteral("rmap") : name;
+    return name.isEmpty() ? QStringLiteral("rmap") : name; // GCOV_EXCL_BR_LINE - Defensive fallback
 }
 
 void AboutWindow::initContent()

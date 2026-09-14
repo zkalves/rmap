@@ -1,0 +1,753 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Copyright (c) 2026 Ezequiel Alves. All rights reserved.
+
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm/reg_model.sv.inja"
+    output_filepath: "./work/uvm/reg_model.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rust/reg_map.rs.inja"
+    output_filepath: "./work/rust/reg_map.rs"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/html/reg_doc.html.inja"
+    output_filepath: "./work/html/reg_doc.html"
+  }
+  template_outputs {
+    template_filename: "./templates/markdown/reg_doc.md.inja"
+    output_filepath: "./work/markdown/reg_doc.md"
+  }
+  template_outputs {
+    template_filename: "./templates/systemrdl/reg_map.rdl.inja"
+    output_filepath: "./work/systemrdl/reg_map.rdl"
+  }
+  template_outputs {
+    template_filename: "./templates/ipxact/reg_map.xml.inja"
+    output_filepath: "./work/ipxact/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/svd/reg_map.xml.inja"
+    output_filepath: "./work/svd/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl_tb/tb_reg_map.sv.inja"
+    output_filepath: "./work/sim/tb_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/pyuvm_tb/tb_pyuvm.py.inja"
+    output_filepath: "./work/sim/tb_pyuvm.py"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_if.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_if.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_pkg.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_pkg.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_env.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_env.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_tests.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_tests.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/tb_top.sv.inja"
+    output_filepath: "./work/sim/uvm/tb_top.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/sim/Makefile.inja"
+    output_filepath: "./work/sim/Makefile"
+  }
+  reg_width: 32
+  project_name: "Advanced_RAL_Subsystem"
+  project_version: "1.0.0"
+  strict_validation: true
+}
+item {
+  child_id: 1
+  child_id: 18
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 5
+  child_id: 7
+  child_id: 9
+  child_id: 13
+  child_id: 17
+  itemData {
+    key: "Name"
+    value: "RAL_ADVANCED_BLOCK"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0000"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "0x2000"
+  }
+  itemData {
+    key: "Description"
+    value: "Advanced RAL verification block with indirect registers, FIFOs, and callbacks"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Name"
+    value: "CFG_INDEX"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Indirect Addressing Index Register"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "INDEX"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0000"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Indirect Address Space Word Index"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "AUTO_INC"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "16"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Auto-Increment Index on Indirect Data Access"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "CFG_DATA"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Indirect Addressing Data Window Register"
+  }
+  itemData {
+    key: "Is Indirect"
+    value: "true"
+  }
+  itemData {
+    key: "Index Reg"
+    value: "CFG_INDEX"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Name"
+    value: "DATA_WORD"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Target Data Value in Indirect Address Space"
+  }
+}
+item {
+  kind: REG
+  id: 7
+  parent_id: 1
+  child_id: 8
+  itemData {
+    key: "Name"
+    value: "FIFO_PORT"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x08"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Hardware Streaming FIFO Port Register"
+  }
+  itemData {
+    key: "Is FIFO"
+    value: "true"
+  }
+  itemData {
+    key: "FIFO Depth"
+    value: "16"
+  }
+}
+item {
+  kind: FLD
+  id: 8
+  parent_id: 7
+  itemData {
+    key: "Name"
+    value: "FIFO_DATA"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Push/Pop FIFO Data Entry"
+  }
+}
+item {
+  kind: REG
+  id: 9
+  parent_id: 1
+  child_id: 10
+  child_id: 11
+  child_id: 12
+  itemData {
+    key: "Name"
+    value: "STATUS_CBS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0C"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Status Register with UVM Register Callbacks"
+  }
+  itemData {
+    key: "Has Callbacks"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 10
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "BUSY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Subsystem Busy Indicator"
+  }
+}
+item {
+  kind: FLD
+  id: 11
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "READY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Subsystem Ready Indicator"
+  }
+}
+item {
+  kind: FLD
+  id: 12
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "EXEC_TRIGGER"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Execution Trigger Bit"
+  }
+}
+item {
+  kind: REG
+  id: 13
+  parent_id: 1
+  child_id: 14
+  child_id: 15
+  child_id: 16
+  itemData {
+    key: "Name"
+    value: "INTR_FLAGS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x10"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Interrupt Flags with Test Sequence Exclusions"
+  }
+  itemData {
+    key: "NO_REG_TEST"
+    value: "true"
+  }
+  itemData {
+    key: "NO_REG_HW_RESET_TEST"
+    value: "true"
+  }
+  itemData {
+    key: "NO_REG_BIT_BASH_TEST"
+    value: "true"
+  }
+}
+item {
+  kind: FLD
+  id: 14
+  parent_id: 13
+  itemData {
+    key: "Name"
+    value: "TX_DONE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1C"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmit Complete Interrupt Flag"
+  }
+}
+item {
+  kind: FLD
+  id: 15
+  parent_id: 13
+  itemData {
+    key: "Name"
+    value: "RX_DONE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1C"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Receive Complete Interrupt Flag"
+  }
+}
+item {
+  kind: FLD
+  id: 16
+  parent_id: 13
+  itemData {
+    key: "Name"
+    value: "ERROR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1C"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Protocol Error Interrupt Flag"
+  }
+}
+item {
+  kind: MEM
+  id: 17
+  parent_id: 1
+  itemData {
+    key: "Name"
+    value: "INDIRECT_SRAM"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x1000"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4096"
+  }
+  itemData {
+    key: "Depth"
+    value: "1024"
+  }
+  itemData {
+    key: "Word Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "NO_MEM_TEST"
+    value: "true"
+  }
+  itemData {
+    key: "NO_MEM_WALK_TEST"
+    value: "true"
+  }
+  itemData {
+    key: "NO_MEM_ACCESS_TEST"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "4 KB Internal Memory Block with Test Sequence Exclusions"
+  }
+}
+item {
+  kind: MAP
+  id: 18
+  itemData {
+    key: "Name"
+    value: "SYSTEM_BUS_MAP"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x50000000"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8192"
+  }
+  itemData {
+    key: "Endianness"
+    value: "UVM_LITTLE_ENDIAN"
+  }
+  itemData {
+    key: "Byte Addressing"
+    value: "1"
+  }
+  itemData {
+    key: "Description"
+    value: "System Bus Address Map Interface"
+  }
+}
+last_updated {
+  seconds: 1787530000
+}

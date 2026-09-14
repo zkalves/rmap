@@ -225,6 +225,20 @@ void TestPathUtils::testResolvePathWithTemplatesSubdir()
     QString resolvedRel = PathUtils::resolvePath("./templates/c/reg_map.h.inja", "", shareTmplDir);
     QVERIFY(QFile::exists(resolvedRel));
     QCOMPARE(resolvedRel, PathUtils::normalizeSeparators(shareTmplDir + "/c/reg_map.h.inja"));
+
+    // Non-existent template targets falling back to constructed path in secondaryBaseDir
+    QString nonEx1 = PathUtils::resolvePath("templates/non_existent.inja", "", shareTmplDir);
+    QCOMPARE(nonEx1, PathUtils::normalizeSeparators(shareTmplDir + "/non_existent.inja"));
+
+    QString nonEx2 = PathUtils::resolvePath("./templates/non_existent.inja", "", shareTmplDir);
+    QCOMPARE(nonEx2, PathUtils::normalizeSeparators(shareTmplDir + "/non_existent.inja"));
+
+    QString nonEx3 = PathUtils::resolvePath("non_existent.inja", "", shareTmplDir);
+    QCOMPARE(nonEx3, PathUtils::normalizeSeparators(shareTmplDir + "/non_existent.inja"));
+
+    // PrimaryBaseDir ending with /templates where path does not start with templates/ and doesn't exist
+    QString nonExP = PathUtils::resolvePath("not_found.txt", shareTmplDir, "");
+    QCOMPARE(nonExP, PathUtils::normalizeSeparators(shareTmplDir + "/not_found.txt"));
 }
 
 void TestPathUtils::testEdgeCasesAndOverloads()
@@ -264,6 +278,11 @@ void TestPathUtils::testEdgeCasesAndOverloads()
     QCOMPARE(tmplFallback, PathUtils::normalizeSeparators(shareTmplDir + "/sub/new_file.txt"));
     QString tmplFallback2 = PathUtils::resolvePath("./templates/sub/new_file2.txt", "", shareTmplDir);
     QCOMPARE(tmplFallback2, PathUtils::normalizeSeparators(shareTmplDir + "/sub/new_file2.txt"));
+    QString expectedTmplBase = QFileInfo("templates").absoluteFilePath();
+    QString tmplFallback3 = PathUtils::resolvePath("templates/sub/new_file3.txt", "", "templates");
+    QCOMPARE(tmplFallback3, PathUtils::normalizeSeparators(QDir(expectedTmplBase).filePath("sub/new_file3.txt")));
+    QString tmplFallback4 = PathUtils::resolvePath("./templates/sub/new_file4.txt", "", "templates");
+    QCOMPARE(tmplFallback4, PathUtils::normalizeSeparators(QDir(expectedTmplBase).filePath("sub/new_file4.txt")));
 
     // std::string overloads
     std::string s_in = "foo/bar";
@@ -417,6 +436,38 @@ void TestPathUtils::testExtendedPathResolutionAndDiscovery()
 
     QString resSub3 = PathUtils::resolvePath("./templates/c/reg_map.h.inja", "", "work/test_path_utils/templates");
     QVERIFY(QFile::exists(resSub3));
+
+    // 10. Literal "templates" base dir and subTmpl variations
+    QString resLit1 = PathUtils::resolvePath("c/reg_map.h.inja", "templates");
+    QVERIFY(!resLit1.isEmpty());
+
+    QString resLit2 = PathUtils::resolvePath("c/reg_map.h.inja", "", "templates");
+    QVERIFY(!resLit2.isEmpty());
+
+    QString resLit3 = PathUtils::resolvePath("templates/c/reg_map.h.inja", "", "templates");
+    QVERIFY(!resLit3.isEmpty());
+
+    // 11. Empty environment variables for default directories (tests !envDir.isEmpty() false branches)
+    qputenv("RMAP_TEMPLATES_DIR", "");
+    QVERIFY(!PathUtils::defaultTemplatesDir().isEmpty());
+    qunsetenv("RMAP_TEMPLATES_DIR");
+
+    qputenv("RMAP_EXAMPLES_DIR", "");
+    QVERIFY(!PathUtils::defaultExamplesDir().isEmpty());
+    qunsetenv("RMAP_EXAMPLES_DIR");
+
+    qputenv("RMAP_DOCS_DIR", "");
+    QVERIFY(!PathUtils::defaultDocsDir().isEmpty());
+    qunsetenv("RMAP_DOCS_DIR");
+
+    // 12. Installed directory override toggle
+    PathUtils::setInstalledOverride(true);
+    QVERIFY(PathUtils::isInstalledOverride());
+    QVERIFY(!PathUtils::defaultTemplatesDir().isEmpty());
+    QVERIFY(!PathUtils::defaultExamplesDir().isEmpty());
+    QVERIFY(!PathUtils::defaultDocsDir().isEmpty());
+    PathUtils::setInstalledOverride(false);
+    QVERIFY(!PathUtils::isInstalledOverride());
 }
 
 QTEST_MAIN(TestPathUtils)

@@ -300,7 +300,8 @@ bool LanguageManager::setLanguage(const QString &codeOrName)
     int foundIdx = -1;
     for (int i = 0; i < m_languages.size(); ++i) {
         if (m_languages[i].code.compare(target, Qt::CaseInsensitive) == 0 ||
-            m_languages[i].name.compare(target, Qt::CaseInsensitive) == 0) {
+            m_languages[i].name.compare(target, Qt::CaseInsensitive) == 0 ||
+            m_languages[i].nativeName.compare(target, Qt::CaseInsensitive) == 0) {
             foundIdx = i;
             break;
         }

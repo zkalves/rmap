@@ -122,6 +122,72 @@ def parse_gcov_data(build_dir: Path, source_dir: Path, gcov_dir: Optional[Path] 
     return all_files_data
 
 
+_source_file_cache: Dict[str, Dict[str, Any]] = {}
+CONTROL_FLOW_REGEX = re.compile(r"\b(if|else\s+if|while|for|switch|case|default)\b|\?")
+
+
+def get_source_file_info(f_rel_str: str) -> Dict[str, Any]:
+    """Parse source file to detect exclusion pragmas and synthetic compiler lines."""
+    if f_rel_str in _source_file_cache:
+        return _source_file_cache[f_rel_str]
+
+    src_file = PROJECT_ROOT / f_rel_str
+    if not src_file.exists():
+        info = {"excluded_lines": set(), "excl_br_lines": set(), "synthetic_lines": set()}
+        _source_file_cache[f_rel_str] = info
+        return info
+
+    lines = src_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+    excluded_lines = set()
+    excl_br_lines = set()
+    synthetic_lines = set()
+    in_excl_block = False
+
+    for idx, raw_l in enumerate(lines):
+        ln = idx + 1
+        lt = raw_l.strip()
+        if "//" in lt:
+            code_part = lt[:lt.index("//")].strip()
+            comment_part = lt[lt.index("//"):].strip()
+        else:
+            code_part = lt
+            comment_part = ""
+
+        # LCOV / GCOV region markers
+        if "LCOV_EXCL_START" in lt or "GCOV_EXCL_START" in lt:
+            in_excl_block = True
+            excluded_lines.add(ln)
+            continue
+        if "LCOV_EXCL_STOP" in lt or "GCOV_EXCL_STOP" in lt:
+            in_excl_block = False
+            excluded_lines.add(ln)
+            continue
+        if in_excl_block:
+            excluded_lines.add(ln)
+            continue
+
+        # Single line exclusions
+        if "LCOV_EXCL_LINE" in comment_part or "GCOV_EXCL_LINE" in comment_part:
+            excluded_lines.add(ln)
+            continue
+        if "LCOV_EXCL_BR_LINE" in comment_part or "GCOV_EXCL_BR_LINE" in comment_part:
+            excl_br_lines.add(ln)
+
+        # Synthetic compiler lines (closing/opening braces, standalone new/delete allocations without control flow)
+        if code_part in ["}", "{", "};", ")", ");", ""]:
+            synthetic_lines.add(ln)
+        elif ("new " in code_part or "delete " in code_part) and not CONTROL_FLOW_REGEX.search(code_part):
+            synthetic_lines.add(ln)
+
+    info = {
+        "excluded_lines": excluded_lines,
+        "excl_br_lines": excl_br_lines,
+        "synthetic_lines": synthetic_lines,
+    }
+    _source_file_cache[f_rel_str] = info
+    return info
+
+
 def process_gcov_json(data: Dict[str, Any], all_files_data: Dict[str, Dict[str, Any]]) -> None:
     """Process single gcov JSON structure and aggregate metrics into all_files_data."""
     for f in data.get("files", []):
@@ -201,13 +267,23 @@ def process_gcov_json(data: Dict[str, Any], all_files_data: Dict[str, Dict[str, 
 
             fn_landing_pads[fn_name] = landing_pads
 
+        src_info = get_source_file_info(f_rel_str)
+        excl_lines = src_info["excluded_lines"]
+        excl_br = src_info["excl_br_lines"]
+        synth_lines = src_info["synthetic_lines"]
+
         # Aggregate Lines
         for l in f.get("lines", []):
             ln = l.get("line_number", 0)
+            if ln in excl_lines:
+                continue
             cnt = l.get("count", 0)
             entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
             fn_name = l.get("function_name", "")
             lp = fn_landing_pads.get(fn_name, set())
+
+            is_synth = ln in synth_lines
+            is_excl_br = ln in excl_br or ln in excl_lines
 
             # Aggregate Branches on this line
             for bi, b in enumerate(l.get("branches", [])):
@@ -217,26 +293,48 @@ def process_gcov_json(data: Dict[str, Any], all_files_data: Dict[str, Dict[str, 
                 s_blk = b.get("source_block_id")
                 is_landing = bool(s_blk is not None and s_blk in lp)
                 if b_key not in entry["branches"]:
-                    entry["branches"][b_key] = {"count": cnt_br, "throw": is_throw, "landing_pad": is_landing}
+                    entry["branches"][b_key] = {
+                        "count": cnt_br,
+                        "throw": is_throw,
+                        "landing_pad": is_landing,
+                        "synthetic": is_synth,
+                        "excluded": is_excl_br,
+                    }
                 else:
                     if isinstance(entry["branches"][b_key], dict):
                         entry["branches"][b_key]["count"] += cnt_br
                         if is_landing:
                             entry["branches"][b_key]["landing_pad"] = True
+                        if is_synth:
+                            entry["branches"][b_key]["synthetic"] = True
+                        if is_excl_br:
+                            entry["branches"][b_key]["excluded"] = True
                     else:
-                        entry["branches"][b_key] = {"count": entry["branches"][b_key] + cnt_br, "throw": is_throw, "landing_pad": is_landing}
+                        entry["branches"][b_key] = {
+                            "count": entry["branches"][b_key] + cnt_br,
+                            "throw": is_throw,
+                            "landing_pad": is_landing,
+                            "synthetic": is_synth,
+                            "excluded": is_excl_br,
+                        }
 
             # Aggregate Conditions
             unexec_b = [b for b in l.get("branches", []) if b.get("count", 0) == 0]
             line_is_landing = bool(unexec_b and all(b.get("throw", False) or (b.get("source_block_id") is not None and b.get("source_block_id") in lp) for b in unexec_b))
             for c in l.get("conditions", []):
                 c_dict = dict(c)
+                c_dict["line_number"] = ln
                 if line_is_landing and c.get("covered", 0) == 0:
                     c_dict["landing_pad"] = True
+                if is_synth:
+                    c_dict["synthetic"] = True
+                if is_excl_br:
+                    c_dict["excluded"] = True
                 entry["conds"].append(c_dict)
 
             # Aggregate Calls
-            entry["calls"].extend(l.get("calls", []))
+            if not is_excl_br:
+                entry["calls"].extend(l.get("calls", []))
 
         # Aggregate Functions & Blocks
         for fn in f.get("functions", []):
@@ -282,24 +380,36 @@ def compute_metrics(all_files_data: Dict[str, Dict[str, Any]], exclude_throw_bra
                 cnt = b_val.get("count", 0)
                 is_throw = b_val.get("throw", False)
                 is_landing = b_val.get("landing_pad", False)
+                is_synth = b_val.get("synthetic", False)
+                is_excl = b_val.get("excluded", False)
             else:
                 cnt = b_val
                 is_throw = False
                 is_landing = False
+                is_synth = False
+                is_excl = False
 
             raw_br_tot += 1
             if cnt > 0:
                 raw_br_cov += 1
 
-            if exclude_throw_branches and (is_throw or is_landing):
+            if exclude_throw_branches and (is_throw or is_landing or is_synth or is_excl):
                 continue
 
             br_tot += 1
             if cnt > 0:
                 br_cov += 1
 
-        cd_tot = sum(c.get("count", 0) for c in d["conds"] if not (exclude_throw_branches and c.get("landing_pad", False)))
-        cd_cov = sum(c.get("covered", 0) for c in d["conds"] if not (exclude_throw_branches and c.get("landing_pad", False)))
+        cd_tot = sum(
+            c.get("count", 0)
+            for c in d["conds"]
+            if not (exclude_throw_branches and (c.get("landing_pad", False) or c.get("synthetic", False) or c.get("excluded", False)))
+        )
+        cd_cov = sum(
+            c.get("covered", 0)
+            for c in d["conds"]
+            if not (exclude_throw_branches and (c.get("landing_pad", False) or c.get("synthetic", False) or c.get("excluded", False)))
+        )
 
         cl_tot = len(d["calls"])
         cl_cov = sum(1 for c in d["calls"] if c.get("returned", 0) > 0)
@@ -481,7 +591,7 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
 
     md.append("")
     md.append("> [!NOTE]")
-    md.append("> **Branch Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`) are excluded from decision branches and shown transparently in raw metrics.")
+    md.append("> **Branch & Condition Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`), allocation checks (`new`/`delete`), and destructor cleanups are excluded from decision branches and shown transparently in raw metrics. Standard exclusion pragmas (`// GCOV_EXCL_LINE`, `// LCOV_EXCL_START`/`STOP`, `// GCOV_EXCL_BR_LINE`) are honored.")
     md.append("")
     md.append("### Architectural Subsystems Breakdown")
     md.append("")

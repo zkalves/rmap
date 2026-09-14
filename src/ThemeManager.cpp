@@ -69,9 +69,21 @@ AccessKind parseAccessKind(QStringView a)
     if (a == u"RW") return AccessKind::RW;
     if (a == u"RO") return AccessKind::RO;
     if (a == u"WO") return AccessKind::WO;
-    if (a == u"W1S" || a == u"W0S" || a == u"WS") return AccessKind::W1S;
-    if (a == u"W1C" || a == u"W0C" || a == u"WC" || a == u"W1" || a == u"W0") return AccessKind::W1C;
-    if (a == u"RC" || a == u"RS") return AccessKind::RC;
+    if (a == u"WO1") return AccessKind::WO;
+    if (a == u"WRC") return AccessKind::RW;
+    if (a == u"WRS") return AccessKind::RW;
+    if (a == u"W1S") return AccessKind::W1S;
+    if (a == u"W0S") return AccessKind::W1S;
+    if (a == u"WS") return AccessKind::W1S;
+    if (a == u"W1C") return AccessKind::W1C;
+    if (a == u"W0C") return AccessKind::W1C;
+    if (a == u"WC") return AccessKind::W1C;
+    if (a == u"W1T") return AccessKind::W1C;
+    if (a == u"W0T") return AccessKind::W1C;
+    if (a == u"W1") return AccessKind::W1C;
+    if (a == u"W0") return AccessKind::W1C;
+    if (a == u"RC") return AccessKind::RC;
+    if (a == u"RS") return AccessKind::RC;
     return AccessKind::NA;
 }
 } // namespace

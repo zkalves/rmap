@@ -54,7 +54,10 @@ FetchContent_Declare(inja
   GIT_TAG v3.3.0
   SYSTEM
 )
+set(PREV_CMAKE_WARN_DEPRECATED "${CMAKE_WARN_DEPRECATED}")
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(inja)
+set(CMAKE_WARN_DEPRECATED "${PREV_CMAKE_WARN_DEPRECATED}" CACHE BOOL "" FORCE)
 
 # Testing Support
 include(CTest)

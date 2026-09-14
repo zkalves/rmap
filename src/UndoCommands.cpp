@@ -81,7 +81,7 @@ void DeleteItemCommand::captureItem(RegMapTreeItem *item, StoredNode &node)
 {
     if (!item) return;
     node.kind = item->kind();
-    const QStringList cols = {"Type", "Offset/LSB", "Size/Width", "Name", "Access Policy", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
+    const QStringList cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
     for (const QString &col : cols) {
         node.colData[col] = item->data(col);
     }

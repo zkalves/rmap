@@ -1,0 +1,175 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_folders: "./templates"
+  template_folders: "./custom_templates"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm/reg_model.sv.inja"
+    output_filepath: "./work/uvm/reg_model.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rust/reg_map.rs.inja"
+    output_filepath: "./work/rust/reg_map.rs"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/html/reg_doc.html.inja"
+    output_filepath: "./work/html/reg_doc.html"
+  }
+  template_outputs {
+    template_filename: "./templates/markdown/reg_doc.md.inja"
+    output_filepath: "./work/markdown/reg_doc.md"
+  }
+  template_outputs {
+    template_filename: "./templates/systemrdl/reg_map.rdl.inja"
+    output_filepath: "./work/systemrdl/reg_map.rdl"
+  }
+  template_outputs {
+    template_filename: "./templates/ipxact/reg_map.xml.inja"
+    output_filepath: "./work/ipxact/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/svd/reg_map.xml.inja"
+    output_filepath: "./work/svd/reg_map.xml"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl_tb/tb_reg_map.sv.inja"
+    output_filepath: "./work/sim/tb_reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/pyuvm_tb/tb_pyuvm.py.inja"
+    output_filepath: "./work/sim/tb_pyuvm.py"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_if.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_if.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_bus_pkg.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_bus_pkg.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_env.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_env.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/reg_tests.sv.inja"
+    output_filepath: "./work/sim/uvm/reg_tests.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/uvm_tb/tb_top.sv.inja"
+    output_filepath: "./work/sim/uvm/tb_top.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/sim/Makefile.inja"
+    output_filepath: "./work/sim/Makefile"
+  }
+  reg_width: 32
+  project_name: "MultiTemplateSearch_Demo"
+  project_version: "1.0.0"
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  itemData {
+    key: "Name"
+    value: "SAMPLE_BLOCK"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0000"
+  }
+  itemData {
+    key: "Description"
+    value: "Sample block exercising multiple template search folders"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  itemData {
+    key: "Name"
+    value: "SAMPLE_REG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Description"
+    value: "Sample Register"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "VAL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x42"
+  }
+  itemData {
+    key: "Description"
+    value: "Value field"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

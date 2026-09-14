@@ -30,7 +30,7 @@ All delegate classes inherit directly or indirectly from `QStyledItemDelegate` (
 ### 4. Free Functions
 
 #### AccessColors getAccessPolicyColors(const QString &access, bool colorBlind)
-Returns the background, border, and text `QColor` structures for a given access policy (`RW`, `RO`, `WO`, `W1C`, `W0C`, `RC`, `RS`, `W1S`, `NA`). If `colorBlind` is `true`, applies the barrier-free Okabe-Ito / Wong CVD palette.
+Returns the background, border, and text `QColor` structures for a given access policy (`RW`, `RO`, `WO`, `W1C`, `W0C`, `RC`, `RS`, `W1S`, `W1`, `WO1`, `WRC`, `WRS`, `NA`). If `colorBlind` is `true`, applies the barrier-free Okabe-Ito / Wong CVD palette.
 
 ### 5. Public Methods by Class
 

@@ -33,5 +33,5 @@ else
     echo "Note: Pelican is not installed locally. To install Pelican and Markdown:"
     echo "  pip install pelican markdown"
     echo "Markdown documentation files remain accessible in $PROJECT_ROOT/docs"
-    exit 1
+    exit 0
 fi
