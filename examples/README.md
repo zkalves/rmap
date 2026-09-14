@@ -14,7 +14,7 @@ This directory contains curated reference register maps, multi-format exchange m
 
 ## Directory Overview
 
-```
+```text
 examples/
 ├── README.md                 # This comprehensive documentation guide
 ├── Makefile                  # Automated runner executing all example environments (make test-examples)
@@ -183,6 +183,35 @@ make validate
 cd examples/environments/spi
 make clean
 ```
+
+### Standalone Portability: Copying Examples Outside the Repository
+
+The entire `examples/` directory is designed to be 100% self-contained and portable. After installing `rmap` to your system (e.g., via `sudo make install` to `/usr/local` or `make install PREFIX=$HOME/.local`), you can copy the `examples/` directory to any folder or project directory and run the environments directly:
+
+```bash
+# 1. Copy the installed examples directory to your preferred workspace
+cp -r /usr/local/share/rmap/examples ~/my_rmap_eval
+# (Or if installed to ~/.local):
+# cp -r ~/.local/share/rmap/examples ~/my_rmap_eval
+
+cd ~/my_rmap_eval
+
+# 2. Run simulation and compilation across all 17 environments simultaneously
+make all
+
+# 3. Or enter any individual environment and execute its targets
+cd environments/spi
+make all
+make compile-c
+make run-python
+make sim-rtl
+make clean
+```
+
+**Portability Architecture:**
+- **Automatic Binary Discovery**: Each environment Makefile dynamically checks for `rmap` in the local build directory (`../../build/bin/rmap`), seamlessly falling back to `rmap` located in the system `PATH`.
+- **Automatic Template Resolution**: When running outside the git repository, `rmap` automatically resolves default templates from the installed asset path (`<prefix>/share/rmap/templates`).
+- **Zero External Path Dependencies**: Register map inputs (`.rmt`), C firmware assertions (`test_harness.c`), Rust PAC harnesses (`test_harness.rs`), and Python driver scripts (`test_harness.py`) all resolve strictly within the local `examples/` tree.
 
 ---
 
