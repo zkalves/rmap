@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -75,6 +75,10 @@ test-templates: rmap
 # Run autonomous simulation and compilation across all example environments
 test-examples: rmap
 	@$(MAKE) -C examples all
+
+# Run UVM verification simulation across example environments (SIM=vcs, SIM=xrun, SIM=mti, UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d)
+sim-uvm: rmap
+	@$(MAKE) -C examples sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME)
 
 # Run complete verification: unit tests, template verification, and all example environments
 test-all: test-unit test-templates test-examples

@@ -8,7 +8,7 @@ export RMAP_TEMPLATES_DIR ?= $(abspath $(CURDIR)/../templates)
 
 ENVIRONMENTS := $(wildcard environments/*)
 
-.PHONY: all clean $(ENVIRONMENTS)
+.PHONY: all clean sim-uvm $(ENVIRONMENTS)
 
 all:
 	@echo "=== Running Autonomous Simulation & Compilation Across All Examples ==="
@@ -27,9 +27,18 @@ all:
 	@echo "✓ All $(words $(ENVIRONMENTS)) example environments PASSED successfully!"
 	@echo "================================================================"
 
+sim-uvm:
+	@echo "=== Running UVM Verification Across Examples ==="
+	@for env in $(ENVIRONMENTS); do \
+		if [ -d "$$env" ]; then \
+			$(MAKE) -C "$$env" sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) || exit 1; \
+		fi; \
+	done
+
 clean:
 	@for env in $(ENVIRONMENTS); do \
 		if [ -d "$$env" ]; then \
 			$(MAKE) -C "$$env" clean; \
 		fi; \
 	done
+

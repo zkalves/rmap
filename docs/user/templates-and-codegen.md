@@ -97,6 +97,7 @@ When templates are executed, the full register map model is exposed as a JSON st
    - `uvm_mem` instance and address mapping integration for hardware memory windows.
    - Backdoor HDL access paths (`add_hdl_path`).
    - Functional coverage sampling hooks.
+   - Universal multi-version UVM compatibility across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020 via version macros, conditional `post_predict` parameter typing, and `uvm_door_e` / `uvm_path_e` compatibility aliases.
 
 3. **C/C++ Firmware Header (`c/reg_map.h.inja`)**:
    - Clean register address offsets and bitfield definitions.
@@ -132,6 +133,20 @@ When templates are executed, the full register map model is exposed as a JSON st
 
 11. **JSON Schema Specification (`json/reg_map.json.inja`)**:
     - Formatted JSON register map schema export for custom tooling, CI scripts, and automation pipelines.
+
+12. **Self-Checking RTL Testbench (`rtl_tb/tb_reg_map.sv.inja`)**:
+    - Standalone SystemVerilog testbench exercising reset values, read/write accesses, bitfield masks, and read-only/write-1-to-clear behaviors in Icarus Verilog or Verilator.
+
+13. **Open-Source Python UVM Testbench (`pyuvm_tb/tb_pyuvm.py.inja`)**:
+    - Complete Python verification testbench utilizing Cocotb and pyuvm to run register tests headlessly with open-source simulators.
+
+14. **Universal UVM Verification Environment (`uvm_tb/*.sv.inja`)**:
+    - Complete modular UVM testbench suite containing generic bus interface (`reg_bus_if.sv`), bus VIP package (`reg_bus_pkg.sv`), register environment (`reg_env.sv`), built-in test sequences (`reg_tests.sv`), and top-level harness (`tb_top.sv`).
+    - Compatible across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020.
+
+15. **Multi-Tool Simulation Makefile (`sim/Makefile.inja`)**:
+    - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and commercial EDA simulators (`sim-uvm SIM=vcs|xrun|mti`).
+    - Configurable UVM version selection via `UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d` or custom path via `UVM_HOME=/path/to/uvm`, with automatic local repository discovery.
 
 ---
 
@@ -228,6 +243,10 @@ Every template in `templates/` is validated through automated test pipelines in 
   - **`ipxact`**: Validates IEEE 1685-2014 XML schema hierarchy, namespaces, memory maps, address blocks, registers, and fields with `xml.etree` and `xmllint`.
   - **`svd`**: Validates ARM CMSIS-SVD 1.3 XML schema, peripherals, registers, and bit ranges.
   - **`json`**: Validates JSON schema correctness, block/register/field nesting, and verifies strict boolean/integer data types.
+  - **`rtl_tb`**: Validates self-checking testbench syntax, reset verification, and read/write register checks.
+  - **`pyuvm_tb`**: Validates Python syntax via `py_compile`, Cocotb `@cocotb.test()` decorators, and pyuvm sequence inheritance.
+  - **`uvm_tb`**: Validates universal UVM testbench suite, agent, VIP driver/monitor/adapter, reset/access test sequences, and multi-version `uvm_revision_string()` version reporting.
+  - **`sim_makefile`**: Validates multi-tool simulation targets (`sim-rtl`, `sim-verilator`, `sim-pyuvm`, `sim-uvm`) and UVM version selection variables (`UVM_VER`, `1800.2-2020`, `1800.2-2017`, `1.2`, `1.1d`).
 
 - **Local Execution**:
   ```bash
