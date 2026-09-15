@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     bool headless_mode = false;
     const char* disp = std::getenv("DISPLAY");
     const char* wayland = std::getenv("WAYLAND_DISPLAY");
-    if (!disp && !wayland) {
+    if ((!disp || disp[0] == '\0') && (!wayland || wayland[0] == '\0')) {
         headless_mode = true;
     }
     for (int i = 1; i < argc; ++i) {
@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
             arg == "--convert" || arg == "-c" ||
             arg == "--lint" || arg == "-l" ||
             arg == "--diff" || arg == "-d" ||
+            arg == "--strict" ||
             arg == "--help" || arg == "-h" ||
             arg == "--version" || arg == "-v") {
             headless_mode = true;

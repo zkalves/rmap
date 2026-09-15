@@ -916,12 +916,170 @@ def test_sim_makefile(rmap_bin, work_dir):
     print("✓ Simulation Makefile template verified successfully.\n")
 
 
+def export_bus_wrapper(template_name, rmap_bin, target_work_dir):
+    os.makedirs(target_work_dir, exist_ok=True)
+    comp_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "features", "comprehensive.rmt")
+    spi_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "peripherals", "spi.rmt")
+
+    with open(comp_rmt, "r") as f:
+        comp_text = f.read()
+
+    custom_entry = f'''  template_outputs {{
+    template_filename: "./templates/rtl/{template_name}_reg_file.sv.inja"
+    output_filepath: "./work/rtl/{template_name}_reg_file.sv"
+  }}
+'''
+    marker = '    output_filepath: "./work/rtl/reg_map.sv"\n  }'
+    comp_wrapped = comp_text.replace(marker, marker + "\n" + custom_entry)
+
+    tmp_comp_rmt = os.path.join(target_work_dir, f"comp_{template_name}.rmt")
+    with open(tmp_comp_rmt, "w") as f:
+        f.write(comp_wrapped)
+
+    with open(spi_rmt, "r") as f:
+        spi_text = f.read()
+    spi_wrapped = spi_text.replace(marker, marker + "\n" + custom_entry)
+    tmp_spi_rmt = os.path.join(target_work_dir, f"spi_{template_name}.rmt")
+    with open(tmp_spi_rmt, "w") as f:
+        f.write(spi_wrapped)
+
+    comp_out = os.path.join(target_work_dir, "comprehensive")
+    spi_out = os.path.join(target_work_dir, "spi")
+    os.makedirs(comp_out, exist_ok=True)
+    os.makedirs(spi_out, exist_ok=True)
+
+    run_command([rmap_bin, "-f", tmp_comp_rmt, "-e", "-o", comp_out], cwd=PROJECT_ROOT)
+    run_command([rmap_bin, "-f", tmp_spi_rmt, "-e", "-o", spi_out], cwd=PROJECT_ROOT)
+    return comp_out, spi_out
+
+
+# =============================================================================
+# 16. AMBA APB4 Wrapper Validator
+# =============================================================================
+def test_apb(rmap_bin, work_dir):
+    print("Testing 'apb' template (AMBA APB4 Protocol Wrapper)...")
+    comp_out, spi_out = export_bus_wrapper("apb", rmap_bin, work_dir)
+
+    rtl_comp_file = os.path.join(comp_out, "rtl", "reg_map.sv")
+    apb_comp_file = os.path.join(comp_out, "rtl", "apb_reg_file.sv")
+    rtl_spi_file = os.path.join(spi_out, "rtl", "reg_map.sv")
+    apb_spi_file = os.path.join(spi_out, "rtl", "apb_reg_file.sv")
+
+    assert os.path.isfile(apb_comp_file), f"APB output '{apb_comp_file}' not found!"
+    assert os.path.isfile(apb_spi_file), f"APB output '{apb_spi_file}' not found!"
+
+    with open(apb_comp_file, "r") as f:
+        content = f.read()
+
+    # Structural assertions
+    assert "timeunit 1ns;" in content
+    assert "timeprecision 1ps;" in content
+    assert "module core_subsystem_apb_reg_file" in content
+    assert "input  logic                      pclk_i" in content
+    assert "input  logic                      prst_ni" in content
+    assert "input  logic                      psel_i" in content
+    assert "input  logic                      penable_i" in content
+    assert "input  logic                      pwrite_i" in content
+    assert "input  logic [ADDR_WIDTH-1:0]     paddr_i" in content
+    assert "input  logic [DATA_WIDTH-1:0]     pwdata_i" in content
+    assert "input  logic [STRB_WIDTH-1:0]     pstrb_i" in content
+    assert "input  logic [2:0]                pprot_i" in content
+    assert "output logic                      pready_o" in content
+    assert "output logic [DATA_WIDTH-1:0]     prdata_o" in content
+    assert "output logic                      pslverr_o" in content
+    assert "core_subsystem_reg_file #(" in content
+
+    # Verilator lint if installed
+    verilator_bin = find_verilator()
+    if verilator_bin:
+        ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
+        print(f"  Verilator: {ver_info}")
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file, apb_comp_file])
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_spi_file, apb_spi_file])
+        print("  ✓ Verilator lint checks passed.")
+
+    # Icarus Verilog if installed
+    iverilog_bin = shutil.which("iverilog")
+    if iverilog_bin:
+        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_comp_file, apb_comp_file])
+        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_spi_file, apb_spi_file])
+        print("  ✓ Icarus Verilog syntax checks passed.")
+
+    print("✓ APB template verified successfully.\n")
+
+
+# =============================================================================
+# 17. AMBA AXI4-Lite Wrapper Validator
+# =============================================================================
+def test_axil(rmap_bin, work_dir):
+    print("Testing 'axil' template (AMBA AXI4-Lite Protocol Wrapper)...")
+    comp_out, spi_out = export_bus_wrapper("axil", rmap_bin, work_dir)
+
+    rtl_comp_file = os.path.join(comp_out, "rtl", "reg_map.sv")
+    axil_comp_file = os.path.join(comp_out, "rtl", "axil_reg_file.sv")
+    rtl_spi_file = os.path.join(spi_out, "rtl", "reg_map.sv")
+    axil_spi_file = os.path.join(spi_out, "rtl", "axil_reg_file.sv")
+
+    assert os.path.isfile(axil_comp_file), f"AXI4-Lite output '{axil_comp_file}' not found!"
+    assert os.path.isfile(axil_spi_file), f"AXI4-Lite output '{axil_spi_file}' not found!"
+
+    with open(axil_comp_file, "r") as f:
+        content = f.read()
+
+    # Structural assertions
+    assert "timeunit 1ns;" in content
+    assert "timeprecision 1ps;" in content
+    assert "module core_subsystem_axil_reg_file" in content
+    assert "input  logic                      aclk_i" in content
+    assert "input  logic                      aresetn_i" in content
+    assert "input  logic [ADDR_WIDTH-1:0]     s_axil_awaddr_i" in content
+    assert "input  logic [2:0]                s_axil_awprot_i" in content
+    assert "input  logic                      s_axil_awvalid_i" in content
+    assert "output logic                      s_axil_awready_o" in content
+    assert "input  logic [DATA_WIDTH-1:0]     s_axil_wdata_i" in content
+    assert "input  logic [STRB_WIDTH-1:0]     s_axil_wstrb_i" in content
+    assert "input  logic                      s_axil_wvalid_i" in content
+    assert "output logic                      s_axil_wready_o" in content
+    assert "output logic [1:0]                s_axil_bresp_o" in content
+    assert "output logic                      s_axil_bvalid_o" in content
+    assert "input  logic                      s_axil_bready_i" in content
+    assert "input  logic [ADDR_WIDTH-1:0]     s_axil_araddr_i" in content
+    assert "input  logic [2:0]                s_axil_arprot_i" in content
+    assert "input  logic                      s_axil_arvalid_i" in content
+    assert "output logic                      s_axil_arready_o" in content
+    assert "output logic [DATA_WIDTH-1:0]     s_axil_rdata_o" in content
+    assert "output logic [1:0]                s_axil_rresp_o" in content
+    assert "output logic                      s_axil_rvalid_o" in content
+    assert "input  logic                      s_axil_rready_i" in content
+    assert "core_subsystem_reg_file #(" in content
+
+    # Verilator lint if installed
+    verilator_bin = find_verilator()
+    if verilator_bin:
+        ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
+        print(f"  Verilator: {ver_info}")
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file, axil_comp_file])
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_spi_file, axil_spi_file])
+        print("  ✓ Verilator lint checks passed.")
+
+    # Icarus Verilog if installed
+    iverilog_bin = shutil.which("iverilog")
+    if iverilog_bin:
+        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_comp_file, axil_comp_file])
+        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_spi_file, axil_spi_file])
+        print("  ✓ Icarus Verilog syntax checks passed.")
+
+    print("✓ AXI4-Lite template verified successfully.\n")
+
+
 # =============================================================================
 # Main Dispatcher
 # =============================================================================
 TEMPLATES = {
     "c": test_c,
     "rtl": test_rtl,
+    "apb": test_apb,
+    "axil": test_axil,
     "uvm": test_uvm,
     "rust": test_rust,
     "python": test_python,

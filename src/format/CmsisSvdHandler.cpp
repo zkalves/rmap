@@ -58,6 +58,69 @@ uint64_t parseSvdNum(const QString &str) {
     return s.toULongLong(nullptr, 10);
 }
 
+RegMapTreeItem* cloneTreeItem(const RegMapTreeItem *src, RegMapTreeItem *parent) {
+    if (!src) return nullptr;
+    static const QVector<QString> cols = {
+        "Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access",
+        "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description",
+        "Access Policy", "Offset", "Size"
+    };
+    QVariantMap data;
+    for (const QString &col : cols) {
+        QVariant val = src->data(col);
+        if (val.isValid() && !val.isNull()) {
+            data[col] = val;
+        }
+    }
+    RegMapTreeItem *clone = new RegMapTreeItem(src->kind(), data, parent);
+    for (RegMapTreeItem *child : src->getChildItems()) {
+        RegMapTreeItem *childClone = cloneTreeItem(child, clone);
+        if (childClone) {
+            clone->appendChild(childClone);
+        }
+    }
+    return clone;
+}
+
+QStringList parseDimIndex(const QString &dimIndexStr, uint32_t dim) {
+    QStringList result;
+    QString s = dimIndexStr.trimmed();
+    if (!s.isEmpty()) {
+        if (s.contains(',')) {
+            QStringList parts = s.split(',', Qt::SkipEmptyParts);
+            for (const QString &p : parts) {
+                result.append(p.trimmed());
+            }
+        } else if (s.contains('-')) {
+            QStringList parts = s.split('-');
+            if (parts.size() == 2) {
+                QString startStr = parts[0].trimmed();
+                QString endStr = parts[1].trimmed();
+                bool okStart = false, okEnd = false;
+                qlonglong startNum = startStr.toLongLong(&okStart);
+                qlonglong endNum = endStr.toLongLong(&okEnd);
+                if (okStart && okEnd && startNum <= endNum) {
+                    for (qlonglong n = startNum; n <= endNum; ++n) {
+                        result.append(QString::number(n));
+                    }
+                } else if (startStr.length() == 1 && endStr.length() == 1 && startStr[0] <= endStr[0]) {
+                    char startChar = startStr[0].toLatin1();
+                    char endChar = endStr[0].toLatin1();
+                    for (char c = startChar; c <= endChar; ++c) {
+                        result.append(QString(QChar(c)));
+                    }
+                }
+            }
+        } else {
+            result.append(s);
+        }
+    }
+    for (uint32_t i = result.size(); i < dim; ++i) {
+        result.append(QString::number(i));
+    }
+    return result;
+}
+
 } // anonymous namespace
 
 FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
@@ -80,6 +143,11 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
     RegMapTreeItem *currentBlock = nullptr;
     RegMapTreeItem *currentReg = nullptr;
     RegMapTreeItem *currentField = nullptr;
+
+    uint32_t currentRegDim = 1;
+    uint64_t currentRegDimInc = 0;
+    QString currentRegDimIndex;
+    QVector<QPair<RegMapTreeItem*, QString>> pendingDerived;
 
     QString deviceName = "MCU_Device";
     uint32_t globalWidth = 32;
@@ -105,6 +173,13 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
                 blkData["Description"] = "";
                 currentBlock = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem);
                 rootItem->appendChild(currentBlock);
+
+                if (xml.attributes().hasAttribute("derivedFrom")) {
+                    QString target = xml.attributes().value("derivedFrom").toString().trimmed();
+                    if (!target.isEmpty()) {
+                        pendingDerived.append({currentBlock, target});
+                    }
+                }
             } else if (name == "name" && currentBlock && !currentReg && !currentField) {
                 currentBlock->setData("Name", xml.readElementText());
             } else if (name == "baseAddress" && currentBlock && !currentReg && !currentField) {
@@ -114,6 +189,10 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
                 currentBlock->setData("Description", xml.readElementText());
             } else if (name == "register") {
                 // Register container
+                currentRegDim = 1;
+                currentRegDimInc = 0;
+                currentRegDimIndex.clear();
+
                 QVariantMap regData;
                 regData["Type"] = "reg";
                 regData["Offset/LSB"] = "0x0";
@@ -126,6 +205,12 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
                 currentReg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, currentBlock ? currentBlock : rootItem);
                 if (currentBlock) currentBlock->appendChild(currentReg);
                 else rootItem->appendChild(currentReg);
+            } else if (name == "dim" && currentReg && !currentField) {
+                currentRegDim = xml.readElementText().toUInt();
+            } else if (name == "dimIncrement" && currentReg && !currentField) {
+                currentRegDimInc = parseSvdNum(xml.readElementText());
+            } else if (name == "dimIndex" && currentReg && !currentField) {
+                currentRegDimIndex = xml.readElementText().trimmed();
             } else if (name == "name" && currentReg && !currentField) {
                 currentReg->setData("Name", xml.readElementText());
             } else if (name == "addressOffset" && currentReg && !currentField) {
@@ -180,9 +265,45 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
             }
         } else if (token == QXmlStreamReader::EndElement) {
             QString name = xml.name().toString();
-            if (name == "field") currentField = nullptr;
-            else if (name == "register") currentReg = nullptr;
-            else if (name == "peripheral") currentBlock = nullptr;
+            if (name == "field") {
+                currentField = nullptr;
+            } else if (name == "register") {
+                if (currentReg) {
+                    if (currentRegDim == 0) currentRegDim = 1;
+                    if (currentRegDimInc == 0) {
+                        uint32_t rsize = currentReg->data("Size/Width").toUInt();
+                        if (rsize == 0) rsize = globalWidth;
+                        currentRegDimInc = (rsize + 7) / 8;
+                    }
+                    QStringList indices = parseDimIndex(currentRegDimIndex, currentRegDim);
+                    QString rawName = currentReg->data("Name").toString();
+                    QString rawDesc = currentReg->data("Description").toString();
+                    uint64_t baseOffset = parseSvdNum(currentReg->data("Offset/LSB").toString());
+
+                    QString idx0 = indices.value(0, "0");
+                    QString name0 = rawName.contains("%s") ? QString(rawName).replace("%s", idx0) : (currentRegDim > 1 ? rawName + idx0 : rawName);
+                    QString desc0 = rawDesc.contains("%s") ? QString(rawDesc).replace("%s", idx0) : rawDesc;
+                    currentReg->setData("Name", name0);
+                    currentReg->setData("Description", desc0);
+
+                    for (uint32_t i = 1; i < currentRegDim; ++i) {
+                        QString idx = indices.value(i, QString::number(i));
+                        QString nameI = rawName.contains("%s") ? QString(rawName).replace("%s", idx) : rawName + idx;
+                        QString descI = rawDesc.contains("%s") ? QString(rawDesc).replace("%s", idx) : rawDesc;
+                        uint64_t offI = baseOffset + i * currentRegDimInc;
+
+                        RegMapTreeItem *newReg = cloneTreeItem(currentReg, currentBlock ? currentBlock : rootItem);
+                        newReg->setData("Name", nameI);
+                        newReg->setData("Description", descI);
+                        newReg->setData("Offset/LSB", QString("0x%1").arg(offI, 0, 16));
+                        if (currentBlock) currentBlock->appendChild(newReg);
+                        else rootItem->appendChild(newReg);
+                    }
+                }
+                currentReg = nullptr;
+            } else if (name == "peripheral") {
+                currentBlock = nullptr;
+            }
         }
     }
 
@@ -191,6 +312,44 @@ FormatResult CmsisSvdHandler::read(const QString &filepath, RegMapTreeModel *mod
         result.success = false;
         result.errorMessage = QString("XML Parse Error: %1 (line %2)").arg(xml.errorString()).arg(xml.lineNumber());
         return result;
+    }
+
+    // Resolve derived peripherals
+    bool progress = true;
+    int maxPasses = pendingDerived.size();
+    while (progress && maxPasses-- > 0) {
+        progress = false;
+        for (const auto &pair : pendingDerived) {
+            RegMapTreeItem *derivedBlk = pair.first;
+            const QString &targetName = pair.second;
+            RegMapTreeItem *srcBlk = nullptr;
+            for (RegMapTreeItem *blk : rootItem->getChildItems()) {
+                if (blk && blk != derivedBlk && blk->data("Name").toString() == targetName) {
+                    srcBlk = blk;
+                    break;
+                }
+            }
+            if (srcBlk) {
+                if (derivedBlk->data("Description").toString().isEmpty() && !srcBlk->data("Description").toString().isEmpty()) {
+                    derivedBlk->setData("Description", srcBlk->data("Description"));
+                }
+                for (RegMapTreeItem *srcReg : srcBlk->getChildItems()) {
+                    if (!srcReg || srcReg->kindString() != "reg") continue;
+                    bool exists = false;
+                    for (RegMapTreeItem *existingReg : derivedBlk->getChildItems()) {
+                        if (existingReg && existingReg->data("Name").toString() == srcReg->data("Name").toString()) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        RegMapTreeItem *clonedReg = cloneTreeItem(srcReg, derivedBlk);
+                        derivedBlk->appendChild(clonedReg);
+                        progress = true;
+                    }
+                }
+            }
+        }
     }
 
     model->setRootItem(rootItem);

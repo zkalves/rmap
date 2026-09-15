@@ -45,6 +45,7 @@ private slots:
     void testMultiSourceTemplateMappings();
     void testNewNamingAndTypeHelpers();
     void testFullGenerationGenericRtl();
+    void testFullGenerationApbAndAxilWrappers();
     void testFullGenerationRtlWithMemories();
     void testFullGenerationRustPac();
     void testFullGenerationPythonDriver();
@@ -672,6 +673,89 @@ void TestCodeGenerator::testFullGenerationGenericRtl()
     QVERIFY(content.contains("always_ff @(posedge clk_i or negedge rst_ni)"));
     QVERIFY(content.contains("always_comb begin : proc_ctrl_next"));
     QVERIFY(content.contains("always_comb begin : proc_read_decode"));
+}
+
+void TestCodeGenerator::testFullGenerationApbAndAxilWrappers()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SPI_PROTOCOL";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json blk;
+    blk["name"] = "SPI_CORE";
+
+    json reg;
+    reg["name"] = "CTRL";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["description"] = "Control Register";
+
+    json fld;
+    fld["name"] = "ENABLE";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 1;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["description"] = "Enable Core";
+
+    reg["fields"] = json::array({fld});
+    blk["registers"] = json::array({reg});
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/rtl/spi_core_reg_file.sv"});
+    mappings.push_back({"templates/rtl/apb_reg_file.sv.inja", "work/rtl/spi_core_apb_reg_file.sv"});
+    mappings.push_back({"templates/rtl/axil_reg_file.sv.inja", "work/rtl/spi_core_axil_reg_file.sv"});
+
+    GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
+    QVERIFY(!report.has_errors());
+
+    // APB wrapper checks
+    QFile apbOut("work/rtl/spi_core_apb_reg_file.sv");
+    QVERIFY(apbOut.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString apbContent = apbOut.readAll();
+    apbOut.close();
+    QVERIFY(apbContent.contains("module spi_core_apb_reg_file"));
+    QVERIFY(apbContent.contains("input  logic                      pclk_i"));
+    QVERIFY(apbContent.contains("input  logic                      prst_ni"));
+    QVERIFY(apbContent.contains("input  logic                      psel_i"));
+    QVERIFY(apbContent.contains("input  logic                      penable_i"));
+    QVERIFY(apbContent.contains("input  logic                      pwrite_i"));
+    QVERIFY(apbContent.contains("input  logic [ADDR_WIDTH-1:0]     paddr_i"));
+    QVERIFY(apbContent.contains("input  logic [DATA_WIDTH-1:0]     pwdata_i"));
+    QVERIFY(apbContent.contains("input  logic [STRB_WIDTH-1:0]     pstrb_i"));
+    QVERIFY(apbContent.contains("output logic                      pready_o"));
+    QVERIFY(apbContent.contains("output logic [DATA_WIDTH-1:0]     prdata_o"));
+    QVERIFY(apbContent.contains("output logic                      pslverr_o"));
+    QVERIFY(apbContent.contains("spi_core_reg_file #("));
+
+    // AXI4-Lite wrapper checks
+    QFile axilOut("work/rtl/spi_core_axil_reg_file.sv");
+    QVERIFY(axilOut.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString axilContent = axilOut.readAll();
+    axilOut.close();
+    QVERIFY(axilContent.contains("module spi_core_axil_reg_file"));
+    QVERIFY(axilContent.contains("input  logic                      aclk_i"));
+    QVERIFY(axilContent.contains("input  logic                      aresetn_i"));
+    QVERIFY(axilContent.contains("input  logic [ADDR_WIDTH-1:0]     s_axil_awaddr_i"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_awready_o"));
+    QVERIFY(axilContent.contains("input  logic [DATA_WIDTH-1:0]     s_axil_wdata_i"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_wready_o"));
+    QVERIFY(axilContent.contains("output logic [1:0]                s_axil_bresp_o"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_bvalid_o"));
+    QVERIFY(axilContent.contains("input  logic [ADDR_WIDTH-1:0]     s_axil_araddr_i"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_arready_o"));
+    QVERIFY(axilContent.contains("output logic [DATA_WIDTH-1:0]     s_axil_rdata_o"));
+    QVERIFY(axilContent.contains("output logic [1:0]                s_axil_rresp_o"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_rvalid_o"));
+    QVERIFY(axilContent.contains("spi_core_reg_file #("));
 }
 
 void TestCodeGenerator::testFullGenerationRtlWithMemories()
@@ -1358,11 +1442,13 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration()
 
     GenerationReport report = cg.parseDirectory(root, "templates", "work");
     QVERIFY(!report.has_errors());
-    QCOMPARE(report.success_files.size(), (size_t)19);
+    QCOMPARE(report.success_files.size(), (size_t)21);
 
     // Verify each expected output subfolder contains its rendered file
     QVERIFY(QFile::exists("work/c/reg_map.h"));
     QVERIFY(QFile::exists("work/rtl/reg_map.sv"));
+    QVERIFY(QFile::exists("work/rtl/apb_reg_file.sv"));
+    QVERIFY(QFile::exists("work/rtl/axil_reg_file.sv"));
     QVERIFY(QFile::exists("work/uvm/reg_model.sv"));
     QVERIFY(QFile::exists("work/rust/reg_map.rs"));
     QVERIFY(QFile::exists("work/python/reg_map.py"));

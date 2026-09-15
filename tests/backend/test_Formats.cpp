@@ -44,6 +44,7 @@ private slots:
     void test_SystemRdlExtendedSyntaxAndErrors();
     void test_IpxactExtendedSyntaxAndErrors();
     void test_CmsisSvdExtendedSyntaxAndErrors();
+    void test_CmsisSvdDimAndDerivedFrom();
     void test_CsvExtendedSyntaxAndErrors();
     void test_JsonExtendedSyntaxAndErrors();
     void test_FormatManagerEdgeCases();
@@ -1129,6 +1130,192 @@ void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
     // Error cases: read non-existent, write uncreatable path
     QVERIFY(!handler.read("work/test_formats/non_existent.svd", &model, nullptr).success);
     QVERIFY(!handler.write("/non_existent_directory_xyz/file.svd", &svdSynModel, nullptr).success);
+}
+
+void TestFormats::test_CmsisSvdDimAndDerivedFrom()
+{
+    QString svdContent = R"(<?xml version="1.0" encoding="utf-8"?>
+    <device schemaVersion="1.3">
+        <name>SvdAdvancedMCU</name>
+        <size>32</size>
+        <peripherals>
+            <peripheral>
+                <name>GPIO0</name>
+                <description>GPIO Peripheral 0</description>
+                <baseAddress>0x40000000</baseAddress>
+                <registers>
+                    <!-- Array with comma-separated dimIndex and %s in name and desc -->
+                    <register>
+                        <dim>4</dim>
+                        <dimIncrement>0x4</dimIncrement>
+                        <dimIndex>0,1,2,3</dimIndex>
+                        <name>PIN[%s]</name>
+                        <description>Pin register %s</description>
+                        <addressOffset>0x00</addressOffset>
+                        <size>32</size>
+                        <access>read-write</access>
+                        <resetValue>0x0</resetValue>
+                        <fields>
+                            <field>
+                                <name>VAL</name>
+                                <bitOffset>0</bitOffset>
+                                <bitWidth>1</bitWidth>
+                                <access>read-write</access>
+                            </field>
+                            <field>
+                                <name>PULL</name>
+                                <bitOffset>1</bitOffset>
+                                <bitWidth>2</bitWidth>
+                                <access>read-write</access>
+                            </field>
+                        </fields>
+                    </register>
+                    <!-- Array with range dimIndex A-D and %s in name -->
+                    <register>
+                        <dim>4</dim>
+                        <dimIncrement>0x8</dimIncrement>
+                        <dimIndex>A-D</dimIndex>
+                        <name>PORT_%s</name>
+                        <description>Port register</description>
+                        <addressOffset>0x20</addressOffset>
+                        <size>32</size>
+                        <access>read-write</access>
+                    </register>
+                    <!-- Array without %s (auto-append index) and numeric range 0-2 -->
+                    <register>
+                        <dim>3</dim>
+                        <dimIncrement>4</dimIncrement>
+                        <dimIndex>0-2</dimIndex>
+                        <name>STATUS</name>
+                        <addressOffset>0x40</addressOffset>
+                        <size>32</size>
+                    </register>
+                    <!-- Array with dim but no dimIndex (auto 0..dim-1) -->
+                    <register>
+                        <dim>2</dim>
+                        <dimIncrement>4</dimIncrement>
+                        <name>INT_EN_%s</name>
+                        <addressOffset>0x50</addressOffset>
+                        <size>32</size>
+                    </register>
+                </registers>
+            </peripheral>
+            <!-- Derived peripheral inheriting from GPIO0 -->
+            <peripheral derivedFrom="GPIO0">
+                <name>GPIO1</name>
+                <description>GPIO Peripheral 1</description>
+                <baseAddress>0x40001000</baseAddress>
+            </peripheral>
+            <!-- Chained derived peripheral: GPIO2 derivedFrom GPIO1 -->
+            <peripheral derivedFrom="GPIO1">
+                <name>GPIO2</name>
+                <baseAddress>0x40002000</baseAddress>
+            </peripheral>
+        </peripherals>
+    </device>
+    )";
+
+    QString svdPath = "work/test_formats/dim_derived.svd";
+    QFile f(svdPath);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write(svdContent.toUtf8());
+    f.close();
+
+    RegMapTreeModel model;
+    RegConfigWindow config;
+    CmsisSvdHandler handler;
+    FormatResult res = handler.read(svdPath, &model, &config);
+    QVERIFY2(res.success, qPrintable(res.errorMessage));
+
+    RegMapTreeItem *root = model.getRootItem();
+    QVERIFY(root != nullptr);
+    QCOMPARE(root->childCount(), 3); // GPIO0, GPIO1, GPIO2
+
+    RegMapTreeItem *gpio0 = root->child(0);
+    QCOMPARE(gpio0->data("Name").toString(), "GPIO0");
+    QCOMPARE(gpio0->data("Offset/LSB").toString(), "0x40000000");
+
+    // Expected total registers in GPIO0: 4 (PIN) + 4 (PORT) + 3 (STATUS) + 2 (INT_EN) = 13
+    QCOMPARE(gpio0->childCount(), 13);
+
+    // Verify PIN[0]
+    RegMapTreeItem *pin0 = gpio0->child(0);
+    QCOMPARE(pin0->data("Name").toString(), "PIN[0]");
+    QCOMPARE(pin0->data("Offset/LSB").toString(), "0x0");
+    QCOMPARE(pin0->data("Description").toString(), "Pin register 0");
+    QCOMPARE(pin0->childCount(), 2);
+    QCOMPARE(pin0->child(0)->data("Name").toString(), "VAL");
+    QCOMPARE(pin0->child(1)->data("Name").toString(), "PULL");
+
+    // Verify PIN[1]
+    RegMapTreeItem *pin1 = gpio0->child(1);
+    QCOMPARE(pin1->data("Name").toString(), "PIN[1]");
+    QCOMPARE(pin1->data("Offset/LSB").toString(), "0x4");
+    QCOMPARE(pin1->data("Description").toString(), "Pin register 1");
+    QCOMPARE(pin1->childCount(), 2);
+    QCOMPARE(pin1->child(0)->data("Name").toString(), "VAL");
+    QCOMPARE(pin1->child(1)->data("Name").toString(), "PULL");
+
+    // Verify PIN[2] and PIN[3]
+    QCOMPARE(gpio0->child(2)->data("Name").toString(), "PIN[2]");
+    QCOMPARE(gpio0->child(2)->data("Offset/LSB").toString(), "0x8");
+    QCOMPARE(gpio0->child(3)->data("Name").toString(), "PIN[3]");
+    QCOMPARE(gpio0->child(3)->data("Offset/LSB").toString(), "0xc");
+
+    // Verify PORT_A .. PORT_D (offset = 0x20 + i*8)
+    QCOMPARE(gpio0->child(4)->data("Name").toString(), "PORT_A");
+    QCOMPARE(gpio0->child(4)->data("Offset/LSB").toString(), "0x20");
+    QCOMPARE(gpio0->child(5)->data("Name").toString(), "PORT_B");
+    QCOMPARE(gpio0->child(5)->data("Offset/LSB").toString(), "0x28");
+    QCOMPARE(gpio0->child(6)->data("Name").toString(), "PORT_C");
+    QCOMPARE(gpio0->child(6)->data("Offset/LSB").toString(), "0x30");
+    QCOMPARE(gpio0->child(7)->data("Name").toString(), "PORT_D");
+    QCOMPARE(gpio0->child(7)->data("Offset/LSB").toString(), "0x38");
+
+    // Verify STATUS0 .. STATUS2 (no %s, index appended)
+    QCOMPARE(gpio0->child(8)->data("Name").toString(), "STATUS0");
+    QCOMPARE(gpio0->child(8)->data("Offset/LSB").toString(), "0x40");
+    QCOMPARE(gpio0->child(9)->data("Name").toString(), "STATUS1");
+    QCOMPARE(gpio0->child(9)->data("Offset/LSB").toString(), "0x44");
+    QCOMPARE(gpio0->child(10)->data("Name").toString(), "STATUS2");
+    QCOMPARE(gpio0->child(10)->data("Offset/LSB").toString(), "0x48");
+
+    // Verify INT_EN_0, INT_EN_1 (no dimIndex, auto 0..1)
+    QCOMPARE(gpio0->child(11)->data("Name").toString(), "INT_EN_0");
+    QCOMPARE(gpio0->child(11)->data("Offset/LSB").toString(), "0x50");
+    QCOMPARE(gpio0->child(12)->data("Name").toString(), "INT_EN_1");
+    QCOMPARE(gpio0->child(12)->data("Offset/LSB").toString(), "0x54");
+
+    // Verify GPIO1 (derivedFrom="GPIO0")
+    RegMapTreeItem *gpio1 = root->child(1);
+    QCOMPARE(gpio1->data("Name").toString(), "GPIO1");
+    QCOMPARE(gpio1->data("Offset/LSB").toString(), "0x40001000");
+    QCOMPARE(gpio1->data("Description").toString(), "GPIO Peripheral 1");
+    QCOMPARE(gpio1->childCount(), 13);
+    QCOMPARE(gpio1->child(0)->data("Name").toString(), "PIN[0]");
+    QCOMPARE(gpio1->child(0)->childCount(), 2);
+    QCOMPARE(gpio1->child(1)->data("Name").toString(), "PIN[1]");
+
+    // Verify GPIO2 (derivedFrom="GPIO1", chained)
+    RegMapTreeItem *gpio2 = root->child(2);
+    QCOMPARE(gpio2->data("Name").toString(), "GPIO2");
+    QCOMPARE(gpio2->data("Offset/LSB").toString(), "0x40002000");
+    QCOMPARE(gpio2->childCount(), 13);
+    QCOMPARE(gpio2->child(0)->data("Name").toString(), "PIN[0]");
+    QCOMPARE(gpio2->child(0)->childCount(), 2);
+
+    // Verify roundtrip write and read of unrolled SVD
+    QString outSvd = "work/test_formats/dim_derived_roundtrip.svd";
+    FormatResult writeRes = handler.write(outSvd, &model, &config);
+    QVERIFY2(writeRes.success, qPrintable(writeRes.errorMessage));
+
+    RegMapTreeModel rtModel;
+    FormatResult readRtRes = handler.read(outSvd, &rtModel, &config);
+    QVERIFY2(readRtRes.success, qPrintable(readRtRes.errorMessage));
+    QCOMPARE(rtModel.getRootItem()->childCount(), 3);
+    QCOMPARE(rtModel.getRootItem()->child(0)->childCount(), 13);
+    QCOMPARE(rtModel.getRootItem()->child(1)->childCount(), 13);
+    QCOMPARE(rtModel.getRootItem()->child(2)->childCount(), 13);
 }
 
 void TestFormats::test_CsvExtendedSyntaxAndErrors()

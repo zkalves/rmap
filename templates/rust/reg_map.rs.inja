@@ -13,6 +13,9 @@ use core::ptr::{read_volatile, write_volatile};
 #[repr(C)]
 pub struct {{ blk.name }} {
 {% for reg in blk.registers %}
+{% if existsIn(reg, "pad_words_before") and reg.pad_words_before > 0 %}
+    pub _reserved_{{ loop.index }}: [u32; {{ reg.pad_words_before }}],
+{% endif %}
     /// {{ reg.name }} (Offset {{ reg.offset_hex }}): {{ reg.description }}
     pub {{ lower(reg.name) }}: {{ reg.name }}_REG,
 {% endfor %}

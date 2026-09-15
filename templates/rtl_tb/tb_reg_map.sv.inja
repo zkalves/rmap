@@ -33,10 +33,16 @@ module tb_{{ lower(blk.name) }}_reg_file;
   logic                    sw_{{ lower(reg.name) }}_wr_strobe_o;
   logic                    sw_{{ lower(reg.name) }}_rd_strobe_o;
 {% for fld in reg.fields %}
-{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
+{% else if upper(fld.access) == "W1S" %}
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
 {% else if upper(fld.access) != "RO" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
@@ -98,10 +104,16 @@ module tb_{{ lower(blk.name) }}_reg_file;
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe_o),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe_o),
 {% for fld in reg.fields %}
-{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
+{% else if upper(fld.access) == "W1S" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% else if upper(fld.access) != "RO" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
@@ -204,10 +216,12 @@ module tb_{{ lower(blk.name) }}_reg_file;
     // Initialize Sideband Inputs
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
-{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = '0;
-{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
+{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = '0;
+{% else if upper(fld.access) == "W1S" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i = '0;
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = 1'b0;
@@ -315,6 +329,29 @@ module tb_{{ lower(blk.name) }}_reg_file;
     bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
     check_val("{{ reg.name }}.{{ fld.name }}_hw_input", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), (1 << {{ fld.size_width }}) - 1, '1);
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = '0;
+{% else if upper(fld.access) == "RC" %}
+    // Hardware sets RC flag via sideband pulse: {{ reg.name }}.{{ fld.name }}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = {({{ fld.size_width }}){1'b1}};
+    @(posedge clk_i);
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = '0;
+    @(posedge clk_i);
+    bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
+    check_val("{{ reg.name }}.{{ fld.name }}_RC_read_val", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), (1 << {{ fld.size_width }}) - 1, '1);
+    // Second read: verify it auto-cleared on previous read
+    bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
+    check_val("{{ reg.name }}.{{ fld.name }}_RC_cleared_on_read", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), 0, '1);
+{% else if upper(fld.access) == "W1S" %}
+    // Software sets W1S flag: {{ reg.name }}.{{ fld.name }}
+    bus_write({{ sv_hex(reg.offset_hex, 32) }}, ((1 << {{ fld.size_width }}) - 1) << {{ fld.offset_lsb }}, {STRB_WIDTH{1'b1}});
+    bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
+    check_val("{{ reg.name }}.{{ fld.name }}_W1S_sw_set", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), (1 << {{ fld.size_width }}) - 1, '1);
+    // Hardware clears it via sideband pulse
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i = {({{ fld.size_width }}){1'b1}};
+    @(posedge clk_i);
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i = '0;
+    @(posedge clk_i);
+    bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
+    check_val("{{ reg.name }}.{{ fld.name }}_W1S_hw_cleared", (rdata >> {{ fld.offset_lsb }}) & ((1 << {{ fld.size_width }}) - 1), 0, '1);
 {% else if upper(fld.access) == "W1C" %}
     // Hardware sets W1C flag via sideband pulse: {{ reg.name }}.{{ fld.name }}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = {({{ fld.size_width }}){1'b1}};

@@ -22,10 +22,16 @@ module {{ lower(blk.name) }}_reg_file #(
   output logic                      sw_{{ lower(reg.name) }}_wr_strobe_o,
   output logic                      sw_{{ lower(reg.name) }}_rd_strobe_o,
 {% for fld in reg.fields %}
-{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+  input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i,
+  output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i,
+  output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
+{% else if upper(fld.access) == "W1S" %}
+  input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i,
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% else if upper(fld.access) != "RO" %}
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
@@ -148,20 +154,27 @@ module {{ lower(blk.name) }}_reg_file #(
       end
     end
 
-    // Read-Clears (RC) Update
+    // Read-Clears (RC) and Read-Sets (RS) Update
     if (sw_{{ lower(reg.name) }}_rd_strobe_o) begin
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RC" %}
       reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
+{% else if upper(fld.access) == "RS" %}
+      reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '1;
 {% endif %}
 {% endfor %}
     end
 
     // Hardware Update Precedence
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
+{% if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
     if (|hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i) begin
       reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] |= hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
+    end
+{% endif %}
+{% if upper(fld.access) == "W1S" %}
+    if (|hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i) begin
+      reg_{{ lower(reg.name) }}_d[{{ fld.offset_lsb }} +: {{ fld.size_width }}] &= ~hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i;
     end
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
@@ -220,7 +233,7 @@ module {{ lower(blk.name) }}_reg_file #(
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
                 bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ sv_hex(fld.reset_val, fld.size_width) }};
-{% else if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RO" %}
                 bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" %}
                 bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
@@ -249,7 +262,7 @@ module {{ lower(blk.name) }}_reg_file #(
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
             bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = {{ sv_hex(fld.reset_val, fld.size_width) }};
-{% else if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RO" %}
             bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" %}
             bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] = '0;
@@ -272,7 +285,7 @@ module {{ lower(blk.name) }}_reg_file #(
   // Output Signal Assignments
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
-{% if upper(fld.access) != "RO" and upper(fld.access) != "RC" and upper(fld.access) != "RS" %}
+{% if upper(fld.access) != "RO" %}
   assign hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o = reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}];
 {% endif %}
 {% endfor %}
