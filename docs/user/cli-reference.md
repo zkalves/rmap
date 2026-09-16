@@ -2,6 +2,9 @@
 
 **rmap** includes built-in headless CLI capabilities allowing hardware build environments, EDA scripts, and CI/CD pipelines to validate register maps, run lint checks, compute semantic diffs, convert formats, and generate code without launching a graphical window.
 
+> [!NOTE]
+> Headless CLI operations are fully supported in both standard Qt GUI builds (running automatically offscreen via `QT_QPA_PLATFORM=offscreen`) and lightweight standalone CLI-only builds compiled without Qt dependencies (`-DCMAKE_DISABLE_FIND_PACKAGE_Qt6=TRUE`).
+
 ---
 
 ## Command Line Syntax

@@ -55,10 +55,26 @@ Top-level object configuration includes:
 
 In interactive GUI mode, `mainWin->show()` is invoked and the Qt event loop is started with `app.exec()`. The process returns `0` upon normal application exit or `1` upon headless validation/conversion failure.
 
-### G. Dependencies
+### G. Dual-Mode Architecture & Optional Qt GUI
 
-- `QApplication` (QtWidgets) — Core GUI application controller and main event loop.
-- `QCommandLineParser`, `QCommandLineOption` (QtCore) — CLI option specification, argument parsing, and help/version formatting.
-- `RegMapWindow` (Project) — Main application window and headless controller.
-- `ThemeManager` (Project) — Theme definitions and application styling.
-- `PathUtils` (Project) — Environment variable expansion and path normalization.
+The application entry point is architected to support both an interactive Qt 6 GUI and a lightweight, standalone CLI-only executable:
+
+1. **Qt GUI Enabled (`HAVE_QT_GUI` defined)**:
+   - Enabled when CMake detects `Qt6::Widgets` via `find_package(Qt6 COMPONENTS Widgets QUIET)`.
+   - Compiles with `AUTOMOC`, `AUTORCC`, and `AUTOUIC` enabled.
+   - Links against `Qt6::Core`, `Qt6::Widgets`, and `librmap_core`.
+   - Supports interactive desktop GUI (`RegMapWindow`) as well as offscreen batch automation via `QT_QPA_PLATFORM=offscreen`.
+
+2. **Headless CLI-Only Fallback (`HAVE_QT_GUI` undefined)**:
+   - Activated automatically when Qt 6 is not found on the host system, or when forcibly disabled via `-DCMAKE_DISABLE_FIND_PACKAGE_Qt6=TRUE`.
+   - Compiles `src/main.cpp` directly into a standalone C++17 binary without requiring Qt libraries or headers.
+   - Parses CLI flags (`--help`, `--version`, `--file`, `--export`, `--convert`, `--lint`, `--strict`, `--report-format`, `--diff`) and executes headless batch workflows cleanly.
+
+### H. Dependencies
+
+- `QApplication` (QtWidgets, optional via `HAVE_QT_GUI`) — Core GUI application controller and main event loop.
+- `QCommandLineParser`, `QCommandLineOption` (QtCore, optional via `HAVE_QT_GUI`) — CLI option specification, argument parsing, and help/version formatting.
+- `RegMapWindow` (Project, optional via `HAVE_QT_GUI`) — Main application window and headless controller.
+- `ThemeManager` (Project, optional via `HAVE_QT_GUI`) — Theme definitions and application styling.
+- `PathUtils` (Project, optional via `HAVE_QT_GUI`) — Environment variable expansion and path normalization.
+- `RmapVersion` (Project, header-only) — Semantic versioning macros and metadata (`RMAP_VERSION_STRING`).

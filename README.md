@@ -149,7 +149,7 @@ make coverage-report
 
 - **C++17 Compiler** (`g++` 9+ or `clang++` 10+)
 - **CMake 3.15+**
-- **Qt 6** (`qt6-base-dev`, `libqt6test6`)
+- **Qt 6** (`qt6-base-dev`, `libqt6test6`) *(optional: required for interactive GUI and Qt test runner; rmap falls back gracefully to a lightweight CLI-only executable if absent)*
 - **Protocol Buffers** (`libprotobuf-dev`, `protobuf-compiler`)
 
 #### Ubuntu / Debian
@@ -167,8 +167,12 @@ sudo apt-get install -y build-essential cmake git \
 git clone https://github.com/zkalves/rmap.git
 cd rmap
 
-# Build with Make wrapper
+# Standard build with Qt GUI (default when Qt6 is detected)
 make
+
+# Or build headless CLI-only without Qt
+cmake -B build -S . -DCMAKE_DISABLE_FIND_PACKAGE_Qt6=TRUE
+cmake --build build
 
 # Run automated unit test suites (100% pass rate)
 make test
@@ -176,7 +180,7 @@ make test
 # Run comprehensive template verification tests across all 15 output templates
 make test-templates
 
-# Run autonomous simulation and compilation across all 17 example environments
+# Run autonomous simulation and compilation across all 19 example environments
 make test-examples
 
 # Run complete verification suite

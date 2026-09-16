@@ -4,10 +4,13 @@
  *
  * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
  */
+#pragma once
 
+#ifdef HAVE_QT_GUI
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCommandLineOption>
 
 #include "RegMapWindow.hpp"
+#endif
 
