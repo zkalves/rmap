@@ -5,10 +5,10 @@
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![Qt 6](https://img.shields.io/badge/Qt-6-green.svg)](https://www.qt.io/)
 <!-- COVERAGE_BADGES_START -->
-[![Line Coverage](https://img.shields.io/badge/Line_Coverage-100.0%25-brightgreen.svg)](#code-coverage-metrics)
-[![Function Coverage](https://img.shields.io/badge/Function_Coverage-100.0%25-brightgreen.svg)](#code-coverage-metrics)
-[![Branch Coverage](https://img.shields.io/badge/Branch_Coverage-93.8%25-brightgreen.svg)](#code-coverage-metrics)
-[![Condition Coverage](https://img.shields.io/badge/Condition_Coverage-90.0%25-brightgreen.svg)](#code-coverage-metrics)
+[![Line Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_line.json)](https://zkalves.github.io/rmap/coverage/)
+[![Function Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_function.json)](https://zkalves.github.io/rmap/coverage/)
+[![Branch Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_branch.json)](https://zkalves.github.io/rmap/coverage/)
+[![Condition Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_condition.json)](https://zkalves.github.io/rmap/coverage/)
 <!-- COVERAGE_BADGES_END -->
 
 **rmap** is a high-performance GUI & CLI tool for designing hardware register maps, validating register architectures, and generating hardware, verification, firmware, and documentation models.
@@ -53,7 +53,10 @@
 <!-- COVERAGE_SECTION_START -->
 ## Code Coverage Metrics
 
-Automated test coverage analysis across all 6 compiler-supported metrics:
+Automated test coverage analysis across all 6 compiler-supported metrics, published continuously by the [GitHub Actions CI Pipeline](https://github.com/zkalves/rmap/actions/workflows/ci.yml):
+
+> [!TIP]
+> **Live CI/CD Coverage Pipeline**: Interactive coverage reports, line-by-line profiling, and call graphs are updated continuously by the pipeline and hosted live on [GitHub Pages: rmap Coverage Dashboard](https://zkalves.github.io/rmap/coverage/).
 
 | Metric | Covered | Total | Coverage Rate | Status |
 | :--- | :---: | :---: | :---: | :---: |

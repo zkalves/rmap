@@ -31,16 +31,6 @@ docs/
 
 ---
 
-## 🎯 Authoritative Specification (Source of Truth)
-
-The main project documentation suite under **`docs/user/`** and **`docs/dev/`** is the canonical source of truth for all requirements, data models, access policies, multi-format capabilities, code generation templates, and validation criteria across **rmap**:
-- [**System Architecture & Internals**](user/architecture.md): Complete data model, UVM access policy matrix, arbitration rules, strobes, dynamic widths, multiple address maps, and format interoperability limitations.
-- [**Templates & Code Generation**](user/templates-and-codegen.md): Complete deliverable catalog across SystemVerilog, Verilog 2001, VHDL, UVM RAL & testbench suites, C/C++, Rust, Python, and simulation Makefiles.
-- [**CLI Reference & Automation**](user/cli-reference.md): Headless batch generation (`--export`), format conversions (`--convert`), automated CI linter (`--lint`), and semantic diffing (`--diff`).
-- [**C++ API Reference**](dev/index.md): Source-level architectural invariants and Qt 6 model contracts.
-
----
-
 ## 🚀 User Guides
 
 - [**Getting Started**](user/getting-started.md): Installation prerequisites, building from source with CMake / Make, and basic workflow.

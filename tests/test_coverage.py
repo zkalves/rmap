@@ -32,6 +32,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "script"))
 from generate_coverage import (
     categorize_subsystem,
     compute_metrics,
+    generate_badge_endpoints,
     get_color_for_percent,
     process_gcov_json,
     render_console_summary,
@@ -392,6 +393,32 @@ class TestCoverageEngine(unittest.TestCase):
         self.assertEqual(s["conditions"]["total"], 2)
         self.assertEqual(s["conditions"]["covered"], 2)
         self.assertEqual(s["conditions"]["percent"], 100.0)
+
+    def test_generate_badge_endpoints(self):
+        mock_data = {
+            "src/Sample.cpp": {
+                "subsystem": "Core Architecture & Model",
+                "lines": {1: 1, 2: 1},
+                "funcs": {"test()": 1},
+                "branches": {(1, 0): 1},
+                "conds": [{"count": 2, "covered": 2}],
+                "calls": [{"returned": 1}],
+                "blocks_total": 1,
+                "blocks_exec": 1,
+            }
+        }
+        metrics = compute_metrics(mock_data)
+        badges_dir = self.work_dir / "badges"
+        files = generate_badge_endpoints(metrics, badges_dir)
+        self.assertTrue(len(files) >= 6)
+
+        line_badge_file = badges_dir / "badge_line.json"
+        self.assertTrue(line_badge_file.exists())
+        data = json.loads(line_badge_file.read_text(encoding="utf-8"))
+        self.assertEqual(data["schemaVersion"], 1)
+        self.assertEqual(data["label"], "Line Coverage")
+        self.assertEqual(data["message"], "100.0%")
+        self.assertEqual(data["color"], "brightgreen")
 
 
 if __name__ == "__main__":

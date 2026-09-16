@@ -263,8 +263,18 @@ jobs:
             --html work/coverage/index.html \
             --markdown work/coverage/coverage.md \
             --json work/coverage/coverage.json \
+            --badges-dir work/coverage \
             --github-step-summary \
             --summary
+
+      - name: Update README Coverage Report from Pipeline
+        if: github.ref == 'refs/heads/main'
+        run: |
+          python3 script/generate_coverage.py --build-dir build --update-readme
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || (git commit -m "docs: Update coverage metrics from CI pipeline [skip ci]" && git push)
 
       - name: Upload Coverage Artifacts
         uses: actions/upload-artifact@v5
