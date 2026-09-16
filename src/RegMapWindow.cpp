@@ -1463,7 +1463,7 @@ void RegMapWindow::btnExport(void)
     std::string template_folder = cfg->templatefolder();
     std::string default_output  = resolveExportOutputFolder(QString(), cfg);
 
-    bool hwPrec = m_config_window ? m_config_window->hwPrecedence() : true;
+    bool hwPrec = cfg->has_hw_precedence() ? cfg->hw_precedence() : (m_config_window ? m_config_window->hwPrecedence() : true);
     json jsonData = m_model->extractJsonData(regWidth, hwPrec);
     resolveExportProjectName(cfg, m_rmap_filename, jsonData);
     jsonData["project_name"] = cfg->project_name();

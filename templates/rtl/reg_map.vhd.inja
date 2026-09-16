@@ -14,7 +14,7 @@ entity {{ lower(blk.name) }}_reg_file is
     ADDR_WIDTH : integer := 32;
     DATA_WIDTH : integer := {{ reg_width }};
     STRB_WIDTH : integer := {{ reg_width }} / 8;
-    PARAM_HW_PRECEDENCE : std_logic := {% if exists("param_hw_precedence") and param_hw_precedence == "0" %}'0'{% else %}'1'{% endif %}
+    PARAM_HW_PRECEDENCE : std_logic := {% if (exists("param_hw_precedence") and (param_hw_precedence == 0 or param_hw_precedence == "0")) or (exists("hw_precedence") and not hw_precedence) %}'0'{% else %}'1'{% endif %}
   );
   port (
     clk_i                     : in  std_logic;

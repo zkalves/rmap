@@ -75,17 +75,17 @@ Recursively validates `node` and all descendants against architectural design ru
 - **Reset Consistency**: Flags non-zero reset values when `Has Reset` is disabled (`false`), highlighting columns 6 (`Reset Value`) and 9 (`Has Reset`).
 Appends error descriptions to `errors` and registers invalid cells in `m_invalidCells`.
 
-#### QStringList checkData(uint32_t regWidth = 32)
-Runs a full architectural validation check over all nodes using register bit width `regWidth` (typically 32 or 64). Returns the complete list of validation error strings.
+#### QStringList checkData(uint32_t regWidth = 32) noexcept
+Runs a full architectural validation check over all nodes using parameterizable register bit width `regWidth` (supporting 8, 16, 32, 64, 128, 256, 512+ bits). Returns the complete list of validation error strings.
 
-#### bool isIndexInvalid(const QModelIndex &index) const
+#### bool isIndexInvalid(const QModelIndex &index) const noexcept
 Returns `true` if the cell at `index` has failed validation checks (used by `data()` to paint light red backgrounds `#FFC8C8`).
 
-#### json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32)
+#### json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32) const
 Recursively converts `node` and its descendants into structured `nlohmann::json` objects containing sorted `blocks`, `registers`, `fields`, `memories`, and `maps` arrays. Computes `pad_bytes_before` and `pad_words_before` for non-contiguous register offsets to enable accurate C struct memory-mapped padding. Extracts memory dimensions (`depth`, `word_width`), address maps (`base_addr`, `n_bytes`, `endianness`, `byte_addressing`), register/memory backdoor HDL paths, built-in UVM test disable attributes, and quirky FIFO properties.
 
-#### json extractJsonData(uint32_t regWidth = 32)
-Exports the entire tree model into a root `nlohmann::json` object formatted for Inja code generation templates. Computes deterministic IEEE 802.3 CRC32 checksums:
+#### json extractJsonData(uint32_t regWidth = 32) const
+Exports the entire tree model into a root `nlohmann::json` object formatted for Inja code generation templates across arbitrary dynamic register widths (8, 16, 32, 64, 128, 256, 512+ bits). Computes deterministic IEEE 802.3 CRC32 checksums:
 - `regmap_crc32`: 32-bit unsigned integer checksum of the entire register model.
 - `regmap_crc32_hex`: Hexadecimal string representation (`0x...`).
 - `blk["crc32"]` / `blk["crc32_hex"]`: Block-level checksums.

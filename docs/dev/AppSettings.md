@@ -26,6 +26,9 @@ Emitted when the saved color scheme setting changes.
 #### void colorBlindModeChanged(bool enabled)
 Emitted when the color-blind mode preference changes.
 
+#### void hwPrecedenceChanged(bool precedence)
+Emitted when the hardware arbitration precedence preference changes.
+
 ### 5. Public Methods
 
 #### static AppSettings& instance()
@@ -48,6 +51,18 @@ Returns `true` if color-blind mode is enabled.
 
 #### void setColorBlindMode(bool enabled) / void setColourBlindMode(bool enabled)
 Updates and persists the color-blind mode setting, emitting `colorBlindModeChanged`.
+
+#### ColorBlindMode colorBlindType() const / void setColorBlindType(ColorBlindMode mode)
+Returns or sets the active Colour Vision Deficiency profile (`Universal`, `Deuteranopia`, `Protanopia`, `Tritanopia`, `Achromatopsia`).
+
+#### QString colorBlindTypeString() const / void setColorBlindTypeString(const QString &type)
+Returns or sets the string representation of the CVD profile.
+
+#### QString language() const / void setLanguage(const QString &lang)
+Returns or sets the active application language code (`en`, `es`, `de`, `fr`, `zh_CN`, `ja`, `pt_BR`).
+
+#### bool hwPrecedence() const / void setHwPrecedence(bool precedence)
+Returns or updates the hardware vs. software write arbitration precedence setting (`true` = hardware priority, `false` = software priority), emitting `hwPrecedenceChanged`.
 
 #### QByteArray mainWindowGeometry() const
 #### void setMainWindowGeometry(const QByteArray &geom)

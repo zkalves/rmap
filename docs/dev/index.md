@@ -41,7 +41,7 @@ Welcome to the **rmap** C++ developer reference documentation. This documentatio
 ## Code Generation, Localization & Utilities
 
 - [**CodeGenerator**](CodeGenerator.md): Pantor Inja template rendering engine featuring 11 custom naming and bitwise helper callbacks for multi-target code and documentation generation.
-- [**ThemeManager**](ThemeManager.md): Multi-theme styling engine supporting 6 color schemes (Solarized 8, Nord, Dracula, Monokai, Classic) and Okabe-Ito / Wong CVD barrier-free palettes.
+- [**ThemeManager**](ThemeManager.md): Multi-theme styling engine supporting 8 color schemes (Solarized 8 Dark/Light, Nord, Dracula, Monokai, Classic, High Contrast Dark/Light) and Okabe-Ito / Wong CVD barrier-free palettes.
 - [**LanguageManager**](LanguageManager.md): Internationalization and localization engine managing runtime translation catalogs (en, es, de, fr, zh_CN, ja, pt_BR) and dynamic locale switching.
 - [**AppSettings**](AppSettings.md): Persistent user configuration manager for application geometry, splitter positions, and preferences (`~/.config/rmap/rmap.conf`).
 - [**PathUtils**](PathUtils.md): Cross-platform path utility library for environment variable expansion, path relativization, and multi-tiered fallback path resolution.

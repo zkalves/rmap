@@ -27,6 +27,10 @@ export:
 validate:
 	@echo "=== [comprehensive] Validating Register Map ==="
 	QT_QPA_PLATFORM=offscreen $(RMAP) -f $(RMT_FILE) -l
+	@test -f work/rtl/reg_map.sv && test -f work/rtl/reg_map.v && test -f work/rtl/reg_map.vhd && test -f work/rtl/apb_reg_file.sv && test -f work/rtl/axil_reg_file.sv && test -f work/rtl/reg_map_sva.sv && echo "✓ All RTL deliverables generated"
+	@test -f work/c/reg_map.h && test -f work/rust/reg_map.rs && test -f work/python/reg_map.py && echo "✓ All firmware and driver deliverables generated"
+	@test -f work/html/reg_doc.html && test -f work/markdown/reg_doc.md && echo "✓ Documentation deliverables generated"
+	@test -f work/systemrdl/reg_map.rdl && test -f work/ipxact/reg_map.xml && test -f work/svd/reg_map.xml && echo "✓ Format interchange deliverables generated"
 	@if [ -f work/json/reg_map.json ]; then \
 		jq empty work/json/reg_map.json > /dev/null 2>&1 && echo "✓ JSON Schema valid"; \
 	fi

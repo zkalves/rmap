@@ -2,7 +2,7 @@
 
 ### 1. Class Overview
 
-`RegConfigWindow` is a non-modal configuration dialog for managing project-level parameters and code generation template mappings in **rmap**. It configures project metadata (name, version, register bus width: 8, 16, 32, 64 bits), manages template-to-output file generation mappings, maintains custom key-value template parameters, supports base directory relativization, and serializes settings directly to Protocol Buffer messages (`protormap::Config`).
+`RegConfigWindow` is a non-modal configuration dialog for managing project-level parameters and code generation template mappings in **rmap**. It configures project metadata (name, version, register bus width: 8, 16, 32, 64, 128, 256, 512+ bits), hardware vs. software arbitration precedence (`hwPrecedence`), manages template-to-output file generation mappings, maintains custom key-value template parameters, supports base directory relativization, and serializes settings directly to Protocol Buffer messages (`protormap::Config`).
 
 ### 2. Project Structure and Dependencies
 
@@ -97,6 +97,12 @@ Sets the base directory used for resolving relative template and output paths.
 
 #### QString baseDir() const
 Returns the base project directory.
+
+#### void setHwPrecedence(bool precedence)
+Sets the hardware vs. software write arbitration precedence (`true` = hardware priority, `false` = software priority).
+
+#### bool hwPrecedence() const
+Returns the configured hardware arbitration precedence.
 
 #### void saveWindowStateToSettings()
 Persists dialog geometry and column widths to `~/.config/rmap/rmap.conf`.

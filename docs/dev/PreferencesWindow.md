@@ -31,10 +31,13 @@ Build Requirements:
 #### void apply()
 Applies current selections in the dialog to the application immediately without closing the dialog.
 
+#### void onOpenThemesFolder()
+Opens the user custom themes directory (`~/.config/rmap/themes/`) in the system file manager.
+
 ### 5. Public Methods
 
 #### explicit PreferencesWindow(QWidget *parent = nullptr)
-Constructs the preferences dialog, populates theme dropdown choices, and initializes state from `AppSettings`.
+Constructs the preferences dialog, populates theme and language dropdown choices, and initializes state from `AppSettings`.
 
 #### ~PreferencesWindow() override = default
 Destructor.
@@ -42,17 +45,26 @@ Destructor.
 #### void setColourScheme(const QString &scheme)
 Selects `scheme` in the preferences dialog UI.
 
-#### QString colourScheme() const
-#### QString colourScheme() const
-#### QString colorScheme() const
+#### QString colourScheme() const / QString colorScheme() const
 Returns the selected theme identifier.
 
 #### void setColourBlindMode(bool enabled)
 Sets the color-blind mode checkbox state.
 
-#### bool isColourBlindMode() const
-#### bool colorBlindMode() const
+#### bool isColourBlindMode() const / bool colorBlindMode() const
 Returns `true` if color-blind mode is selected.
+
+#### void setColourBlindType(ColorBlindMode mode) / void setColorBlindType(ColorBlindMode mode)
+Sets the active Colour Vision Deficiency (CVD) profile enum in the preferences dialog.
+
+#### ColorBlindMode colourBlindType() const / ColorBlindMode colorBlindType() const
+Returns the selected CVD profile enum.
+
+#### void setLanguage(const QString &lang)
+Selects the language code in the language dropdown.
+
+#### QString language() const
+Returns the selected language code.
 
 #### void saveWindowStateToSettings()
 Persists dialog geometry to `AppSettings`.

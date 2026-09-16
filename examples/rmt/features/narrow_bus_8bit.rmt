@@ -1,0 +1,495 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.v.inja"
+    output_filepath: "./work/rtl/reg_map.v"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.vhd.inja"
+    output_filepath: "./work/rtl/reg_map.vhd"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/apb_reg_file.sv.inja"
+    output_filepath: "./work/rtl/apb_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/axil_reg_file.sv.inja"
+    output_filepath: "./work/rtl/axil_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map_sva.sv.inja"
+    output_filepath: "./work/rtl/reg_map_sva.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  reg_width: 8
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 4
+  child_id: 8
+  child_id: 10
+  itemData {
+    key: "Name"
+    value: "NARROW_UART_8BIT"
+  }
+  itemData {
+    key: "Description"
+    value: "8-bit narrow data bus peripheral controller"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  itemData {
+    key: "Name"
+    value: "BAUD_DIV"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Description"
+    value: "Baud rate clock divisor (8-bit)"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "DIVIDER"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x04"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Clock divisor value"
+  }
+}
+item {
+  kind: REG
+  id: 4
+  parent_id: 1
+  child_id: 5
+  child_id: 6
+  child_id: 7
+  itemData {
+    key: "Name"
+    value: "STATUS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x01"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Description"
+    value: "UART 8-bit status flags"
+  }
+}
+item {
+  kind: FLD
+  id: 5
+  parent_id: 4
+  itemData {
+    key: "Name"
+    value: "TX_EMPTY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "HW Access"
+    value: "WO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmitter buffer empty indicator"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 4
+  itemData {
+    key: "Name"
+    value: "RX_FULL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "HW Access"
+    value: "WO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Receiver buffer full indicator"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 4
+  itemData {
+    key: "Name"
+    value: "OVERRUN"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1C"
+  }
+  itemData {
+    key: "HW Access"
+    value: "W1S"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Receiver overrun error (Write 1 to clear)"
+  }
+}
+item {
+  kind: REG
+  id: 8
+  parent_id: 1
+  child_id: 9
+  itemData {
+    key: "Name"
+    value: "DATA"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x02"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Description"
+    value: "UART data transmit/receive byte register"
+  }
+}
+item {
+  kind: FLD
+  id: 9
+  parent_id: 8
+  itemData {
+    key: "Name"
+    value: "BYTE_VAL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x00"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Transmitted or received data byte"
+  }
+}
+item {
+  kind: REG
+  id: 10
+  parent_id: 1
+  child_id: 11
+  child_id: 12
+  child_id: 13
+  itemData {
+    key: "Name"
+    value: "CONFIG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x03"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Description"
+    value: "UART line configuration byte register"
+  }
+}
+item {
+  kind: FLD
+  id: 11
+  parent_id: 10
+  itemData {
+    key: "Name"
+    value: "PARITY_EN"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Parity generation/checking enable"
+  }
+}
+item {
+  kind: FLD
+  id: 12
+  parent_id: 10
+  itemData {
+    key: "Name"
+    value: "STOP_BITS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Stop bits selection (0 = 1 stop bit, 1 = 2 stop bits)"
+  }
+}
+item {
+  kind: FLD
+  id: 13
+  parent_id: 10
+  itemData {
+    key: "Name"
+    value: "LOOPBACK"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "2"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Diagnostic loopback mode enable"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

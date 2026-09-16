@@ -27,6 +27,11 @@ export:
 validate:
 	@echo "=== [strict_validation] Validating Register Map ==="
 	QT_QPA_PLATFORM=offscreen $(RMAP) -f $(RMT_FILE) -l --strict
+	@echo "=== [strict_validation] Verifying Negative Validation Test Cases ==="
+	@! QT_QPA_PLATFORM=offscreen $(RMAP) -f ../../rmt/validation/invalid_overlap.rmt -l > /dev/null 2>&1 && echo "✓ invalid_overlap.rmt correctly rejected by linter"
+	@! QT_QPA_PLATFORM=offscreen $(RMAP) -f ../../rmt/validation/invalid_keyword.rmt -l > /dev/null 2>&1 && echo "✓ invalid_keyword.rmt correctly rejected by linter"
+	@! QT_QPA_PLATFORM=offscreen $(RMAP) -f ../../rmt/validation/invalid_reset_overflow.rmt -l > /dev/null 2>&1 && echo "✓ invalid_reset_overflow.rmt correctly rejected by linter"
+	@! QT_QPA_PLATFORM=offscreen $(RMAP) -f ../../rmt/validation/invalid_blackhole.rmt -l > /dev/null 2>&1 && echo "✓ invalid_blackhole.rmt correctly rejected by linter"
 	@if [ -f work/json/reg_map.json ]; then \
 		jq empty work/json/reg_map.json > /dev/null 2>&1 && echo "✓ JSON Schema valid"; \
 	fi
