@@ -84,6 +84,14 @@ AccessKind parseAccessKind(QStringView a)
     if (a == u"W0") return AccessKind::W1C;
     if (a == u"RC") return AccessKind::RC;
     if (a == u"RS") return AccessKind::RC;
+    if (a == u"WOC") return AccessKind::WO;
+    if (a == u"WOS") return AccessKind::W1S;
+    if (a == u"W1SRC") return AccessKind::W1S;
+    if (a == u"W0SRC") return AccessKind::W1S;
+    if (a == u"W1CRS") return AccessKind::W1C;
+    if (a == u"W0CRS") return AccessKind::W1C;
+    if (a == u"NOACCESS") return AccessKind::NA;
+    if (a == u"NA") return AccessKind::NA;
     return AccessKind::NA;
 }
 } // namespace

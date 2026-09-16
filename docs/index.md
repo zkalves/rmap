@@ -8,12 +8,12 @@ Welcome to the **rmap** documentation portal. **rmap** is a high-performance GUI
 
 ```text
 docs/
-├── user/                       # User Guide & Operational Manuals
-│   ├── getting-started.md      # Installation, compilation, and quickstart
-│   ├── gui-guide.md            # Interactive GUI walkthrough, bitfield visualizer, themes
+├── user/                       # User Guide & Operational Manuals (Primary Source of Truth)
+│   ├── architecture.md         # System architecture, access policies, format matrix, dynamic widths
+│   ├── templates-and-codegen.md# Inja template catalog (RTL SV/Verilog/VHDL, UVM, C, Rust), helpers
 │   ├── cli-reference.md        # Headless generation, CI/CD linting (SARIF/JUnit), semantic diff
-│   ├── templates-and-codegen.md# Inja template syntax, custom helpers, JSON schema
-│   └── architecture.md         # System architecture and multi-format engine
+│   ├── gui-guide.md            # Interactive GUI walkthrough, bitfield visualizer, themes
+│   └── getting-started.md      # Installation, compilation, and quickstart
 │
 └── dev/                        # Developer & C++ API Architecture Reference
     ├── index.md                # C++ class reference index
@@ -28,6 +28,16 @@ docs/
     ├── PathUtils.md            # Path resolution and environment variable expansion
     └── SerializationContext.md # Object graph persistence framework
 ```
+
+---
+
+## 🎯 Authoritative Specification (Source of Truth)
+
+The main project documentation suite under **`docs/user/`** and **`docs/dev/`** is the canonical source of truth for all requirements, data models, access policies, multi-format capabilities, code generation templates, and validation criteria across **rmap**:
+- [**System Architecture & Internals**](user/architecture.md): Complete data model, UVM access policy matrix, arbitration rules, strobes, dynamic widths, multiple address maps, and format interoperability limitations.
+- [**Templates & Code Generation**](user/templates-and-codegen.md): Complete deliverable catalog across SystemVerilog, Verilog 2001, VHDL, UVM RAL & testbench suites, C/C++, Rust, Python, and simulation Makefiles.
+- [**CLI Reference & Automation**](user/cli-reference.md): Headless batch generation (`--export`), format conversions (`--convert`), automated CI linter (`--lint`), and semantic diffing (`--diff`).
+- [**C++ API Reference**](dev/index.md): Source-level architectural invariants and Qt 6 model contracts.
 
 ---
 

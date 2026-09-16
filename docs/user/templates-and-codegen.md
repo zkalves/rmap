@@ -86,65 +86,74 @@ When templates are executed, the full register map model is exposed as a JSON st
    - IEEE 1800-2017 SystemVerilog synthesizable register file conforming to ASIC/FPGA HDL coding guidelines.
    - Standardized signal suffixes (`clk_i`, `rst_ni`, `_i` inputs, `_o` outputs, `_q`/`_d` register state).
    - Bus-agnostic generic slave register file with address decode logic and 2-space indentation.
-   - Byte-level write enable strobing (`wstrb_i`).
-   - Hardware sideband interface signals (`hw_*_i`, `hw_*_o`, `hw_*_set_i`).
-   - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`).
-   - Hardware write priority over software writes.
+   - Dynamic parameterizable data width via `DATA_WIDTH` parameter (default 32, configurable to 8, 16, 32, 64, 128, 256, 512+ bits).
+   - Byte-level write enable strobing (`wstrb_i` with width `DATA_WIDTH / 8`).
+   - Hardware sideband interface signals (`hw_*_i`, `hw_*_we_i`, `hw_*_o`).
+   - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`) pulsing for 1 cycle upon transaction completion to trigger peripheral operations.
+   - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
 
-2. **UVM SystemVerilog Register Model (`uvm/reg_model.sv.inja`)**:
+2. **Synthesizable Verilog-2001 Register File (`rtl/reg_map.v.inja`)**:
+   - IEEE 1364-2001 synthesizable Verilog implementation for legacy ASIC synthesis and FPGA toolchains.
+   - Matches bus-agnostic interface, byte write strobes, configurable `DATA_WIDTH`, and `HW_PRECEDENCE` parameterization.
+
+3. **Synthesizable VHDL Register File (`rtl/reg_map.vhd.inja`)**:
+   - IEEE 1076-1993/2008 compliant synthesizable VHDL register file with `std_logic_vector` ports, generic parameters (`DATA_WIDTH`, `HW_PRECEDENCE`), and synchronous process blocks.
+
+4. **UVM SystemVerilog Register Model (`uvm/reg_model.sv.inja`)**:
    - Complete `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy.
+   - Explicit multi-map support: models multiple distinct `uvm_reg_map` instances per block (e.g. `apb_map`, `axi_map`, `sec_map`), assigning registers to distinct bus domains, offsets, and privilege levels.
    - `uvm_mem` instance and address mapping integration for hardware memory windows.
    - Backdoor HDL access paths (`add_hdl_path`).
-   - Functional coverage sampling hooks.
+   - Functional coverage sampling hooks (`build_coverage`).
    - Universal multi-version UVM compatibility across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020 via version macros, conditional `post_predict` parameter typing, and `uvm_door_e` / `uvm_path_e` compatibility aliases.
 
-3. **C/C++ Firmware Header (`c/reg_map.h.inja`)**:
+5. **C/C++ Firmware Header (`c/reg_map.h.inja`)**:
    - Clean register address offsets and bitfield definitions.
    - Bitfield extraction and update macros (`RMAP_REG_GET`, `RMAP_REG_SET`).
    - Packed volatile C struct representation.
 
-4. **Rust Peripheral Access Crate (`rust/reg_map.rs.inja`)**:
+6. **Rust Peripheral Access Crate (`rust/reg_map.rs.inja`)**:
    - `#[repr(C)]` memory-mapped register block structures.
    - Type-safe `read()`, `write()`, and `modify()` accessors using volatile pointer operations.
 
-5. **Python Bring-Up Driver (`python/reg_map.py.inja`)**:
+7. **Python Bring-Up Driver (`python/reg_map.py.inja`)**:
    - Standalone Python object-oriented register driver class.
    - Bitfield getter/setter helpers.
    - Pluggable bus transport adapters for Cocotb, PyUVM, PyFTDI, PySerial, or JTAG.
 
-6. **Interactive HTML Specification (`html/reg_doc.html.inja`)**:
+8. **Interactive HTML Specification (`html/reg_doc.html.inja`)**:
    - Responsive, styled single-page HTML documentation.
    - Live interactive search bar.
    - Color-coded graphical bitfield slice bars with access policy tags.
 
-7. **SystemRDL 2.0 Specification (`systemrdl/reg_map.rdl.inja`)**:
+9. **SystemRDL 2.0 Specification (`systemrdl/reg_map.rdl.inja`)**:
    - Standard Accellera SystemRDL 2.0 register file and addrmap specification.
    - Complete `field`, `reg`, and `regfile` component hierarchy with SW and HW access policies.
 
-8. **IP-XACT IEEE 1685-2014/2022 (`ipxact/reg_map.xml.inja`)**:
-   - Complete IP-XACT XML register model component definition (`ipxact:component`, `ipxact:memoryMaps`, `ipxact:addressBlock`, `ipxact:register`, `ipxact:field`).
+10. **IP-XACT IEEE 1685-2014/2022 (`ipxact/reg_map.xml.inja`)**:
+    - Complete IP-XACT XML register model component definition (`ipxact:component`, `ipxact:memoryMaps`, `ipxact:addressBlock`, `ipxact:register`, `ipxact:field`).
 
-9. **ARM CMSIS-SVD Peripheral XML (`svd/reg_map.xml.inja`)**:
-   - Cortex-M CMSIS-SVD device specification (`<device>`, `<peripheral>`, `<register>`, `<field>`) for IDE debuggers (Keil, IAR, VS Code Cortex-Debug, SVDconv).
+11. **ARM CMSIS-SVD Peripheral XML (`svd/reg_map.xml.inja`)**:
+    - Cortex-M CMSIS-SVD device specification (`<device>`, `<peripheral>`, `<register>`, `<field>`) for IDE debuggers (Keil, IAR, VS Code Cortex-Debug, SVDconv).
 
-10. **Markdown Documentation Specification (`markdown/reg_doc.md.inja`)**:
+12. **Markdown Documentation Specification (`markdown/reg_doc.md.inja`)**:
     - Clean GitHub-flavored Markdown register map table specification with block anchors and bitfield tables.
 
-11. **JSON Schema Specification (`json/reg_map.json.inja`)**:
+13. **JSON Schema Specification (`json/reg_map.json.inja`)**:
     - Formatted JSON register map schema export for custom tooling, CI scripts, and automation pipelines.
 
-12. **Self-Checking RTL Testbench (`rtl_tb/tb_reg_map.sv.inja`)**:
+14. **Self-Checking RTL Testbench (`rtl_tb/tb_reg_map.sv.inja`)**:
     - Standalone SystemVerilog testbench exercising reset values, read/write accesses, bitfield masks, and read-only/write-1-to-clear behaviors in Icarus Verilog or Verilator.
 
-13. **Open-Source Python UVM Testbench (`pyuvm_tb/tb_pyuvm.py.inja`)**:
+15. **Open-Source Python UVM Testbench (`pyuvm_tb/tb_pyuvm.py.inja`)**:
     - Complete Python verification testbench utilizing Cocotb and pyuvm to run register tests headlessly with open-source simulators.
 
-14. **Universal UVM Verification Environment (`uvm_tb/*.sv.inja`)**:
+16. **Universal UVM Verification Environment (`uvm_tb/*.sv.inja`)**:
     - Complete modular UVM testbench suite containing generic bus interface (`reg_bus_if.sv`), bus VIP package (`reg_bus_pkg.sv`), register environment (`reg_env.sv`), built-in test sequences (`reg_tests.sv`), and top-level harness (`tb_top.sv`).
     - Compatible across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020.
 
-15. **Multi-Tool Simulation Makefile (`sim/Makefile.inja`)**:
+17. **Multi-Tool Simulation Makefile (`sim/Makefile.inja`)**:
     - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and commercial EDA simulators (`sim-uvm SIM=vcs|xrun|mti`).
     - Configurable UVM version selection via `UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d` or custom path via `UVM_HOME=/path/to/uvm`, with automatic local repository discovery.
 

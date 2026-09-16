@@ -12,6 +12,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
   localparam int ADDR_WIDTH = 32;
   localparam int DATA_WIDTH = {{ reg_width }};
   localparam int STRB_WIDTH = DATA_WIDTH / 8;
+  localparam bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %};
 
   // Clock and Reset Signals
   logic                    clk_i;
@@ -35,16 +36,13 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
-{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
-{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
-  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i;
-  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
-{% else if upper(fld.access) == "W1S" %}
+{% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
-{% else if upper(fld.access) != "RO" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o;
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
@@ -96,7 +94,9 @@ module tb_{{ lower(blk.name) }}_reg_file;
   // DUT Instantiation
   {{ lower(blk.name) }}_reg_file #(
     .ADDR_WIDTH(ADDR_WIDTH),
-    .DATA_WIDTH(DATA_WIDTH)
+    .DATA_WIDTH(DATA_WIDTH),
+    .STRB_WIDTH(STRB_WIDTH),
+    .PARAM_HW_PRECEDENCE(PARAM_HW_PRECEDENCE)
   ) dut (
     .clk_i                     (clk_i),
     .rst_ni                    (rst_ni),
@@ -106,16 +106,13 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
-{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) == "W1S" %}
+{% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) != "RO" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
@@ -218,9 +215,9 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = '0;
-{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = '0;
-{% else if upper(fld.access) == "W1S" %}
+{% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i = '0;
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
@@ -251,7 +248,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
 
 {% for reg in blk.registers %}
     // Test Register: {{ reg.name }} (Offset: {{ reg.offset_hex }})
-    bus_write({{ sv_hex(reg.offset_hex, 32) }}, 32'hFFFFFFFF, {STRB_WIDTH{1'b1}});
+    bus_write({{ sv_hex(reg.offset_hex, 32) }}, '1, {STRB_WIDTH{1'b1}});
     bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RW" %}
@@ -264,7 +261,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endfor %}
 
     // Clear RW fields back to 0
-    bus_write({{ sv_hex(reg.offset_hex, 32) }}, 32'h00000000, {STRB_WIDTH{1'b1}});
+    bus_write({{ sv_hex(reg.offset_hex, 32) }}, '0, {STRB_WIDTH{1'b1}});
     bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RW" %}
@@ -280,7 +277,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
     $display("\n[Phase 3] Byte Strobe Masking Verification");
 {% if length(blk.registers) > 0 %}
     // 1. Zero-strobe write: writes with strb=0 must not modify storage
-    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, 32'hFFFFFFFF, '0);
+    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, '1, '0);
     bus_read({{ sv_hex(blk.registers.0.offset_hex, 32) }}, rdata);
 {% for fld in blk.registers.0.fields %}
 {% if upper(fld.access) == "RW" %}
@@ -289,7 +286,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endfor %}
 
     // 2. Byte lane 0 write: write all 1s with strobe for byte 0 only
-    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, 32'hFFFFFFFF, 4'b0001);
+    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, '1, {{ reg_width_bytes }}'h1);
     bus_read({{ sv_hex(blk.registers.0.offset_hex, 32) }}, rdata);
 {% for fld in blk.registers.0.fields %}
 {% if upper(fld.access) == "RW" and fld.offset_lsb < 8 %}
@@ -298,7 +295,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endfor %}
 
     // 3. Byte lane 1 write: write 0s to byte lane 1 only; byte lane 0 must remain 1s
-    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, 32'h00000000, 4'b0010);
+    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, '0, {{ reg_width_bytes }}'h2);
     bus_read({{ sv_hex(blk.registers.0.offset_hex, 32) }}, rdata);
 {% for fld in blk.registers.0.fields %}
 {% if upper(fld.access) == "RW" and fld.offset_lsb < 8 %}
@@ -307,7 +304,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% endfor %}
 
     // 4. Clear byte lane 0
-    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, 32'h00000000, 4'b0001);
+    bus_write({{ sv_hex(blk.registers.0.offset_hex, 32) }}, '0, {{ reg_width_bytes }}'h1);
     bus_read({{ sv_hex(blk.registers.0.offset_hex, 32) }}, rdata);
 {% for fld in blk.registers.0.fields %}
 {% if upper(fld.access) == "RW" and fld.offset_lsb < 8 %}
@@ -397,9 +394,9 @@ module tb_{{ lower(blk.name) }}_reg_file;
     // -----------------------------------------------------------------------
     $display("\n[Phase 6] Memory Subsystem Passthrough Verification");
 {% for mem in blk.memories %}
-    bus_write({{ sv_hex(mem.offset_hex, 32) }}, 32'hDEAD_BEEF, '1);
+    bus_write({{ sv_hex(mem.offset_hex, 32) }}, '1, '1);
     bus_read({{ sv_hex(mem.offset_hex, 32) }}, rdata);
-    check_val("Memory Passthrough {{ mem.name }} @ {{ mem.offset_hex }}", rdata, 32'hDEAD_BEEF, '1);
+    check_val("Memory Passthrough {{ mem.name }} @ {{ mem.offset_hex }}", rdata, '1, '1);
     if (last_bus_error === 1'b0) begin
       pass_count++;
       $display("  [PASS] Memory {{ mem.name }} access correctly asserted no bus_error_o");

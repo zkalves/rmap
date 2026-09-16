@@ -50,6 +50,9 @@ public:
     QString language() const;
     void setLanguage(const QString &lang);
 
+    bool hwPrecedence() const;
+    void setHwPrecedence(bool precedence);
+
     // Main Window Geometry, Pos & Size
     QByteArray mainWindowGeometry() const;
     void setMainWindowGeometry(const QByteArray &geom);
@@ -102,6 +105,7 @@ private:
     bool m_colorBlindMode = false;
     ColorBlindMode m_colorBlindType = ColorBlindMode::Universal;
     QString m_language = QStringLiteral("en");
+    bool m_hwPrecedence = true;
 
     QByteArray m_mainWindowGeometry;
     QByteArray m_mainWindowState;

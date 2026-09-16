@@ -1085,6 +1085,13 @@ void TestFormats::test_CmsisSvdExtendedSyntaxAndErrors()
                 <access>w1c</access>
             </register>
         </peripheral>
+        <register>
+            <dim>2</dim>
+            <dimIncrement>4</dimIncrement>
+            <name>ORPHAN[%s]</name>
+            <addressOffset>0x100</addressOffset>
+            <size>32</size>
+        </register>
     </device>
     )";
     QString svdSynPath = "work/test_formats/syntax_svd.svd";
@@ -1316,6 +1323,35 @@ void TestFormats::test_CmsisSvdDimAndDerivedFrom()
     QCOMPARE(rtModel.getRootItem()->child(0)->childCount(), 13);
     QCOMPARE(rtModel.getRootItem()->child(1)->childCount(), 13);
     QCOMPARE(rtModel.getRootItem()->child(2)->childCount(), 13);
+
+    // Test single dimIndex fallback and orphan register array (currentBlock == nullptr)
+    {
+        QString svdSingleDim = R"(<?xml version="1.0" encoding="utf-8"?>
+        <device schemaVersion="1.3">
+            <name>SingleDimDev</name>
+            <register>
+                <dim>2</dim>
+                <dimIncrement>0x4</dimIncrement>
+                <dimIndex>SINGLE</dimIndex>
+                <name>ORPHAN_%s</name>
+                <description>Orphan reg %s</description>
+                <addressOffset>0x10</addressOffset>
+                <size>32</size>
+            </register>
+        </device>)";
+        QString singlePath = "work/svd_single_dim.svd";
+        QFile fs(singlePath);
+        QVERIFY(fs.open(QIODevice::WriteOnly | QIODevice::Text));
+        fs.write(svdSingleDim.toUtf8());
+        fs.close();
+
+        RegMapTreeModel mSingle;
+        RegConfigWindow cfgSingle;
+        FormatResult rSingle = handler.read(singlePath, &mSingle, &cfgSingle);
+        QVERIFY(rSingle.success);
+        QVERIFY(mSingle.getRootItem()->childCount() >= 2);
+        QFile::remove(singlePath);
+    }
 }
 
 void TestFormats::test_CsvExtendedSyntaxAndErrors()
@@ -1492,11 +1528,48 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
         "name": "CustomChip",
         "project_version": "2.5",
         "reg_width": 64,
+        "maps": [
+            {
+                "name": "default_map",
+                "is_default": true
+            },
+            {
+                "name": "SYS_BUS_MAP",
+                "base_hex": "0x1000",
+                "endianness": "UVM_BIG_ENDIAN",
+                "byte_addressing": 0,
+                "description": "System bus map"
+            },
+            {
+                "name": "IO_MAP",
+                "offset_hex": "0x2000",
+                "size_width": 4
+            },
+            {
+                "name": "DBG_MAP",
+                "offset_lsb": 12288,
+                "n_bytes": 4
+            },
+            {
+                "name": "BASE_ADDR_MAP",
+                "base_addr": 16384
+            }
+        ],
         "blocks": [
             {
                 "name": "DMA_BLK",
                 "offset_hex": "0x4000",
                 "description": "DMA block",
+                "maps": [
+                    {
+                        "name": "default_map"
+                    },
+                    {
+                        "name": "DMA_LOCAL_MAP",
+                        "base_hex": "0x4000",
+                        "size_width": 8
+                    }
+                ],
                 "registers": [
                     {
                         "name": "SRC_ADDR",
@@ -1558,13 +1631,17 @@ void TestFormats::test_JsonExtendedSyntaxAndErrors()
     RegMapTreeItem *root = model.getRootItem();
     QVERIFY(root != nullptr);
     bool foundMem = false;
+    bool foundMap = false;
     for (RegMapTreeItem *child : root->getChildItems()) {
         if (child->kind() == RegMapTreeItem::e_rmmKind::mem) {
             foundMem = true;
-            break;
+        }
+        if (child->kind() == RegMapTreeItem::e_rmmKind::map) {
+            foundMap = true;
         }
     }
     QVERIFY(foundMem);
+    QVERIFY(foundMap);
 
     // Minimal JSON fallback branches (no project_name, registers with offset_lsb/neither, memory defaults, export without config)
     {

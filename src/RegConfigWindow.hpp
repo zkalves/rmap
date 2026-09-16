@@ -47,6 +47,8 @@ class RegConfigWindow : public QDialog, private Ui::config
         uint32_t registerWidth() const;
         QString projectName() const;
         QString projectVersion() const;
+        void setHwPrecedence(bool precedence);
+        bool hwPrecedence() const;
 
         void setPythonScript(const QString &script);
         QString pythonScript() const;
@@ -105,6 +107,7 @@ class RegConfigWindow : public QDialog, private Ui::config
         QString m_projectName;
         QString m_projectVersion;
         bool m_strictValidation = true;
+        bool m_hwPrecedence = true;
         bool m_firstShown = true;
         uint32_t m_regWidth = 32;
         QList<TemplateEntry> m_templateOutputs;

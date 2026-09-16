@@ -76,6 +76,53 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
     for (const QString &c : cols) rootData[c] = c;
     RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
 
+    auto parseMapJson = [&](const json &mJson, RegMapTreeItem *parent) -> RegMapTreeItem* {
+        if (mJson.contains("is_default") && mJson["is_default"].is_boolean() && mJson["is_default"].get<bool>()) {
+            return nullptr;
+        }
+        if (mJson.contains("name") && mJson["name"].is_string() && mJson["name"].get<std::string>() == "default_map") {
+            return nullptr;
+        }
+        QVariantMap mapData;
+        mapData["Type"] = "map";
+        QString baseOffset = "0x0";
+        if (mJson.contains("base_hex") && mJson["base_hex"].is_string()) {
+            baseOffset = QString::fromStdString(mJson["base_hex"].get<std::string>());
+        } else if (mJson.contains("base_addr") && mJson["base_addr"].is_number()) {
+            baseOffset = QString("0x%1").arg(mJson["base_addr"].get<uint64_t>(), 0, 16);
+        } else if (mJson.contains("offset_hex") && mJson["offset_hex"].is_string()) {
+            baseOffset = QString::fromStdString(mJson["offset_hex"].get<std::string>());
+        } else if (mJson.contains("offset_lsb") && mJson["offset_lsb"].is_number()) {
+            baseOffset = QString("0x%1").arg(mJson["offset_lsb"].get<uint64_t>(), 0, 16);
+        }
+        mapData["Offset/LSB"] = baseOffset;
+        uint64_t nBytes = mJson.contains("n_bytes") && mJson["n_bytes"].is_number() ? mJson["n_bytes"].get<uint64_t>() : (regWidth >= 8 ? regWidth / 8 : 4);
+        if (mJson.contains("size_width") && mJson["size_width"].is_number()) {
+            nBytes = mJson["size_width"].get<uint64_t>();
+        }
+        mapData["Size/Width"] = QString::number(nBytes);
+        mapData["Name"] = mJson.contains("name") && mJson["name"].is_string() ? QString::fromStdString(mJson["name"].get<std::string>()) : "default_map";
+        mapData["SW Access"] = "RW";
+        mapData["HW Access"] = "NA";
+        mapData["Reset Value"] = "";
+        mapData["Is Rand"] = "false";
+        mapData["Volatile"] = "false";
+        mapData["Has Reset"] = "false";
+        mapData["Endianness"] = mJson.contains("endianness") && mJson["endianness"].is_string() ? QString::fromStdString(mJson["endianness"].get<std::string>()) : "UVM_LITTLE_ENDIAN";
+        mapData["Byte Addressing"] = (mJson.contains("byte_addressing") && mJson["byte_addressing"].is_number() && mJson["byte_addressing"].get<int>() == 0) ? "false" : "true";
+        mapData["Description"] = mJson.contains("description") && mJson["description"].is_string() ? QString::fromStdString(mJson["description"].get<std::string>()) : "";
+
+        RegMapTreeItem *mapItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData, parent);
+        parent->appendChild(mapItem);
+        return mapItem;
+    };
+
+    if (rootJson.contains("maps") && rootJson["maps"].is_array()) {
+        for (const auto &mapJson : rootJson["maps"]) {
+            parseMapJson(mapJson, rootItem);
+        }
+    }
+
     if (rootJson.contains("blocks") && rootJson["blocks"].is_array()) {
         for (const auto &blkJson : rootJson["blocks"]) {
             QVariantMap blkData;
@@ -87,12 +134,19 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
             RegMapTreeItem *blkItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem);
             rootItem->appendChild(blkItem);
 
+            if (blkJson.contains("maps") && blkJson["maps"].is_array()) {
+                for (const auto &mapJson : blkJson["maps"]) {
+                    parseMapJson(mapJson, blkItem);
+                }
+            }
+
             if (blkJson.contains("registers") && blkJson["registers"].is_array()) {
                 for (const auto &regJson : blkJson["registers"]) {
                     QVariantMap regData;
                     regData["Type"] = "reg";
                     regData["Offset/LSB"] = extractOffset(regJson);
-                    regData["Size/Width"] = QString::number(regWidth);
+                    uint64_t regCustomWidth = regJson.contains("size_width") && regJson["size_width"].is_number() ? regJson["size_width"].get<uint64_t>() : 0;
+                    regData["Size/Width"] = (regCustomWidth > 0) ? QString::number(regCustomWidth) : QString::number(regWidth);
                     regData["Name"] = regJson.contains("name") ? QString::fromStdString(regJson["name"].get<std::string>()) : "REG";
                     regData["SW Access"] = regJson.contains("access") ? QString::fromStdString(regJson["access"].get<std::string>()) : "RW";
                     regData["HW Access"] = regJson.contains("hw_access") ? QString::fromStdString(regJson["hw_access"].get<std::string>()) : "RO";
@@ -146,6 +200,9 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model, 
         config->setRegisterWidth(regWidth);
         config->setProjectName(projName);
         config->setProjectVersion(projVersion);
+        if (rootJson.contains("hw_precedence") && rootJson["hw_precedence"].is_boolean()) {
+            config->setHwPrecedence(rootJson["hw_precedence"].get<bool>());
+        }
     }
 
     if (model) {
@@ -168,17 +225,19 @@ FormatResult JsonHandler::write(const QString &filepath, RegMapTreeModel *model,
     uint32_t regWidth = 32;
     QString projName = "chip_map";
     QString projVersion = "1.0";
+    bool hwPrec = true;
     if (config) {
         protormap::Config *cfg = config->serialize();
         if (cfg) {
             if (cfg->reg_width() > 0) regWidth = cfg->reg_width();
             if (!cfg->project_name().empty()) projName = QString::fromStdString(cfg->project_name());
             if (!cfg->project_version().empty()) projVersion = QString::fromStdString(cfg->project_version());
+            if (cfg->has_hw_precedence()) hwPrec = cfg->hw_precedence();
             delete cfg;
         }
     }
 
-    json rootJson = model->extractJsonData(regWidth);
+    json rootJson = model->extractJsonData(regWidth, hwPrec);
     rootJson["project_name"] = projName.toStdString();
     rootJson["project_version"] = projVersion.toStdString();
 

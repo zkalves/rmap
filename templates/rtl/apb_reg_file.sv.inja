@@ -11,7 +11,8 @@ timeprecision 1ps;
 module {{ lower(blk.name) }}_apb_reg_file #(
   parameter int ADDR_WIDTH = 32,
   parameter int DATA_WIDTH = {{ reg_width }},
-  parameter int STRB_WIDTH = DATA_WIDTH / 8
+  parameter int STRB_WIDTH = DATA_WIDTH / 8,
+  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}
 )(
   input  logic                      pclk_i,
   input  logic                      prst_ni,
@@ -36,16 +37,13 @@ module {{ lower(blk.name) }}_apb_reg_file #(
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
-{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i,
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
-{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
-  input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i,
-  output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
-{% else if upper(fld.access) == "W1S" %}
+{% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
   input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i,
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
-{% else if upper(fld.access) != "RO" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
@@ -87,7 +85,8 @@ module {{ lower(blk.name) }}_apb_reg_file #(
   {{ lower(blk.name) }}_reg_file #(
     .ADDR_WIDTH(ADDR_WIDTH),
     .DATA_WIDTH(DATA_WIDTH),
-    .STRB_WIDTH(STRB_WIDTH)
+    .STRB_WIDTH(STRB_WIDTH),
+    .PARAM_HW_PRECEDENCE(PARAM_HW_PRECEDENCE)
   ) u_reg_file (
     .clk_i                     (pclk_i),
     .rst_ni                    (prst_ni),
@@ -97,16 +96,13 @@ module {{ lower(blk.name) }}_apb_reg_file #(
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
-{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) == "W1S" %}
+{% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) != "RO" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}

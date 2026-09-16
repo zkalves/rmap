@@ -1,4 +1,4 @@
-{% for blk in blocks %}
+{% for blk in blocks %}{% if loop.is_first %}
 // =============================================================================
 // Top-Level UVM Testbench Module
 // Compatible with UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020
@@ -137,4 +137,4 @@ module tb_top;
   end
 
 endmodule : tb_top
-{% endfor %}
+{% endif %}{% endfor %}

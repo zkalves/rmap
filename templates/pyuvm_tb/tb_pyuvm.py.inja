@@ -1,4 +1,4 @@
-{% for blk in blocks %}
+{% for blk in blocks %}{% if loop.is_first %}
 # =============================================================================
 # Standalone pyuvm + Cocotb Testbench
 # Peripheral: {{ blk.name }}
@@ -7,7 +7,7 @@
 
 import os
 import cocotb
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer, ReadOnly
 from cocotb.clock import Clock
 import pyuvm
 from pyuvm import (
@@ -104,6 +104,7 @@ class RegBusMonitor(uvm_monitor):
     async def run_phase(self):
         while True:
             await RisingEdge(self.dut.clk_i)
+            await ReadOnly()
             if int(self.dut.bus_ready_o.value) == 1:
                 item = RegBusItem("mon_item")
                 item.addr = int(self.dut.bus_addr_i.value)
@@ -370,4 +371,4 @@ async def run_testbench(dut):
     ConfigDB().set(None, "*", "DUT", dut)
     test_name = os.environ.get("PYUVM_TEST", "PyUvmRegisterTest")
     await uvm_root().run_test(test_name)
-{% endfor %}
+{% endif %}{% endfor %}

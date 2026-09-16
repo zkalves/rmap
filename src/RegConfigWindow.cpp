@@ -49,10 +49,12 @@ inline QString initialTemplateDir(const QListWidget *list, const QString &base)
 
 RegConfigWindow::RegConfigWindow(QWidget *parent) :
     QDialog(parent, Qt::Window),
+    m_hwPrecedence(AppSettings::instance().hwPrecedence()),
     m_firstShown(true),
     m_regWidth(32)
 {
     setupUi(this);
+    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
 
     setWindowTitle(tr("Configuration"));
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
@@ -577,6 +579,8 @@ void RegConfigWindow::saveStateFromUi()
     m_projectName = this->Ui_config::projectName->text().trimmed();
     m_projectVersion = this->Ui_config::projectVersion->text().trimmed();
     m_strictValidation = this->strictValidation->isChecked();
+    m_hwPrecedence = this->Ui_config::hwPrecedence->isChecked();
+    AppSettings::instance().setHwPrecedence(m_hwPrecedence);
 
     m_templateFolders = templateFolders();
 
@@ -610,6 +614,7 @@ void RegConfigWindow::updateUiFromState()
     this->Ui_config::projectName->setText(m_projectName);
     this->Ui_config::projectVersion->setText(m_projectVersion);
     this->strictValidation->setChecked(m_strictValidation);
+    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
 
     this->templateFoldersList->clear();
     for (const QString &f : m_templateFolders) {
@@ -644,6 +649,7 @@ protormap::Config* RegConfigWindow::serialize(void)
     config->set_project_name(m_projectName.toStdString());
     config->set_project_version(m_projectVersion.toStdString());
     config->set_strict_validation(m_strictValidation);
+    config->set_hw_precedence(m_hwPrecedence);
 
     for (const QString &f : m_templateFolders) {
         config->add_template_folders(f.toStdString());
@@ -677,6 +683,8 @@ void RegConfigWindow::deserialize(const protormap::Config &config)
     m_projectName = QString::fromStdString(config.project_name());
     m_projectVersion = QString::fromStdString(config.project_version());
     m_strictValidation = config.strict_validation();
+    m_hwPrecedence = config.has_hw_precedence() ? config.hw_precedence() : AppSettings::instance().hwPrecedence();
+    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
 
     m_templateFolders.clear();
     for (const auto &f : config.template_folders()) {
@@ -811,6 +819,18 @@ QString RegConfigWindow::projectName() const
 QString RegConfigWindow::projectVersion() const
 {
     return m_projectVersion;
+}
+
+void RegConfigWindow::setHwPrecedence(bool precedence)
+{
+    m_hwPrecedence = precedence;
+    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
+    AppSettings::instance().setHwPrecedence(m_hwPrecedence);
+}
+
+bool RegConfigWindow::hwPrecedence() const
+{
+    return m_hwPrecedence;
 }
 
 void RegConfigWindow::setPythonScript(const QString &script)

@@ -37,6 +37,7 @@ message Config {
     map<string, string>     custom_parameters  = 10;
     repeated string         template_folders   = 11;
     optional bool           python_script_enabled = 12;
+    optional bool           hw_precedence      = 13;
 }
 
 message RegItem {

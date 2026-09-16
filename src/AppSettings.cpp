@@ -132,6 +132,19 @@ void AppSettings::setLanguage(const QString &lang)
     }
 }
 
+bool AppSettings::hwPrecedence() const
+{
+    return m_hwPrecedence;
+}
+
+void AppSettings::setHwPrecedence(bool precedence)
+{
+    if (m_hwPrecedence != precedence) {
+        m_hwPrecedence = precedence;
+        save();
+    }
+}
+
 QByteArray AppSettings::mainWindowGeometry() const
 {
     return m_mainWindowGeometry;
@@ -396,6 +409,7 @@ void AppSettings::load()
     if (m_language.isEmpty()) {
         m_language = "en";
     }
+    m_hwPrecedence = settings.value("Generation/HwPrecedence", true).toBool();
 
     m_mainWindowGeometry = settings.value("Geometry/MainWindow").toByteArray();
     m_mainWindowState = settings.value("Geometry/MainWindowState").toByteArray();
@@ -431,6 +445,7 @@ void AppSettings::save()
     settings.setValue("Appearance/ColorBlindMode", m_colorBlindMode);
     settings.setValue("Appearance/ColorBlindType", colorBlindModeToString(m_colorBlindType));
     settings.setValue("Appearance/Language", m_language);
+    settings.setValue("Generation/HwPrecedence", m_hwPrecedence);
 
     if (!m_mainWindowGeometry.isEmpty()) {
         settings.setValue("Geometry/MainWindow", m_mainWindowGeometry);

@@ -23,30 +23,40 @@ namespace {
 
 QString svdAccessToUvm(const QString &acc) {
     QString a = acc.toLower().trimmed();
-    if (a == "read-write") return "RW";
-    if (a == "rw") return "RW";
-    if (a == "read-only") return "RO";
-    if (a == "ro") return "RO";
-    if (a == "r") return "RO";
-    if (a == "write-only") return "WO";
-    if (a == "wo") return "WO";
-    if (a == "writeonce") return "WO";
-    if (a == "read-writeonce") return "W1C";
-    if (a == "w1c") return "W1C";
+    if (a == "read-write" || a == "rw") return "RW";
+    if (a == "read-only" || a == "ro" || a == "r") return "RO";
+    if (a == "write-only" || a == "wo" || a == "w") return "WO";
+    if (a == "writeonce" || a == "wo1") return "WO1";
+    if (a == "read-writeonce" || a == "w1c") return "W1C";
     if (a == "w0c") return "W0C";
-    if (a == "rc") return "RC";
-    if (a == "rs") return "RS";
     if (a == "w1s") return "W1S";
     if (a == "w0s") return "W0S";
+    if (a == "w1t") return "W1T";
+    if (a == "w0t") return "W0T";
+    if (a == "rc") return "RC";
+    if (a == "rs") return "RS";
+    if (a == "wrc") return "WRC";
+    if (a == "wrs") return "WRS";
+    if (a == "wc") return "WC";
+    if (a == "ws") return "WS";
+    if (a == "w1src") return "W1SRC";
+    if (a == "w1crs") return "W1CRS";
+    if (a == "w0src") return "W0SRC";
+    if (a == "w0crs") return "W0CRS";
+    if (a == "w1") return "W1";
+    if (a == "woc") return "WOC";
+    if (a == "wos") return "WOS";
+    if (a == "noaccess" || a == "na") return "NOACCESS";
     return "RW";
 }
 
 QString uvmAccessToSvd(const QString &acc) {
     QString a = acc.toUpper().trimmed();
     if (a == "RO") return "read-only";
-    if (a == "WO") return "write-only";
-    if (a == "W1C") return "read-writeOnce";
-    if (a == "W0C") return "read-writeOnce";
+    if (a == "WO" || a == "WOC" || a == "WOS") return "write-only";
+    if (a == "WO1") return "writeOnce";
+    if (a == "W1" || a == "W1C" || a == "W0C") return "read-writeOnce";
+    if (a == "NOACCESS") return "read-only";
     return "read-write";
 }
 
