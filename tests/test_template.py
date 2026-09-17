@@ -225,20 +225,20 @@ int main(void) {
 }
 """)
 
-    gcc_bin = require_tool("gcc")
+    cc_name, cc_bin = require_any_tool("gcc", "clang")
     c_bin = os.path.join(work_dir, "test_c_harness")
-    run_command([gcc_bin, "-Wall", "-Wextra", "-Werror", "-pedantic", "-std=c99",
+    run_command([cc_bin, "-Wall", "-Wextra", "-Werror", "-pedantic", "-std=c99",
                  f"-I{work_dir}", test_harness_c, "-o", c_bin])
     run_command([c_bin])
-    print("  ✓ GCC C99 build and assertions passed.")
+    print(f"  ✓ {cc_name.upper()} C99 build and assertions passed.")
 
-    gpp_bin = shutil.which("g++")
-    if gpp_bin:
+    cxx_bin = shutil.which("g++") or shutil.which("clang++")
+    if cxx_bin:
         cpp_bin = os.path.join(work_dir, "test_cpp_harness")
-        run_command([gpp_bin, "-Wall", "-Wextra", "-Werror", "-pedantic", "-std=c++17",
+        run_command([cxx_bin, "-Wall", "-Wextra", "-Werror", "-pedantic", "-std=c++17",
                      f"-I{work_dir}", test_harness_c, "-o", cpp_bin])
         run_command([cpp_bin])
-        print("  ✓ G++ C++17 build and assertions passed.")
+        print("  ✓ C++17 build and assertions passed.")
 
     print("✓ C template verified successfully.\n")
 
@@ -947,6 +947,12 @@ def test_sim_makefile(rmap_bin, work_dir):
     assert "1.2" in content
     assert "1.1d" in content
 
+    # Verify Makefile syntax with make dry-run
+    make_bin = require_tool("make")
+    run_command([make_bin, "-n", "-f", mk_comp, "help"])
+    run_command([make_bin, "-n", "-f", mk_spi, "help"])
+    print("  ✓ make syntax dry-run verification passed.")
+
     print("✓ Simulation Makefile template verified successfully.\n")
 
 
@@ -1268,21 +1274,13 @@ def test_sva(rmap_bin, work_dir):
     assert "default disable iff (!rst_ni);" in content
     assert "assert property" in content
 
-    # Toolchain verification (Verilator or Icarus Verilog)
-    require_any_tool("verilator", "iverilog")
-
-    verilator_bin = find_verilator()
-    if verilator_bin:
-        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file, sva_comp_file])
-        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_spi_file, sva_spi_file])
-        print("  ✓ Verilator lint checks passed.")
-
-    # Icarus Verilog if installed
-    iverilog_bin = shutil.which("iverilog")
-    if iverilog_bin:
-        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_comp_file, sva_comp_file])
-        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_spi_file, sva_spi_file])
-        print("  ✓ Icarus Verilog syntax checks passed.")
+    # Toolchain verification (Verilator only; iverilog does not support SVA assertions or bind)
+    verilator_bin = require_tool("verilator", finder=find_verilator)
+    ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
+    print(f"  Verilator: {ver_info}")
+    run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file, sva_comp_file])
+    run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_spi_file, sva_spi_file])
+    print("  ✓ Verilator lint checks passed.")
 
     print("✓ SVA template verified successfully.\n")
 

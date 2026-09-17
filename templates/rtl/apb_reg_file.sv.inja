@@ -14,21 +14,6 @@ module {{ lower(blk.name) }}_apb_reg_file #(
   parameter int STRB_WIDTH = DATA_WIDTH / 8,
   parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}
 )(
-  input  logic                      pclk_i,
-  input  logic                      prst_ni,
-
-  // AMBA APB4 Slave Bus Interface
-  input  logic                      psel_i,
-  input  logic                      penable_i,
-  input  logic                      pwrite_i,
-  input  logic [ADDR_WIDTH-1:0]     paddr_i,
-  input  logic [DATA_WIDTH-1:0]     pwdata_i,
-  input  logic [STRB_WIDTH-1:0]     pstrb_i,
-  input  logic [2:0]                pprot_i,
-  output logic                      pready_o,
-  output logic [DATA_WIDTH-1:0]     prdata_o,
-  output logic                      pslverr_o,
-
   // Hardware Core Sideband Signals
 {% for reg in blk.registers %}
   // --- Register: {{ reg.name }} (Offset: {{ reg.offset_hex }}) ---
@@ -67,6 +52,19 @@ module {{ lower(blk.name) }}_apb_reg_file #(
   input  logic                      mem_{{ lower(mem.name) }}_ready_i,
 {% endfor %}
 {% endif %}
+  // AMBA APB4 Slave Bus Interface
+  input  logic                      pclk_i,
+  input  logic                      prst_ni,
+  input  logic                      psel_i,
+  input  logic                      penable_i,
+  input  logic                      pwrite_i,
+  input  logic [ADDR_WIDTH-1:0]     paddr_i,
+  input  logic [DATA_WIDTH-1:0]     pwdata_i,
+  input  logic [STRB_WIDTH-1:0]     pstrb_i,
+  input  logic [2:0]                pprot_i,
+  output logic                      pready_o,
+  output logic [DATA_WIDTH-1:0]     prdata_o,
+  output logic                      pslverr_o
 );
 
   // Unused protection signals tied off cleanly

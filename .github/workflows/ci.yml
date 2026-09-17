@@ -198,7 +198,7 @@ jobs:
             c)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential
               ;;
-            rtl|rtl_tb|verilog|apb|axil|sva)
+            rtl|rtl_tb|verilog|apb|axil)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iverilog
               ;;
             vhdl)

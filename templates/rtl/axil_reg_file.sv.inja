@@ -14,38 +14,6 @@ module {{ lower(blk.name) }}_axil_reg_file #(
   parameter int STRB_WIDTH = DATA_WIDTH / 8,
   parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}
 )(
-  input  logic                      aclk_i,
-  input  logic                      aresetn_i,
-
-  // AXI4-Lite Write Address Channel
-  input  logic [ADDR_WIDTH-1:0]     s_axil_awaddr_i,
-  input  logic [2:0]                s_axil_awprot_i,
-  input  logic                      s_axil_awvalid_i,
-  output logic                      s_axil_awready_o,
-
-  // AXI4-Lite Write Data Channel
-  input  logic [DATA_WIDTH-1:0]     s_axil_wdata_i,
-  input  logic [STRB_WIDTH-1:0]     s_axil_wstrb_i,
-  input  logic                      s_axil_wvalid_i,
-  output logic                      s_axil_wready_o,
-
-  // AXI4-Lite Write Response Channel
-  output logic [1:0]                s_axil_bresp_o,
-  output logic                      s_axil_bvalid_o,
-  input  logic                      s_axil_bready_i,
-
-  // AXI4-Lite Read Address Channel
-  input  logic [ADDR_WIDTH-1:0]     s_axil_araddr_i,
-  input  logic [2:0]                s_axil_arprot_i,
-  input  logic                      s_axil_arvalid_i,
-  output logic                      s_axil_arready_o,
-
-  // AXI4-Lite Read Data Channel
-  output logic [DATA_WIDTH-1:0]     s_axil_rdata_o,
-  output logic [1:0]                s_axil_rresp_o,
-  output logic                      s_axil_rvalid_o,
-  input  logic                      s_axil_rready_i,
-
   // Hardware Core Sideband Signals
 {% for reg in blk.registers %}
   // --- Register: {{ reg.name }} (Offset: {{ reg.offset_hex }}) ---
@@ -84,6 +52,38 @@ module {{ lower(blk.name) }}_axil_reg_file #(
   input  logic                      mem_{{ lower(mem.name) }}_ready_i,
 {% endfor %}
 {% endif %}
+  // AMBA AXI4-Lite Slave Bus Interface
+  input  logic                      aclk_i,
+  input  logic                      aresetn_i,
+
+  // AXI4-Lite Write Address Channel
+  input  logic [ADDR_WIDTH-1:0]     s_axil_awaddr_i,
+  input  logic [2:0]                s_axil_awprot_i,
+  input  logic                      s_axil_awvalid_i,
+  output logic                      s_axil_awready_o,
+
+  // AXI4-Lite Write Data Channel
+  input  logic [DATA_WIDTH-1:0]     s_axil_wdata_i,
+  input  logic [STRB_WIDTH-1:0]     s_axil_wstrb_i,
+  input  logic                      s_axil_wvalid_i,
+  output logic                      s_axil_wready_o,
+
+  // AXI4-Lite Write Response Channel
+  output logic [1:0]                s_axil_bresp_o,
+  output logic                      s_axil_bvalid_o,
+  input  logic                      s_axil_bready_i,
+
+  // AXI4-Lite Read Address Channel
+  input  logic [ADDR_WIDTH-1:0]     s_axil_araddr_i,
+  input  logic [2:0]                s_axil_arprot_i,
+  input  logic                      s_axil_arvalid_i,
+  output logic                      s_axil_arready_o,
+
+  // AXI4-Lite Read Data Channel
+  output logic [DATA_WIDTH-1:0]     s_axil_rdata_o,
+  output logic [1:0]                s_axil_rresp_o,
+  output logic                      s_axil_rvalid_o,
+  input  logic                      s_axil_rready_i
 );
 
   logic unused_prot;
