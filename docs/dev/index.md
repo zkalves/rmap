@@ -57,7 +57,7 @@ flowchart TD
     WIN --> FMT["FormatManager\n(Multi-Format Handlers)"]
     FMT --> SER["SerializationContext\n(Protobuf / SVD / RDL / XML / JSON / CSV)"]
     
-    WIN --> CODEGEN["CodeGenerator\n(Pantor Inja Engine + 11 Helpers)"]
+    WIN --> CODEGEN["CodeGenerator\n(Pantor Inja Engine + 12 Helpers (including sv_hex))"]
     
     WIN --> THEME["ThemeManager\n(8 Themes & CVD Palettes)"]
     WIN --> LANG["LanguageManager\n(Runtime Translations)"]
@@ -86,7 +86,7 @@ flowchart TD
 - **`SerializationContext`**: Object graph serialization framework providing the abstract `Serializable` interface, template `ObjectFactory`, and `ProtobufLogCollector`.
 
 ### 5. Code Generation, Localization & Utilities
-- **`CodeGenerator`**: Pantor Inja template rendering engine featuring 11 custom naming and bitwise helper callbacks for multi-target code generation (SystemVerilog, Verilog, VHDL, UVM, C, Rust, Python).
+- **`CodeGenerator`**: Pantor Inja template rendering engine featuring 12 custom naming and bitwise helper callbacks (including sv_hex) for multi-target code generation (SystemVerilog, Verilog, VHDL, UVM, C, Rust, Python).
 - **`ThemeManager`**: Multi-theme styling engine supporting 8 color schemes and Okabe-Ito / Wong CVD barrier-free palettes.
 - **`LanguageManager`**: Internationalization engine managing runtime translation catalogs (`.qm`) and dynamic locale switching.
 - **`AppSettings`**: Persistent application settings and window geometry persistence via `QSettings`.

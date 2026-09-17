@@ -15,6 +15,8 @@ When templates are executed, the full register map model is exposed as a JSON st
   "project_version": "1.0.0",
   "reg_width": 32,
   "reg_width_bytes": 4,
+  "hw_precedence": true,
+  "param_hw_precedence": 1,
   "regmap_crc32": 2743849182,
   "regmap_crc32_hex": "0xA38EB0DE",
   "blocks": [
@@ -22,6 +24,18 @@ When templates are executed, the full register map model is exposed as a JSON st
       "name": "SPI_Top",
       "crc32": 305419896,
       "crc32_hex": "0x12345678",
+      "hdl_path": "DUT",
+      "maps": [
+        {
+          "name": "default_map",
+          "is_default": true,
+          "base_addr": 0,
+          "base_hex": "0x0",
+          "n_bytes": 4,
+          "endianness": "UVM_LITTLE_ENDIAN",
+          "byte_addressing": 1
+        }
+      ],
       "registers": [
         {
           "name": "CTRL",
@@ -34,6 +48,16 @@ When templates are executed, the full register map model is exposed as a JSON st
           "description": "Control Register",
           "pad_bytes_before": 0,
           "pad_words_before": 0,
+          "hdl_path": "reg_ctrl_q",
+          "is_fifo": false,
+          "fifo_depth": 8,
+          "is_indirect": false,
+          "index_reg": "",
+          "has_callbacks": false,
+          "no_reg_test": false,
+          "no_reset_test": false,
+          "no_bit_bash_test": false,
+          "no_access_test": false,
           "fields": [
             {
               "name": "EN",
@@ -45,15 +69,81 @@ When templates are executed, the full register map model is exposed as a JSON st
               "is_rand": true,
               "volatile": false,
               "has_reset": true,
+              "individually_accessible": 1,
               "description": "Enable SPI"
             }
           ]
+        }
+      ],
+      "memories": [
+        {
+          "name": "BUFFER",
+          "offset_lsb": 256,
+          "offset_hex": "0x100",
+          "size_width": 1024,
+          "word_width": 32,
+          "depth": 256,
+          "access": "RW",
+          "hdl_path": "mem_buffer_ram",
+          "no_mem_test": false,
+          "no_walk_test": false,
+          "no_access_test": false,
+          "description": "Packet Buffer SRAM"
         }
       ]
     }
   ]
 }
 ```
+
+### Context Schema & Extended RAL Properties Reference
+
+The context passed to Inja templates provides rich hardware architecture and verification attributes:
+
+- **Root Attributes**:
+  - `name`: Root register map identifier (defaults to `"regmap"` if unassigned).
+  - `project_name` / `project_version`: User-configured project identification metadata.
+  - `reg_width` / `reg_width_bytes`: Global register data width in bits (e.g. 32, 64) and bytes.
+  - `hw_precedence`: Boolean flag indicating whether hardware updates take priority over concurrent software writes.
+  - `param_hw_precedence`: Integer parameter value (`1` = hardware over software, `0` = software over hardware) for synthesizable HDL generics.
+  - `regmap_crc32` / `regmap_crc32_hex`: Global 32-bit architectural CRC checksum.
+  - `blocks`: Array of peripheral block structures.
+
+- **Address Maps (`maps[]`)**:
+  - `name`: Address map identifier (`uvm_reg_map` instance name, e.g. `"default_map"`, `"apb_map"`).
+  - `is_default`: Boolean flag indicating if this is the default map.
+  - `base_addr` / `base_hex`: Base address offset in integer and hex string representation.
+  - `n_bytes`: Native bus byte width for the address map.
+  - `endianness`: Endianness specification string (e.g. `"UVM_LITTLE_ENDIAN"`, `"UVM_BIG_ENDIAN"`).
+  - `byte_addressing`: Integer flag (`1` for byte-level address increments, `0` for word addressing).
+
+- **Registers (`registers[]`)**:
+  - `name`, `offset_lsb`, `offset_hex`, `size_width`, `access`, `reset_val`, `reset_hex`, `description`: Core register properties.
+  - `pad_bytes_before` / `pad_words_before`: Address gap bytes and words before this register (used for C struct padding `_reserved_`).
+  - `hdl_path`: Backdoor HDL signal path relative to DUT (defaults to `"reg_<regname>_q"`).
+  - `is_fifo`: Boolean indicating if register represents a FIFO port.
+  - `fifo_depth`: FIFO buffer depth in words (default `8`).
+  - `is_indirect`: Boolean indicating indirect register addressing via an index register.
+  - `index_reg`: Name of the index/address register used to address this indirect register.
+  - `has_callbacks`: Boolean indicating whether UVM pre/post-read/write callbacks are registered.
+  - `no_reg_test`: Disables all standard UVM built-in register test sequences (`NO_REG_TEST`).
+  - `no_reset_test`: Disables UVM reset sequence (`NO_REG_HW_RESET_TEST`).
+  - `no_bit_bash_test`: Disables UVM bit bash sequence (`NO_REG_BIT_BASH_TEST`).
+  - `no_access_test`: Disables UVM register access sequence (`NO_REG_ACCESS_TEST`).
+  - `fields`: Array of bitfield definitions within this register.
+
+- **Bitfields (`fields[]`)**:
+  - `name`, `offset_lsb`, `size_width`, `access`, `reset_val`, `reset_hex`, `is_rand`, `volatile`, `has_reset`, `description`: Core field properties.
+  - `individually_accessible`: Integer flag (`1` or `0`) indicating whether the bitfield can be individually accessed or byte-enabled without altering neighboring bits.
+
+- **Memories (`memories[]`)**:
+  - `name`, `offset_lsb`, `offset_hex`, `size_width`, `description`: Memory window identifier, address offset, and total size.
+  - `depth`: Number of memory words (depth).
+  - `word_width`: Width of each memory word in bits.
+  - `hdl_path`: Backdoor HDL RAM array path for simulation backdoor access.
+  - `no_mem_test`: Disables all UVM built-in memory test sequences.
+  - `no_walk_test`: Disables UVM memory walking test sequence (`NO_MEM_WALK_TEST`).
+  - `no_access_test`: Disables UVM memory access test sequence (`NO_MEM_ACCESS_TEST`).
 
 ---
 
@@ -250,11 +340,14 @@ The Python script has full access to the exact same data model and variables ava
 
 Every template in `templates/` is validated through automated test pipelines in CI/CD and locally:
 
-- **Automated Verification Harness (`tests/test_template.py`)**: Runs comprehensive functional, structural, and syntax tests on each template:
+- **Automated Verification Harness (`tests/test_template.py`)**: Runs comprehensive functional, structural, and syntax tests on each deliverable:
   - **`c`**: Verifies include guards, `extern "C"`, bit manipulation macros (`_GET`, `_SET`, `_MASK`, `_SHIFT`), alignment padding (`_reserved_`), CRC32 macros, and compiles a C99/C++17 runtime test harness with `gcc`/`g++`.
   - **`rtl`**: Verifies synthesizable SystemVerilog module declaration, bus slave interface, hardware sideband signals, address decoding, byte-strobe updates, W1C/W1S/W0C logic, and runs `verilator` / `iverilog` syntax & lint checks.
+  - **`verilog`**: Verifies IEEE 1364-2001 synthesizable Verilog module structure, bus slave ports, byte-write enables, hardware sidebands, and checks syntax with `iverilog`.
+  - **`vhdl`**: Verifies IEEE 1076 synthesizable VHDL entity and architecture, `std_logic_vector` ports, address decoding, and syntax verification.
   - **`apb`**: Verifies AMBA 4 APB (APB4) synthesizable bridge wrapper port bindings, setup and access phase state machine, byte-strobe decoding, and linting.
   - **`axil`**: Verifies AMBA 4 AXI4-Lite synthesizable bridge wrapper port handshakes, 5-channel transaction logic, and linting.
+  - **`sva`**: Verifies formal and dynamic SystemVerilog Assertions (SVA) checking write-strobe protocol rules, address decode invariants, and reset integrity with `verilator` / `iverilog`.
   - **`uvm`**: Verifies `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy, factory registration, field access configuration, backdoor HDL paths, and address map registration.
   - **`rust`**: Verifies `#![no_std]` PAC layout, volatile pointers, transparent struct wrappers, bit extraction functions (`get_*`, `set_*`), and compiles library and functional tests with `rustc`.
   - **`python`**: Validates syntax with `py_compile`, dynamically imports the driver module, attaches mock bus read/write callbacks, and tests field read-modify-write operations.
@@ -271,17 +364,20 @@ Every template in `templates/` is validated through automated test pipelines in 
 
 - **Local Execution**:
   ```bash
-  # Test all 17 templates
+  # Test all 20 deliverables
   make test-templates
 
-  # Test an individual template
+  # Test an individual deliverable
   python3 tests/test_template.py rtl
   python3 tests/test_template.py apb
   python3 tests/test_template.py axil
+  python3 tests/test_template.py sva
+  python3 tests/test_template.py verilog
+  python3 tests/test_template.py vhdl
   python3 tests/test_template.py c
   ```
 
-- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs 17 parallel test jobs in CI with template-specific toolchains (`verilator 5.050`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
+- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs 20 parallel test jobs in CI with deliverable-specific toolchains (`verilator 5.050`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
 
 [Next: Architecture & Internal Data Flow &rarr;](architecture.md)
 

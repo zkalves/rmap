@@ -48,10 +48,10 @@ include(CTest)
 include(GNUInstallDirs)
 
 # Find Packages
-find_package(Qt6 COMPONENTS Widgets QUIET)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(Protobuf QUIET)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
-if(BUILD_TESTING AND Qt6_FOUND)
+if(BUILD_TESTING)
     find_package(Qt6 COMPONENTS Test QUIET)
 endif()
 
@@ -98,9 +98,8 @@ set(core_headers
     src/format/CsvHandler.hpp
 )
 
-if(Qt6_FOUND)
-    # Fetch Inja Dependency
-    include(FetchContent)
+# Fetch Inja Dependency
+include(FetchContent)
     set(INJA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "" FORCE)
     set(INJA_INSTALL OFF CACHE BOOL "" FORCE)
@@ -203,29 +202,6 @@ if(Qt6_FOUND)
     target_compile_options(rmap PRIVATE -Wfatal-errors)
     target_compile_definitions(rmap PRIVATE HAVE_QT_GUI)
     target_link_libraries(rmap PRIVATE rmap_core Qt6::Widgets)
-
-else()
-    message(STATUS "Qt6::Widgets not found or Qt disabled. Building headless CLI-only rmap executable.")
-
-    add_executable(rmap
-        src/main.cpp
-        src/rmap.hpp
-    )
-
-    target_include_directories(rmap PRIVATE
-        src
-        ${CMAKE_CURRENT_BINARY_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}/include
-    )
-
-    target_compile_options(rmap PRIVATE -Wfatal-errors)
-    target_compile_definitions(rmap PRIVATE
-        RMAP_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap"
-        RMAP_INSTALL_TEMPLATES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/templates"
-        RMAP_INSTALL_EXAMPLES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/examples"
-        RMAP_INSTALL_DOCDIR="${CMAKE_INSTALL_FULL_DOCDIR}"
-    )
-endif()
 
 # Installation Targets & Assets
 install(TARGETS rmap

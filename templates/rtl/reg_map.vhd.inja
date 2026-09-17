@@ -26,6 +26,8 @@ entity {{ lower(blk.name) }}_reg_file is
     sw_{{ lower(reg.name) }}_wr_strobe_o : out std_logic;
     sw_{{ lower(reg.name) }}_rd_strobe_o : out std_logic;
 {% for fld in reg.fields %}
+    sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o : out std_logic;
+    sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o : out std_logic;
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     : in  std_logic_vector({{ fld.size_width }}-1 downto 0);
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
@@ -112,6 +114,10 @@ begin
   s_sw_{{ lower(reg.name) }}_rd_strobe <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }}) else '0';
   sw_{{ lower(reg.name) }}_wr_strobe_o <= s_sw_{{ lower(reg.name) }}_wr_strobe;
   sw_{{ lower(reg.name) }}_rd_strobe_o <= s_sw_{{ lower(reg.name) }}_rd_strobe;
+{% for fld in reg.fields %}
+  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o <= s_sw_{{ lower(reg.name) }}_wr_strobe;
+  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o <= s_sw_{{ lower(reg.name) }}_rd_strobe;
+{% endfor %}
 {% endfor %}
 
 {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}

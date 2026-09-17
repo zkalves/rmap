@@ -246,6 +246,8 @@ def test_rtl(rmap_bin, work_dir):
     # Sideband hardware ports
     assert "output logic                      sw_control_wr_strobe_o" in content
     assert "output logic                      sw_control_rd_strobe_o" in content
+    assert "output logic                      sw_control_enable_wr_strobe_o" in content
+    assert "output logic                      sw_control_enable_rd_strobe_o" in content
     assert "hw_control_enable_o" in content
     assert "hw_status_flags_busy_i" in content
     assert "hw_status_flags_irq_pending_set_i" in content
@@ -1139,6 +1141,8 @@ def test_verilog(rmap_bin, work_dir):
     assert "output wire                      bus_error_o" in content
     assert "output wire                      sw_control_wr_strobe_o" in content
     assert "output wire                      sw_control_rd_strobe_o" in content
+    assert "output wire                      sw_control_enable_wr_strobe_o" in content
+    assert "output wire                      sw_control_enable_rd_strobe_o" in content
     assert "always @(posedge clk_i or negedge rst_ni)" in content
 
     # Verilator lint if installed
@@ -1185,6 +1189,8 @@ def test_vhdl(rmap_bin, work_dir):
     assert "bus_wr_en_i               : in  std_logic;" in content
     assert "bus_rd_en_i               : in  std_logic;" in content
     assert "sw_control_wr_strobe_o : out std_logic;" in content
+    assert "sw_control_enable_wr_strobe_o : out std_logic;" in content
+    assert "sw_control_enable_rd_strobe_o : out std_logic;" in content
     assert "process(clk_i, rst_ni)" in content
 
     # GHDL if installed

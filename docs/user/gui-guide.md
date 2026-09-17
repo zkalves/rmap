@@ -210,11 +210,12 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | :--- | :--- | :--- |
 | **File Operations** | New Register Map | `Ctrl+N` |
 | | Open File | `Ctrl+O` |
+| | Reload Active File | `Ctrl+R` |
 | | Close Model | `Ctrl+W` |
 | | Save File | `Ctrl+S` |
 | | Save As... | `Ctrl+Shift+S` |
 | | Code Generation & Export | `Ctrl+E` |
-| | Preferences & Configuration | `Ctrl+P` |
+| | Quit Application | `Ctrl+Q` |
 | **Edit Operations** | Undo | `Ctrl+Z` |
 | | Redo | `Ctrl+Y` |
 | | Duplicate Selected Register/Field | `Ctrl+D` |
@@ -224,12 +225,16 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | | Add Bitfield (`fld`) | `Ctrl+Shift+F` / `Ctrl+Shift+Return` |
 | | Add Memory (`mem`) | `Ctrl+Shift+M` |
 | | Add Map (`map`) | `Ctrl+M` |
-| **Configuration & Preferences**| Open Project Configuration | `Ctrl+P` |
+| **Tools & Validation** | Run Architectural Check | `Ctrl+K` |
+| | Open Project Configuration | `Ctrl+P` |
 | | Open Application Preferences | `Ctrl+,` |
-| **View & Navigation**| Toggle Colour-Blind Mode | `Ctrl+Alt+C` |
-| | Focus Search Bar | `Ctrl+F` |
-| **Help & Information**| Show Key Bindings Help | `F1` |
+| **View & Navigation** | Focus Search Bar | `Ctrl+F` |
+| | Toggle Colour-Blind Mode | `Ctrl+Alt+C` |
+| **Help & Information** | Show Key Bindings Help | `F1` |
 | | Show About Window | `Ctrl+I` |
+
+> [!TIP]
+> **Secondary Shortcuts**: In addition to standard combinations, `rmap` supports ergonomic secondary shortcuts: `Ctrl+Return` for **Add Register**, `Ctrl+Shift+Return` for **Add Bitfield**, and `Backspace` for **Delete Selected Item**.
 
 ---
 
@@ -318,7 +323,7 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 - **CLI Flag**:
   - Launch with `--lang <codeOrName>` (e.g. `rmap --lang es` or `rmap --lang German`).
 - **Build-Time Language Configuration**:
-  - All language configurations are defined strictly at build time (no runtime addition or removal) for deterministic, secure operation. Adding a new language is done by copying `translations/template.json`, registering the file in `res/resources.qrc`, and adding the language descriptor in `src/LanguageManager.cpp` (see `translations/README.md` for full instructions).
+  - All language translation catalogs are discovered dynamically from Qt compiled resources (`:/translations/*.json`) at application startup. Adding a new language is done simply by copying `translations/template.json`, translating strings, and registering the new file in `res/resources.qrc`. No C++ modifications in `LanguageManager.cpp` are required.
 
 ---
 

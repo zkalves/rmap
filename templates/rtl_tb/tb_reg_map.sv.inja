@@ -34,6 +34,8 @@ module tb_{{ lower(blk.name) }}_reg_file;
   logic                    sw_{{ lower(reg.name) }}_wr_strobe_o;
   logic                    sw_{{ lower(reg.name) }}_rd_strobe_o;
 {% for fld in reg.fields %}
+  logic                    sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o;
+  logic                    sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o;
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
@@ -104,6 +106,8 @@ module tb_{{ lower(blk.name) }}_reg_file;
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe_o),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe_o),
 {% for fld in reg.fields %}
+    .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o),
+    .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o),
 {% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}

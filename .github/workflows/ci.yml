@@ -69,6 +69,8 @@ jobs:
           - test_RegMapTreeView
           - test_Coverage
           - test_SemVer
+          - test_Templates
+          - test_ArchitecturalInvariants
 
     steps:
       - name: Checkout repository
@@ -141,6 +143,11 @@ jobs:
         template:
           - c
           - rtl
+          - verilog
+          - vhdl
+          - apb
+          - axil
+          - sva
           - uvm
           - rust
           - python
@@ -172,14 +179,14 @@ jobs:
             jq
 
       - name: Download Verilator artifact
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb'
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva'
         uses: actions/download-artifact@v5
         with:
           name: verilator-artifact
           path: /tmp
 
       - name: Extract Verilator and Add to PATH
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb'
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva'
         run: |
           tar -xzf /tmp/verilator-5.050.tar.gz -C /home/runner
           echo "/home/runner/verilator-5.050/bin" >> $GITHUB_PATH
@@ -191,8 +198,11 @@ jobs:
             c)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential
               ;;
-            rtl|rtl_tb)
+            rtl|rtl_tb|verilog|apb|axil|sva)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iverilog
+              ;;
+            vhdl)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ghdl || true
               ;;
             pyuvm_tb)
               python3 -m pip install --break-system-packages cocotb pyuvm || true

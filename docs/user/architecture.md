@@ -119,7 +119,7 @@ Defines how internal peripheral hardware logic interfaces with the register stor
   - `HW_PRECEDENCE = 0`: Software write takes priority over hardware write.
 
 #### Software Access Strobes
-- **Signal Definition**: `sw_<reg>_<fld>_wr_strobe_o` (write strobe) and `sw_<reg>_<fld>_rd_strobe_o` (read strobe).
+- **Signal Definition**: Synthesizable RTL emits both register-level strobes (`sw_<reg>_wr_strobe_o` / `sw_<reg>_rd_strobe_o`) and field-level strobes (`sw_<reg>_<fld>_wr_strobe_o` / `sw_<reg>_<fld>_rd_strobe_o`).
 - **Purpose**: A 1-cycle active-high pulse asserted when software successfully executes a write or read access to a specific register or field.
 - **Hardware Integration**: Enables internal peripheral logic to react immediately to software transactions without polling (e.g. triggering an SPI transaction start, acknowledging/clearing an interrupt pending flag, resetting a hardware timer, popping/pushing a hardware FIFO, or latching shadow register updates).
 
@@ -151,13 +151,24 @@ Defines how internal peripheral hardware logic interfaces with the register stor
 ### CodeGenerator
 - Wraps the Pantor Inja template engine.
 - Manages template file resolution, Inja environment scoping, and destination path creation.
-- Registers domain helpers: `upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `msb`, `to_hex`, `to_dec`, `bitmask`, `pad_zero`.
+- Registers 12 domain helpers: `upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `msb`, `to_hex`, `to_dec`, `bitmask`, `pad_zero`, and `sv_hex`.
+- **Dynamic Path Variables**: Output destination paths support dynamic interpolation tokens:
+  - `{out_dir}` or `{out}`: Evaluates to the target base export directory.
+  - `{name}` or `{block_name}` / `{block}`: Evaluates to the register block name (or register map name).
+  - `{project_name}` or `{project}`: Evaluates to the project name.
+  - `{category}` or `{cat}`: Evaluates to the template sub-category.
+  - `{template_name}` or `{filename}`: Evaluates to the template name.
+  - `{file_extension}` or `{ext}`: Evaluates to the target output file extension.
 
-### `PathUtils` (`src/PathUtils.*`)
+### `PathUtils` & Environment Variables (`src/PathUtils.*`)
 - Centralized path resolution and normalization engine:
   - Expands environment variables (`$VAR`, `${VAR}`, Windows `%VAR%`, and `~`).
   - Resolves relative paths prioritizing active register map file directory over CWD.
   - Converts absolute GUI selections and paths to clean, portable relative paths.
+- **Environment Variables**:
+  - `RMAP_PYTHON_TIMEOUT`: Configures execution timeout in milliseconds for Python scripts and generators (default: 60000 ms).
+  - `RMAP_THEME_DIR` / `RMAP_THEMES_PATH`: Defines filesystem search directories for custom color themes.
+  - `RMAP_CONFIG_FILE`: Overrides default path to the persistent user configuration file (`~/.config/rmap/rmap.conf`).
 
 ### Protobuf Serialization (`rmap.proto`)
 - `protormap::Config`: Stores template paths, output destinations, global register width, project metadata, and custom template key-values.

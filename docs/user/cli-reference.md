@@ -3,7 +3,7 @@
 **rmap** includes built-in headless CLI capabilities allowing hardware build environments, EDA scripts, and CI/CD pipelines to validate register maps, run lint checks, compute semantic diffs, convert formats, and generate code without launching a graphical window.
 
 > [!NOTE]
-> Headless CLI operations are fully supported in both standard Qt GUI builds (running automatically offscreen via `QT_QPA_PLATFORM=offscreen`) and lightweight standalone CLI-only builds compiled without Qt dependencies (`-DCMAKE_DISABLE_FIND_PACKAGE_Qt6=TRUE`).
+> Qt 6 is a required dependency for all builds of **rmap**. Headless CLI operations run automatically offscreen without requiring an X11/Wayland display server by initializing the offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`).
 
 ---
 
@@ -40,6 +40,14 @@ rmap [OPTIONS] [file]
 - **Environment Variable Syntax**: Supports POSIX `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (user home directory). E.g., `rmap -f $PROJECT_ROOT/registers/spi.rmt -o ${BUILD_DIR}/gen`.
 - **Relative Path Resolution**: Relative paths are resolved relative to the loaded register map file's directory first, with fallback to the Current Working Directory (CWD).
 - **Portable Repository Standard**: All paths saved within repository files (`.rmt`, `.rmb`, `.json`) are stored as clean relative paths for maximum portability across teams and CI environments.
+
+### Supported Environment Variables
+
+| Variable | Description |
+| :--- | :--- |
+| `RMAP_CONFIG_FILE` | Explicit path overriding the default configuration file (`~/.config/rmap/rmap.conf` or `$XDG_CONFIG_HOME/rmap/rmap.conf`). |
+| `RMAP_THEMES_PATH` / `RMAP_THEME_DIR` | Colon-separated (Linux/macOS) or semicolon-separated (Windows) search path list for custom theme JSON definitions. |
+| `RMAP_PYTHON_TIMEOUT` | Execution timeout in milliseconds (default: `60000` ms / 60 seconds) for custom Python generation scripts and post-processing filters. |
 
 ---
 

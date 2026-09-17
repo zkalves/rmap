@@ -244,7 +244,7 @@
     <string>Add Reg Map</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+Shift+A</string>
+    <string>Ctrl+M</string>
    </property>
   </action>
   <action name="actionAddReg">
