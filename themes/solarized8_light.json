@@ -2,6 +2,10 @@
   "id": "solarized8_light",
   "name": "Solarized 8 (Light)",
   "isDark": false,
+  "aliases": [
+    "solarized_light",
+    "light"
+  ],
   "base": {
     "windowBg": "#fdf6e3",
     "panelBg": "#fdf6e3",

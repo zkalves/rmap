@@ -244,7 +244,7 @@
     <string>Add Reg Map</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+Shift+A</string>
+    <string>Ctrl+M</string>
    </property>
   </action>
   <action name="actionAddReg">
@@ -403,6 +403,9 @@
   <action name="actionFileReload">
    <property name="text">
     <string>Reload</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
    </property>
   </action>
   <action name="actionConfig">

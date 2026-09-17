@@ -2,29 +2,33 @@
 
 **rmap** includes built-in headless CLI capabilities allowing hardware build environments, EDA scripts, and CI/CD pipelines to validate register maps, run lint checks, compute semantic diffs, convert formats, and generate code without launching a graphical window.
 
+> [!NOTE]
+> Qt 6 is a required dependency for all builds of **rmap**. Headless CLI operations run automatically offscreen without requiring an X11/Wayland display server by initializing the offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`).
+
 ---
 
 ## Command Line Syntax
 
 ```bash
-rmap [OPTIONS]
+rmap [OPTIONS] [file]
 ```
 
 ### Options
 
 | Option | Long Option | Description |
 | :--- | :--- | :--- |
-| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). |
+| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.systemrdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). Can also be passed directly as a positional argument `[file]`. |
 | `-c <file>` | `--convert <file>` | Headlessly convert the loaded register map into another format (e.g. `--convert out.svd`). |
 | `-e` | `--export` | Run in **headless mode** and generate all configured template outputs. |
 | `-l` | `--lint` | Run automated linter validation check on the loaded register map. |
 | | `--strict` | Enable strict linting rules (enforce non-empty descriptions, address alignment). |
 | | `--report-format <fmt>`| Report format for `--lint` (`text`, `json`, `sarif`, `junit`) or `--diff` (`text`, `markdown`). |
 | `-d <file2>` | `--diff <file2>` | Perform semantic register map diff against another file. |
-| `-t <scheme>`| `--theme, --colour-scheme <scheme>` | Set active colour scheme (`solarized8`, `solarized8_light`, `nord`, `dracula`, `monokai`, `classic`). |
+| `-t <scheme>`| `--theme, --colour-scheme, --color-scheme <scheme>` | Set active colour scheme (`solarized8`, `solarized8_light`, `nord`, `dracula`, `monokai`, `classic`, `high_contrast_dark`, `high_contrast_light`). |
 | | `--lang, --language <lang>` | Set application language (`en`, `es`, `de`, `fr`, `zh_CN`, `ja`, `pt_BR`). |
 | `-o <path>` | `--out <path>` | Override output destination directory for code generation, or output file path for lint/diff reports. |
 | `-h` | `--help` | Display command-line help and usage. |
+| | `--help-all` | Display command-line help including generic Qt options. |
 | `-v` | `--version` | Display application version. |
 
 ---
@@ -36,6 +40,19 @@ rmap [OPTIONS]
 - **Environment Variable Syntax**: Supports POSIX `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (user home directory). E.g., `rmap -f $PROJECT_ROOT/registers/spi.rmt -o ${BUILD_DIR}/gen`.
 - **Relative Path Resolution**: Relative paths are resolved relative to the loaded register map file's directory first, with fallback to the Current Working Directory (CWD).
 - **Portable Repository Standard**: All paths saved within repository files (`.rmt`, `.rmb`, `.json`) are stored as clean relative paths for maximum portability across teams and CI environments.
+
+### Supported Environment Variables
+
+| Variable | Description |
+| :--- | :--- |
+| `RMAP_CONFIG_FILE` | Explicit path overriding the default configuration file (`~/.config/rmap/rmap.conf` or `$XDG_CONFIG_HOME/rmap/rmap.conf`). |
+| `RMAP_THEMES_PATH` / `RMAP_THEME_DIR` | Colon-separated (Linux/macOS) or semicolon-separated (Windows) search path list for custom theme JSON definitions. |
+| `RMAP_TEMPLATES_DIR` | Explicit filesystem path overriding the default templates discovery and installation directory. |
+| `RMAP_EXAMPLES_DIR` | Explicit filesystem path overriding the default bundled examples directory. |
+| `RMAP_DOCS_DIR` | Explicit filesystem path overriding the default offline documentation directory. |
+| `RMAP_PYTHON` | Custom Python interpreter path/binary (defaults to `python3` or `python` discovered on `PATH`). |
+| `RMAP_PYTHON_TIMEOUT` | Execution timeout in milliseconds (default: `60000` ms / 60 seconds) for custom Python generation scripts and post-processing filters. |
+| `RMAP_TMPDIR` | Explicit temporary directory path for intermediate JSON context files generated during script execution (defaults to system temp directory). |
 
 ---
 

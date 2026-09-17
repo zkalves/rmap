@@ -1,0 +1,60 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  reg_width: 32
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  itemData {
+    key: "Name"
+    value: "BLACKHOLE_BLOCK"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  itemData {
+    key: "Name"
+    value: "CMD_REG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "CONTRADICTORY_FLD"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "WO"
+  }
+  itemData {
+    key: "HW Access"
+    value: "WO"
+  }
+}

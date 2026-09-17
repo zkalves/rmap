@@ -1,4 +1,4 @@
-{% for blk in blocks %}
+{% for blk in blocks %}{% if loop.is_first %}
 // =============================================================================
 // Top-Level UVM Testbench Module
 // Compatible with UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020
@@ -44,10 +44,16 @@ module tb_top;
   logic sw_{{ lower(reg.name) }}_wr_strobe;
   logic sw_{{ lower(reg.name) }}_rd_strobe;
 {% for fld in reg.fields %}
-{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in = '0;
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
+{% else if upper(fld.access) == "W1S" %}
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr = '0;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
 {% else if upper(fld.access) != "RO" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
@@ -83,10 +89,16 @@ module tb_top;
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe),
 {% for fld in reg.fields %}
-{% if (upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS") and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in),
+{% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W0C" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
+{% else if upper(fld.access) == "W1S" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
 {% else if upper(fld.access) != "RO" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
@@ -115,7 +127,7 @@ module tb_top;
     .bus_wstrb_i               (bus_if.wstrb),
     .bus_rdata_o               (bus_if.rdata),
     .bus_ready_o               (bus_if.ready),
-    .bus_error_o               ()
+    .bus_error_o               (bus_if.error)
   );
 
   // UVM Test Execution
@@ -125,4 +137,4 @@ module tb_top;
   end
 
 endmodule : tb_top
-{% endfor %}
+{% endif %}{% endfor %}

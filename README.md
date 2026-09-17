@@ -5,10 +5,10 @@
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![Qt 6](https://img.shields.io/badge/Qt-6-green.svg)](https://www.qt.io/)
 <!-- COVERAGE_BADGES_START -->
-[![Line Coverage](https://img.shields.io/badge/Line_Coverage-100.0%25-brightgreen.svg)](#code-coverage-metrics)
-[![Function Coverage](https://img.shields.io/badge/Function_Coverage-100.0%25-brightgreen.svg)](#code-coverage-metrics)
-[![Branch Coverage](https://img.shields.io/badge/Branch_Coverage-95.2%25-brightgreen.svg)](#code-coverage-metrics)
-[![Condition Coverage](https://img.shields.io/badge/Condition_Coverage-91.9%25-brightgreen.svg)](#code-coverage-metrics)
+[![Line Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_line.json)](https://zkalves.github.io/rmap/coverage/)
+[![Function Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_function.json)](https://zkalves.github.io/rmap/coverage/)
+[![Branch Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_branch.json)](https://zkalves.github.io/rmap/coverage/)
+[![Condition Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_condition.json)](https://zkalves.github.io/rmap/coverage/)
 <!-- COVERAGE_BADGES_END -->
 
 **rmap** is a high-performance GUI & CLI tool for designing hardware register maps, validating register architectures, and generating hardware, verification, firmware, and documentation models.
@@ -53,17 +53,20 @@
 <!-- COVERAGE_SECTION_START -->
 ## Code Coverage Metrics
 
-Automated test coverage analysis across all 6 compiler-supported metrics:
+Automated test coverage analysis across all 6 compiler-supported metrics, published continuously by the [GitHub Actions CI Pipeline](https://github.com/zkalves/rmap/actions/workflows/ci.yml):
+
+> [!TIP]
+> **Live CI/CD Coverage Pipeline**: Interactive coverage reports, line-by-line profiling, and call graphs are updated continuously by the pipeline and hosted live on [GitHub Pages: rmap Coverage Dashboard](https://zkalves.github.io/rmap/coverage/).
 
 | Metric | Covered | Total | Coverage Rate | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Lines** | 7,760 | 7,760 | **100.00%** | ✅ |
-| **Functions** | 565 | 565 | **100.00%** | ✅ |
-| **Branches (Decision)** | 11,666 | 12,255 | **95.19%** | ✅ |
-| **Conditions (MC/DC)** | 4,806 | 5,228 | **91.93%** | ✅ |
-| **Calls** | 16,355 | 20,525 | **79.68%** | ✅ |
-| **Basic Blocks** | 24,421 | 37,786 | **64.63%** | ✅ |
-| *Branches (Raw w/ Unwind)* | 12,728 | 21,470 | *59.28%* | ℹ️ |
+| **Lines** | 8,014 | 8,014 | **100.00%** | ✅ |
+| **Functions** | 573 | 573 | **100.00%** | ✅ |
+| **Branches (Decision)** | 12,286 | 13,104 | **93.76%** | ✅ |
+| **Conditions (MC/DC)** | 5,156 | 5,726 | **90.05%** | ✅ |
+| **Calls** | 17,014 | 21,378 | **79.59%** | ✅ |
+| **Basic Blocks** | 25,587 | 39,557 | **64.68%** | ✅ |
+| *Branches (Raw w/ Unwind)* | 13,380 | 22,728 | *58.87%* | ℹ️ |
 
 > [!NOTE]
 > **Branch & Condition Coverage Measurement**: In accordance with DO-178C, ISO 26262, and `gcovr` standards, decision branch coverage tracks actual logical control branches (`if`, `switch`, `while`, ternary). Compiler-synthesized exception unwinding landing pads (`throw: true`), allocation checks (`new`/`delete`), and destructor cleanups are excluded from decision branches and shown transparently in raw metrics. Standard exclusion pragmas (`// GCOV_EXCL_LINE`, `// LCOV_EXCL_START`/`STOP`, `// GCOV_EXCL_BR_LINE`) are honored.
@@ -73,11 +76,11 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | Subsystem | Lines (%) | Functions (%) | Branches (%) | Conditions (%) | Calls (%) | Blocks (%) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Code Generation Engine** | 100.0% (477/477) | 100.0% (20/20) | 96.4% (963/999) | 92.8% (401/432) | 80.4% | 64.3% |
-| **Core Architecture & Model** | 100.0% (832/832) | 100.0% (78/78) | 88.2% (1592/1804) | 89.9% (714/794) | 77.4% | 59.8% |
-| **Dialogs & Configuration** | 100.0% (796/796) | 100.0% (94/94) | 98.8% (822/832) | 96.9% (285/294) | 82.2% | 68.5% |
-| **Format Parsers & Serializers** | 100.0% (1402/1402) | 100.0% (63/63) | 95.8% (2978/3108) | 92.2% (1423/1544) | 79.3% | 65.1% |
-| **GUI Widgets & Main Window** | 100.0% (2544/2544) | 100.0% (181/181) | 96.6% (3157/3269) | 91.3% (1103/1208) | 79.8% | 64.9% |
-| **System Services & Utilities** | 100.0% (1709/1709) | 100.0% (129/129) | 96.0% (2154/2243) | 92.0% (880/956) | 80.2% | 65.7% |
+| **Core Architecture & Model** | 100.0% (838/838) | 100.0% (79/79) | 88.6% (1597/1803) | 90.4% (714/790) | 77.5% | 59.8% |
+| **Dialogs & Configuration** | 100.0% (811/811) | 100.0% (96/96) | 98.8% (828/838) | 97.0% (287/296) | 82.3% | 68.8% |
+| **Format Parsers & Serializers** | 100.0% (1615/1615) | 100.0% (66/66) | 91.1% (3564/3911) | 87.2% (1757/2014) | 78.9% | 64.9% |
+| **GUI Widgets & Main Window** | 100.0% (2546/2546) | 100.0% (181/181) | 96.3% (3162/3282) | 90.7% (1105/1218) | 79.8% | 64.9% |
+| **System Services & Utilities** | 100.0% (1727/1727) | 100.0% (131/131) | 95.6% (2172/2271) | 91.4% (892/976) | 80.2% | 66.0% |
 
 <details>
 <summary><b>Detailed Source Files Coverage (Click to expand)</b></summary>
@@ -86,7 +89,7 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | `src/AboutWindow.cpp` | Dialogs & Configuration | 100.0% | 100.0% | 100.0% | 100.0% | 81.7% | 69.5% |
 | `src/AboutWindow.hpp` | Dialogs & Configuration | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
-| `src/AppSettings.cpp` | System Services & Utilities | 100.0% | 100.0% | 96.3% | 92.0% | 81.1% | 69.1% |
+| `src/AppSettings.cpp` | System Services & Utilities | 100.0% | 100.0% | 96.4% | 92.0% | 81.0% | 69.0% |
 | `src/BlockMemoryMapWidget.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 96.2% | 91.2% | 80.8% | 66.2% |
 | `src/BlockMemoryMapWidget.hpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
 | `src/CodeGenerator.cpp` | Code Generation Engine | 100.0% | 100.0% | 96.4% | 92.8% | 80.4% | 64.3% |
@@ -101,28 +104,28 @@ Automated test coverage analysis across all 6 compiler-supported metrics:
 | `src/ProtobufLogCollector.hpp` | System Services & Utilities | 100.0% | 100.0% | 0.0% | 0.0% | 45.5% | 47.1% |
 | `src/RegBitfieldBarWidget.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 95.7% | 94.0% | 81.3% | 69.0% |
 | `src/RegBitfieldBarWidget.hpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
-| `src/RegConfigWindow.cpp` | Dialogs & Configuration | 100.0% | 100.0% | 99.5% | 99.1% | 81.2% | 67.3% |
+| `src/RegConfigWindow.cpp` | Dialogs & Configuration | 100.0% | 100.0% | 99.5% | 99.1% | 81.4% | 67.7% |
 | `src/RegConfigWindow.hpp` | Dialogs & Configuration | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
-| `src/RegMapDelegate.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 97.2% | 93.9% | 79.2% | 66.8% |
+| `src/RegMapDelegate.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 97.2% | 93.9% | 79.6% | 67.1% |
 | `src/RegMapTreeItem.cpp` | Core Architecture & Model | 100.0% | 100.0% | 95.1% | 93.8% | 79.9% | 72.5% |
-| `src/RegMapTreeModel.cpp` | Core Architecture & Model | 100.0% | 100.0% | 86.3% | 90.4% | 77.4% | 57.4% |
+| `src/RegMapTreeModel.cpp` | Core Architecture & Model | 100.0% | 100.0% | 86.7% | 91.0% | 77.5% | 57.5% |
 | `src/RegMapTreeModel.hpp` | Core Architecture & Model | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 25.0% |
 | `src/RegMapTreeView.cpp` | Core Architecture & Model | 100.0% | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
-| `src/RegMapWindow.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 96.7% | 90.3% | 79.5% | 64.0% |
+| `src/RegMapWindow.cpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 96.4% | 89.4% | 79.5% | 64.0% |
 | `src/RegMapWindow.hpp` | GUI Widgets & Main Window | 100.0% | 100.0% | 100.0% | 0.0% | 75.0% | 100.0% |
 | `src/Serializable.hpp` | Core Architecture & Model | 100.0% | 100.0% | 0.0% | 0.0% | 0.0% | 25.0% |
 | `src/SerializationContext.hpp` | Core Architecture & Model | 100.0% | 100.0% | 93.3% | 66.7% | 61.5% | 64.0% |
-| `src/ThemeManager.cpp` | System Services & Utilities | 100.0% | 100.0% | 96.2% | 90.2% | 82.4% | 67.2% |
+| `src/ThemeManager.cpp` | System Services & Utilities | 100.0% | 100.0% | 95.6% | 89.2% | 82.4% | 67.8% |
 | `src/UndoCommands.cpp` | Core Architecture & Model | 100.0% | 100.0% | 98.0% | 91.7% | 79.1% | 64.6% |
-| `src/format/CmsisSvdHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 95.0% | 89.7% | 77.2% | 62.8% |
+| `src/format/CmsisSvdHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 86.3% | 82.5% | 76.6% | 62.4% |
 | `src/format/CmsisSvdHandler.hpp` | Format Parsers & Serializers | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% | 100.0% |
-| `src/format/CsvHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 94.3% | 90.5% | 76.5% | 61.2% |
+| `src/format/CsvHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 92.8% | 88.5% | 76.5% | 61.5% |
 | `src/format/FormatManager.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 98.7% | 91.2% | 76.5% | 66.0% |
-| `src/format/IpxactHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 96.1% | 90.7% | 77.4% | 61.7% |
-| `src/format/JsonHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 98.0% | 95.7% | 79.4% | 62.4% |
+| `src/format/IpxactHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 90.4% | 84.8% | 76.7% | 61.9% |
+| `src/format/JsonHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 95.0% | 89.0% | 80.3% | 64.2% |
 | `src/format/ProtobufHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 94.1% | 88.1% | 79.4% | 64.9% |
-| `src/format/SystemRdlHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 95.6% | 93.5% | 84.4% | 73.4% |
-| `src/main.cpp` | System Services & Utilities | 100.0% | 100.0% | 99.5% | 98.6% | 72.2% | 51.3% |
+| `src/format/SystemRdlHandler.cpp` | Format Parsers & Serializers | 100.0% | 100.0% | 92.2% | 90.9% | 83.5% | 72.8% |
+| `src/main.cpp` | System Services & Utilities | 100.0% | 100.0% | 98.1% | 94.9% | 72.3% | 51.5% |
 
 </details>
 
@@ -146,7 +149,7 @@ make coverage-report
 
 - **C++17 Compiler** (`g++` 9+ or `clang++` 10+)
 - **CMake 3.15+**
-- **Qt 6** (`qt6-base-dev`, `libqt6test6`)
+- **Qt 6** (`qt6-base-dev`, `libqt6test6`) *(optional: required for interactive GUI and Qt test runner; rmap falls back gracefully to a lightweight CLI-only executable if absent)*
 - **Protocol Buffers** (`libprotobuf-dev`, `protobuf-compiler`)
 
 #### Ubuntu / Debian
@@ -164,8 +167,12 @@ sudo apt-get install -y build-essential cmake git \
 git clone https://github.com/zkalves/rmap.git
 cd rmap
 
-# Build with Make wrapper
+# Standard build with Qt GUI (default when Qt6 is detected)
 make
+
+# Or build headless CLI-only without Qt
+cmake -B build -S . -DCMAKE_DISABLE_FIND_PACKAGE_Qt6=TRUE
+cmake --build build
 
 # Run automated unit test suites (100% pass rate)
 make test
@@ -173,7 +180,7 @@ make test
 # Run comprehensive template verification tests across all 15 output templates
 make test-templates
 
-# Run autonomous simulation and compilation across all 17 example environments
+# Run autonomous simulation and compilation across all 19 example environments
 make test-examples
 
 # Run complete verification suite

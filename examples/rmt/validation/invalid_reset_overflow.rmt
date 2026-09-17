@@ -1,0 +1,64 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  reg_width: 32
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  itemData {
+    key: "Name"
+    value: "OVERFLOW_BLOCK"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  itemData {
+    key: "Name"
+    value: "OVERFLOW_REG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "NIBBLE_FLD"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "4"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x20"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+}

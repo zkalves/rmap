@@ -100,6 +100,7 @@ package reg_bus_pkg;
       if (tr.op == BUS_READ) begin
         tr.rdata = vif.mck.rdata;
       end
+      tr.error = vif.mck.error;
 
       vif.mck.wr_en <= 1'b0;
       vif.mck.rd_en <= 1'b0;
@@ -133,7 +134,8 @@ package reg_bus_pkg;
         @(vif.mck_mon);
         if (vif.mck_mon.ready && (vif.mck_mon.wr_en || vif.mck_mon.rd_en)) begin
           reg_bus_item item = reg_bus_item::type_id::create("mon_item");
-          item.addr = vif.mck_mon.addr;
+          item.addr  = vif.mck_mon.addr;
+          item.error = vif.mck_mon.error;
           if (vif.mck_mon.wr_en) begin
             item.op    = BUS_WRITE;
             item.data  = vif.mck_mon.wdata;
@@ -212,7 +214,7 @@ package reg_bus_pkg;
       rw.kind   = (item.op == BUS_WRITE) ? UVM_WRITE : UVM_READ;
       rw.addr   = item.addr;
       rw.data   = (item.op == BUS_WRITE) ? item.data : item.rdata;
-      rw.status = UVM_IS_OK;
+      rw.status = (item.error) ? UVM_NOT_OK : UVM_IS_OK;
     endfunction
   endclass : reg_bus_adapter
 

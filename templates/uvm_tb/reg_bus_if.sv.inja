@@ -26,6 +26,7 @@ interface reg_bus_if #(
   logic [STRB_WIDTH-1:0] wstrb;
   logic [DATA_WIDTH-1:0] rdata;
   logic                  ready;
+  logic                  error;
 
   // Clocking block for synchronous master driver
   clocking mck @(posedge clk);
@@ -37,6 +38,7 @@ interface reg_bus_if #(
     output wstrb;
     input  rdata;
     input  ready;
+    input  error;
   endclocking
 
   // Clocking block for synchronous monitor
@@ -49,6 +51,7 @@ interface reg_bus_if #(
     input wstrb;
     input rdata;
     input ready;
+    input error;
   endclocking
 
   // Modport for Driver
@@ -75,7 +78,8 @@ interface reg_bus_if #(
     input  wdata,
     input  wstrb,
     output rdata,
-    output ready
+    output ready,
+    output error
   );
 
 endinterface : reg_bus_if

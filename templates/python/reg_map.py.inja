@@ -63,7 +63,16 @@ class {{ blk.name }}Block:
         return reg.fields[field_name].get(reg_val)
 
     def write_field(self, reg: Register, field_name: str, value: int) -> None:
+        target_field = reg.fields[field_name]
         reg_val = self.read_reg(reg)
-        new_val = reg.fields[field_name].set(reg_val, value)
+        # Prevent side-effect corruption: mask out other W1C/RC/RS bits so they aren't unintentionally cleared/modified
+        for f_name, fld in reg.fields.items():
+            if f_name != field_name:
+                acc = fld.access.upper()
+                if acc in ("W1C", "W1T", "RC", "RS"):
+                    reg_val &= ~fld.mask
+                elif acc == "W0C":
+                    reg_val |= fld.mask
+        new_val = target_field.set(reg_val, value)
         self.write_reg(reg, new_val)
 {% endfor %}

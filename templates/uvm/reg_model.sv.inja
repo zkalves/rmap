@@ -16,11 +16,20 @@ import uvm_pkg::*;
 `define UVM_DOOR_COMPAT_DEFINED
 `ifdef UVM_VERSION
   // IEEE 1800.2-2017 / IEEE 1800.2-2020
-  `ifndef UVM_POST_VERSION_1_2
+  `ifdef UVM_VERSION_POST_2017
+    // IEEE 1800.2-2020: uvm_path_e is standard
     `ifndef UVM_ENABLE_DEPRECATED_API
-      // In IEEE 1800.2-2017 without deprecated API, uvm_path_e and UVM_DEFAULT_PATH are not defined
-      typedef uvm_door_e uvm_path_e;
-      parameter uvm_door_e UVM_DEFAULT_PATH = UVM_DEFAULT_DOOR;
+      typedef uvm_path_e uvm_door_e;
+      parameter uvm_door_e UVM_DEFAULT_DOOR = UVM_DEFAULT_PATH;
+    `endif
+  `else
+    // IEEE 1800.2-2017: uvm_door_e is standard
+    `ifndef UVM_POST_VERSION_1_1
+      `ifndef UVM_ENABLE_DEPRECATED_API
+        // In IEEE 1800.2-2017 without deprecated API, uvm_path_e and UVM_DEFAULT_PATH are not defined
+        typedef uvm_door_e uvm_path_e;
+        parameter uvm_door_e UVM_DEFAULT_PATH = UVM_DEFAULT_DOOR;
+      `endif
     `endif
   `endif
 `else
@@ -57,6 +66,15 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     endtask
 
 `ifdef UVM_VERSION
+  `ifdef UVM_VERSION_POST_2017
+    virtual function void post_predict(input uvm_reg_field fld,
+                                       input uvm_reg_data_t previous,
+                                       inout uvm_reg_data_t value,
+                                       input uvm_predict_e kind,
+                                       input uvm_path_e path,
+                                       input uvm_reg_map map);
+    endfunction
+  `else
     virtual function void post_predict(input uvm_reg_field fld,
                                        input uvm_reg_data_t previous,
                                        inout uvm_reg_data_t value,
@@ -64,6 +82,7 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
                                        input uvm_door_e path,
                                        input uvm_reg_map map);
     endfunction
+  `endif
 `else
     virtual function void post_predict(input uvm_reg_field fld,
                                        input uvm_reg_data_t previous,
@@ -115,6 +134,7 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
       {% if not (existsIn(reg, "is_fifo") and reg.is_fifo) and not (existsIn(reg, "is_indirect") and reg.is_indirect) and length(reg.fields) > 0 %}
       if (has_coverage(UVM_CVR_FIELD_VALS) || has_coverage(UVM_CVR_REG_BITS)) begin
         val_cg = new();
+        set_coverage(UVM_CVR_ALL);
       end
       {% endif %}
     endfunction
@@ -219,15 +239,15 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     this.{{ lower(reg.name) }}.configure({% if existsIn(reg, "index_reg") and length(reg.index_reg) > 0 %}this.{{ lower(reg.index_reg) }}{% else %}null{% endif %}, null, this, null);
     this.{{ lower(reg.name) }}.build();
     {% else %}
-    this.{{ lower(reg.name) }}.configure(this, null, "{% if existsIn(reg, "hdl_path") and length(reg.hdl_path) > 0 %}{{ reg.hdl_path }}{% else %}reg_{{ lower(reg.name) }}_q{% endif %}");
+    this.{{ lower(reg.name) }}.configure(this, null, "");
     this.{{ lower(reg.name) }}.build();
     this.{{ lower(reg.name) }}.add_hdl_path_slice("{% if existsIn(reg, "hdl_path") and length(reg.hdl_path) > 0 %}{{ reg.hdl_path }}{% else %}reg_{{ lower(reg.name) }}_q{% endif %}", 0, {{ reg.size_width }});
     {% endif %}
-    this.default_map.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{{ upper(reg.access) }}");
+    this.default_map.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{% if upper(reg.access) == "RO" %}RO{% else if upper(reg.access) == "WO" or upper(reg.access) == "WO1" or upper(reg.access) == "WOC" or upper(reg.access) == "WOS" %}WO{% else %}RW{% endif %}");
     {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
     {% for map in blk.maps %}
     {% if lower(map.name) != "default_map" %}
-    this.{{ lower(map.name) }}.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{{ upper(reg.access) }}");
+    this.{{ lower(map.name) }}.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{% if upper(reg.access) == "RO" %}RO{% else if upper(reg.access) == "WO" or upper(reg.access) == "WO1" or upper(reg.access) == "WOC" or upper(reg.access) == "WOS" %}WO{% else %}RW{% endif %}");
     {% endif %}
     {% endfor %}
     {% endif %}
@@ -277,10 +297,14 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     this.{{ lower(sub.name) }}.configure(this);
     this.{{ lower(sub.name) }}.build();
     this.default_map.add_submap(this.{{ lower(sub.name) }}.default_map, {{ sub.offset_hex }});
-    {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+    {% if existsIn(blk, "maps") and length(blk.maps) > 0 and existsIn(sub, "maps") and length(sub.maps) > 0 %}
     {% for map in blk.maps %}
     {% if lower(map.name) != "default_map" %}
-    this.{{ lower(map.name) }}.add_submap(this.{{ lower(sub.name) }}.default_map, {{ sub.offset_hex }});
+    {% for smap in sub.maps %}
+    {% if lower(smap.name) == lower(map.name) %}
+    this.{{ lower(map.name) }}.add_submap(this.{{ lower(sub.name) }}.{{ lower(smap.name) }}, {{ sub.offset_hex }});
+    {% endif %}
+    {% endfor %}
     {% endif %}
     {% endfor %}
     {% endif %}

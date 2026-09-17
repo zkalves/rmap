@@ -1,0 +1,252 @@
+/**
+ * Doxygen Awesome CSS Theme (Customized for rmap)
+ * Modern, responsive, and clean theme for Doxygen documentation.
+ */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-dark-color: #1d4ed8;
+    --primary-light-color: #dbeafe;
+    --primary-lighter-color: #eff6ff;
+
+    --page-background-color: #ffffff;
+    --page-foreground-color: #1e293b;
+    --page-secondary-foreground-color: #64748b;
+
+    --side-nav-background: #f8fafc;
+    --side-nav-foreground: #334155;
+    --side-nav-active-background: #e2e8f0;
+
+    --border-color: #e2e8f0;
+    --card-background: #ffffff;
+    --code-background: #f1f5f9;
+    --code-foreground: #0f172a;
+
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-monospace: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    --font-size: 15px;
+    --line-height: 1.6;
+
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #3b82f6;
+        --primary-dark-color: #60a5fa;
+        --primary-light-color: #1e3a8a;
+        --primary-lighter-color: #172554;
+
+        --page-background-color: #0f172a;
+        --page-foreground-color: #f1f5f9;
+        --page-secondary-foreground-color: #94a3b8;
+
+        --side-nav-background: #090d16;
+        --side-nav-foreground: #cbd5e1;
+        --side-nav-active-background: #1e293b;
+
+        --border-color: #334155;
+        --card-background: #1e293b;
+        --code-background: #1e293b;
+        --code-foreground: #f8fafc;
+    }
+}
+
+/* Global Reset & Typography */
+body, table, div, p, dl {
+    font-family: var(--font-family) !important;
+    font-size: var(--font-size);
+    color: var(--page-foreground-color);
+    background-color: var(--page-background-color);
+    line-height: var(--line-height);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family) !important;
+    color: var(--page-foreground-color);
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+h1 { font-size: 2rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.3em; }
+h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25em; }
+h3 { font-size: 1.25rem; }
+
+a, a:visited {
+    color: var(--primary-color) !important;
+    text-decoration: none;
+    transition: color 0.15s ease-in-out;
+}
+
+a:hover {
+    color: var(--primary-dark-color) !important;
+    text-decoration: underline;
+}
+
+/* Header & Navigation Bar */
+#top {
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--page-background-color);
+}
+
+#titlearea {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--page-background-color);
+}
+
+#projectname {
+    font-size: 1.75rem !important;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+#projectbrief {
+    font-size: 0.95rem !important;
+    color: var(--page-secondary-foreground-color);
+}
+
+#projectnumber {
+    font-size: 0.85rem !important;
+    color: var(--page-secondary-foreground-color);
+    margin-left: 8px;
+}
+
+/* Sidebar Treeview */
+#nav-tree {
+    background-color: var(--side-nav-background) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+
+#nav-tree .item {
+    font-family: var(--font-family) !important;
+    font-size: 0.9rem;
+    color: var(--side-nav-foreground);
+    padding: 3px 6px;
+    border-radius: 4px;
+}
+
+#nav-tree .selected {
+    background-color: var(--side-nav-active-background) !important;
+    color: var(--primary-color) !important;
+    font-weight: 600;
+}
+
+#nav-sync {
+    top: 12px;
+    right: 12px;
+}
+
+/* Search Box */
+#MSearchBox {
+    background: var(--card-background) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+#MSearchField {
+    font-family: var(--font-family) !important;
+    color: var(--page-foreground-color) !important;
+    background: transparent !important;
+}
+
+/* Content Area */
+.contents {
+    padding: 24px 32px;
+    max-width: 1200px;
+}
+
+/* Tables */
+table.markdownTable, table.fieldtable, table.doxtable {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5em 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+table.markdownTable th, table.doxtable th, table.fieldtable th {
+    background-color: var(--side-nav-background) !important;
+    color: var(--page-foreground-color);
+    font-weight: 600;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--border-color);
+    text-align: left;
+}
+
+table.markdownTable td, table.doxtable td, table.fieldtable td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--page-foreground-color);
+}
+
+table.markdownTable tr:hover, table.doxtable tr:hover {
+    background-color: var(--primary-lighter-color);
+}
+
+/* Code Blocks & Inline Code */
+code, tt {
+    font-family: var(--font-monospace) !important;
+    font-size: 0.88em;
+    background-color: var(--code-background);
+    color: var(--code-foreground);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+div.fragment {
+    background-color: var(--code-background) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 1.25em 0;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+}
+
+div.fragment span {
+    font-family: var(--font-monospace) !important;
+    font-size: 0.9em;
+}
+
+/* Class and Member Documentation Cards */
+.memitem {
+    background-color: var(--card-background) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.memproto {
+    background-color: var(--side-nav-background) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 10px 14px;
+    font-family: var(--font-monospace) !important;
+    font-weight: 600;
+    color: var(--primary-color) !important;
+}
+
+.memdoc {
+    padding: 14px 18px;
+    background-color: var(--card-background);
+}
+
+/* Footer */
+hr.footer {
+    border-top: 1px solid var(--border-color);
+    margin-top: 40px;
+}
+
+.footer {
+    color: var(--page-secondary-foreground-color);
+    font-size: 0.85rem;
+    padding: 16px 0 24px 0;
+}

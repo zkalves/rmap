@@ -1,0 +1,334 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.v.inja"
+    output_filepath: "./work/rtl/reg_map.v"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.vhd.inja"
+    output_filepath: "./work/rtl/reg_map.vhd"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/apb_reg_file.sv.inja"
+    output_filepath: "./work/rtl/apb_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/axil_reg_file.sv.inja"
+    output_filepath: "./work/rtl/axil_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map_sva.sv.inja"
+    output_filepath: "./work/rtl/reg_map_sva.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  reg_width: 32
+  hw_precedence: false
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "ARBITRATION_BLOCK"
+  }
+  itemData {
+    key: "Description"
+    value: "Peripheral block testing hardware/software write arbitration precedence"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  child_id: 5
+  itemData {
+    key: "Name"
+    value: "STATUS_FLAGS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Status flags with mixed SW and HW write accesses"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "EVENT_FLAG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W1C"
+  }
+  itemData {
+    key: "HW Access"
+    value: "W1S"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Event flag set by hardware, cleared by software"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "COUNTER"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "7"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RW"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x00"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Shared software/hardware counter"
+  }
+}
+item {
+  kind: FLD
+  id: 5
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "LATCHED_ERR"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "8"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "W0C"
+  }
+  itemData {
+    key: "HW Access"
+    value: "W1S"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x00"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "true"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Error byte cleared by software write-0"
+  }
+}
+item {
+  kind: REG
+  id: 6
+  parent_id: 1
+  child_id: 7
+  child_id: 8
+  itemData {
+    key: "Name"
+    value: "CONTROL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Description"
+    value: "Subsystem control configuration register"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "ENABLE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x1"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Peripheral Enable"
+  }
+}
+item {
+  kind: FLD
+  id: 8
+  parent_id: 6
+  itemData {
+    key: "Name"
+    value: "CONFIG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "31"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "true"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Configuration word"
+  }
+}
+last_updated {
+  seconds: 1787445000
+}

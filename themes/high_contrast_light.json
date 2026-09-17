@@ -2,6 +2,9 @@
   "id": "high_contrast_light",
   "name": "High Contrast (Light)",
   "isDark": false,
+  "aliases": [
+    "high-contrast-light"
+  ],
   "base": {
     "windowBg": "#ffffff",
     "panelBg": "#ffffff",
