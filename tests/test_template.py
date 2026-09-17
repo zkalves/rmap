@@ -8,8 +8,6 @@
 
 """
 Comprehensive Automated Template Verification Suite for rmap.
-Validates code generation and generated artifact correctness across all 11 templates:
-c, rtl, uvm, rust, python, html, markdown, systemrdl, ipxact, svd, json.
 
 Usage:
     python3 tests/test_template.py <template_name>

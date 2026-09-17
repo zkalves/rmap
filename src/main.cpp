@@ -77,12 +77,18 @@ int main(int argc, char *argv[])
     QCommandLineOption strict_opt("strict", "Enable strict validation rules (check empty descriptions and alignment)");
     QCommandLineOption fmt_opt("report-format", "Report format for linting (text, json, sarif, junit) or diff (text, markdown)", "format", "text");
     QCommandLineOption diff_opt({"d","diff"}, "Compare loaded register map against another file", "compare_file");
-    QCommandLineOption theme_opt({"t","theme","colour-scheme","color-scheme"}, "Set active colour scheme (solarized8, solarized8_light, nord, dracula, monokai, classic)", "scheme", "solarized8");
-    QCommandLineOption lang_opt({"lang","language"}, "Set application language (e.g. en, es, de, fr, zh_CN, ja, pt_BR)", "language");
+    const QString availableThemes = ThemeManager::instance().themeIds().join(QStringLiteral(", "));
+    const QString themeHelp = QStringLiteral("Set active colour scheme (%1)").arg(availableThemes);
+    const QString availableLangs = LanguageManager::instance().languageCodes().join(QStringLiteral(", "));
+    const QString langHelp = QStringLiteral("Set application language (%1)").arg(availableLangs);
+
+    QCommandLineOption theme_opt({"t","theme","colour-scheme","color-scheme"}, themeHelp, "scheme", "solarized8");
+    QCommandLineOption lang_opt({"lang","language"}, langHelp, "language");
 
     parser.setApplicationDescription("rmap — Hardware Register Map Designer & Model Generator");
     parser.addHelpOption();
     parser.addVersionOption();
+    parser.addPositionalArgument("file", "Register map file to load (.rmt, .rmb, .svd, .rdl, .xml, .json, .csv).", "[file]");
     parser.addOption(f_opt);
     parser.addOption(e_opt);
     parser.addOption(o_opt);
@@ -96,6 +102,9 @@ int main(int argc, char *argv[])
     parser.process(app);
 
     QString regmap_file = PathUtils::expandEnvVars(parser.value("file"));
+    if (regmap_file.isEmpty() && !parser.positionalArguments().isEmpty()) {
+        regmap_file = PathUtils::expandEnvVars(parser.positionalArguments().first());
+    }
 
     if (parser.isSet(diff_opt)) {
         QString file2 = PathUtils::expandEnvVars(parser.value("diff"));
@@ -244,8 +253,9 @@ int main(int argc, char *argv[])
                   << "  --strict                   Enable strict validation rules (check empty descriptions and alignment).\n"
                   << "  --report-format <format>   Report format for linting (text, json, sarif, junit) or diff (text, markdown).\n"
                   << "  -d, --diff <compare_file>  Compare loaded register map against another file.\n"
-                  << "  -t, --theme <scheme>       Set active colour scheme (solarized8, solarized8_light, nord, dracula, monokai, classic).\n"
-                  << "  --lang <language>          Set application language (e.g. en, es, de, fr, zh_CN, ja, pt_BR).\n";
+                  << "  -t, --theme, --colour-scheme, --color-scheme <scheme>\n"
+                  << "                             Set active colour scheme (solarized8, solarized8_light, nord, dracula, monokai, classic, high_contrast_dark, high_contrast_light).\n"
+                  << "  --lang, --language <lang>  Set application language (en, es, de, fr, zh_CN, ja, pt_BR).\n";
         return 0;
     }
 

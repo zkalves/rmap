@@ -10,24 +10,25 @@
 ## Command Line Syntax
 
 ```bash
-rmap [OPTIONS]
+rmap [OPTIONS] [file]
 ```
 
 ### Options
 
 | Option | Long Option | Description |
 | :--- | :--- | :--- |
-| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). |
+| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). Can also be passed directly as a positional argument `[file]`. |
 | `-c <file>` | `--convert <file>` | Headlessly convert the loaded register map into another format (e.g. `--convert out.svd`). |
 | `-e` | `--export` | Run in **headless mode** and generate all configured template outputs. |
 | `-l` | `--lint` | Run automated linter validation check on the loaded register map. |
 | | `--strict` | Enable strict linting rules (enforce non-empty descriptions, address alignment). |
 | | `--report-format <fmt>`| Report format for `--lint` (`text`, `json`, `sarif`, `junit`) or `--diff` (`text`, `markdown`). |
 | `-d <file2>` | `--diff <file2>` | Perform semantic register map diff against another file. |
-| `-t <scheme>`| `--theme, --colour-scheme <scheme>` | Set active colour scheme (`solarized8`, `solarized8_light`, `nord`, `dracula`, `monokai`, `classic`). |
+| `-t <scheme>`| `--theme, --colour-scheme, --color-scheme <scheme>` | Set active colour scheme (`solarized8`, `solarized8_light`, `nord`, `dracula`, `monokai`, `classic`, `high_contrast_dark`, `high_contrast_light`). |
 | | `--lang, --language <lang>` | Set application language (`en`, `es`, `de`, `fr`, `zh_CN`, `ja`, `pt_BR`). |
 | `-o <path>` | `--out <path>` | Override output destination directory for code generation, or output file path for lint/diff reports. |
 | `-h` | `--help` | Display command-line help and usage. |
+| | `--help-all` | Display command-line help including generic Qt options. |
 | `-v` | `--version` | Display application version. |
 
 ---

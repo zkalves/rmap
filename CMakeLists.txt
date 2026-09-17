@@ -313,4 +313,34 @@ if(BUILD_TESTING AND Qt6_FOUND)
     add_subdirectory(tests)
 endif()
 
+# Documentation Automation Targets
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    add_custom_target(docs-doxygen
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating C++ API documentation with Doxygen"
+        VERBATIM
+    )
+else()
+    add_custom_target(docs-doxygen
+        COMMAND ${CMAKE_COMMAND} -E echo "======================================================================"
+        COMMAND ${CMAKE_COMMAND} -E echo "ERROR: Doxygen is required to generate C++ API documentation,"
+        COMMAND ${CMAKE_COMMAND} -E echo "       but 'doxygen' was not found on PATH."
+        COMMAND ${CMAKE_COMMAND} -E echo "======================================================================"
+        COMMAND ${CMAKE_COMMAND} -E echo "Please install Doxygen:"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - Ubuntu/Debian: sudo apt-get install -y doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - macOS:         brew install doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - Fedora/RHEL:   sudo dnf install doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - Arch Linux:    sudo pacman -S doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E false
+        COMMENT "Doxygen not found on PATH"
+        VERBATIM
+    )
+endif()
+
+add_custom_target(docs-classes DEPENDS docs-doxygen)
+
+
+
 

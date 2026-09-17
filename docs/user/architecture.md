@@ -167,19 +167,22 @@ Defines how internal peripheral hardware logic interfaces with the register stor
 
 ## 3. C++ Class Reference Documentation
 
-Detailed C++ API reference documentation for each individual class, delegate, visualizer widget, and format handler is maintained in the [`docs/dev/`](../dev/index.md) directory:
+Detailed C++ API reference documentation for each individual class, delegate, visualizer widget, and format handler is generated automatically by Doxygen from source headers:
 
-- [**API Documentation Index**](../dev/index.md)
-- [Application Entry Point (`main.cpp`)](../dev/rmap.md)
-- [Main Window Controller (`RegMapWindow`)](../dev/RegMapWindow.md)
-- [Bitfield Slice Visualizer (`RegBitfieldBarWidget`)](../dev/RegBitfieldBarWidget.md)
-- [Stacked Memory Map (`BlockMemoryMapWidget`)](../dev/BlockMemoryMapWidget.md)
-- [Tree Model (`RegMapTreeModel`)](../dev/RegMapTreeModel.md) & [Node Items (`RegMapTreeItem`)](../dev/RegMapTreeItem.md)
-- [Item Delegates (`RegMapDelegate`)](../dev/RegMapDelegate.md) & [Navigation Tree (`RegMapTreeView`)](../dev/RegMapTreeView.md)
-- [Project Configuration Dialog (`RegConfigWindow`)](../dev/RegConfigWindow.md)
-- [Preferences Dialog (`PreferencesWindow`)](../dev/PreferencesWindow.md)
-- [Code Generator (`CodeGenerator`)](../dev/CodeGenerator.md)
-- [Format Registry (`FormatManager`)](../dev/FormatManager.md)
-- [Theme Engine (`ThemeManager`)](../dev/ThemeManager.md) & [Settings (`AppSettings`)](../dev/AppSettings.md)
-- [Path Utilities (`PathUtils`)](../dev/PathUtils.md) & [Undo Commands (`UndoCommands`)](../dev/UndoCommands.md)
-- [Object Graph Serialization (`SerializationContext`)](../dev/SerializationContext.md)
+- [**C++ Subsystem Architecture Guide**](../dev/index.md)
+- [**Complete C++ Class List**](annotated.html) & [**Class Hierarchy**](hierarchy.html)
+- [**Source Code File Directory**](files.html)
+- [Application Entry Point (`main.cpp`)](main_8cpp.html)
+- [Main Window Controller (`RegMapWindow`)](classRegMapWindow.html)
+- [Bitfield Slice Visualizer (`RegBitfieldBarWidget`)](classRegBitfieldBarWidget.html)
+- [Stacked Memory Map (`BlockMemoryMapWidget`)](classBlockMemoryMapWidget.html)
+- [Tree Model (`RegMapTreeModel`)](classRegMapTreeModel.html) & [Node Items (`RegMapTreeItem`)](classRegMapTreeItem.html)
+- [Item Delegates (`RegMapDelegate`)](classRegMapDelegate.html) & [Navigation Tree (`RegMapTreeView`)](classRegMapTreeView.html)
+- [Project Configuration Dialog (`RegConfigWindow`)](classRegConfigWindow.html)
+- [Preferences Dialog (`PreferencesWindow`)](classPreferencesWindow.html)
+- [Code Generator (`CodeGenerator`)](classCodeGenerator.html)
+- [Format Registry (`FormatManager`)](classFormatManager.html)
+- [Theme Engine (`ThemeManager`)](classThemeManager.html) & [Settings (`AppSettings`)](classAppSettings.html)
+- [Path Utilities (`PathUtils`)](namespacePathUtils.html) & [Undo Commands (`UndoCommands`)](UndoCommands_8hpp.html)
+- [Object Graph Serialization (`SerializationContext`)](classSerializationContext.html)
+

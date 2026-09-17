@@ -15,18 +15,8 @@ docs/
 │   ├── gui-guide.md            # Interactive GUI walkthrough, bitfield visualizer, themes
 │   └── getting-started.md      # Installation, compilation, and quickstart
 │
-└── dev/                        # Developer & C++ API Architecture Reference
-    ├── index.md                # C++ class reference index
-    ├── RegMapWindow.md         # Main window controller and UI orchestration
-    ├── RegMapTreeModel.md      # Hierarchical QAbstractItemModel data model
-    ├── RegMapTreeItem.md       # Tree node hierarchy and serialization
-    ├── RegBitfieldBarWidget.md # Interactive 32/64-bit continuous slice visualizer
-    ├── BlockMemoryMapWidget.md # Stacked memory map diagram with gap detection
-    ├── CodeGenerator.md        # Pantor Inja code generator engine
-    ├── FormatManager.md        # Multi-format serializer / deserializer registry
-    ├── ThemeManager.md         # Multi-theme engine and CVD accessible palettes
-    ├── PathUtils.md            # Path resolution and environment variable expansion
-    └── SerializationContext.md # Object graph persistence framework
+└── dev/                        # Developer & C++ Architecture Guide (Doxygen Flow)
+    └── index.md                # Subsystem architecture overview & Doxygen API portal
 ```
 
 ---
@@ -43,15 +33,13 @@ docs/
 
 ## 🛠️ Developer & C++ API Reference
 
-- [**C++ Developer Documentation Index**](dev/index.md): Complete index of classes, widgets, delegates, format handlers, and core utilities.
-- [**Application Entry Point (`src/main.cpp`)**](dev/rmap.md): Startup sequence, headless auto-detection, and command-line argument parsing.
-- [**Main Window Controller (`RegMapWindow`)**](dev/RegMapWindow.md): UI coordination, dock widgets, undo/redo stack, and headless handlers.
-- [**Tree Model (`RegMapTreeModel`)](dev/RegMapTreeModel.md): 11-column tree model, invalid cell tracking, and real-time validation.
-- [**Interactive Bitfield Visualizer (`RegBitfieldBarWidget`)](dev/RegBitfieldBarWidget.md): 32/64-bit continuous slice rendering, reserved slot hatching, and bidirectional selection.
-- [**Stacked Memory Map (`BlockMemoryMapWidget`)](dev/BlockMemoryMapWidget.md): Vertical memory map diagram with unmapped gap detection.
-- [**Template Engine (`CodeGenerator`)](dev/CodeGenerator.md): Pantor Inja integration, helper callbacks, and multi-source code generation.
-- [**Format Registry (`FormatManager`)](dev/FormatManager.md): Handlers for SystemRDL, IP-XACT, CMSIS-SVD, JSON, CSV, and Protobuf.
-- [**Theme Engine (`ThemeManager`)](dev/ThemeManager.md): Palettes for Solarized 8, Nord, Dracula, Monokai, Classic, and CVD Barrier-Free mode.
+- [**C++ Subsystem Architecture Guide**](dev/index.md): Architectural walkthrough of rmap's five core C++ subsystems (Controllers, Models, Visualizers, Formats, and Utilities).
+- [**C++ Class Reference (API Documentation)**](annotated.html): Complete annotated index of all C++ classes, structs, signals, slots, and methods.
+- [**C++ Class Inheritance Hierarchy**](hierarchy.html): Graphical tree of inheritance across all Qt models, widgets, and handlers.
+- [**Source Code File Directory**](files.html): Complete browsable directory of all C++ source files, headers, and syntax-highlighted code.
+- [**Global Functions & Constants**](globals.html): Global functions, enums, type definitions, and preprocessor definitions.
+
+
 
 ---
 

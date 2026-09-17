@@ -9,7 +9,7 @@
 Unified Documentation Generator for rmap.
 
 Generates:
-1. Interactive static HTML documentation portal (using Pelican or built-in HTML renderer).
+1. Interactive static HTML documentation portal (using Doxygen with optional Doxygen-Awesome-CSS).
 2. Professional publication-quality User Manual PDF (rmap_user_manual.pdf).
 3. Professional publication-quality Developer Reference Guide PDF (rmap_developer_guide.pdf).
 
@@ -40,27 +40,13 @@ USER_MANUAL_DOCS = [
 
 # Documentation chapters for Developer Guide
 DEVELOPER_GUIDE_DOCS = [
-    ("docs/dev/index.md", "Developer Architecture Index", "Architecture Overview"),
-    ("docs/dev/rmap.md", "Application Entry Point", "Application & UI Controllers"),
-    ("docs/dev/RegMapWindow.md", "Main Window Controller", "Application & UI Controllers"),
-    ("docs/dev/RegConfigWindow.md", "Project Configuration Dialog", "Application & UI Controllers"),
-    ("docs/dev/PreferencesWindow.md", "Preferences Dialog", "Application & UI Controllers"),
-    ("docs/dev/AboutWindow.md", "About Dialog", "Application & UI Controllers"),
-    ("docs/dev/RegMapTreeModel.md", "Register Map Tree Model", "Data Model & Hierarchy"),
-    ("docs/dev/RegMapTreeItem.md", "Hierarchical Tree Items", "Data Model & Hierarchy"),
-    ("docs/dev/RegMapTreeView.md", "Custom Tree View", "Data Model & Hierarchy"),
-    ("docs/dev/RegMapDelegate.md", "Item Delegates & Fast Cell Editors", "Data Model & Hierarchy"),
-    ("docs/dev/UndoCommands.md", "Undo & Redo Command Architecture", "Data Model & Hierarchy"),
-    ("docs/dev/RegBitfieldBarWidget.md", "Bitfield Slice Bar Widget", "Interactive Visualizers"),
-    ("docs/dev/BlockMemoryMapWidget.md", "Memory Map Diagram Widget", "Interactive Visualizers"),
-    ("docs/dev/FormatManager.md", "Multi-Format Registry", "Serialization & Formats"),
-    ("docs/dev/SerializationContext.md", "Serialization Framework", "Serialization & Formats"),
-    ("docs/dev/CodeGenerator.md", "Inja Template Code Generator", "Utilities & Services"),
-    ("docs/dev/ThemeManager.md", "Theme & Accessibility Engine", "Utilities & Services"),
-    ("docs/dev/LanguageManager.md", "Internationalization & Localization", "Utilities & Services"),
-    ("docs/dev/PathUtils.md", "Path Resolution & Environment Expansion", "Utilities & Services"),
-    ("docs/dev/AppSettings.md", "Settings & Geometry Persistence", "Utilities & Services"),
+    ("docs/dev/index.md", "C++ Subsystem Architecture & Doxygen Portal", "Architecture Overview"),
+    ("docs/user/architecture.md", "System Architecture & Data Model", "Architecture & Data Model"),
+    ("docs/user/templates-and-codegen.md", "Code Generation Engine & Templates", "Code Generation Architecture"),
+    ("templates/README.md", "Code Generation Templates Specification", "Reference & Specifications"),
+    ("examples/README.md", "Reference Examples & Verification Environments", "Reference & Specifications"),
 ]
+
 
 BOX_MAP = {
     '┌': '+', '┐': '+', '└': '+', '┘': '+', '├': '+', '┤': '+', '┬': '+', '┴': '+', '┼': '+',
@@ -442,37 +428,72 @@ def generate_developer_guide(pdf_path: str, project_root: str, verbose: bool = F
     )
 
 
-def generate_html(html_dir: str, project_root: str, verbose: bool = False) -> bool:
-    print(f"--> Generating HTML Documentation Portal: {html_dir}")
-    os.makedirs(html_dir, exist_ok=True)
-    docs_source_dir = os.path.join(project_root, "docs")
-    site_cache_dir = os.path.join(project_root, "_site")
-
-    env = os.environ.copy()
-    py_pkg = os.path.join(project_root, ".python_packages")
-    if os.path.exists(py_pkg):
-        env["PYTHONPATH"] = f"{py_pkg}:{env.get('PYTHONPATH', '')}"
-
-    pelican_cmd = None
-    if subprocess.run([sys.executable, "-m", "pelican", "--version"], env=env, capture_output=True).returncode == 0:
-        pelican_cmd = [sys.executable, "-m", "pelican", ".", "-s", "pelicanconf.py", "-o", os.path.abspath(html_dir)]
-    elif shutil.which("pelican"):
-        pelican_cmd = ["pelican", ".", "-s", "pelicanconf.py", "-o", os.path.abspath(html_dir)]
-
-    if pelican_cmd:
-        res = subprocess.run(pelican_cmd, cwd=docs_source_dir, env=env, capture_output=not verbose)
-        if res.returncode == 0:
-            print(f"--> Successfully rendered HTML portal with Pelican into: {html_dir}")
-            return True
+def run_doxygen(project_root: str, html_dir: str = "", verbose: bool = False, required: bool = False) -> bool:
+    doxygen_bin = shutil.which("doxygen")
+    if not doxygen_bin:
+        msg = (
+            "\n======================================================================\n"
+            "ERROR: Doxygen is required to generate the HTML documentation portal,\n"
+            "       but 'doxygen' was not found on PATH.\n"
+            "======================================================================\n"
+            "Please install Doxygen:\n"
+            "  - Ubuntu/Debian: sudo apt-get install -y doxygen graphviz\n"
+            "  - macOS:         brew install doxygen graphviz\n"
+            "  - Fedora/RHEL:   sudo dnf install doxygen graphviz\n"
+            "  - Arch Linux:    sudo pacman -S doxygen graphviz\n"
+        )
+        if required:
+            print(msg, file=sys.stderr)
+            return False
         else:
-            print(f"Warning: Pelican rendering failed with return code {res.returncode}. Falling back to cached assets.")
+            print("[INFO] Doxygen not found on PATH. Skipping Doxygen HTML generation.\n"
+                  "       Install doxygen (e.g. 'sudo apt-get install -y doxygen graphviz') to generate HTML documentation.")
+            return True
 
-    if os.path.exists(site_cache_dir) and os.path.abspath(site_cache_dir) != os.path.abspath(html_dir):
-        shutil.copytree(site_cache_dir, html_dir, dirs_exist_ok=True)
-        print(f"--> Successfully deployed pre-rendered HTML portal from _site into: {html_dir}")
-        return True
+    doxyfile = os.path.join(project_root, "docs", "Doxyfile")
+    if not os.path.exists(doxyfile):
+        print(f"[ERROR] Doxyfile not found at: {doxyfile}", file=sys.stderr)
+        return False
 
+    with open(doxyfile, "r", encoding="utf-8") as f:
+        doxy_cfg = f.read()
+
+    # Override OUTPUT_DIRECTORY if custom html_dir is supplied and different from default
+    target_out = html_dir if html_dir else os.path.join(project_root, "_site")
+    if html_dir and os.path.abspath(html_dir) != os.path.abspath(os.path.join(project_root, "_site")):
+        doxy_cfg += f"\nOUTPUT_DIRECTORY = {html_dir}\n"
+
+    # Optional Doxygen Awesome CSS theme: check if available
+    awesome_candidates = [
+        os.path.join(project_root, "docs", "theme", "doxygen-awesome.css"),
+        os.path.join(project_root, "docs", "doxygen-awesome-css", "doxygen-awesome.css"),
+        os.path.join(project_root, "docs", "doxygen-awesome.css"),
+    ]
+    awesome_path = next((p for p in awesome_candidates if os.path.isfile(p)), None)
+    if awesome_path:
+        rel_awesome = os.path.relpath(awesome_path, project_root)
+        print(f"--> Using Doxygen Awesome CSS theme: {rel_awesome}")
+        doxy_cfg += f"\nHTML_EXTRA_STYLESHEET = {rel_awesome}\n"
+    else:
+        print("[INFO] Doxygen Awesome CSS not found. Using standard Doxygen styling.")
+        doxy_cfg += "\nHTML_EXTRA_STYLESHEET =\n"
+
+    print(f"--> Generating Doxygen HTML Documentation Portal into: {target_out}")
+    res = subprocess.run([doxygen_bin, "-"], input=doxy_cfg, cwd=project_root, capture_output=not verbose, text=True)
+    if res.returncode != 0:
+        print(f"[ERROR] Doxygen failed with return code {res.returncode}", file=sys.stderr)
+        if res.stderr:
+            print(res.stderr, file=sys.stderr)
+        return False
+
+    print(f"✓ Successfully rendered HTML documentation with Doxygen into: {target_out}")
     return True
+
+
+def generate_html(html_dir: str, project_root: str, verbose: bool = False) -> bool:
+    os.makedirs(html_dir, exist_ok=True)
+    return run_doxygen(project_root, html_dir=html_dir, verbose=verbose, required=False)
+
 
 
 def main():
@@ -530,6 +551,11 @@ def main():
         help="Generate only the Developer Guide PDF"
     )
     parser.add_argument(
+        "--doxygen",
+        action="store_true",
+        help="Generate C++ API documentation using Doxygen (strictly requires Doxygen on PATH)"
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Clean target output directories before generation"
@@ -542,6 +568,10 @@ def main():
 
     args = parser.parse_args()
     project_root = os.path.abspath(args.project_root)
+
+    if args.doxygen:
+        ok = run_doxygen(project_root, verbose=args.verbose, required=True)
+        sys.exit(0 if ok else 1)
 
     # Determine default HTML directory
     if args.html_dir:
@@ -603,6 +633,15 @@ def main():
         print(f"Developer Guide PDF: {dev_pdf}")
 
     success = True
+
+    # Generate Doxygen documentation if requested or available
+    if args.dev_only:
+        ok_dox = run_doxygen(project_root, verbose=args.verbose, required=True)
+        if not ok_dox:
+            success = False
+    elif not args.user_only and not args.html_only:
+        run_doxygen(project_root, verbose=args.verbose, required=False)
+
     if build_html:
         ok_html = generate_html(html_dir, project_root, verbose=args.verbose)
         if not ok_html:
@@ -640,3 +679,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
