@@ -65,6 +65,38 @@ def find_verilator():
     return None
 
 
+class TestSkipped(Exception):
+    """Raised when a test cannot run because a required external tool or package is missing."""
+    def __init__(self, tool: str, reason: str = None):
+        self.tool = tool
+        self.reason = reason or f"Required tool '{tool}' is not installed"
+        super().__init__(self.reason)
+
+
+def require_tool(tool_name: str, finder=None) -> str:
+    path = finder() if finder else shutil.which(tool_name)
+    if not path:
+        raise TestSkipped(tool_name, f"Required tool '{tool_name}' is not installed")
+    return path
+
+
+def require_any_tool(*tool_names) -> tuple:
+    """Find any available tool from tool_names (e.g. verilator or iverilog)."""
+    for name in tool_names:
+        path = find_verilator() if name == "verilator" else shutil.which(name)
+        if path:
+            return name, path
+    names_str = " or ".join(f"'{n}'" for n in tool_names)
+    raise TestSkipped("/".join(tool_names), f"None of the required tools ({names_str}) are installed")
+
+
+def require_python_module(module_name: str):
+    try:
+        return importlib.import_module(module_name)
+    except ImportError:
+        raise TestSkipped(module_name, f"Required Python package '{module_name}' is not installed")
+
+
 def run_command(cmd, check=True, cwd=None, env=None):
     merged_env = os.environ.copy()
     merged_env["QT_QPA_PLATFORM"] = "offscreen"
@@ -193,13 +225,12 @@ int main(void) {
 }
 """)
 
-    gcc_bin = shutil.which("gcc")
-    if gcc_bin:
-        c_bin = os.path.join(work_dir, "test_c_harness")
-        run_command([gcc_bin, "-Wall", "-Wextra", "-Werror", "-pedantic", "-std=c99",
-                     f"-I{work_dir}", test_harness_c, "-o", c_bin])
-        run_command([c_bin])
-        print("  ✓ GCC C99 build and assertions passed.")
+    gcc_bin = require_tool("gcc")
+    c_bin = os.path.join(work_dir, "test_c_harness")
+    run_command([gcc_bin, "-Wall", "-Wextra", "-Werror", "-pedantic", "-std=c99",
+                 f"-I{work_dir}", test_harness_c, "-o", c_bin])
+    run_command([c_bin])
+    print("  ✓ GCC C99 build and assertions passed.")
 
     gpp_bin = shutil.which("g++")
     if gpp_bin:
@@ -263,7 +294,9 @@ def test_rtl(rmap_bin, work_dir):
     assert "always_comb begin : proc_read_decode" in content
     assert "always_ff @(posedge clk_i or negedge rst_ni)" in content
 
-    # Verilator lint if installed
+    # Toolchain verification (Verilator or Icarus Verilog)
+    require_any_tool("verilator", "iverilog")
+
     verilator_bin = find_verilator()
     if verilator_bin:
         ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
@@ -353,17 +386,16 @@ def test_rust(rmap_bin, work_dir):
     assert "pub fn get_enable(val: u32) -> u32" in content
     assert "pub fn set_enable(val: u32, fld_val: u32) -> u32" in content
 
-    rustc_bin = shutil.which("rustc")
-    if rustc_bin:
-        # 1. Compile generated code as rlib
-        rlib_out = os.path.join(work_dir, "libreg_map.rlib")
-        run_command([rustc_bin, "--crate-type", "lib", "--crate-name", "reg_map", "--edition", "2021", rust_comp_file, "-o", rlib_out])
-        print("  ✓ rustc compilation to rlib passed.")
+    rustc_bin = require_tool("rustc")
+    # 1. Compile generated code as rlib
+    rlib_out = os.path.join(work_dir, "libreg_map.rlib")
+    run_command([rustc_bin, "--crate-type", "lib", "--crate-name", "reg_map", "--edition", "2021", rust_comp_file, "-o", rlib_out])
+    print("  ✓ rustc compilation to rlib passed.")
 
-        # 2. Compile and run Rust functional test harness linking to rlib
-        test_harness_rs = os.path.join(work_dir, "test_rust_harness.rs")
-        with open(test_harness_rs, "w") as f:
-            f.write("""extern crate reg_map;
+    # 2. Compile and run Rust functional test harness linking to rlib
+    test_harness_rs = os.path.join(work_dir, "test_rust_harness.rs")
+    with open(test_harness_rs, "w") as f:
+        f.write("""extern crate reg_map;
 use reg_map::*;
 
 fn main() {
@@ -382,10 +414,10 @@ fn main() {
     assert_eq!(CONTROL_REG::get_enable(reg_val), 1);
 }
 """)
-        rs_bin = os.path.join(work_dir, "test_rust_harness")
-        run_command([rustc_bin, "--edition", "2021", "--extern", f"reg_map={rlib_out}", test_harness_rs, "-o", rs_bin])
-        run_command([rs_bin])
-        print("  ✓ Rust functional assertions executed successfully.")
+    rs_bin = os.path.join(work_dir, "test_rust_harness")
+    run_command([rustc_bin, "--edition", "2021", "--extern", f"reg_map={rlib_out}", test_harness_rs, "-o", rs_bin])
+    run_command([rs_bin])
+    print("  ✓ Rust functional assertions executed successfully.")
 
     print("✓ Rust template verified successfully.\n")
 
@@ -527,14 +559,11 @@ def test_markdown(rmap_bin, work_dir):
     assert "| `[0:0]` | **ENABLE** | `RW` | `RO` | `0x0001` | Core Enable |" in content
     assert "| `[3:1]` | **MODE** | `RW` | `RO` | `0x0002` | Operational Mode (3-bit binary reset) |" in content
 
-    # Test with python-markdown if installed
-    try:
-        import markdown
-        html = markdown.markdown(content, extensions=["tables"])
-        assert len(html) > 100
-        print("  ✓ Markdown package successfully rendered table HTML.")
-    except ImportError:
-        pass
+    # Test with python-markdown
+    markdown_pkg = require_python_module("markdown")
+    html = markdown_pkg.markdown(content, extensions=["tables"])
+    assert len(html) > 100
+    print("  ✓ Markdown package successfully rendered table HTML.")
 
     print("✓ Markdown template verified successfully.\n")
 
@@ -573,12 +602,11 @@ def test_systemrdl(rmap_bin, work_dir):
     close_braces = content.count("}")
     assert open_braces == close_braces, f"Mismatched braces in SystemRDL: {open_braces} {{ vs {close_braces} }}"
 
-    # Check peakrdl if installed
-    peakrdl_bin = shutil.which("peakrdl")
-    if peakrdl_bin:
-        proc = subprocess.run([peakrdl_bin, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if proc.returncode == 0:
-            print("  ✓ peakrdl CLI detected.")
+    # Check peakrdl
+    peakrdl_bin = require_tool("peakrdl")
+    proc = subprocess.run([peakrdl_bin, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode == 0:
+        print("  ✓ peakrdl CLI detected.")
 
     print("✓ SystemRDL template verified successfully.\n")
 
@@ -632,12 +660,11 @@ def test_ipxact(rmap_bin, work_dir):
                     assert fld.find("ipxact:bitOffset", ns) is not None
                     assert fld.find("ipxact:bitWidth", ns) is not None
 
-    # xmllint if available
-    xmllint_bin = shutil.which("xmllint")
-    if xmllint_bin:
-        run_command([xmllint_bin, "--noout", xml_comp_file])
-        run_command([xmllint_bin, "--noout", xml_spi_file])
-        print("  ✓ xmllint XML validation passed.")
+    # xmllint validation
+    xmllint_bin = require_tool("xmllint")
+    run_command([xmllint_bin, "--noout", xml_comp_file])
+    run_command([xmllint_bin, "--noout", xml_spi_file])
+    print("  ✓ xmllint XML validation passed.")
 
     print("✓ IP-XACT template verified successfully.\n")
 
@@ -689,12 +716,11 @@ def test_svd(rmap_bin, work_dir):
                     assert fld.find("bitOffset") is not None
                     assert fld.find("bitWidth") is not None
 
-    # xmllint if available
-    xmllint_bin = shutil.which("xmllint")
-    if xmllint_bin:
-        run_command([xmllint_bin, "--noout", svd_comp_file])
-        run_command([xmllint_bin, "--noout", svd_spi_file])
-        print("  ✓ xmllint CMSIS-SVD validation passed.")
+    # xmllint validation
+    xmllint_bin = require_tool("xmllint")
+    run_command([xmllint_bin, "--noout", svd_comp_file])
+    run_command([xmllint_bin, "--noout", svd_spi_file])
+    print("  ✓ xmllint CMSIS-SVD validation passed.")
 
     print("✓ SVD template verified successfully.\n")
 
@@ -746,12 +772,11 @@ def test_json(rmap_bin, work_dir):
                     assert "volatile" in fld and isinstance(fld["volatile"], bool)
                     assert "has_reset" in fld and isinstance(fld["has_reset"], bool)
 
-    # jq validation if available
-    jq_bin = shutil.which("jq")
-    if jq_bin:
-        run_command([jq_bin, ".", json_comp_file])
-        run_command([jq_bin, ".", json_spi_file])
-        print("  ✓ jq JSON syntax validation passed.")
+    # jq validation
+    jq_bin = require_tool("jq")
+    run_command([jq_bin, ".", json_comp_file])
+    run_command([jq_bin, ".", json_spi_file])
+    print("  ✓ jq JSON syntax validation passed.")
 
     print("✓ JSON template verified successfully.\n")
 
@@ -782,9 +807,14 @@ def test_rtl_tb(rmap_bin, work_dir):
     assert "Phase 3] Byte Strobe Masking Verification" in content
     assert "Phase 4] Hardware Sideband Interaction" in content
 
-    # If iverilog is installed, compile and simulate
+    # Require either iverilog+vvp or verilator
     iverilog_bin = shutil.which("iverilog")
     vvp_bin = shutil.which("vvp")
+    verilator_bin = find_verilator()
+    if not ((iverilog_bin and vvp_bin) or verilator_bin):
+        raise TestSkipped("iverilog/verilator", "Neither Icarus Verilog (with vvp) nor Verilator is installed")
+
+    # If iverilog is installed, compile and simulate
     if iverilog_bin and vvp_bin:
         rtl_file = os.path.join(comp_out, "rtl", "reg_map.sv")
         sim_vvp = os.path.join(work_dir, "sim_rtl.vvp")
@@ -822,6 +852,10 @@ def test_pyuvm_tb(rmap_bin, work_dir):
 
     assert os.path.isfile(pyuvm_comp), f"pyuvm TB output '{pyuvm_comp}' not found!"
     assert os.path.isfile(pyuvm_spi), f"pyuvm TB output '{pyuvm_spi}' not found!"
+
+    # Verify required python dependencies
+    require_python_module("cocotb")
+    require_python_module("pyuvm")
 
     # Syntax check
     py_compile.compile(pyuvm_comp, doraise=True)
@@ -1027,7 +1061,9 @@ def test_apb(rmap_bin, work_dir):
     assert "output logic                      pslverr_o" in content
     assert "core_subsystem_reg_file #(" in content
 
-    # Verilator lint if installed
+    # Toolchain verification (Verilator or Icarus Verilog)
+    require_any_tool("verilator", "iverilog")
+
     verilator_bin = find_verilator()
     if verilator_bin:
         ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
@@ -1091,7 +1127,9 @@ def test_axil(rmap_bin, work_dir):
     assert "input  logic                      s_axil_rready_i" in content
     assert "core_subsystem_reg_file #(" in content
 
-    # Verilator lint if installed
+    # Toolchain verification (Verilator or Icarus Verilog)
+    require_any_tool("verilator", "iverilog")
+
     verilator_bin = find_verilator()
     if verilator_bin:
         ver_info = subprocess.run([verilator_bin, "--version"], capture_output=True, text=True).stdout.strip()
@@ -1145,7 +1183,9 @@ def test_verilog(rmap_bin, work_dir):
     assert "output wire                      sw_control_enable_rd_strobe_o" in content
     assert "always @(posedge clk_i or negedge rst_ni)" in content
 
-    # Verilator lint if installed
+    # Toolchain verification (Verilator or Icarus Verilog)
+    require_any_tool("verilator", "iverilog")
+
     verilator_bin = find_verilator()
     if verilator_bin:
         run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", v_comp_file])
@@ -1193,12 +1233,11 @@ def test_vhdl(rmap_bin, work_dir):
     assert "sw_control_enable_rd_strobe_o : out std_logic;" in content
     assert "process(clk_i, rst_ni)" in content
 
-    # GHDL if installed
-    ghdl_bin = shutil.which("ghdl")
-    if ghdl_bin:
-        run_command([ghdl_bin, "-s", "--std=08", vhd_comp_file])
-        run_command([ghdl_bin, "-s", "--std=08", vhd_spi_file])
-        print("  ✓ GHDL syntax checks passed.")
+    # GHDL verification
+    ghdl_bin = require_tool("ghdl")
+    run_command([ghdl_bin, "-s", "--std=08", vhd_comp_file])
+    run_command([ghdl_bin, "-s", "--std=08", vhd_spi_file])
+    print("  ✓ GHDL syntax checks passed.")
 
     print("✓ VHDL template verified successfully.\n")
 
@@ -1229,7 +1268,9 @@ def test_sva(rmap_bin, work_dir):
     assert "default disable iff (!rst_ni);" in content
     assert "assert property" in content
 
-    # Verilator lint if installed
+    # Toolchain verification (Verilator or Icarus Verilog)
+    require_any_tool("verilator", "iverilog")
+
     verilator_bin = find_verilator()
     if verilator_bin:
         run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file, sva_comp_file])
@@ -1290,24 +1331,33 @@ def main():
     if target == "all":
         print(f"Running comprehensive tests for all {len(TEMPLATES)} templates...\n")
         failed = []
+        skipped = []
+        passed = []
         for name, validator in TEMPLATES.items():
             work_dir = os.path.join(WORK_BASE, name)
             try:
                 validator(rmap_bin, work_dir)
+                passed.append(name)
+            except TestSkipped as s:
+                print(f"  ⚠ WARNING: Skipping '{name}' template: {s.reason}\n")
+                skipped.append((name, s.reason))
             except Exception as e:
                 print(f"FAILED: Template '{name}' failed: {e}", file=sys.stderr)
                 import traceback
                 traceback.print_exc()
                 failed.append(name)
 
+        print("\n========================================")
+        print(f"SUMMARY: {len(passed)} passed, {len(skipped)} skipped, {len(failed)} failed")
+        if skipped:
+            print("\nSkipped templates (missing toolchain):")
+            for n, r in skipped:
+                print(f"  - {n:15}: {r}")
         if failed:
-            print(f"\n========================================", file=sys.stderr)
-            print(f"FAILED: {len(failed)}/{len(TEMPLATES)} templates failed: {', '.join(failed)}", file=sys.stderr)
-            print(f"========================================", file=sys.stderr)
+            print(f"\nFAILED: {len(failed)}/{len(TEMPLATES)} templates failed: {', '.join(failed)}", file=sys.stderr)
+            print("========================================", file=sys.stderr)
             sys.exit(1)
         else:
-            print("\n========================================")
-            print(f"SUCCESS: All {len(TEMPLATES)} templates passed comprehensive validation!")
             print("========================================")
             sys.exit(0)
 
@@ -1316,6 +1366,10 @@ def main():
         try:
             TEMPLATES[target](rmap_bin, work_dir)
             print(f"SUCCESS: Template '{target}' passed comprehensive validation.")
+            sys.exit(0)
+        except TestSkipped as s:
+            print(f"⚠ WARNING: Template '{target}' skipped: {s.reason}")
+            print(f"SKIPPED: Template '{target}' was not verified because required tool is missing.")
             sys.exit(0)
         except Exception as e:
             print(f"FAILED: Template '{target}' failed: {e}", file=sys.stderr)
