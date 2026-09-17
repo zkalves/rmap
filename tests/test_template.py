@@ -56,8 +56,8 @@ def find_verilator():
     if v:
         return v
     for candidate in [
-        "/opt/verilator/v5.050/bin/verilator",
-        "/home/runner/verilator-5.050/bin/verilator",
+        "/opt/verilator/v5.052/bin/verilator",
+        "/home/runner/verilator-5.052/bin/verilator",
         os.path.expanduser("~/work/src/verilator/bin/verilator")
     ]:
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
