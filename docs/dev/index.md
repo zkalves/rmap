@@ -88,7 +88,7 @@ flowchart TD
 ### 5. Code Generation, Localization & Utilities
 - **`CodeGenerator`**: Pantor Inja template rendering engine featuring 12 custom naming and bitwise helper callbacks (including sv_hex) for multi-target code generation (SystemVerilog, Verilog, VHDL, UVM, C, Rust, Python).
 - **`ThemeManager`**: Multi-theme styling engine supporting 8 color schemes and Okabe-Ito / Wong CVD barrier-free palettes.
-- **`LanguageManager`**: Internationalization engine managing runtime translation catalogs (`.qm`) and dynamic locale switching.
+- **`LanguageManager`**: Internationalization engine managing runtime JSON translation catalogs (`.json`) and dynamic locale switching via `JsonTranslator`.
 - **`AppSettings`**: Persistent application settings and window geometry persistence via `QSettings`.
 - **`PathUtils`**: Path utility library for environment variable expansion, path relativization, and multi-tiered fallback path resolution.
 

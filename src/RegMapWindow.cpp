@@ -777,6 +777,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   actionDeleteItem->setShortcuts(
       {QKeySequence::Delete, QKeySequence(Qt::Key_Backspace)});
   actionDuplicate->setShortcut(QKeySequence("Ctrl+D"));
+  actionFileReload->setShortcut(QKeySequence("Ctrl+R"));
 
   // Focus Search Bar shortcut (Ctrl+F / Find)
   auto *searchShortcut = new QShortcut(QKeySequence::Find, this);

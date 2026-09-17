@@ -185,6 +185,7 @@ Detailed C++ API reference documentation for each individual class, delegate, vi
 - [**Source Code File Directory**](files.html)
 - [Application Entry Point (`main.cpp`)](main_8cpp.html)
 - [Main Window Controller (`RegMapWindow`)](classRegMapWindow.html)
+- [About Dialog (`AboutWindow`)](classAboutWindow.html)
 - [Bitfield Slice Visualizer (`RegBitfieldBarWidget`)](classRegBitfieldBarWidget.html)
 - [Stacked Memory Map (`BlockMemoryMapWidget`)](classBlockMemoryMapWidget.html)
 - [Tree Model (`RegMapTreeModel`)](classRegMapTreeModel.html) & [Node Items (`RegMapTreeItem`)](classRegMapTreeItem.html)
@@ -192,8 +193,11 @@ Detailed C++ API reference documentation for each individual class, delegate, vi
 - [Project Configuration Dialog (`RegConfigWindow`)](classRegConfigWindow.html)
 - [Preferences Dialog (`PreferencesWindow`)](classPreferencesWindow.html)
 - [Code Generator (`CodeGenerator`)](classCodeGenerator.html)
-- [Format Registry (`FormatManager`)](classFormatManager.html)
+- [Format Registry (`FormatManager`)](classFormatManager.html) & [Format Base Interface (`IFormatHandler`)](classIFormatHandler.html)
+- [Format Handlers: ARM CMSIS-SVD (`CmsisSvdHandler`)](classCmsisSvdHandler.html), [SystemRDL (`SystemRdlHandler`)](classSystemRdlHandler.html), [IP-XACT (`IpxactHandler`)](classIpxactHandler.html), [JSON (`JsonHandler`)](classJsonHandler.html), [CSV (`CsvHandler`)](classCsvHandler.html), [Protobuf (`ProtobufHandler`)](classProtobufHandler.html)
 - [Theme Engine (`ThemeManager`)](classThemeManager.html) & [Settings (`AppSettings`)](classAppSettings.html)
+- [Internationalization Manager (`LanguageManager`)](classLanguageManager.html) & [JSON Translator (`JsonTranslator`)](classJsonTranslator.html)
 - [Path Utilities (`PathUtils`)](namespacePathUtils.html) & [Undo Commands (`UndoCommands`)](UndoCommands_8hpp.html)
-- [Object Graph Serialization (`SerializationContext`)](classSerializationContext.html)
+- [Object Graph Serialization (`SerializationContext`)](classSerializationContext.html), [Object Factory (`ObjectFactory`)](classObjectFactory.html), [Serializable Interface (`Serializable`)](classSerializable.html) & [Protobuf Log Collector (`ProtobufLogCollector`)](classProtobufLogCollector.html)
+
 

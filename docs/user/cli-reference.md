@@ -17,7 +17,7 @@ rmap [OPTIONS] [file]
 
 | Option | Long Option | Description |
 | :--- | :--- | :--- |
-| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). Can also be passed directly as a positional argument `[file]`. |
+| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.systemrdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). Can also be passed directly as a positional argument `[file]`. |
 | `-c <file>` | `--convert <file>` | Headlessly convert the loaded register map into another format (e.g. `--convert out.svd`). |
 | `-e` | `--export` | Run in **headless mode** and generate all configured template outputs. |
 | `-l` | `--lint` | Run automated linter validation check on the loaded register map. |
@@ -47,7 +47,12 @@ rmap [OPTIONS] [file]
 | :--- | :--- |
 | `RMAP_CONFIG_FILE` | Explicit path overriding the default configuration file (`~/.config/rmap/rmap.conf` or `$XDG_CONFIG_HOME/rmap/rmap.conf`). |
 | `RMAP_THEMES_PATH` / `RMAP_THEME_DIR` | Colon-separated (Linux/macOS) or semicolon-separated (Windows) search path list for custom theme JSON definitions. |
+| `RMAP_TEMPLATES_DIR` | Explicit filesystem path overriding the default templates discovery and installation directory. |
+| `RMAP_EXAMPLES_DIR` | Explicit filesystem path overriding the default bundled examples directory. |
+| `RMAP_DOCS_DIR` | Explicit filesystem path overriding the default offline documentation directory. |
+| `RMAP_PYTHON` | Custom Python interpreter path/binary (defaults to `python3` or `python` discovered on `PATH`). |
 | `RMAP_PYTHON_TIMEOUT` | Execution timeout in milliseconds (default: `60000` ms / 60 seconds) for custom Python generation scripts and post-processing filters. |
+| `RMAP_TMPDIR` | Explicit temporary directory path for intermediate JSON context files generated during script execution (defaults to system temp directory). |
 
 ---
 

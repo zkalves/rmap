@@ -256,7 +256,7 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 
 - **Universal Format Import (`Ctrl+O`)**:
   - **ARM CMSIS-SVD** (`.svd`)
-  - **SystemRDL 1.0 & 2.0** (`.rdl`)
+  - **SystemRDL 1.0 & 2.0** (`.rdl`, `.systemrdl`)
   - **IP-XACT IEEE 1685-2009/2014/2022** (`.xml`, `.ipxact`)
   - **Standard JSON Schema** (`.json`)
   - **RFC 4180 CSV / TSV** (`.csv`, `.tsv`)
