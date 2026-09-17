@@ -159,15 +159,15 @@ sim-uvm:
 	@case "$(SIM)" in \
 	  vcs) \
 	    vcs -sverilog $(VCS_UVM_ARGS) +incdir+$(RTL_INC_DIR) +incdir+$(UVM_INC_DIR) +incdir+uvm \
-	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv -o simv && \
+	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_if.sv uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv -o simv && \
 	    ./simv +UVM_TESTNAME=$(TEST) ;; \
 	  xrun|xcelium) \
 	    xrun $(XRUN_UVM_ARGS) -incdir $(RTL_INC_DIR) -incdir $(UVM_INC_DIR) -incdir uvm \
-	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv +UVM_TESTNAME=$(TEST) ;; \
+	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_if.sv uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv +UVM_TESTNAME=$(TEST) ;; \
 	  mti|questa) \
 	    vlib work && \
 	    vlog $(MTI_UVM_ARGS) +incdir+$(RTL_INC_DIR) +incdir+$(UVM_INC_DIR) +incdir+uvm \
-	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv && \
+	      $(RTL_SRC) $(UVM_SRC) uvm/reg_bus_if.sv uvm/reg_bus_pkg.sv uvm/reg_env.sv uvm/reg_tests.sv uvm/tb_top.sv && \
 	    vsim -c -do "run -all; quit" tb_top +UVM_TESTNAME=$(TEST) ;; \
 	  *) \
 	    echo "Specify SIM=vcs, SIM=xrun, or SIM=mti (e.g. 'make sim-uvm SIM=vcs UVM_VER=1.2')" ;; \

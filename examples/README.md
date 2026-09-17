@@ -24,7 +24,9 @@ examples/
 │   ├── uart/                 # UART controller build & simulation environment
 │   ├── dma/                  # DMA controller build & simulation environment
 │   ├── sensor_hub/           # Sensor hub build & simulation environment
-│   ├── comprehensive/        # All 9 SW access policies & HW modes environment
+│   ├── comprehensive/        # All 24 IEEE 1800.2 SW access policies & HW modes environment (20 deliverables)
+│   ├── hw_precedence/        # Configurable SW/HW arbitration precedence environment (PARAM_HW_PRECEDENCE = 0)
+│   ├── narrow_bus_8bit/      # 8-bit narrow register bus architecture environment
 │   ├── wide_bus_64bit/       # 64-bit wide register bus environment
 │   ├── address_gap_example/  # Address gap padding & alignment environment
 │   ├── map_node/             # Hierarchical memory map & bus domain environment
@@ -46,7 +48,9 @@ examples/
 │   │   └── sensor_hub.rmt    # Multi-sensor telemetry hub register map
 │   ├── features/             # Dedicated feature coverage & architectural patterns
 │   │   ├── soc_large_scale.rmt / .rmb # Large-scale SoC with multiple blocks, maps, memories & registers
-│   │   ├── comprehensive.rmt # Comprehensive feature coverage (all 9 access policies, memory, booleans)
+│   │   ├── comprehensive.rmt # Comprehensive feature coverage (all 24 access policies, memory, booleans, 20 deliverables)
+│   │   ├── hw_precedence.rmt # Configurable SW write arbitration precedence (hw_precedence: false)
+│   │   ├── narrow_bus_8bit.rmt# 8-bit narrow data bus architecture example
 │   │   ├── wide_bus_64bit.rmt# 64-bit data bus architecture example
 │   │   ├── address_gap_example.rmt# Non-contiguous address gaps & alignment padding
 │   │   ├── map_node.rmt      # Hierarchical memory mapping with uvm_reg_map domains
@@ -59,7 +63,10 @@ examples/
 │   │   ├── diff_v1.rmt       # Semantic diff base version
 │   │   └── diff_v2.rmt       # Semantic diff modified version (additions, deletions, mutations)
 │   └── validation/           # Negative test cases & linter rule validation
-│       └── invalid_overlap.rmt# Validation test cases (address collisions, field overlaps, width overflow)
+│       ├── invalid_overlap.rmt# Validation test cases (address collisions, field overlaps, width overflow)
+│       ├── invalid_keyword.rmt# Reserved C/SystemVerilog keyword identifier collision detection
+│       ├── invalid_reset_overflow.rmt# Field reset value capacity overflow check
+│       └── invalid_blackhole.rmt# Contradictory access policy validation (SW=WO and HW=WO)
 │
 ├── scripts/                  # Helper automation scripts
 │   └── post_generate.py      # Sample post-generation Python processing hook
@@ -96,11 +103,14 @@ examples/
   - **3 Dedicated Embedded Memories**: `INSTRUCTION_SRAM` (64 KB, 32-bit word, RO), `DATA_TCM` (128 KB, 64-bit word, RW), and `PACKET_BUFFER` (16 KB, 8-bit word, RW).
   - **40 Individual Registers**: Covering all 9 Software Access Policies (`RW`, `RO`, `WO`, `W1C`, `W1S`, `W0C`, `RC`, `RS`, `NA`), Hardware Access Modes (`RO`, `RW`, `WO`, `W1S`, `W1C`, `NA`), mixed radices (Hexadecimal `0x`, Binary `0b`, Decimal), volatile and randomization flags, address gaps, and custom parameters.
 - **`comprehensive.rmt`**: Exhaustive feature coverage:
-  - All 9 Software Access Policies (`RW`, `RO`, `WO`, `W1C`, `W1S`, `W0C`, `RC`, `RS`, `NA`).
+  - All 24 IEEE 1800.2 Software Access Policies (`RW`, `RO`, `WO`, `W1`, `WO1`, `W1C`, `W1S`, `W1T`, `W0C`, `W0S`, `W0T`, `RC`, `RS`, `WRC`, `WRS`, `WC`, `WS`, `W1SRC`, `W1CRS`, `W0SRC`, `W0CRS`, `WOC`, `WOS`, `NOACCESS`).
   - Core Hardware Access Modes (`RO`, `RW`, `WO`, `W1S`, `W1C`, `NA`).
+  - All 20 Code Generation Template Deliverables (24 inja template files) generated simultaneously.
   - Dedicated memory blocks (`mem` kind) with custom byte/word sizes.
   - Number radix representations (Hexadecimal `0x`, Decimal, Binary `0b`).
   - Flags: `is_rand` (UVM randomization), `volatile` (firmware volatile qualifier), `has_reset`.
+- **`hw_precedence.rmt`**: Configurable write arbitration precedence configured with `hw_precedence: false`. Demonstrates software-precedence mode (`PARAM_HW_PRECEDENCE = 0` / `'0'`) across SystemVerilog, Verilog-2001, VHDL, APB4, AXI4-Lite, and formal SVA.
+- **`narrow_bus_8bit.rmt`**: 8-bit narrow data bus architecture configured with global `reg_width: 8`. Demonstrates byte-aligned registers (`uint8_t` in C firmware), 8-bit RTL bus interface (`DATA_WIDTH=8`, `STRB_WIDTH=1`), and byte-slicing bitfield operations.
 - **`wide_bus_64bit.rmt`**: High-performance 64-bit data bus architecture configured with global `reg_width: 64`. Demonstrates 64-bit register alignment, wide bitfield slicing, and `uint64_t` firmware header generation.
 - **`address_gap_example.rmt`**: Non-contiguous register offsets with deliberate address gaps (e.g. offset `0x0000` followed by `0x0010` and `0x0040`). Demonstrates automatic reserved word generation (`uint32_t _reserved_[...]`) and GUI gap detection visualization.
 - **`map_node.rmt`**: Multi-bus hierarchical memory mapping architecture showcasing `map` kind nodes with base offsets, addressing spaces, and sub-blocks.
@@ -123,6 +133,9 @@ examples/
   - Register address overlap collisions.
   - Field bit range collisions within a register.
   - Field offset exceeding register bit width.
+- **`invalid_keyword.rmt`**: Verifies detection of reserved SystemVerilog, C, and HDL identifier keywords (e.g. `module`, `logic`, `input`, `output`).
+- **`invalid_reset_overflow.rmt`**: Verifies detection of field reset values exceeding bitfield storage capacity (e.g. 4-bit field with reset value `0x20`).
+- **`invalid_blackhole.rmt`**: Verifies detection of contradictory "black-hole" access policies where both software and hardware access are write-only (`SW=WO` and `HW=WO`).
 
 ---
 
@@ -161,7 +174,7 @@ Every feature and peripheral model includes a dedicated, self-contained executio
 ### Running Environments
 
 ```bash
-# Run autonomous verification across all 17 environments simultaneously
+# Run autonomous verification across all 19 environments simultaneously
 make test-examples
 
 # Or run from the examples directory:
@@ -196,7 +209,7 @@ cp -r /usr/local/share/rmap/examples ~/my_rmap_eval
 
 cd ~/my_rmap_eval
 
-# 2. Run simulation and compilation across all 17 environments simultaneously
+# 2. Run simulation and compilation across all 19 environments simultaneously
 make all
 
 # 3. Or enter any individual environment and execute its targets

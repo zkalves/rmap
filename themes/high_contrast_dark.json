@@ -2,6 +2,11 @@
   "id": "high_contrast_dark",
   "name": "High Contrast (Dark)",
   "isDark": true,
+  "aliases": [
+    "high_contrast",
+    "high-contrast",
+    "high-contrast-dark"
+  ],
   "base": {
     "windowBg": "#000000",
     "panelBg": "#000000",

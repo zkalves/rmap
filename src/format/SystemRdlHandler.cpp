@@ -191,12 +191,27 @@ QString rdlSwToAccess(const QString &sw) {
     if (s == "rw") return "RW";
     if (s == "r" || s == "ro") return "RO";
     if (s == "w" || s == "wo") return "WO";
+    if (s == "w1") return "W1";
+    if (s == "wo1") return "WO1";
     if (s == "w1c") return "W1C";
     if (s == "w0c") return "W0C";
-    if (s == "rc") return "RC";
-    if (s == "rs") return "RS";
     if (s == "w1s") return "W1S";
     if (s == "w0s") return "W0S";
+    if (s == "w1t") return "W1T";
+    if (s == "w0t") return "W0T";
+    if (s == "rc") return "RC";
+    if (s == "rs") return "RS";
+    if (s == "wrc") return "WRC";
+    if (s == "wrs") return "WRS";
+    if (s == "wc") return "WC";
+    if (s == "ws") return "WS";
+    if (s == "w1src") return "W1SRC";
+    if (s == "w1crs") return "W1CRS";
+    if (s == "w0src") return "W0SRC";
+    if (s == "w0crs") return "W0CRS";
+    if (s == "woc") return "WOC";
+    if (s == "wos") return "WOS";
+    if (s == "na" || s == "noaccess") return "NOACCESS";
     return "RW";
 }
 
@@ -204,6 +219,7 @@ QString accessToRdlSw(const QString &access) {
     QString a = access.toUpper().trimmed();
     if (a == "RO") return "r";
     if (a == "WO") return "w";
+    if (a == "NOACCESS") return "na";
     return a.toLower();
 }
 

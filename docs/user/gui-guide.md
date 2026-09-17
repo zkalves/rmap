@@ -115,7 +115,7 @@ When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the
 | **1** | **Offset** | Register byte offset or Field bit position (LSB). | Hex zero-padded (`0x0000`), Dec (`0`), Bin (`0b0`) | Edit text |
 | **2** | **Size** | Bit width for Fields (Register width is global in Config). | Integer (1 to 64) | Edit text |
 | **3** | **Name** | Identifier name for structs, macros, and RTL signals. | String | Edit text |
-| **4** | **Access Policy (SW)** | Software / Bus register access policy. | `RW`, `RO`, `WO`, `W1C`, `W1S`, `W0C`, `RC`, `RS`, `NA` | Cycles `RW` &rarr; `RO` &rarr; `WO` &rarr; `W1C` |
+| **4** | **Access Policy (SW)** | Software / Bus register access policy (24 IEEE 1800.2 policies). | `RW`, `RO`, `WO`, `W1`, `WO1`, `W1C`, `W1S`, `W1T`, `W0C`, `W0S`, `W0T`, `RC`, `RS`, `WRC`, `WRS`, `WC`, `WS`, `W1SRC`, `W1CRS`, `W0SRC`, `W0CRS`, `WOC`, `WOS`, `NOACCESS` (`NA`) | Cycles `RW` &rarr; `RO` &rarr; `WO` &rarr; `W1C` |
 | **5** | **HW Access** | Hardware internal core logic access mode. | `RO`, `RW`, `WO`, `NA`, `W1C`, `W1S`, `W0C`, `RS`, `RC` | Cycles `RO` &rarr; `RW` &rarr; `WO` &rarr; `NA` |
 | **6** | **Reset Value** | Reset value for register bitfield. | Hex (`0x0`), Dec (`0`), Bin (`0b0`) | Edit text |
 | **7** | **Is Rand** | UVM verification randomization flag (`rand`). | `true` / `false` | Toggles `true` &harr; `false` |
@@ -125,9 +125,9 @@ When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the
 
 ---
 
-## 4. Comprehensive Access Policy Reference
+## 5. Comprehensive Access Policy Reference
 
-### Software (SW / Bus-Side) Access Policies
+### Software (SW / Bus-Side) Access Policies (IEEE 1800.2 UVM Standard)
 
 Software access policies define how the CPU or bus master (AXI/AHB/APB/Wishbone) interacts with the register:
 
@@ -136,12 +136,27 @@ Software access policies define how the CPU or bus master (AXI/AHB/APB/Wishbone)
 | **`RW`** | Read / Write | Returns current stored value. | Writes new value into storage. | General control registers, configuration parameters, thresholds. |
 | **`RO`** | Read Only | Returns current hardware status. | Write is ignored / has no effect. | Hardware status flags, chip revision IDs, live sensor readings. |
 | **`WO`** | Write Only | Returns `0` (or undefined). | Modifies storage or triggers action. | Trigger registers, software reset pulses, write-only command words. |
+| **`W1`** | Write Once | Returns current stored value. | First write after reset commits; subsequent writes ignored. | Security locks, one-time boot configuration keys. |
+| **`WO1`** | Write Only Once | Returns `0` (or undefined). | First write commits; subsequent writes ignored. | Write-only security keys, tamper lockout words. |
 | **`W1C`** | Write 1 to Clear | Returns current flag value. | Writing `1` clears the bit to `0`; writing `0` leaves it unchanged. | Interrupt status registers, event acknowledgement flags. |
 | **`W1S`** | Write 1 to Set | Returns current flag value. | Writing `1` sets the bit to `1`; writing `0` leaves it unchanged. | Software interrupt triggers, manual event assertions. |
+| **`W1T`** | Write 1 to Toggle | Returns current flag value. | Writing `1` inverts/toggles the bit; writing `0` leaves it unchanged. | Software status toggle flags. |
 | **`W0C`** | Write 0 to Clear | Returns current flag value. | Writing `0` clears the bit to `0`; writing `1` leaves it unchanged. | Active-low status acknowledgement registers. |
-| **`RC`** | Read Clears | Returns current value and immediately clears bit to `0` (destructive read). | Write is ignored or modifies storage. | FIFO read pointers, self-clearing interrupt status flags. |
+| **`W0S`** | Write 0 to Set | Returns current flag value. | Writing `0` sets the bit to `1`; writing `1` leaves it unchanged. | Active-low software event set flags. |
+| **`W0T`** | Write 0 to Toggle | Returns current flag value. | Writing `0` inverts/toggles the bit; writing `1` leaves it unchanged. | Active-low toggle registers. |
+| **`RC`** | Read Clears | Returns current value and immediately clears bit to `0` (destructive read). | Write is ignored or has no effect. | FIFO read pointers, self-clearing interrupt status flags. |
 | **`RS`** | Read Sets | Returns current value and sets bit to `1`. | Write is ignored. | Status latch registers. |
-| **`NA`** | No Access | Bus read produces error or `0`. | Bus write produces error or ignored. | Internal hardware storage unmapped from software address space. |
+| **`WRC`** | Write Updates, Read Clears | Returns current value and clears bit to `0`. | Writes new value into storage. | Scratchpads with read-acknowledge semantics. |
+| **`WRS`** | Write Updates, Read Sets | Returns current value and sets bit to `1`. | Writes new value into storage. | Scratchpads with read-flagging semantics. |
+| **`WC`** | Write Clears | Returns current stored value. | Any write clears all bits to `0`. | Mass-clear command registers. |
+| **`WS`** | Write Sets | Returns current stored value. | Any write sets all bits to `1`. | Mass-set command registers. |
+| **`W1SRC`** | Write 1 Set, Read Clear | Destructive read: returns value, clears bit to `0`. | Writing `1` sets the bit to `1`; writing `0` leaves it unchanged. | Self-clearing interrupt triggers. |
+| **`W1CRS`** | Write 1 Clear, Read Set | Destructive read: returns value, sets bit to `1`. | Writing `1` clears the bit to `0`; writing `0` leaves it unchanged. | Self-setting alarm flags. |
+| **`W0SRC`** | Write 0 Set, Read Clear | Destructive read: returns value, clears bit to `0`. | Writing `0` sets the bit to `1`; writing `1` leaves it unchanged. | Active-low set, self-clearing registers. |
+| **`W0CRS`** | Write 0 Clear, Read Set | Destructive read: returns value, sets bit to `1`. | Writing `0` clears the bit to `0`; writing `1` leaves it unchanged. | Active-low clear, self-setting registers. |
+| **`WOC`** | Write Only Clear | Returns `0` (or undefined). | Any write clears all bits to `0`. | Command registers that trigger broad clears. |
+| **`WOS`** | Write Only Set | Returns `0` (or undefined). | Any write sets all bits to `1`. | Command registers that trigger broad presets. |
+| **`NOACCESS`** | No Access | Bus read produces error or `0`. | Bus write produces error or ignored. | Internal hardware storage unmapped from software address space (accepted alias: `NA`). |
 
 ### Hardware (HW / Core-Side) Access Policies
 
@@ -155,11 +170,19 @@ Hardware access policies define how internal synthesizable RTL core logic intera
 | **`W1C`** | Hardware Write 1 to Clear| Core logic reads current value. | Hardware pulse clears the bit. | Auto-clearing timers, hardware watchdog flags. |
 | **`W1S`** | Hardware Write 1 to Set | Core logic reads current value. | Hardware pulse asserts/sets the bit. | Interrupt request assertion, error event capture. |
 | **`W0C`** | Hardware Write 0 to Clear| Core logic reads current value. | Active-low hardware pulse clears the bit. | Active-low reset triggers. |
+| **`RS`** | Hardware Read Sets | Core logic reads current value and asserts bit. | Core logic does not write via data bus. | Hardware event latching flags. |
+| **`RC`** | Hardware Read Clears | Core logic reads current value and clears bit. | Core logic does not write via data bus. | Hardware acknowledge flags. |
 | **`NA`** | No Hardware Access | Core logic does not interface with field. | Core logic does not interface with field. | Software-only scratchpad registers, reserved debug words. |
+
+### Hardware vs. Software Arbitration Precedence
+- **Configurable Precedence**: When software and hardware attempt concurrent writes on the same cycle, priority is determined by the **Hardware Precedence** configuration setting (`PARAM_HW_PRECEDENCE`):
+  - **Hardware Precedence Enabled (`1`, Default)**: Hardware internal updates take precedence over software writes, ensuring safety and real-time responsiveness.
+  - **Software Precedence (`0`)**: Software writes take precedence over hardware updates.
+- This setting is configurable per-project in the **Configuration Dialog (`Ctrl+P`)** and exported to all synthesizable RTL modules.
 
 ---
 
-## 5. Real-Time Architectural Validation
+## 6. Real-Time Architectural Validation
 
 **rmap** continuously inspects the register AST in real time to catch hardware design errors before RTL generation:
 
@@ -170,7 +193,7 @@ Hardware access policies define how internal synthesizable RTL core logic intera
 
 ---
 
-## 6. Multi-Level Undo / Redo System
+## 7. Multi-Level Undo / Redo System
 
 The entire GUI is backed by a modular `QUndoStack`:
 - **Undo (`Ctrl+Z`)**: Reverts cell edits, insertions, or deletions.
@@ -179,7 +202,7 @@ The entire GUI is backed by a modular `QUndoStack`:
 
 ---
 
-## 7. Keyboard Shortcuts Reference
+## 8. Keyboard Shortcuts Reference
 
 Access all key bindings at any time by pressing **`F1`** or selecting **Help &rarr; Key Bindings**:
 
@@ -187,11 +210,12 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | :--- | :--- | :--- |
 | **File Operations** | New Register Map | `Ctrl+N` |
 | | Open File | `Ctrl+O` |
+| | Reload Active File | `Ctrl+R` |
 | | Close Model | `Ctrl+W` |
 | | Save File | `Ctrl+S` |
 | | Save As... | `Ctrl+Shift+S` |
 | | Code Generation & Export | `Ctrl+E` |
-| | Preferences & Configuration | `Ctrl+P` |
+| | Quit Application | `Ctrl+Q` |
 | **Edit Operations** | Undo | `Ctrl+Z` |
 | | Redo | `Ctrl+Y` |
 | | Duplicate Selected Register/Field | `Ctrl+D` |
@@ -201,20 +225,25 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 | | Add Bitfield (`fld`) | `Ctrl+Shift+F` / `Ctrl+Shift+Return` |
 | | Add Memory (`mem`) | `Ctrl+Shift+M` |
 | | Add Map (`map`) | `Ctrl+M` |
-| **Configuration & Preferences**| Open Project Configuration | `Ctrl+P` |
+| **Tools & Validation** | Run Architectural Check | `Ctrl+K` |
+| | Open Project Configuration | `Ctrl+P` |
 | | Open Application Preferences | `Ctrl+,` |
-| **View & Navigation**| Toggle Colour-Blind Mode | `Ctrl+Alt+C` |
-| | Focus Search Bar | `Ctrl+F` |
-| **Help & Information**| Show Key Bindings Help | `F1` |
+| **View & Navigation** | Focus Search Bar | `Ctrl+F` |
+| | Toggle Colour-Blind Mode | `Ctrl+Alt+C` |
+| **Help & Information** | Show Key Bindings Help | `F1` |
 | | Show About Window | `Ctrl+I` |
+
+> [!TIP]
+> **Secondary Shortcuts**: In addition to standard combinations, `rmap` supports ergonomic secondary shortcuts: `Ctrl+Return` for **Add Register**, `Ctrl+Shift+Return` for **Add Bitfield**, and `Backspace` for **Delete Selected Item**.
 
 ---
 
-## 8. Project Configuration & Generation Settings (`Ctrl+P`)
+## 9. Project Configuration & Generation Settings (`Ctrl+P`)
 
 Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctrl+P`:
 
-- **Project Metadata**: Set **Project Name**, **Project Version**, and global **Register Bus Width** (8, 16, 32, 64 bits).
+- **Project Metadata**: Set **Project Name**, **Project Version**, and global **Register Bus Width** (supporting 8, 16, 32, 64, 128, 256, 512+ bits).
+- **Hardware Precedence (`hwPrecedence`)**: Checkbox setting whether hardware updates take precedence over software writes during simultaneous access (`PARAM_HW_PRECEDENCE`). Enabled by default; serialized to project `.rmt`/`.rmb`/`.json` metadata.
 - **Default Output Folder**: Destination directory for generated artifacts with dynamic path variable expansion.
 - **Python Script (Optional)**: Path to a custom Python post-generation script (browse with **Browse...**). The script runs automatically upon export whenever this field contains a non-empty path, receiving the full Inja JSON data model and context. Leaving this field empty disables Python script execution.
 - **Template Search Folders**: Configure multiple directories searched for Inja templates.
@@ -223,11 +252,11 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 
 ---
 
-## 9. Multi-Format Loading & Format-Aware Saving
+## 10. Multi-Format Loading & Format-Aware Saving
 
 - **Universal Format Import (`Ctrl+O`)**:
   - **ARM CMSIS-SVD** (`.svd`)
-  - **SystemRDL 1.0 & 2.0** (`.rdl`)
+  - **SystemRDL 1.0 & 2.0** (`.rdl`, `.systemrdl`)
   - **IP-XACT IEEE 1685-2009/2014/2022** (`.xml`, `.ipxact`)
   - **Standard JSON Schema** (`.json`)
   - **RFC 4180 CSV / TSV** (`.csv`, `.tsv`)
@@ -239,7 +268,7 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 
 ---
 
-## 10. Colour Schemes, Preferences & User Home Configuration
+## 11. Colour Schemes, Preferences & User Home Configuration
 
 **rmap** includes a built-in multi-theme appearance engine with **Solarized 8 (Dark)** active by default:
 
@@ -275,7 +304,7 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 
 ---
 
-## 11. Language Selection & Localization
+## 12. Language Selection & Localization
 
 **rmap** provides built-in multi-language internationalization with instant, dynamic retranslation:
 
@@ -294,11 +323,11 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 - **CLI Flag**:
   - Launch with `--lang <codeOrName>` (e.g. `rmap --lang es` or `rmap --lang German`).
 - **Build-Time Language Configuration**:
-  - All language configurations are defined strictly at build time (no runtime addition or removal) for deterministic, secure operation. Adding a new language is done by copying `translations/template.json`, registering the file in `res/resources.qrc`, and adding the language descriptor in `src/LanguageManager.cpp` (see `translations/README.md` for full instructions).
+  - All language translation catalogs are discovered dynamically from Qt compiled resources (`:/translations/*.json`) at application startup. Adding a new language is done simply by copying `translations/template.json`, translating strings, and registering the new file in `res/resources.qrc`. No C++ modifications in `LanguageManager.cpp` are required.
 
 ---
 
-## 12. Help Menu & About Window
+## 13. Help Menu & About Window
 
 Access application assistance and information from the **Help** pull-down menu:
 
@@ -307,7 +336,7 @@ Access application assistance and information from the **Help** pull-down menu:
   - Displays version details, application branding, and purpose.
   - Features tabbed navigation covering:
     - **About**: Architectural vision, target engineering disciplines, and core workflow.
-    - **Features**: Overview of supported serialization formats and the 15 code generation template targets.
+    - **Features**: Overview of supported serialization formats and the full code generation template catalog (SystemVerilog RTL, Verilog 2001, Synthesizable VHDL, APB/AXI4-Lite wrappers, SVA assertions, UVM, PyUVM, C/C++, Rust, Python, HTML, Markdown, SystemRDL, IP-XACT, CMSIS-SVD, CSV, JSON).
     - **Libraries & Credits**: Runtime and build dependencies including Qt 6, Pantor Inja, nlohmann/json, and Google Protocol Buffers.
     - **License**: Mozilla Public License 2.0 (MPL-2.0) terms and repository copyright notices.
   - Remembers user dialog dimensions and screen positions across sessions in `~/.config/rmap/rmap.conf`.

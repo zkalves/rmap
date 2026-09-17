@@ -144,7 +144,7 @@ QWidget *RegAccessPolicyDelegate::createEditor(QWidget *parent, const QStyleOpti
     Q_UNUSED(option);
     Q_UNUSED(index);
     QComboBox *comboBox = new QComboBox(parent);
-    comboBox->addItems({"RW", "RO", "WO", "W1", "WO1", "W1C", "W1S", "W1T", "W0C", "W0S", "W0T", "RC", "RS", "WRC", "WRS", "WC", "WS"});
+    comboBox->addItems({"RW", "RO", "WO", "W1", "WO1", "W1C", "W1S", "W1T", "W0C", "W0S", "W0T", "RC", "RS", "WRC", "WRS", "WC", "WS", "W1SRC", "W1CRS", "W0SRC", "W0CRS", "WOC", "WOS", "NOACCESS"});
     return comboBox;
 }
 

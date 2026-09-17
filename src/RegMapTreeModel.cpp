@@ -622,7 +622,8 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
     std::string desc = node->data("Description").toString().toStdString();
 
     uint64_t offset_lsb = parseNumericValue(node->data("Offset/LSB"));
-    uint64_t size_width = (kind == "reg") ? regWidth : parseNumericValue(node->data("Size/Width"));
+    uint64_t customWidth = parseNumericValue(node->data("Size/Width"));
+    uint64_t size_width = (kind == "reg") ? ((customWidth > 0) ? customWidth : regWidth) : customWidth;
     if (kind == "mem" && size_width == 0) size_width = 1024;
     uint64_t reset_val  = parseNumericValue(node->data("Reset Value"));
 
@@ -748,10 +749,11 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
         }
     }
 
-    if (kind == "blk" || kind == "root") {
+    if (kind == "blk") {
         if (maps.empty()) {
             json def_map;
             def_map["name"] = "default_map";
+            def_map["is_default"] = true;
             def_map["base_addr"] = 0;
             def_map["base_hex"] = "0";
             def_map["n_bytes"] = (regWidth >= 8 ? regWidth : 32) / 8;
@@ -764,6 +766,9 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node, uint32_t re
         });
         item_json["maps"] = maps;
     } else if (!maps.empty()) {
+        std::sort(maps.begin(), maps.end(), [](const json &a, const json &b) {
+            return a.value("base_addr", 0ULL) < b.value("base_addr", 0ULL);
+        });
         item_json["maps"] = maps;
     }
 
@@ -895,11 +900,13 @@ uint32_t RegMapTreeModel::computeTreeCrc32(const json &rootJson)
     return calculateCrc32(reinterpret_cast<const uint8_t*>(repr.data()), repr.size());
 }
 
-json RegMapTreeModel::extractJsonData(uint32_t regWidth) noexcept
+json RegMapTreeModel::extractJsonData(uint32_t regWidth, bool hwPrecedence) noexcept
 {
     json root_json = recursiveExtractJsonData(m_rootItem, regWidth);
-    root_json["reg_width"]       = regWidth;
-    root_json["reg_width_bytes"] = regWidth / 8;
+    root_json["reg_width"]            = regWidth;
+    root_json["reg_width_bytes"]      = regWidth / 8;
+    root_json["hw_precedence"]        = hwPrecedence;
+    root_json["param_hw_precedence"]  = hwPrecedence ? 1 : 0;
 
     if (root_json.value("name", "").empty()) {
         root_json["name"] = "regmap";

@@ -123,6 +123,15 @@ void TestRegConfigWindow::testConfigDialogDefaults()
 
     QVERIFY(!cfgWin.isModal());
     QVERIFY(!cfgWin.isSizeGripEnabled());
+
+    // Verify AppSettings hwPrecedence getter and setter (lines 143-144)
+    bool origHwPrec = AppSettings::instance().hwPrecedence();
+    AppSettings::instance().setHwPrecedence(false);
+    QCOMPARE(AppSettings::instance().hwPrecedence(), false);
+    AppSettings::instance().setHwPrecedence(true);
+    QCOMPARE(AppSettings::instance().hwPrecedence(), true);
+    AppSettings::instance().setHwPrecedence(origHwPrec);
+    QCOMPARE(AppSettings::instance().hwPrecedence(), origHwPrec);
     QVERIFY(cfgWin.windowFlags().testFlag(Qt::Window));
     QVERIFY(cfgWin.windowFlags().testFlag(Qt::WindowMinMaxButtonsHint));
     QVERIFY(cfgWin.windowFlags().testFlag(Qt::WindowCloseButtonHint));

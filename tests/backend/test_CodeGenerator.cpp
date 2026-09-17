@@ -45,6 +45,7 @@ private slots:
     void testMultiSourceTemplateMappings();
     void testNewNamingAndTypeHelpers();
     void testFullGenerationGenericRtl();
+    void testFullGenerationApbAndAxilWrappers();
     void testFullGenerationRtlWithMemories();
     void testFullGenerationRustPac();
     void testFullGenerationPythonDriver();
@@ -68,6 +69,9 @@ private slots:
     void testLegacyAndDirectoryMethods();
     void testPythonRunnerEdgeCases();
     void testCommandLineInterface();
+    void testDynamicDataWidths();
+    void testHwPrecedencePrecedenceParam();
+    void testAllAccessPoliciesCodegen();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower()
@@ -423,6 +427,13 @@ void TestCodeGenerator::testUvmCookbookRalFeatures()
     subBlk["registers"] = json::array();
     subBlk["memories"] = json::array();
     subBlk["blocks"] = json::array();
+    json subMap;
+    subMap["name"] = "AHB_MAP";
+    subMap["base_hex"] = "32'h0000";
+    subMap["n_bytes"] = 4;
+    subMap["endianness"] = "UVM_LITTLE_ENDIAN";
+    subMap["byte_addressing"] = 1;
+    subBlk["maps"] = json::array({subMap});
     parentBlk["blocks"] = json::array({subBlk});
 
     root["blocks"] = json::array({parentBlk});
@@ -473,7 +484,7 @@ void TestCodeGenerator::testUvmCookbookRalFeatures()
     QVERIFY(content.contains("rand gpio_reg_block gpio;"));
     QVERIFY(content.contains("this.gpio = gpio_reg_block::type_id::create(\"GPIO\");"));
     QVERIFY(content.contains("this.default_map.add_submap(this.gpio.default_map, 32'h0800);"));
-    QVERIFY(content.contains("this.ahb_map.add_submap(this.gpio.default_map, 32'h0800);"));
+    QVERIFY(content.contains("this.ahb_map.add_submap(this.gpio.ahb_map, 32'h0800);"));
 
     // Verify indirect register extends uvm_reg_indirect_data
     QVERIFY(content.contains("class mem_window_reg extends uvm_reg_indirect_data;"));
@@ -672,6 +683,89 @@ void TestCodeGenerator::testFullGenerationGenericRtl()
     QVERIFY(content.contains("always_ff @(posedge clk_i or negedge rst_ni)"));
     QVERIFY(content.contains("always_comb begin : proc_ctrl_next"));
     QVERIFY(content.contains("always_comb begin : proc_read_decode"));
+}
+
+void TestCodeGenerator::testFullGenerationApbAndAxilWrappers()
+{
+    CodeGenerator cg;
+    json root;
+    root["name"] = "SPI_PROTOCOL";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json blk;
+    blk["name"] = "SPI_CORE";
+
+    json reg;
+    reg["name"] = "CTRL";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["description"] = "Control Register";
+
+    json fld;
+    fld["name"] = "ENABLE";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 1;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["description"] = "Enable Core";
+
+    reg["fields"] = json::array({fld});
+    blk["registers"] = json::array({reg});
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/rtl/spi_core_reg_file.sv"});
+    mappings.push_back({"templates/rtl/apb_reg_file.sv.inja", "work/rtl/spi_core_apb_reg_file.sv"});
+    mappings.push_back({"templates/rtl/axil_reg_file.sv.inja", "work/rtl/spi_core_axil_reg_file.sv"});
+
+    GenerationReport report = cg.generate(root, "./templates", "./work", mappings);
+    QVERIFY(!report.has_errors());
+
+    // APB wrapper checks
+    QFile apbOut("work/rtl/spi_core_apb_reg_file.sv");
+    QVERIFY(apbOut.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString apbContent = apbOut.readAll();
+    apbOut.close();
+    QVERIFY(apbContent.contains("module spi_core_apb_reg_file"));
+    QVERIFY(apbContent.contains("input  logic                      pclk_i"));
+    QVERIFY(apbContent.contains("input  logic                      prst_ni"));
+    QVERIFY(apbContent.contains("input  logic                      psel_i"));
+    QVERIFY(apbContent.contains("input  logic                      penable_i"));
+    QVERIFY(apbContent.contains("input  logic                      pwrite_i"));
+    QVERIFY(apbContent.contains("input  logic [ADDR_WIDTH-1:0]     paddr_i"));
+    QVERIFY(apbContent.contains("input  logic [DATA_WIDTH-1:0]     pwdata_i"));
+    QVERIFY(apbContent.contains("input  logic [STRB_WIDTH-1:0]     pstrb_i"));
+    QVERIFY(apbContent.contains("output logic                      pready_o"));
+    QVERIFY(apbContent.contains("output logic [DATA_WIDTH-1:0]     prdata_o"));
+    QVERIFY(apbContent.contains("output logic                      pslverr_o"));
+    QVERIFY(apbContent.contains("spi_core_reg_file #("));
+
+    // AXI4-Lite wrapper checks
+    QFile axilOut("work/rtl/spi_core_axil_reg_file.sv");
+    QVERIFY(axilOut.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString axilContent = axilOut.readAll();
+    axilOut.close();
+    QVERIFY(axilContent.contains("module spi_core_axil_reg_file"));
+    QVERIFY(axilContent.contains("input  logic                      aclk_i"));
+    QVERIFY(axilContent.contains("input  logic                      aresetn_i"));
+    QVERIFY(axilContent.contains("input  logic [ADDR_WIDTH-1:0]     s_axil_awaddr_i"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_awready_o"));
+    QVERIFY(axilContent.contains("input  logic [DATA_WIDTH-1:0]     s_axil_wdata_i"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_wready_o"));
+    QVERIFY(axilContent.contains("output logic [1:0]                s_axil_bresp_o"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_bvalid_o"));
+    QVERIFY(axilContent.contains("input  logic [ADDR_WIDTH-1:0]     s_axil_araddr_i"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_arready_o"));
+    QVERIFY(axilContent.contains("output logic [DATA_WIDTH-1:0]     s_axil_rdata_o"));
+    QVERIFY(axilContent.contains("output logic [1:0]                s_axil_rresp_o"));
+    QVERIFY(axilContent.contains("output logic                      s_axil_rvalid_o"));
+    QVERIFY(axilContent.contains("spi_core_reg_file #("));
 }
 
 void TestCodeGenerator::testFullGenerationRtlWithMemories()
@@ -1358,11 +1452,16 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration()
 
     GenerationReport report = cg.parseDirectory(root, "templates", "work");
     QVERIFY(!report.has_errors());
-    QCOMPARE(report.success_files.size(), (size_t)19);
+    QCOMPARE(report.success_files.size(), (size_t)24);
 
     // Verify each expected output subfolder contains its rendered file
     QVERIFY(QFile::exists("work/c/reg_map.h"));
     QVERIFY(QFile::exists("work/rtl/reg_map.sv"));
+    QVERIFY(QFile::exists("work/rtl/reg_map.v"));
+    QVERIFY(QFile::exists("work/rtl/reg_map.vhd"));
+    QVERIFY(QFile::exists("work/rtl/reg_map_sva.sv"));
+    QVERIFY(QFile::exists("work/rtl/apb_reg_file.sv"));
+    QVERIFY(QFile::exists("work/rtl/axil_reg_file.sv"));
     QVERIFY(QFile::exists("work/uvm/reg_model.sv"));
     QVERIFY(QFile::exists("work/rust/reg_map.rs"));
     QVERIFY(QFile::exists("work/python/reg_map.py"));
@@ -2559,6 +2658,237 @@ void TestCodeGenerator::testCommandLineInterface()
         GenerationReport simDirRep = cg.generate(simJson, "templates", "work/sim_test", simDirMappings);
         QVERIFY(!simDirRep.has_errors());
     }
+}
+
+void TestCodeGenerator::testDynamicDataWidths()
+{
+    CodeGenerator cg;
+    const std::vector<uint32_t> widths = {8, 16, 64, 128};
+
+    for (uint32_t w : widths) {
+        json root = json::object();
+        root["name"] = QString("PERIPH_%1").arg(w).toStdString();
+        root["reg_width"] = w;
+        root["reg_width_bytes"] = (w >= 8) ? (w / 8) : 1;
+
+        json blk = json::object();
+        blk["name"] = "CTRL_BLK";
+        json reg = json::object();
+        reg["name"] = "DATA_REG";
+        reg["offset_lsb"] = 0;
+        reg["offset_hex"] = "0x0";
+        reg["size_width"] = w;
+        reg["access"] = "RW";
+        reg["reset_val"] = 0;
+        reg["reset_hex"] = "0x0";
+
+        json fld = json::object();
+        fld["name"] = "DATA";
+        fld["offset_lsb"] = 0;
+        fld["size_width"] = w;
+        fld["access"] = "RW";
+        fld["reset_val"] = 0;
+        fld["reset_hex"] = "0x0";
+        fld["hw_access"] = "RO";
+
+        reg["fields"] = json::array({fld});
+        blk["registers"] = json::array({reg});
+        root["blocks"] = json::array({blk});
+
+        std::vector<TemplateMapping> mappings;
+        QString rtlOut = QString("work/test_width_%1/rtl/reg_map.sv").arg(w);
+        QString uvmOut = QString("work/test_width_%1/uvm/reg_model.sv").arg(w);
+        mappings.push_back({"templates/rtl/reg_map.sv.inja", rtlOut.toStdString()});
+        mappings.push_back({"templates/uvm/reg_model.sv.inja", uvmOut.toStdString()});
+
+        GenerationReport rep = cg.generate(root, "templates", QString("work/test_width_%1").arg(w).toStdString(), mappings);
+        QVERIFY(!rep.has_errors());
+
+        // Check RTL output
+        QFile fRtl(rtlOut);
+        QVERIFY(fRtl.open(QIODevice::ReadOnly | QIODevice::Text));
+        QString rtlCode = QString::fromUtf8(fRtl.readAll());
+        fRtl.close();
+        QVERIFY(rtlCode.contains(QString("DATA_WIDTH = %1").arg(w)));
+        QVERIFY(rtlCode.contains(QString("STRB_WIDTH = DATA_WIDTH / 8")));
+
+        // Check UVM output
+        QFile fUvm(uvmOut);
+        QVERIFY(fUvm.open(QIODevice::ReadOnly | QIODevice::Text));
+        QString uvmCode = QString::fromUtf8(fUvm.readAll());
+        fUvm.close();
+        QVERIFY(uvmCode.contains(QString(", %1, UVM_CVR_ALL)").arg(w)));
+    }
+}
+
+void TestCodeGenerator::testHwPrecedencePrecedenceParam()
+{
+    CodeGenerator cg;
+
+    // Case 1: PARAM_HW_PRECEDENCE default or hw_precedence = true
+    {
+        json root = json::object();
+        root["name"] = "HW_PREC_TRUE";
+        root["reg_width"] = 32;
+        root["reg_width_bytes"] = 4;
+        root["hw_precedence"] = true;
+        root["param_hw_precedence"] = "1";
+
+        json blk = json::object();
+        blk["name"] = "B1";
+        json reg = json::object();
+        reg["name"] = "R1";
+        reg["offset_lsb"] = 0;
+        reg["offset_hex"] = "0x0";
+        reg["size_width"] = 32;
+        reg["access"] = "RW";
+        reg["reset_val"] = 0;
+        reg["reset_hex"] = "0x0";
+
+        json fld = json::object();
+        fld["name"] = "F1";
+        fld["offset_lsb"] = 0;
+        fld["size_width"] = 32;
+        fld["access"] = "RW";
+        fld["reset_val"] = 0;
+        fld["reset_hex"] = "0x0";
+        fld["hw_access"] = "RW";
+
+        reg["fields"] = json::array({fld});
+        blk["registers"] = json::array({reg});
+        root["blocks"] = json::array({blk});
+
+        std::vector<TemplateMapping> mappings;
+        mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/hw_prec_1/reg_map.sv"});
+        mappings.push_back({"templates/rtl/reg_map.v.inja", "work/hw_prec_1/reg_map.v"});
+        mappings.push_back({"templates/rtl/reg_map.vhd.inja", "work/hw_prec_1/reg_map.vhd"});
+
+        GenerationReport rep = cg.generate(root, "templates", "work/hw_prec_1", mappings);
+        QVERIFY(!rep.has_errors());
+
+        QFile fSv("work/hw_prec_1/reg_map.sv");
+        QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+        QString sv = QString::fromUtf8(fSv.readAll());
+        fSv.close();
+        QVERIFY(sv.contains("parameter bit PARAM_HW_PRECEDENCE = 1"));
+        QVERIFY(sv.contains("if (PARAM_HW_PRECEDENCE) begin"));
+    }
+
+    // Case 2: param_hw_precedence = 0 (SW precedence)
+    {
+        json root = json::object();
+        root["name"] = "HW_PREC_FALSE";
+        root["reg_width"] = 32;
+        root["reg_width_bytes"] = 4;
+        root["hw_precedence"] = false;
+        root["param_hw_precedence"] = "0";
+
+        json blk = json::object();
+        blk["name"] = "B1";
+        json reg = json::object();
+        reg["name"] = "R1";
+        reg["offset_lsb"] = 0;
+        reg["offset_hex"] = "0x0";
+        reg["size_width"] = 32;
+        reg["access"] = "RW";
+        reg["reset_val"] = 0;
+        reg["reset_hex"] = "0x0";
+
+        json fld = json::object();
+        fld["name"] = "F1";
+        fld["offset_lsb"] = 0;
+        fld["size_width"] = 32;
+        fld["access"] = "RW";
+        fld["reset_val"] = 0;
+        fld["reset_hex"] = "0x0";
+        fld["hw_access"] = "RW";
+
+        reg["fields"] = json::array({fld});
+        blk["registers"] = json::array({reg});
+        root["blocks"] = json::array({blk});
+
+        std::vector<TemplateMapping> mappings;
+        mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/hw_prec_0/reg_map.sv"});
+
+        GenerationReport rep = cg.generate(root, "templates", "work/hw_prec_0", mappings);
+        QVERIFY(!rep.has_errors());
+
+        QFile fSv("work/hw_prec_0/reg_map.sv");
+        QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+        QString sv = QString::fromUtf8(fSv.readAll());
+        fSv.close();
+        QVERIFY(sv.contains("parameter bit PARAM_HW_PRECEDENCE = 0"));
+    }
+}
+
+void TestCodeGenerator::testAllAccessPoliciesCodegen()
+{
+    CodeGenerator cg;
+    const std::vector<std::string> policies = {
+        "RW", "RO", "WO", "W1", "WO1", "W1C", "W1S", "W1T",
+        "W0C", "W0S", "W0T", "RC", "RS", "WRC", "WRS", "WC",
+        "WS", "W1SRC", "W1CRS", "W0SRC", "W0CRS", "WOC", "WOS",
+        "NOACCESS"
+    };
+
+    json root = json::object();
+    root["name"] = "POLICIES_SOC";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json blk = json::object();
+    blk["name"] = "POL_BLK";
+    json regList = json::array();
+
+    int offset = 0;
+    for (const auto &pol : policies) {
+        json reg = json::object();
+        reg["name"] = "REG_" + pol;
+        reg["offset_lsb"] = offset;
+        reg["offset_hex"] = QString("0x%1").arg(offset, 0, 16).toStdString();
+        reg["size_width"] = 32;
+        reg["access"] = pol;
+        reg["reset_val"] = 0;
+        reg["reset_hex"] = "0x0";
+
+        json fld = json::object();
+        fld["name"] = "FLD_" + pol;
+        fld["offset_lsb"] = 0;
+        fld["size_width"] = 32;
+        fld["access"] = pol;
+        fld["reset_val"] = 0;
+        fld["reset_hex"] = "0x0";
+        fld["hw_access"] = (pol == "RO") ? "WO" : "RO";
+
+        reg["fields"] = json::array({fld});
+        regList.push_back(reg);
+        offset += 4;
+    }
+
+    blk["registers"] = regList;
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/policies_test/rtl/reg_map.sv"});
+    mappings.push_back({"templates/uvm/reg_model.sv.inja", "work/policies_test/uvm/reg_model.sv"});
+
+    GenerationReport rep = cg.generate(root, "templates", "work/policies_test", mappings);
+    QVERIFY(!rep.has_errors());
+
+    QFile fUvm("work/policies_test/uvm/reg_model.sv");
+    QVERIFY(fUvm.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString uvm = QString::fromUtf8(fUvm.readAll());
+    fUvm.close();
+
+    for (const auto &pol : policies) {
+        QVERIFY2(uvm.contains(QString::fromStdString("\"" + pol + "\"")), pol.c_str());
+    }
+
+    QFile fRtl("work/policies_test/rtl/reg_map.sv");
+    QVERIFY(fRtl.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString rtl = QString::fromUtf8(fRtl.readAll());
+    fRtl.close();
+    QVERIFY(!rtl.isEmpty());
 }
 
 QTEST_MAIN(TestCodeGenerator)

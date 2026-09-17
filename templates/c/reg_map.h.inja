@@ -61,10 +61,26 @@ typedef struct {
 {% for reg in blk.registers %}
 {% if existsIn(reg, "pad_words_before") %}
 {% if reg.pad_words_before > 0 %}
+{% if reg_width == 64 %}
+    uint64_t _reserved_{{ loop.index }}[{{ reg.pad_words_before }}];
+{% else if reg_width == 16 %}
+    uint16_t _reserved_{{ loop.index }}[{{ reg.pad_words_before }}];
+{% else if reg_width == 8 %}
+    uint8_t _reserved_{{ loop.index }}[{{ reg.pad_words_before }}];
+{% else %}
     uint32_t _reserved_{{ loop.index }}[{{ reg.pad_words_before }}];
 {% endif %}
 {% endif %}
+{% endif %}
+{% if reg_width == 64 %}
+    volatile uint64_t {{ lower(reg.name) }}; /* {{ reg.offset_hex }}: {{ reg.description }} */
+{% else if reg_width == 16 %}
+    volatile uint16_t {{ lower(reg.name) }}; /* {{ reg.offset_hex }}: {{ reg.description }} */
+{% else if reg_width == 8 %}
+    volatile uint8_t {{ lower(reg.name) }}; /* {{ reg.offset_hex }}: {{ reg.description }} */
+{% else %}
     volatile uint32_t {{ lower(reg.name) }}; /* {{ reg.offset_hex }}: {{ reg.description }} */
+{% endif %}
 {% endfor %}
 {% endif %}
 } {{ lower(blk.name) }}_regs_t;

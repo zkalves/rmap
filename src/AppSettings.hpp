@@ -8,110 +8,121 @@
 #ifndef APPSETTINGS_HPP
 #define APPSETTINGS_HPP
 
-#include <QObject>
-#include <QString>
-#include <QSize>
-#include <QPoint>
-#include <QRect>
+#include "ThemeManager.hpp"
 #include <QByteArray>
-#include <QSettings>
-#include <QStandardPaths>
 #include <QDir>
 #include <QFileInfo>
-#include "ThemeManager.hpp"
+#include <QObject>
+#include <QPoint>
+#include <QRect>
+#include <QSettings>
+#include <QSize>
+#include <QStandardPaths>
+#include <QString>
 
 class QWidget;
 
 class AppSettings : public QObject {
-    Q_OBJECT
-    Q_DISABLE_COPY_MOVE(AppSettings)
+  Q_OBJECT
+  Q_DISABLE_COPY_MOVE(AppSettings)
 
 public:
-    static AppSettings& instance();
+  static AppSettings &instance();
 
-    QString configFilePath() const;
-    void setConfigFilePath(const QString &path);
+  QString configFilePath() const;
+  void setConfigFilePath(const QString &path);
 
-    QString colourScheme() const { return colorScheme(); }
-    void setColourScheme(const QString &scheme) { setColorScheme(scheme); }
-    QString colorScheme() const;
-    void setColorScheme(const QString &scheme);
+  QString colourScheme() const { return colorScheme(); }
+  void setColourScheme(const QString &scheme) { setColorScheme(scheme); }
+  QString colorScheme() const;
+  void setColorScheme(const QString &scheme);
 
-    bool colourBlindMode() const { return colorBlindMode(); }
-    void setColourBlindMode(bool enabled) { setColorBlindMode(enabled); }
-    bool colorBlindMode() const;
-    void setColorBlindMode(bool enabled);
+  bool colourBlindMode() const { return colorBlindMode(); }
+  void setColourBlindMode(bool enabled) { setColorBlindMode(enabled); }
+  bool colorBlindMode() const;
+  void setColorBlindMode(bool enabled);
 
-    ColorBlindMode colorBlindType() const;
-    void setColorBlindType(ColorBlindMode mode);
-    QString colorBlindTypeString() const;
-    void setColorBlindTypeString(const QString &type);
+  ColorBlindMode colorBlindType() const;
+  void setColorBlindType(ColorBlindMode mode);
+  QString colorBlindTypeString() const;
+  void setColorBlindTypeString(const QString &type);
 
-    QString language() const;
-    void setLanguage(const QString &lang);
+  QString language() const;
+  void setLanguage(const QString &lang);
 
-    // Main Window Geometry, Pos & Size
-    QByteArray mainWindowGeometry() const;
-    void setMainWindowGeometry(const QByteArray &geom);
-    QPoint mainWindowPos() const;
-    void setMainWindowPos(const QPoint &pos);
-    QSize mainWindowSize() const;
-    void setMainWindowSize(const QSize &size);
-    QByteArray mainWindowState() const;
-    void setMainWindowState(const QByteArray &state);
-    QByteArray mainWindowSplitter() const;
-    void setMainWindowSplitter(const QByteArray &splitter);
+  bool hwPrecedence() const;
+  void setHwPrecedence(bool precedence);
 
-    // Config Window Geometry, Pos & Size
-    QByteArray configWindowGeometry() const;
-    void setConfigWindowGeometry(const QByteArray &geom);
-    QPoint configWindowPos() const;
-    void setConfigWindowPos(const QPoint &pos);
-    QSize configWindowSize() const;
-    void setConfigWindowSize(const QSize &size);
+  // Main Window Geometry, Pos & Size
+  QByteArray mainWindowGeometry() const;
+  void setMainWindowGeometry(const QByteArray &geom);
+  QPoint mainWindowPos() const;
+  void setMainWindowPos(const QPoint &pos);
+  QSize mainWindowSize() const;
+  void setMainWindowSize(const QSize &size);
+  QByteArray mainWindowState() const;
+  void setMainWindowState(const QByteArray &state);
+  QByteArray mainWindowSplitter() const;
+  void setMainWindowSplitter(const QByteArray &splitter);
 
-    // Generic Window Geometry, Pos & Size helpers
-    QByteArray windowGeometry(const QString &windowName) const;
-    void setWindowGeometry(const QString &windowName, const QByteArray &geom);
-    QPoint windowPos(const QString &windowName, const QPoint &defaultPos = QPoint()) const;
-    void setWindowPos(const QString &windowName, const QPoint &pos);
-    QSize windowSize(const QString &windowName, const QSize &defaultSize = QSize()) const;
-    void setWindowSize(const QString &windowName, const QSize &size);
+  // Config Window Geometry, Pos & Size
+  QByteArray configWindowGeometry() const;
+  void setConfigWindowGeometry(const QByteArray &geom);
+  QPoint configWindowPos() const;
+  void setConfigWindowPos(const QPoint &pos);
+  QSize configWindowSize() const;
+  void setConfigWindowSize(const QSize &size);
 
-    // Ensure widget is fully visible on an available display and >= minimum size
-    static void ensureWindowOnScreen(QWidget *widget, const QSize &minSize = QSize(), const QSize &defaultSize = QSize());
+  // Generic Window Geometry, Pos & Size helpers
+  QByteArray windowGeometry(const QString &windowName) const;
+  void setWindowGeometry(const QString &windowName, const QByteArray &geom);
+  QPoint windowPos(const QString &windowName,
+                   const QPoint &defaultPos = QPoint()) const;
+  void setWindowPos(const QString &windowName, const QPoint &pos);
+  QSize windowSize(const QString &windowName,
+                   const QSize &defaultSize = QSize()) const;
+  void setWindowSize(const QString &windowName, const QSize &size);
 
-    static QString determineConfigPath(const char *envConfig, const char *xdgConfig, const QString &genericConfigLoc);
-    static void setScreenOverrideMode(int mode); // 0: normal, 1: force null primary, 2: force null all
+  // Ensure widget is fully visible on an available display and >= minimum size
+  static void ensureWindowOnScreen(QWidget *widget,
+                                   const QSize &minSize = QSize(),
+                                   const QSize &defaultSize = QSize());
 
-    void load();
-    void save();
+  static QString determineConfigPath(const char *envConfig,
+                                     const char *xdgConfig,
+                                     const QString &genericConfigLoc);
+  static void setScreenOverrideMode(
+      int mode); // 0: normal, 1: force null primary, 2: force null all
+
+  void load();
+  void save();
 
 signals:
-    void colorSchemeChanged(const QString &scheme);
-    void colorBlindModeChanged(bool enabled);
-    void colorBlindTypeChanged(ColorBlindMode mode);
-    void languageChanged(const QString &lang);
+  void colorSchemeChanged(const QString &scheme);
+  void colorBlindModeChanged(bool enabled);
+  void colorBlindTypeChanged(ColorBlindMode mode);
+  void languageChanged(const QString &lang);
 
-    friend class TestThemeManager;
+  friend class TestThemeManager;
 
 private:
-    AppSettings();
-    QString m_configPath;
-    QString m_colorScheme = QStringLiteral("solarized8");
-    bool m_colorBlindMode = false;
-    ColorBlindMode m_colorBlindType = ColorBlindMode::Universal;
-    QString m_language = QStringLiteral("en");
+  AppSettings();
+  QString m_configPath;
+  QString m_colorScheme = QStringLiteral("default");
+  bool m_colorBlindMode = false;
+  ColorBlindMode m_colorBlindType = ColorBlindMode::Universal;
+  QString m_language = QStringLiteral("en");
+  bool m_hwPrecedence = true;
 
-    QByteArray m_mainWindowGeometry;
-    QByteArray m_mainWindowState;
-    QByteArray m_mainWindowSplitter;
-    QPoint m_mainWindowPos;
-    QSize m_mainWindowSize;
+  QByteArray m_mainWindowGeometry;
+  QByteArray m_mainWindowState;
+  QByteArray m_mainWindowSplitter;
+  QPoint m_mainWindowPos;
+  QSize m_mainWindowSize;
 
-    QByteArray m_configWindowGeometry;
-    QPoint m_configWindowPos;
-    QSize m_configWindowSize;
+  QByteArray m_configWindowGeometry;
+  QPoint m_configWindowPos;
+  QSize m_configWindowSize;
 };
 
 #endif // APPSETTINGS_HPP

@@ -40,41 +40,20 @@ if(ENABLE_COVERAGE)
     endif()
 endif()
 
-# Fetch Dependencies
-include(FetchContent)
-set(INJA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "" FORCE)
-set(INJA_INSTALL OFF CACHE BOOL "" FORCE)
-set(INJA_EXPORT OFF CACHE BOOL "" FORCE)
-
-option(BUILD_BENCHMARK "" OFF)
-
-FetchContent_Declare(inja
-  GIT_REPOSITORY https://github.com/pantor/inja
-  GIT_TAG v3.3.0
-  SYSTEM
-)
-set(PREV_CMAKE_WARN_DEPRECATED "${CMAKE_WARN_DEPRECATED}")
-set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(inja)
-set(CMAKE_WARN_DEPRECATED "${PREV_CMAKE_WARN_DEPRECATED}" CACHE BOOL "" FORCE)
 
 # Testing Support
 include(CTest)
 
+# Installation Directories
+include(GNUInstallDirs)
+
 # Find Packages
-find_package(Qt6 COMPONENTS REQUIRED Core Widgets)
-find_package(Protobuf REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Protobuf QUIET)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 if(BUILD_TESTING)
-    find_package(Qt6 COMPONENTS REQUIRED Test)
+    find_package(Qt6 COMPONENTS Test QUIET)
 endif()
-
-# Qt Auto Tools
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOUIC_SEARCH_PATHS src/ui)
 
 # Core Library Sources & Headers
 set(core_sources
@@ -82,12 +61,6 @@ set(core_sources
     src/ProtobufLogCollector.cpp
     src/RegMapTreeItem.cpp
     src/RegMapTreeModel.cpp
-    src/RegMapTreeView.cpp
-    src/RegMapWindow.cpp
-    src/RegMapDelegate.cpp
-    src/RegConfigWindow.cpp
-    src/RegBitfieldBarWidget.cpp
-    src/BlockMemoryMapWidget.cpp
     src/CodeGenerator.cpp
     src/UndoCommands.cpp
     src/format/FormatManager.cpp
@@ -100,8 +73,6 @@ set(core_sources
     src/ThemeManager.cpp
     src/LanguageManager.cpp
     src/AppSettings.cpp
-    src/PreferencesWindow.cpp
-    src/AboutWindow.cpp
 )
 
 set(core_headers
@@ -113,14 +84,6 @@ set(core_headers
     src/UndoCommands.hpp
     src/RegMapTreeItem.hpp
     src/RegMapTreeModel.hpp
-    src/RegMapTreeView.hpp
-    src/RegMapWindow.hpp
-    src/RegMapDelegate.hpp
-    src/RegConfigWindow.hpp
-    src/PreferencesWindow.hpp
-    src/AboutWindow.hpp
-    src/RegBitfieldBarWidget.hpp
-    src/BlockMemoryMapWidget.hpp
     src/CodeGenerator.hpp
     src/ThemeManager.hpp
     src/LanguageManager.hpp
@@ -135,58 +98,110 @@ set(core_headers
     src/format/CsvHandler.hpp
 )
 
-set(project_ui src/ui/config.ui src/ui/preferences.ui src/ui/about.ui src/ui/rmap.ui)
-set(project_qrc res/resources.qrc)
+# Fetch Inja Dependency
+include(FetchContent)
+    set(INJA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "" FORCE)
+    set(INJA_INSTALL OFF CACHE BOOL "" FORCE)
+    set(INJA_EXPORT OFF CACHE BOOL "" FORCE)
 
-# Core Static Library
-qt_add_library(rmap_core STATIC
-    ${core_sources}
-    ${core_headers}
-    ${project_ui}
-    ${project_qrc}
-)
+    option(BUILD_BENCHMARK "" OFF)
 
-# Protobuf Generation (Modern Target-Based Approach)
-set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto)
-protobuf_generate(TARGET rmap_core PROTOS ${PROTOS})
+    if(NOT DEFINED FETCHCONTENT_SOURCE_DIR_INJA AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/inja-src")
+        set(FETCHCONTENT_SOURCE_DIR_INJA "${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/inja-src")
+    endif()
 
-target_include_directories(rmap_core PUBLIC
-    src
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${CMAKE_CURRENT_BINARY_DIR}/proto
-    ${CMAKE_CURRENT_BINARY_DIR}/rmap_core_autogen/include
-    ${inja_SOURCE_DIR}/single_include/inja
-)
+    FetchContent_Declare(inja
+      GIT_REPOSITORY https://github.com/pantor/inja
+      GIT_TAG v3.3.0
+      SYSTEM
+    )
+    set(PREV_CMAKE_WARN_DEPRECATED "${CMAKE_WARN_DEPRECATED}")
+    set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(inja)
+    set(CMAKE_WARN_DEPRECATED "${PREV_CMAKE_WARN_DEPRECATED}" CACHE BOOL "" FORCE)
 
-target_compile_options(rmap_core PRIVATE -Wfatal-errors)
+    # Qt Auto Tools
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTORCC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTOUIC_SEARCH_PATHS src/ui)
 
-# Installation Directories
-include(GNUInstallDirs)
+    set(gui_sources
+        src/RegMapTreeView.cpp
+        src/RegMapWindow.cpp
+        src/RegMapDelegate.cpp
+        src/RegConfigWindow.cpp
+        src/RegBitfieldBarWidget.cpp
+        src/BlockMemoryMapWidget.cpp
+        src/PreferencesWindow.cpp
+        src/AboutWindow.cpp
+    )
 
-target_compile_definitions(rmap_core PUBLIC
-    RMAP_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap"
-    RMAP_INSTALL_TEMPLATES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/templates"
-    RMAP_INSTALL_EXAMPLES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/examples"
-    RMAP_INSTALL_DOCDIR="${CMAKE_INSTALL_FULL_DOCDIR}"
-)
+    set(gui_headers
+        src/RegMapTreeView.hpp
+        src/RegMapWindow.hpp
+        src/RegMapDelegate.hpp
+        src/RegConfigWindow.hpp
+        src/PreferencesWindow.hpp
+        src/AboutWindow.hpp
+        src/RegBitfieldBarWidget.hpp
+        src/BlockMemoryMapWidget.hpp
+    )
 
-target_link_libraries(rmap_core PUBLIC
-    Qt6::Core
-    Qt6::Widgets
-    protobuf::libprotobuf
-    pantor::inja
-)
+    set(project_ui src/ui/config.ui src/ui/preferences.ui src/ui/about.ui src/ui/rmap.ui)
+    set(project_qrc res/resources.qrc)
 
-# Target Executable
-qt_add_executable(rmap
-    src/main.cpp
-    src/rmap.hpp
-)
+    # Core Static Library
+    qt_add_library(rmap_core STATIC
+        ${core_sources}
+        ${gui_sources}
+        ${core_headers}
+        ${gui_headers}
+        ${project_ui}
+        ${project_qrc}
+    )
 
-target_compile_options(rmap PRIVATE -Wfatal-errors)
-target_link_libraries(rmap PRIVATE rmap_core)
+    # Protobuf Generation (Modern Target-Based Approach)
+    set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto)
+    protobuf_generate(TARGET rmap_core PROTOS ${PROTOS})
+
+    target_include_directories(rmap_core PUBLIC
+        src
+        ${CMAKE_CURRENT_SOURCE_DIR}/proto
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/proto
+        ${CMAKE_CURRENT_BINARY_DIR}/rmap_core_autogen/include
+        ${inja_SOURCE_DIR}/single_include/inja
+    )
+
+    target_compile_options(rmap_core PRIVATE -Wfatal-errors)
+
+    target_compile_definitions(rmap_core PUBLIC
+        HAVE_QT_GUI
+        RMAP_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap"
+        RMAP_INSTALL_TEMPLATES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/templates"
+        RMAP_INSTALL_EXAMPLES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/examples"
+        RMAP_INSTALL_DOCDIR="${CMAKE_INSTALL_FULL_DOCDIR}"
+    )
+
+    target_link_libraries(rmap_core PUBLIC
+        Qt6::Core
+        Qt6::Widgets
+        protobuf::libprotobuf
+        pantor::inja
+    )
+
+    # Target Executable
+    qt_add_executable(rmap
+        src/main.cpp
+        src/rmap.hpp
+    )
+
+    target_compile_options(rmap PRIVATE -Wfatal-errors)
+    target_compile_definitions(rmap PRIVATE HAVE_QT_GUI)
+    target_link_libraries(rmap PRIVATE rmap_core Qt6::Widgets)
 
 # Installation Targets & Assets
 install(TARGETS rmap
@@ -270,8 +285,38 @@ install(DIRECTORY themes
 )
 
 # Tests Subdirectory
-if(BUILD_TESTING)
+if(BUILD_TESTING AND Qt6_FOUND)
     add_subdirectory(tests)
 endif()
+
+# Documentation Automation Targets
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    add_custom_target(docs-doxygen
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating C++ API documentation with Doxygen"
+        VERBATIM
+    )
+else()
+    add_custom_target(docs-doxygen
+        COMMAND ${CMAKE_COMMAND} -E echo "======================================================================"
+        COMMAND ${CMAKE_COMMAND} -E echo "ERROR: Doxygen is required to generate C++ API documentation,"
+        COMMAND ${CMAKE_COMMAND} -E echo "       but 'doxygen' was not found on PATH."
+        COMMAND ${CMAKE_COMMAND} -E echo "======================================================================"
+        COMMAND ${CMAKE_COMMAND} -E echo "Please install Doxygen:"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - Ubuntu/Debian: sudo apt-get install -y doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - macOS:         brew install doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - Fedora/RHEL:   sudo dnf install doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E echo "  - Arch Linux:    sudo pacman -S doxygen graphviz"
+        COMMAND ${CMAKE_COMMAND} -E false
+        COMMENT "Doxygen not found on PATH"
+        VERBATIM
+    )
+endif()
+
+add_custom_target(docs-classes DEPENDS docs-doxygen)
+
+
 
 

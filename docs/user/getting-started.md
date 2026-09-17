@@ -6,12 +6,12 @@ This guide explains how to install prerequisites, build **rmap**, and run your f
 
 ## 1. Prerequisites
 
-**rmap** is built with **C++17** and **Qt 6**.
+**rmap** is built with **C++17** and modern CMake.
 
 ### Dependencies
 - Modern C++ compiler (`g++` 9+ or `clang++` 10+)
 - CMake 3.15+
-- Qt 6 (`QtCore`, `QtWidgets`, `QtTest`)
+- Qt 6 (`QtCore`, `QtWidgets`, `QtTest`) *(required for GUI, headless offscreen CLI operations, and test runner)*
 - Google Protocol Buffers (`protobuf-compiler`, `libprotobuf-dev`)
 
 ### Installation Commands
@@ -46,7 +46,7 @@ brew link qt@6
 git clone https://github.com/zkalves/rmap.git
 cd rmap
 
-# Compile all targets and test suites
+# Compile all targets and test suites (with Qt GUI)
 make
 
 # Compile application binary only (fast, skips test targets)
@@ -66,6 +66,8 @@ make run
 ```
 
 ### Direct CMake Commands
+
+#### Standard Build (Qt GUI Enabled)
 ```bash
 # Build and run tests
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
@@ -77,6 +79,16 @@ cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DENABLE_COVERAG
 cmake --build build -j$(nproc)
 python3 script/generate_coverage.py --build-dir build --summary
 ```
+
+#### Headless & CI/CD Execution (Offscreen Platform)
+For headless CI environments, compute nodes, or remote server systems where no display server (X11 / Wayland) is running, execute `rmap` headlessly using the Qt offscreen platform plugin:
+
+```bash
+# Execute headless verification or export offscreen
+QT_QPA_PLATFORM=offscreen ./build/bin/rmap --version
+QT_QPA_PLATFORM=offscreen ./build/bin/rmap --help
+```
+
 
 ---
 
@@ -153,7 +165,7 @@ cp -r /usr/local/share/rmap/examples ~/my_rmap_examples
 
 cd ~/my_rmap_examples
 
-# Run full simulation and compilation across all 17 example environments
+# Run full simulation and compilation across all 19 example environments
 make all
 
 # Or test an individual peripheral environment (e.g. SPI)

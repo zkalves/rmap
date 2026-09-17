@@ -2,6 +2,14 @@
   "id": "solarized8",
   "name": "Solarized 8 (Dark)",
   "isDark": true,
+  "isDefault": true,
+  "aliases": [
+    "solarized",
+    "solarized8_dark",
+    "solarized_dark",
+    "default",
+    "dark"
+  ],
   "base": {
     "windowBg": "#002b36",
     "panelBg": "#002b36",

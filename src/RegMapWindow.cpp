@@ -5,2536 +5,2879 @@
  * Copyright (c) 2026 Ezequiel Alves. All rights reserved.
  */
 
-#include <unistd.h>
-#include <iostream>
-#include <sstream>
-#include <iomanip>
-#include <algorithm>
-#include <QFile>
-#include <QTextStream>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QHeaderView>
-#include <QStackedWidget>
-#include <QTableWidget>
-#include <QScrollArea>
-#include <QTextBrowser>
-#include <QDialog>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QMessageBox>
-#include <QMenu>
-#include <QFileDialog>
 #include "RegMapWindow.hpp"
-#include "BlockMemoryMapWidget.hpp"
-#include "ThemeManager.hpp"
-#include "LanguageManager.hpp"
 #include "AppSettings.hpp"
+#include "BlockMemoryMapWidget.hpp"
+#include "LanguageManager.hpp"
 #include "PathUtils.hpp"
 #include "RmapVersion.hpp"
+#include "ThemeManager.hpp"
 #include "format/FormatManager.hpp"
+#include <QDialog>
+#include <QFile>
+#include <QFileDialog>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMenu>
+#include <QMessageBox>
+#include <QScrollArea>
+#include <QShortcut>
+#include <QStackedWidget>
+#include <QTableWidget>
+#include <QTextBrowser>
+#include <QTextStream>
+#include <QVBoxLayout>
+#include <algorithm>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <unistd.h>
 
 namespace {
-uint64_t parseNumericCell(const QString &str)
-{
-    QString s = str.trimmed();
-    if (s.startsWith("0b", Qt::CaseInsensitive)) {
-        return s.mid(2).toULongLong(nullptr, 2);
-    }
-    return s.toULongLong(nullptr, 0);
+uint64_t parseNumericCell(const QString &str) {
+  QString s = str.trimmed();
+  if (s.startsWith("0b", Qt::CaseInsensitive)) {
+    return s.mid(2).toULongLong(nullptr, 2);
+  }
+  return s.toULongLong(nullptr, 0);
 }
 } // namespace
 
 // Helper to convert QVariant numbers (hex/dec/bin string) to uint64_t
-static uint64_t parseNumericValue(const QVariant& var)
-{
-    return parseNumericCell(var.toString());
+static uint64_t parseNumericValue(const QVariant &var) {
+  return parseNumericCell(var.toString());
 }
 
 // Helper to pad hex offset string written in hex (0x format)
-static QString padHexOffsetString(const QString &input, int minDigits = 4)
-{
-    QString s = input.trimmed();
-    if (s.startsWith("0x", Qt::CaseInsensitive)) {
-        bool ok = false;
-        uint64_t val = s.mid(2).toULongLong(&ok, 16);
-        if (ok) {
-            int digits = (std::max)((int)minDigits, (int)(s.size() - 2));
-            if (val >= 0x100000000ULL) digits = (std::max)(digits, 16);
-            else if (val >= 0x10000ULL) digits = (std::max)(digits, 8);
-            else digits = (std::max)(digits, minDigits);
-            return QString("0x") + QString("%1").arg(val, digits, 16, QChar('0')).toUpper();
-        }
+static QString padHexOffsetString(const QString &input, int minDigits = 4) {
+  QString s = input.trimmed();
+  if (s.startsWith("0x", Qt::CaseInsensitive)) {
+    bool ok = false;
+    uint64_t val = s.mid(2).toULongLong(&ok, 16);
+    if (ok) {
+      int digits = (std::max)((int)minDigits, (int)(s.size() - 2));
+      if (val >= 0x100000000ULL)
+        digits = (std::max)(digits, 16);
+      else if (val >= 0x10000ULL)
+        digits = (std::max)(digits, 8);
+      else
+        digits = (std::max)(digits, minDigits);
+      return QString("0x") +
+             QString("%1").arg(val, digits, 16, QChar('0')).toUpper();
     }
-    return s;
+  }
+  return s;
 }
 
-// Recursive helper for strict lint checking (non-empty descriptions and byte alignment)
-static void performStrictLintChecks(RegMapTreeItem* item, uint32_t regWidth, QStringList &warnings)
-{
-    if (!item) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-    QString kind = item->kindString();
-    QString name = item->data("Name").toString();
-    QString desc = item->data("Description").toString();
+// Recursive helper for strict lint checking (non-empty descriptions and byte
+// alignment)
+static void performStrictLintChecks(RegMapTreeItem *item, uint32_t regWidth,
+                                    QStringList &warnings) {
+  if (!item)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
+  QString kind = item->kindString();
+  QString name = item->data("Name").toString();
+  QString desc = item->data("Description").toString();
 
-    if ((kind == "reg" || kind == "fld") && desc.trimmed().isEmpty()) {
-        warnings.append(QString("Missing description for %1 '%2'").arg(kind.toUpper(), name));
+  if ((kind == "reg" || kind == "fld") && desc.trimmed().isEmpty()) {
+    warnings.append(
+        QString("Missing description for %1 '%2'").arg(kind.toUpper(), name));
+  }
+  if (kind == "reg") {
+    bool ok = false;
+    QString offStr = item->data("Offset/LSB").toString().trimmed();
+    uint64_t off = offStr.toULongLong(&ok, 0);
+    uint64_t alignBytes = regWidth / 8;
+    if (ok && alignBytes > 0 &&
+        (off % alignBytes !=
+         0)) { // GCOV_EXCL_BR_LINE - alignBytes > 0 guaranteed for 32/64 bit
+      warnings.append(
+          QString("Register '%1' offset 0x%2 is not %3-byte aligned")
+              .arg(name, QString::number(off, 16).toUpper(),
+                   QString::number(alignBytes)));
     }
-    if (kind == "reg") {
-        bool ok = false;
-        QString offStr = item->data("Offset/LSB").toString().trimmed();
-        uint64_t off = offStr.toULongLong(&ok, 0);
-        uint64_t alignBytes = regWidth / 8;
-        if (ok && alignBytes > 0 && (off % alignBytes != 0)) { // GCOV_EXCL_BR_LINE - alignBytes > 0 guaranteed for 32/64 bit
-            warnings.append(QString("Register '%1' offset 0x%2 is not %3-byte aligned")
-                            .arg(name, QString::number(off, 16).toUpper(), QString::number(alignBytes)));
-        }
-    }
-    for (RegMapTreeItem* child : item->getChildItems()) {
-        performStrictLintChecks(child, regWidth, warnings);
-    }
+  }
+  for (RegMapTreeItem *child : item->getChildItems()) {
+    performStrictLintChecks(child, regWidth, warnings);
+  }
 }
 
 struct RegSummary {
-    QString blockName;
-    QString regName;
-    QString offset;
-    QString access;
-    QString reset;
-    std::map<QString, QString> fields; // name -> "lsb:width:access:reset"
+  QString blockName;
+  QString regName;
+  QString offset;
+  QString access;
+  QString reset;
+  std::map<QString, QString> fields; // name -> "lsb:width:access:reset"
 };
 
-static void gatherRegs(RegMapTreeModel &model, std::map<QString, RegSummary> &map)
-{
-    RegMapTreeItem *root = model.getRootItem();
-    if (!root) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-    for (RegMapTreeItem *blk : root->getChildItems()) {
-        if (!blk || blk->kindString() != "blk") continue; // GCOV_EXCL_BR_LINE - blk pointer is guaranteed non-null
-        QString bName = blk->data("Name").toString();
-        for (RegMapTreeItem *reg : blk->getChildItems()) {
-            if (!reg || reg->kindString() != "reg") continue; // GCOV_EXCL_BR_LINE - reg pointer is guaranteed non-null
-            QString rName = reg->data("Name").toString();
-            QString key = bName + "::" + rName;
-            RegSummary s;
-            s.blockName = bName;
-            s.regName = rName;
-            s.offset = reg->data("Offset/LSB").toString();
-            s.access = reg->data("SW Access").toString();
-            s.reset = reg->data("Reset Value").toString();
-            for (RegMapTreeItem *fld : reg->getChildItems()) {
-                if (fld && fld->kindString() == "fld") { // GCOV_EXCL_BR_LINE - fld pointer is guaranteed non-null
-                    QString fName = fld->data("Name").toString();
-                    QString fSig = QString("%1:%2:%3:%4")
-                        .arg(fld->data("Offset/LSB").toString())
-                        .arg(fld->data("Size/Width").toString())
-                        .arg(fld->data("SW Access").toString())
-                        .arg(fld->data("Reset Value").toString());
-                    s.fields[fName] = fSig;
-                }
-            }
-            map[key] = s;
+static void gatherRegs(RegMapTreeModel &model,
+                       std::map<QString, RegSummary> &map) {
+  RegMapTreeItem *root = model.getRootItem();
+  if (!root)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
+  for (RegMapTreeItem *blk : root->getChildItems()) {
+    if (!blk || blk->kindString() != "blk")
+      continue; // GCOV_EXCL_BR_LINE - blk pointer is guaranteed non-null
+    QString bName = blk->data("Name").toString();
+    for (RegMapTreeItem *reg : blk->getChildItems()) {
+      if (!reg || reg->kindString() != "reg")
+        continue; // GCOV_EXCL_BR_LINE - reg pointer is guaranteed non-null
+      QString rName = reg->data("Name").toString();
+      QString key = bName + "::" + rName;
+      RegSummary s;
+      s.blockName = bName;
+      s.regName = rName;
+      s.offset = reg->data("Offset/LSB").toString();
+      s.access = reg->data("SW Access").toString();
+      s.reset = reg->data("Reset Value").toString();
+      for (RegMapTreeItem *fld : reg->getChildItems()) {
+        if (fld &&
+            fld->kindString() == "fld") { // GCOV_EXCL_BR_LINE - fld pointer is
+                                          // guaranteed non-null
+          QString fName = fld->data("Name").toString();
+          QString fSig = QString("%1:%2:%3:%4")
+                             .arg(fld->data("Offset/LSB").toString())
+                             .arg(fld->data("Size/Width").toString())
+                             .arg(fld->data("SW Access").toString())
+                             .arg(fld->data("Reset Value").toString());
+          s.fields[fName] = fSig;
         }
+      }
+      map[key] = s;
     }
+  }
 }
 
 class TreeFilterProxyModel : public QSortFilterProxyModel {
-    Q_OBJECT
+  Q_OBJECT
 public:
-    TreeFilterProxyModel(QObject* parent = nullptr) : QSortFilterProxyModel(parent) {
-        setDynamicSortFilter(true);
-        setSortCaseSensitivity(Qt::CaseInsensitive);
-    }
+  TreeFilterProxyModel(QObject *parent = nullptr)
+      : QSortFilterProxyModel(parent) {
+    setDynamicSortFilter(true);
+    setSortCaseSensitivity(Qt::CaseInsensitive);
+  }
 
-    void setSearchFilter(const QString &filter) {
-        m_filterText = filter.trimmed().toLower();
-        invalidateFilter();
-    }
+  void setSearchFilter(const QString &filter) {
+    m_filterText = filter.trimmed().toLower();
+    invalidateFilter();
+  }
 
-    QString searchFilter() const { return m_filterText; }
+  QString searchFilter() const { return m_filterText; }
 
 protected:
-    bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override {
-        int col = source_left.column();
-        if (col == 1 || col == 2 || col == 6) { // Offset / LSB, Size, Reset
-            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString();
-            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString();
-            return parseNumericCell(l_str) < parseNumericCell(r_str);
-        }
-        return QSortFilterProxyModel::lessThan(source_left, source_right);
+  bool lessThan(const QModelIndex &source_left,
+                const QModelIndex &source_right) const override {
+    int col = source_left.column();
+    if (col == 1 || col == 2 || col == 6) { // Offset / LSB, Size, Reset
+      QString l_str =
+          sourceModel()->data(source_left, Qt::DisplayRole).toString();
+      QString r_str =
+          sourceModel()->data(source_right, Qt::DisplayRole).toString();
+      return parseNumericCell(l_str) < parseNumericCell(r_str);
     }
+    return QSortFilterProxyModel::lessThan(source_left, source_right);
+  }
 
-    bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override {
-        if (!sourceModel()) return false;
-        QModelIndex index0 = sourceModel()->index(source_row, 0, source_parent);
-        if (!index0.isValid()) return false;
+  bool filterAcceptsRow(int source_row,
+                        const QModelIndex &source_parent) const override {
+    if (!sourceModel())
+      return false;
+    QModelIndex index0 = sourceModel()->index(source_row, 0, source_parent);
+    if (!index0.isValid())
+      return false;
 
-        QString kind = sourceModel()->data(index0, Qt::DisplayRole).toString();
-        if (kind == "fld") return false; // Never show fields in left tree
+    QString kind = sourceModel()->data(index0, Qt::DisplayRole).toString();
+    if (kind == "fld")
+      return false; // Never show fields in left tree
 
-        if (m_filterText.isEmpty()) return true;
+    if (m_filterText.isEmpty())
+      return true;
 
-        RegMapTreeItem *item = static_cast<RegMapTreeItem*>(index0.internalPointer());
-        if (!item) return false; // GCOV_EXCL_BR_LINE - Defensive null check
+    RegMapTreeItem *item =
+        static_cast<RegMapTreeItem *>(index0.internalPointer());
+    if (!item)
+      return false; // GCOV_EXCL_BR_LINE - Defensive null check
 
-        if (itemMatches(item)) return true;
+    if (itemMatches(item))
+      return true;
 
-        // Check if any child matches
-        for (int r = 0; r < item->childCount(); ++r) {
-            RegMapTreeItem *child = item->child(r);
-            if (child && (itemMatches(child) || childHasMatch(child))) { // GCOV_EXCL_BR_LINE - child pointer guaranteed non-null
-                return true;
-            }
-        }
-        return false;
+    // Check if any child matches
+    for (int r = 0; r < item->childCount(); ++r) {
+      RegMapTreeItem *child = item->child(r);
+      if (child && (itemMatches(child) ||
+                    childHasMatch(child))) { // GCOV_EXCL_BR_LINE - child
+                                             // pointer guaranteed non-null
+        return true;
+      }
     }
+    return false;
+  }
 
-    bool itemMatches(RegMapTreeItem *item) const {
-        if (!item) return false; // GCOV_EXCL_BR_LINE - Defensive null check
-        QString name = item->data("Name").toString().toLower();
-        QString offset = item->data("Offset/LSB").toString().toLower();
-        QString desc = item->data("Description").toString().toLower();
-        QString access = item->data("SW Access").toString().toLower();
-        return name.contains(m_filterText) || offset.contains(m_filterText) ||
-               desc.contains(m_filterText) || access.contains(m_filterText);
-    }
+  bool itemMatches(RegMapTreeItem *item) const {
+    if (!item)
+      return false; // GCOV_EXCL_BR_LINE - Defensive null check
+    QString name = item->data("Name").toString().toLower();
+    QString offset = item->data("Offset/LSB").toString().toLower();
+    QString desc = item->data("Description").toString().toLower();
+    QString access = item->data("SW Access").toString().toLower();
+    return name.contains(m_filterText) || offset.contains(m_filterText) ||
+           desc.contains(m_filterText) || access.contains(m_filterText);
+  }
 
-    bool childHasMatch(RegMapTreeItem *parent) const {
-        for (int r = 0; r < parent->childCount(); ++r) {
-            RegMapTreeItem *child = parent->child(r);
-            if (child && (itemMatches(child) || childHasMatch(child))) return true; // GCOV_EXCL_BR_LINE - child pointer guaranteed non-null
-        }
-        return false;
+  bool childHasMatch(RegMapTreeItem *parent) const {
+    for (int r = 0; r < parent->childCount(); ++r) {
+      RegMapTreeItem *child = parent->child(r);
+      if (child && (itemMatches(child) || childHasMatch(child)))
+        return true; // GCOV_EXCL_BR_LINE - child pointer guaranteed non-null
     }
+    return false;
+  }
 
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override {
-        if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
-            if (section == 1) return tr("Offset");
-            if (section == 2) return tr("Size");
-        }
-        return QSortFilterProxyModel::headerData(section, orientation, role);
+  QVariant headerData(int section, Qt::Orientation orientation,
+                      int role = Qt::DisplayRole) const override {
+    if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
+      if (section == 1)
+        return tr("Offset");
+      if (section == 2)
+        return tr("Size");
     }
+    return QSortFilterProxyModel::headerData(section, orientation, role);
+  }
 
 private:
-    QString m_filterText;
+  QString m_filterText;
 };
 
 class FieldSortProxyModel : public QSortFilterProxyModel {
-    Q_OBJECT
+  Q_OBJECT
 public:
-    FieldSortProxyModel(QObject* parent = nullptr) : QSortFilterProxyModel(parent) {}
+  FieldSortProxyModel(QObject *parent = nullptr)
+      : QSortFilterProxyModel(parent) {}
+
 protected:
-    bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override {
-        if (source_left.column() == 1) { // Sort by Offset
-            QString l_str = sourceModel()->data(source_left, Qt::DisplayRole).toString();
-            QString r_str = sourceModel()->data(source_right, Qt::DisplayRole).toString();
-            return parseNumericCell(l_str) < parseNumericCell(r_str);
-        }
-        return QSortFilterProxyModel::lessThan(source_left, source_right);
+  bool lessThan(const QModelIndex &source_left,
+                const QModelIndex &source_right) const override {
+    if (source_left.column() == 1) { // Sort by Offset
+      QString l_str =
+          sourceModel()->data(source_left, Qt::DisplayRole).toString();
+      QString r_str =
+          sourceModel()->data(source_right, Qt::DisplayRole).toString();
+      return parseNumericCell(l_str) < parseNumericCell(r_str);
     }
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override {
-        if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
-            if (section == 1) return tr("LSB");
-            if (section == 2) return tr("Size");
-        }
-        return QSortFilterProxyModel::headerData(section, orientation, role);
+    return QSortFilterProxyModel::lessThan(source_left, source_right);
+  }
+  QVariant headerData(int section, Qt::Orientation orientation,
+                      int role = Qt::DisplayRole) const override {
+    if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
+      if (section == 1)
+        return tr("LSB");
+      if (section == 2)
+        return tr("Size");
     }
+    return QSortFilterProxyModel::headerData(section, orientation, role);
+  }
 };
 
-RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent) :
-    QMainWindow(parent)
-{
-    Q_INIT_RESOURCE(resources);
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
-    QIcon appIcon(":/icons/app_icon.png");
-    appIcon.addFile(":/icons/app_icon_512.png", QSize(512, 512));
-    appIcon.addFile(":/icons/app_icon_256.png", QSize(256, 256));
-    appIcon.addFile(":/icons/app_icon_128.png", QSize(128, 128));
-    appIcon.addFile(":/icons/app_icon_64.png", QSize(64, 64));
-    appIcon.addFile(":/icons/app_icon_48.png", QSize(48, 48));
-    appIcon.addFile(":/icons/app_icon_32.png", QSize(32, 32));
-    appIcon.addFile(":/icons/app_icon_16.png", QSize(16, 16));
-    this->setupUi(this);
-    setWindowIcon(appIcon);
-    m_active_folder = ".";
-    m_is_regmap_modified = false;
-    m_rmap_filename = rmap_filename;
-    m_default_filename = "rmap.rmt";
-    m_default_window_title = windowTitle();
+RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
+    : QMainWindow(parent) {
+  Q_INIT_RESOURCE(resources);
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+  QIcon appIcon(":/icons/app_icon.png");
+  appIcon.addFile(":/icons/app_icon_512.png", QSize(512, 512));
+  appIcon.addFile(":/icons/app_icon_256.png", QSize(256, 256));
+  appIcon.addFile(":/icons/app_icon_128.png", QSize(128, 128));
+  appIcon.addFile(":/icons/app_icon_64.png", QSize(64, 64));
+  appIcon.addFile(":/icons/app_icon_48.png", QSize(48, 48));
+  appIcon.addFile(":/icons/app_icon_32.png", QSize(32, 32));
+  appIcon.addFile(":/icons/app_icon_16.png", QSize(16, 16));
+  this->setupUi(this);
+  setWindowIcon(appIcon);
+  m_active_folder = ".";
+  m_is_regmap_modified = false;
+  m_rmap_filename = rmap_filename;
+  m_default_filename = "rmap.rmt";
+  m_default_window_title = windowTitle();
 
-    m_config_window = new RegConfigWindow(this);
-    m_pref_window = new PreferencesWindow(this);
-    m_about_window = new AboutWindow(this);
+  m_config_window = new RegConfigWindow(this);
+  m_pref_window = new PreferencesWindow(this);
+  m_about_window = new AboutWindow(this);
 
-    m_undoStack = new QUndoStack(this);
+  m_undoStack = new QUndoStack(this);
 
-    // Setup Undo / Redo connections
-    connect(actionUndo, &QAction::triggered, m_undoStack, &QUndoStack::undo);
-    connect(actionRedo, &QAction::triggered, m_undoStack, &QUndoStack::redo);
-    connect(m_undoStack, &QUndoStack::canUndoChanged, actionUndo, &QAction::setEnabled);
-    connect(m_undoStack, &QUndoStack::canRedoChanged, actionRedo, &QAction::setEnabled);
-    actionUndo->setEnabled(false);
-    actionRedo->setEnabled(false);
+  // Setup Undo / Redo connections
+  connect(actionUndo, &QAction::triggered, m_undoStack, &QUndoStack::undo);
+  connect(actionRedo, &QAction::triggered, m_undoStack, &QUndoStack::redo);
+  connect(m_undoStack, &QUndoStack::canUndoChanged, actionUndo,
+          &QAction::setEnabled);
+  connect(m_undoStack, &QUndoStack::canRedoChanged, actionRedo,
+          &QAction::setEnabled);
+  actionUndo->setEnabled(false);
+  actionRedo->setEnabled(false);
 
-    connect(m_undoStack, &QUndoStack::undoTextChanged, this, [this](const QString &t) {
-        actionUndo->setText(t.isEmpty() ? tr("Undo") : tr("Undo %1").arg(t));
-    });
-    connect(m_undoStack, &QUndoStack::redoTextChanged, this, [this](const QString &t) {
-        actionRedo->setText(t.isEmpty() ? tr("Redo") : tr("Redo %1").arg(t));
-    });
+  connect(m_undoStack, &QUndoStack::undoTextChanged, this,
+          [this](const QString &t) {
+            actionUndo->setText(t.isEmpty() ? tr("Undo")
+                                            : tr("Undo %1").arg(t));
+          });
+  connect(m_undoStack, &QUndoStack::redoTextChanged, this,
+          [this](const QString &t) {
+            actionRedo->setText(t.isEmpty() ? tr("Redo")
+                                            : tr("Redo %1").arg(t));
+          });
 
-    // Model and Proxies
-    m_model = new RegMapTreeModel(this);
-    connectModelSignals();
+  // Model and Proxies
+  m_model = new RegMapTreeModel(this);
+  connectModelSignals();
 
-    m_treeProxy = new TreeFilterProxyModel(this);
-    m_fieldProxy = new FieldSortProxyModel(this);
-    m_treeProxy->setSourceModel(m_model);
-    m_fieldProxy->setSourceModel(m_model);
+  m_treeProxy = new TreeFilterProxyModel(this);
+  m_fieldProxy = new FieldSortProxyModel(this);
+  m_treeProxy->setSourceModel(m_model);
+  m_fieldProxy->setSourceModel(m_model);
 
-    // Left Panel: Stacked Widget (Tree View vs Empty View)
-    QWidget *leftPanel = new QWidget(this);
-    QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(0);
+  // Left Panel: Stacked Widget (Tree View vs Empty View)
+  QWidget *leftPanel = new QWidget(this);
+  QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
+  leftLayout->setContentsMargins(0, 0, 0, 0);
+  leftLayout->setSpacing(0);
 
-    m_leftStackedWidget = new QStackedWidget(leftPanel);
-    m_leftStackedWidget->setObjectName("leftStackedWidget");
+  m_leftStackedWidget = new QStackedWidget(leftPanel);
+  m_leftStackedWidget->setObjectName("leftStackedWidget");
 
-    // ==========================================
-    // Page 0: Tree View (Search Bar + Tree)
-    // ==========================================
-    m_leftViewWidget = new QWidget(m_leftStackedWidget);
-    m_leftViewWidget->setObjectName("leftViewWidget");
-    QVBoxLayout *leftViewLayout = new QVBoxLayout(m_leftViewWidget);
-    leftViewLayout->setContentsMargins(0, 0, 0, 0);
-    leftViewLayout->setSpacing(4);
+  // ==========================================
+  // Page 0: Tree View (Search Bar + Tree)
+  // ==========================================
+  m_leftViewWidget = new QWidget(m_leftStackedWidget);
+  m_leftViewWidget->setObjectName("leftViewWidget");
+  QVBoxLayout *leftViewLayout = new QVBoxLayout(m_leftViewWidget);
+  leftViewLayout->setContentsMargins(0, 0, 0, 0);
+  leftViewLayout->setSpacing(4);
 
-    QHBoxLayout *searchLayout = new QHBoxLayout();
-    m_searchEdit = new QLineEdit(m_leftViewWidget);
-    m_searchEdit->setObjectName("searchEdit");
-    m_searchEdit->setPlaceholderText(tr("Search registers/blocks (e.g. CTRL, 0x0)..."));
-    m_searchEdit->setClearButtonEnabled(true);
-    connect(m_searchEdit, &QLineEdit::textChanged, this, &RegMapWindow::onSearchTextChanged);
+  QHBoxLayout *searchLayout = new QHBoxLayout();
+  m_searchEdit = new QLineEdit(m_leftViewWidget);
+  m_searchEdit->setObjectName("searchEdit");
+  m_searchEdit->setPlaceholderText(
+      tr("Search registers/blocks (e.g. CTRL, 0x0)..."));
+  m_searchEdit->setClearButtonEnabled(true);
+  connect(m_searchEdit, &QLineEdit::textChanged, this,
+          &RegMapWindow::onSearchTextChanged);
 
-    searchLayout->addWidget(m_searchEdit);
-    leftViewLayout->addLayout(searchLayout);
+  searchLayout->addWidget(m_searchEdit);
+  leftViewLayout->addLayout(searchLayout);
 
-    this->treeView->setParent(m_leftViewWidget);
-    this->treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    this->treeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    this->treeView->setModel(m_treeProxy);
-    this->treeView->setSortingEnabled(true);
-    this->treeView->sortByColumn(1, Qt::AscendingOrder);
-    this->treeView->setAlternatingRowColors(true);
-    this->treeView->setColumnHidden(2, true); // Size (Register size is global in Config)
-    this->treeView->setColumnHidden(4, true); // SW Access
-    this->treeView->setColumnHidden(5, true); // HW Access Policy
-    this->treeView->setColumnHidden(6, true); // Reset Value
-    this->treeView->setColumnHidden(7, true); // Is Rand
-    this->treeView->setColumnHidden(8, true); // Volatile
-    this->treeView->setColumnHidden(9, true); // Has Reset
-    // Note: Column 10 (Description) remains visible in treeView for all items
-    this->treeView->header()->setStretchLastSection(true);
-    this->treeView->header()->setSectionResizeMode(QHeaderView::Interactive);
-    this->treeView->header()->setSectionResizeMode(10, QHeaderView::Stretch);
-    leftViewLayout->addWidget(this->treeView);
+  this->treeView->setParent(m_leftViewWidget);
+  this->treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
+  this->treeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  this->treeView->setModel(m_treeProxy);
+  this->treeView->setSortingEnabled(true);
+  this->treeView->sortByColumn(1, Qt::AscendingOrder);
+  this->treeView->setAlternatingRowColors(true);
+  this->treeView->setColumnHidden(
+      2, true); // Size (Register size is global in Config)
+  this->treeView->setColumnHidden(4, true); // SW Access
+  this->treeView->setColumnHidden(5, true); // HW Access Policy
+  this->treeView->setColumnHidden(6, true); // Reset Value
+  this->treeView->setColumnHidden(7, true); // Is Rand
+  this->treeView->setColumnHidden(8, true); // Volatile
+  this->treeView->setColumnHidden(9, true); // Has Reset
+  // Note: Column 10 (Description) remains visible in treeView for all items
+  this->treeView->header()->setStretchLastSection(true);
+  this->treeView->header()->setSectionResizeMode(QHeaderView::Interactive);
+  this->treeView->header()->setSectionResizeMode(10, QHeaderView::Stretch);
+  leftViewLayout->addWidget(this->treeView);
 
-    m_leftStackedWidget->addWidget(m_leftViewWidget);
+  m_leftStackedWidget->addWidget(m_leftViewWidget);
 
-    // ==========================================
-    // Page 1: Empty View (Shown when no model is loaded)
-    // ==========================================
-    m_leftEmptyWidget = new QWidget(m_leftStackedWidget);
-    m_leftEmptyWidget->setObjectName("leftEmptyWidget");
-    m_leftStackedWidget->addWidget(m_leftEmptyWidget);
-    m_leftStackedWidget->setCurrentWidget(m_leftEmptyWidget);
+  // ==========================================
+  // Page 1: Empty View (Shown when no model is loaded)
+  // ==========================================
+  m_leftEmptyWidget = new QWidget(m_leftStackedWidget);
+  m_leftEmptyWidget->setObjectName("leftEmptyWidget");
+  m_leftStackedWidget->addWidget(m_leftEmptyWidget);
+  m_leftStackedWidget->setCurrentWidget(m_leftEmptyWidget);
 
-    leftLayout->addWidget(m_leftStackedWidget);
+  leftLayout->addWidget(m_leftStackedWidget);
 
-    // Right Panel: Stacked Widget (Register Bitfield View vs Block Memory Map View)
-    QWidget *rightPanel = new QWidget(this);
-    QVBoxLayout *rightLayout = new QVBoxLayout(rightPanel);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(0);
+  // Right Panel: Stacked Widget (Register Bitfield View vs Block Memory Map
+  // View)
+  QWidget *rightPanel = new QWidget(this);
+  QVBoxLayout *rightLayout = new QVBoxLayout(rightPanel);
+  rightLayout->setContentsMargins(0, 0, 0, 0);
+  rightLayout->setSpacing(0);
 
-    m_rightStackedWidget = new QStackedWidget(rightPanel);
-    m_rightStackedWidget->setObjectName("rightStackedWidget");
+  m_rightStackedWidget = new QStackedWidget(rightPanel);
+  m_rightStackedWidget->setObjectName("rightStackedWidget");
 
-    // ==========================================
-    // Page 0: Register View (Header, Slice Bar, Fields Table)
-    // ==========================================
-    m_regViewWidget = new QWidget(m_rightStackedWidget);
-    m_regViewWidget->setObjectName("regViewWidget");
-    QVBoxLayout *regViewLayout = new QVBoxLayout(m_regViewWidget);
-    regViewLayout->setContentsMargins(0, 0, 0, 0);
-    regViewLayout->setSpacing(6);
+  // ==========================================
+  // Page 0: Register View (Header, Slice Bar, Fields Table)
+  // ==========================================
+  m_regViewWidget = new QWidget(m_rightStackedWidget);
+  m_regViewWidget->setObjectName("regViewWidget");
+  QVBoxLayout *regViewLayout = new QVBoxLayout(m_regViewWidget);
+  regViewLayout->setContentsMargins(0, 0, 0, 0);
+  regViewLayout->setSpacing(6);
 
-    m_regHeaderWidget = new QWidget(m_regViewWidget);
-    m_regHeaderWidget->setObjectName("regHeaderWidget");
-    QHBoxLayout *regHeaderLayout = new QHBoxLayout(m_regHeaderWidget);
-    regHeaderLayout->setContentsMargins(4, 2, 4, 2);
-    regHeaderLayout->setSpacing(8);
+  m_regHeaderWidget = new QWidget(m_regViewWidget);
+  m_regHeaderWidget->setObjectName("regHeaderWidget");
+  QHBoxLayout *regHeaderLayout = new QHBoxLayout(m_regHeaderWidget);
+  regHeaderLayout->setContentsMargins(4, 2, 4, 2);
+  regHeaderLayout->setSpacing(8);
 
-    QLabel *regNameTitle = new QLabel(tr("Name:"), m_regHeaderWidget);
-    regNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  QLabel *regNameTitle = new QLabel(tr("Name:"), m_regHeaderWidget);
+  regNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
 
-    m_regNameEdit = new QLineEdit(m_regHeaderWidget);
-    m_regNameEdit->setObjectName("regNameEdit");
-    m_regNameEdit->setPlaceholderText(tr("Register name..."));
-    m_regNameEdit->setClearButtonEnabled(true);
-    m_regNameEdit->setMinimumWidth(120);
+  m_regNameEdit = new QLineEdit(m_regHeaderWidget);
+  m_regNameEdit->setObjectName("regNameEdit");
+  m_regNameEdit->setPlaceholderText(tr("Register name..."));
+  m_regNameEdit->setClearButtonEnabled(true);
+  m_regNameEdit->setMinimumWidth(120);
 
-    QLabel *regOffsetTitle = new QLabel(tr("Offset:"), m_regHeaderWidget);
-    regOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  QLabel *regOffsetTitle = new QLabel(tr("Offset:"), m_regHeaderWidget);
+  regOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
 
-    m_regOffsetEdit = new QLineEdit(m_regHeaderWidget);
-    m_regOffsetEdit->setObjectName("regOffsetEdit");
-    m_regOffsetEdit->setPlaceholderText(tr("0x00"));
-    m_regOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
-    m_regOffsetEdit->setClearButtonEnabled(true);
-    m_regOffsetEdit->setMaximumWidth(100);
+  m_regOffsetEdit = new QLineEdit(m_regHeaderWidget);
+  m_regOffsetEdit->setObjectName("regOffsetEdit");
+  m_regOffsetEdit->setPlaceholderText(tr("0x00"));
+  m_regOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
+  m_regOffsetEdit->setClearButtonEnabled(true);
+  m_regOffsetEdit->setMaximumWidth(100);
 
-    QLabel *descLabel = new QLabel(tr("Description:"), m_regHeaderWidget);
-    descLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
+  QLabel *descLabel = new QLabel(tr("Description:"), m_regHeaderWidget);
+  descLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
 
-    m_regDescEdit = new QLineEdit(m_regHeaderWidget);
-    m_regDescEdit->setObjectName("regDescEdit");
-    m_regDescEdit->setPlaceholderText(tr("Register description..."));
-    m_regDescEdit->setClearButtonEnabled(true);
+  m_regDescEdit = new QLineEdit(m_regHeaderWidget);
+  m_regDescEdit->setObjectName("regDescEdit");
+  m_regDescEdit->setPlaceholderText(tr("Register description..."));
+  m_regDescEdit->setClearButtonEnabled(true);
 
-    regHeaderLayout->addWidget(regNameTitle);
-    regHeaderLayout->addWidget(m_regNameEdit);
-    regHeaderLayout->addWidget(regOffsetTitle);
-    regHeaderLayout->addWidget(m_regOffsetEdit);
-    regHeaderLayout->addWidget(descLabel);
-    regHeaderLayout->addWidget(m_regDescEdit, 1);
+  regHeaderLayout->addWidget(regNameTitle);
+  regHeaderLayout->addWidget(m_regNameEdit);
+  regHeaderLayout->addWidget(regOffsetTitle);
+  regHeaderLayout->addWidget(m_regOffsetEdit);
+  regHeaderLayout->addWidget(descLabel);
+  regHeaderLayout->addWidget(m_regDescEdit, 1);
 
-    regViewLayout->addWidget(m_regHeaderWidget);
+  regViewLayout->addWidget(m_regHeaderWidget);
 
-    connect(m_regNameEdit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_currentRegItem) return;
-        QString newName = m_regNameEdit->text().trimmed();
-        QString oldName = m_currentRegItem->data("Name").toString();
-        if (newName != oldName && !newName.isEmpty()) {
+  connect(m_regNameEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem)
+      return;
+    QString newName = m_regNameEdit->text().trimmed();
+    QString oldName = m_currentRegItem->data("Name").toString();
+    if (newName != oldName && !newName.isEmpty()) {
+      QModelIndex currentRegProxy = this->treeView->currentIndex();
+      if (currentRegProxy.isValid()) {
+        QModelIndex currentRegSource =
+            m_treeProxy->mapToSource(currentRegProxy);
+        QModelIndex nameIndex = m_model->index(currentRegSource.row(), 3,
+                                               currentRegSource.parent());
+        m_undoStack->push(
+            new EditCellCommand(m_model, nameIndex, oldName, newName));
+      }
+    }
+  });
+
+  connect(m_regOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem)
+      return;
+    QString rawOffset = m_regOffsetEdit->text().trimmed();
+    QString newOffset = padHexOffsetString(rawOffset);
+    m_regOffsetEdit->setText(newOffset);
+    QString oldOffset = m_currentRegItem->data("Offset/LSB").toString();
+    if (newOffset != oldOffset && !newOffset.isEmpty()) {
+      QModelIndex currentRegProxy = this->treeView->currentIndex();
+      if (currentRegProxy.isValid()) {
+        QModelIndex currentRegSource =
+            m_treeProxy->mapToSource(currentRegProxy);
+        QModelIndex offsetIndex = m_model->index(currentRegSource.row(), 1,
+                                                 currentRegSource.parent());
+        m_undoStack->push(
+            new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
+      }
+    }
+  });
+
+  connect(m_regDescEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem)
+      return;
+    QString newDesc = m_regDescEdit->text();
+    QString oldDesc = m_currentRegItem->data("Description").toString();
+    if (newDesc != oldDesc) {
+      QModelIndex currentRegProxy = this->treeView->currentIndex();
+      if (currentRegProxy.isValid()) {
+        QModelIndex currentRegSource =
+            m_treeProxy->mapToSource(currentRegProxy);
+        QModelIndex descIndex = m_model->index(currentRegSource.row(), 10,
+                                               currentRegSource.parent());
+        m_undoStack->push(
+            new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
+      }
+    }
+  });
+
+  m_bitfieldBar = new RegBitfieldBarWidget(m_regViewWidget);
+  m_bitfieldBar->setObjectName("bitfieldBar");
+  regViewLayout->addWidget(m_bitfieldBar);
+
+  m_fieldsTableView = new QTableView(m_regViewWidget);
+  m_fieldsTableView->setObjectName("fieldsTableView");
+  m_fieldsTableView->setAlternatingRowColors(true);
+  m_fieldsTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+  m_fieldsTableView->setEditTriggers(QAbstractItemView::AllEditTriggers);
+  m_fieldsTableView->setModel(m_fieldProxy);
+  m_fieldsTableView->setSortingEnabled(true);
+  m_fieldsTableView->sortByColumn(1, Qt::AscendingOrder);
+  m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+  m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+      QHeaderView::Interactive);
+  m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+      10, QHeaderView::Stretch);
+
+  // Set field table delegates
+  m_fieldsTableView->setItemDelegateForColumn(
+      1, new RegHexDecBinDelegate(this)); // LSB
+  m_fieldsTableView->setItemDelegateForColumn(
+      2, new RegHexDecBinDelegate(this)); // Size
+  m_fieldsTableView->setItemDelegateForColumn(3,
+                                              new RegStrDelegate(this)); // Name
+  m_fieldsTableView->setItemDelegateForColumn(
+      4, new RegAccessPolicyDelegate(this)); // SW Access
+  m_fieldsTableView->setItemDelegateForColumn(
+      5, new RegHwAccessDelegate(this)); // HW Access Policy
+  m_fieldsTableView->setItemDelegateForColumn(
+      6, new RegHexDecBinDelegate(this)); // Reset Value
+  m_fieldsTableView->setItemDelegateForColumn(
+      7, new RegBoolDelegate(this)); // Is Rand
+  m_fieldsTableView->setItemDelegateForColumn(
+      8, new RegBoolDelegate(this)); // Volatile
+  m_fieldsTableView->setItemDelegateForColumn(
+      9, new RegBoolDelegate(this)); // Has Reset
+  m_fieldsTableView->setItemDelegateForColumn(
+      10, new RegMapDelegate(this)); // Description
+  m_fieldsTableView->setColumnHidden(0, true);
+  regViewLayout->addWidget(m_fieldsTableView);
+
+  m_rightStackedWidget->addWidget(m_regViewWidget);
+
+  // ==========================================
+  // Page 1: Block View (Header + Memory Map Diagram)
+  // ==========================================
+  m_blockViewWidget = new QWidget(m_rightStackedWidget);
+  m_blockViewWidget->setObjectName("blockViewWidget");
+  QVBoxLayout *blockViewLayout = new QVBoxLayout(m_blockViewWidget);
+  blockViewLayout->setContentsMargins(0, 0, 0, 0);
+  blockViewLayout->setSpacing(6);
+
+  m_blockHeaderWidget = new QWidget(m_blockViewWidget);
+  m_blockHeaderWidget->setObjectName("blockHeaderWidget");
+  QHBoxLayout *blockHeaderLayout = new QHBoxLayout(m_blockHeaderWidget);
+  blockHeaderLayout->setContentsMargins(4, 2, 4, 2);
+  blockHeaderLayout->setSpacing(8);
+
+  QLabel *blkNameTitle = new QLabel(tr("Name:"), m_blockHeaderWidget);
+  blkNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+
+  m_blkNameEdit = new QLineEdit(m_blockHeaderWidget);
+  m_blkNameEdit->setObjectName("blkNameEdit");
+  m_blkNameEdit->setPlaceholderText(tr("Block name..."));
+  m_blkNameEdit->setClearButtonEnabled(true);
+  m_blkNameEdit->setMinimumWidth(120);
+
+  QLabel *blkOffsetTitle = new QLabel(tr("Offset:"), m_blockHeaderWidget);
+  blkOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+
+  m_blkOffsetEdit = new QLineEdit(m_blockHeaderWidget);
+  m_blkOffsetEdit->setObjectName("blkOffsetEdit");
+  m_blkOffsetEdit->setPlaceholderText(tr("0x0000"));
+  m_blkOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
+  m_blkOffsetEdit->setClearButtonEnabled(true);
+  m_blkOffsetEdit->setMaximumWidth(100);
+
+  QLabel *blkDescTitle = new QLabel(tr("Description:"), m_blockHeaderWidget);
+  blkDescTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+
+  m_blkDescEdit = new QLineEdit(m_blockHeaderWidget);
+  m_blkDescEdit->setObjectName("blkDescEdit");
+  m_blkDescEdit->setPlaceholderText(tr("Block description..."));
+  m_blkDescEdit->setClearButtonEnabled(true);
+
+  blockHeaderLayout->addWidget(blkNameTitle);
+  blockHeaderLayout->addWidget(m_blkNameEdit);
+  blockHeaderLayout->addWidget(blkOffsetTitle);
+  blockHeaderLayout->addWidget(m_blkOffsetEdit);
+  blockHeaderLayout->addWidget(blkDescTitle);
+  blockHeaderLayout->addWidget(m_blkDescEdit, 1);
+
+  blockViewLayout->addWidget(m_blockHeaderWidget);
+
+  connect(m_blkNameEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentBlkItem)
+      return;
+    QString newName = m_blkNameEdit->text().trimmed();
+    QString oldName = m_currentBlkItem->data("Name").toString();
+    if (newName != oldName && !newName.isEmpty()) {
+      QModelIndex currentBlkProxy = this->treeView->currentIndex();
+      if (currentBlkProxy.isValid()) {
+        QModelIndex currentBlkSource =
+            m_treeProxy->mapToSource(currentBlkProxy);
+        QModelIndex nameIndex = m_model->index(currentBlkSource.row(), 3,
+                                               currentBlkSource.parent());
+        m_undoStack->push(
+            new EditCellCommand(m_model, nameIndex, oldName, newName));
+      }
+    }
+  });
+
+  connect(m_blkOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentBlkItem)
+      return;
+    QString rawOffset = m_blkOffsetEdit->text().trimmed();
+    QString newOffset = padHexOffsetString(rawOffset);
+    m_blkOffsetEdit->setText(newOffset);
+    QString oldOffset = m_currentBlkItem->data("Offset/LSB").toString();
+    if (newOffset != oldOffset && !newOffset.isEmpty()) {
+      QModelIndex currentBlkProxy = this->treeView->currentIndex();
+      if (currentBlkProxy.isValid()) {
+        QModelIndex currentBlkSource =
+            m_treeProxy->mapToSource(currentBlkProxy);
+        QModelIndex offsetIndex = m_model->index(currentBlkSource.row(), 1,
+                                                 currentBlkSource.parent());
+        m_undoStack->push(
+            new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
+      }
+    }
+  });
+
+  connect(m_blkDescEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentBlkItem)
+      return;
+    QString newDesc = m_blkDescEdit->text();
+    QString oldDesc = m_currentBlkItem->data("Description").toString();
+    if (newDesc != oldDesc) {
+      QModelIndex currentBlkProxy = this->treeView->currentIndex();
+      if (currentBlkProxy.isValid()) {
+        QModelIndex currentBlkSource =
+            m_treeProxy->mapToSource(currentBlkProxy);
+        QModelIndex descIndex = m_model->index(currentBlkSource.row(), 10,
+                                               currentBlkSource.parent());
+        m_undoStack->push(
+            new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
+      }
+    }
+  });
+
+  m_mapScrollArea = new QScrollArea(m_blockViewWidget);
+  m_mapScrollArea->setObjectName("mapScrollArea");
+  m_mapScrollArea->setWidgetResizable(true);
+  m_mapScrollArea->setFrameShape(QFrame::StyledPanel);
+
+  m_blockMemoryMapWidget = new BlockMemoryMapWidget(m_mapScrollArea);
+  m_blockMemoryMapWidget->setObjectName("blockMemoryMapWidget");
+  m_mapScrollArea->setWidget(m_blockMemoryMapWidget);
+  blockViewLayout->addWidget(m_mapScrollArea);
+
+  m_rightStackedWidget->addWidget(m_blockViewWidget);
+
+  // ==========================================
+  // Page 2: Empty View (Shown when no register or block is selected)
+  // ==========================================
+  m_emptyViewWidget = new QWidget(m_rightStackedWidget);
+  m_emptyViewWidget->setObjectName("emptyViewWidget");
+  m_rightStackedWidget->addWidget(m_emptyViewWidget);
+  m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+
+  rightLayout->addWidget(m_rightStackedWidget);
+
+  // Connect block memory map diagram navigation
+  connect(m_blockMemoryMapWidget, &BlockMemoryMapWidget::registerClicked, this,
+          &RegMapWindow::navigateToRegister);
+
+  // Splitter setup
+  m_splitter = new QSplitter(Qt::Horizontal, this);
+  m_splitter->addWidget(leftPanel);
+  m_splitter->addWidget(rightPanel);
+  m_splitter->setSizes(QList<int>() << 350 << 850);
+  this->setCentralWidget(m_splitter);
+
+  // Synchronize Bitfield Bar click with Fields Table selection (bidirectional
+  // cross-probing)
+  connect(m_bitfieldBar, &RegBitfieldBarWidget::fieldClicked, this,
+          [this](int childRow) {
+            if (!m_fieldProxy || !m_fieldsTableView || !m_model)
+              return; // GCOV_EXCL_BR_LINE - Defensive invariant
             QModelIndex currentRegProxy = this->treeView->currentIndex();
-            if (currentRegProxy.isValid()) {
-                QModelIndex currentRegSource = m_treeProxy->mapToSource(currentRegProxy);
-                QModelIndex nameIndex = m_model->index(currentRegSource.row(), 3, currentRegSource.parent());
-                m_undoStack->push(new EditCellCommand(m_model, nameIndex, oldName, newName));
+            if (!currentRegProxy.isValid())
+              return;
+            QModelIndex currentRegSource =
+                m_treeProxy->mapToSource(currentRegProxy);
+            QModelIndex regCol0 = m_model->index(currentRegSource.row(), 0,
+                                                 currentRegSource.parent());
+            QModelIndex fieldSource = m_model->index(childRow, 0, regCol0);
+            if (!fieldSource.isValid())
+              return;
+            QModelIndex fieldProxy = m_fieldProxy->mapFromSource(fieldSource);
+            if (fieldProxy.isValid()) {
+              QModelIndex root = m_fieldsTableView->rootIndex();
+              QModelIndex tableIdx =
+                  m_fieldProxy->index(fieldProxy.row(), 1, root);
+              if (!tableIdx.isValid())
+                tableIdx = fieldProxy; // GCOV_EXCL_BR_LINE - Defensive fallback
+              m_fieldsTableView->setCurrentIndex(tableIdx);
+              m_fieldsTableView->selectionModel()->select(
+                  tableIdx, QItemSelectionModel::ClearAndSelect |
+                                QItemSelectionModel::Rows);
+              m_fieldsTableView->scrollTo(tableIdx,
+                                          QAbstractItemView::PositionAtCenter);
             }
-        }
-    });
+          });
 
-    connect(m_regOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_currentRegItem) return;
-        QString rawOffset = m_regOffsetEdit->text().trimmed();
-        QString newOffset = padHexOffsetString(rawOffset);
-        m_regOffsetEdit->setText(newOffset);
-        QString oldOffset = m_currentRegItem->data("Offset/LSB").toString();
-        if (newOffset != oldOffset && !newOffset.isEmpty()) {
-            QModelIndex currentRegProxy = this->treeView->currentIndex();
-            if (currentRegProxy.isValid()) {
-                QModelIndex currentRegSource = m_treeProxy->mapToSource(currentRegProxy);
-                QModelIndex offsetIndex = m_model->index(currentRegSource.row(), 1, currentRegSource.parent());
-                m_undoStack->push(new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
-            }
-        }
-    });
+  connectFieldsTableSignals();
 
-    connect(m_regDescEdit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_currentRegItem) return;
-        QString newDesc = m_regDescEdit->text();
-        QString oldDesc = m_currentRegItem->data("Description").toString();
-        if (newDesc != oldDesc) {
-            QModelIndex currentRegProxy = this->treeView->currentIndex();
-            if (currentRegProxy.isValid()) {
-                QModelIndex currentRegSource = m_treeProxy->mapToSource(currentRegProxy);
-                QModelIndex descIndex = m_model->index(currentRegSource.row(), 10, currentRegSource.parent());
-                m_undoStack->push(new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
-            }
-        }
-    });
+  // Connect tree selection change
+  connect(this->treeView->selectionModel(),
+          &QItemSelectionModel::currentChanged, this,
+          &RegMapWindow::updateFieldsTable);
 
-    m_bitfieldBar = new RegBitfieldBarWidget(m_regViewWidget);
-    m_bitfieldBar->setObjectName("bitfieldBar");
-    regViewLayout->addWidget(m_bitfieldBar);
+  // Menu and Action connections
+  connect(actionFileNew, &QAction::triggered, this, &RegMapWindow::btnFileNew);
+  connect(actionFileOpen, &QAction::triggered, this,
+          &RegMapWindow::btnFileOpen);
+  connect(actionFileClose, &QAction::triggered, this,
+          &RegMapWindow::btnFileClose);
+  connect(actionFileSave, &QAction::triggered, this,
+          &RegMapWindow::btnFileSave);
+  connect(actionFileSaveAs, &QAction::triggered, this,
+          &RegMapWindow::btnFileSaveAs);
+  connect(actionFileReload, &QAction::triggered, this,
+          &RegMapWindow::btnFileReload);
+  connect(actionAddMem, &QAction::triggered, this,
+          [this] { insertChild(RegMapTreeItem::e_rmmKind::mem); });
+  connect(actionAddRegBlock, &QAction::triggered, this,
+          [this] { insertChild(RegMapTreeItem::e_rmmKind::blk); });
+  connect(actionAddRegField, &QAction::triggered, this,
+          [this] { insertChild(RegMapTreeItem::e_rmmKind::fld); });
+  connect(actionAddRegMap, &QAction::triggered, this,
+          [this] { insertChild(RegMapTreeItem::e_rmmKind::map); });
+  connect(actionAddReg, &QAction::triggered, this,
+          [this] { insertChild(RegMapTreeItem::e_rmmKind::reg); });
+  connect(actionDuplicate, &QAction::triggered, this,
+          &RegMapWindow::duplicateSelectedRegister);
+  connect(actionDeleteItem, &QAction::triggered, this,
+          &RegMapWindow::btnDeleteItem);
 
-    m_fieldsTableView = new QTableView(m_regViewWidget);
-    m_fieldsTableView->setObjectName("fieldsTableView");
-    m_fieldsTableView->setAlternatingRowColors(true);
-    m_fieldsTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_fieldsTableView->setEditTriggers(QAbstractItemView::AllEditTriggers);
-    m_fieldsTableView->setModel(m_fieldProxy);
-    m_fieldsTableView->setSortingEnabled(true);
-    m_fieldsTableView->sortByColumn(1, Qt::AscendingOrder);
-    m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
-    m_fieldsTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
-    m_fieldsTableView->horizontalHeader()->setSectionResizeMode(10, QHeaderView::Stretch);
+  // Ergonomic power-user shortcuts (primary and documented secondary
+  // alternatives)
+  actionAddReg->setShortcuts(
+      {QKeySequence("Ctrl+Shift+R"), QKeySequence("Ctrl+Return")});
+  actionAddRegField->setShortcuts(
+      {QKeySequence("Ctrl+Shift+F"), QKeySequence("Ctrl+Shift+Return")});
+  actionDeleteItem->setShortcuts(
+      {QKeySequence::Delete, QKeySequence(Qt::Key_Backspace)});
+  actionDuplicate->setShortcut(QKeySequence("Ctrl+D"));
+  actionFileReload->setShortcut(QKeySequence("Ctrl+R"));
 
-    // Set field table delegates
-    m_fieldsTableView->setItemDelegateForColumn(1, new RegHexDecBinDelegate(this));       // LSB
-    m_fieldsTableView->setItemDelegateForColumn(2, new RegHexDecBinDelegate(this));       // Size
-    m_fieldsTableView->setItemDelegateForColumn(3, new RegStrDelegate(this));             // Name
-    m_fieldsTableView->setItemDelegateForColumn(4, new RegAccessPolicyDelegate(this));   // SW Access
-    m_fieldsTableView->setItemDelegateForColumn(5, new RegHwAccessDelegate(this));       // HW Access Policy
-    m_fieldsTableView->setItemDelegateForColumn(6, new RegHexDecBinDelegate(this));       // Reset Value
-    m_fieldsTableView->setItemDelegateForColumn(7, new RegBoolDelegate(this));           // Is Rand
-    m_fieldsTableView->setItemDelegateForColumn(8, new RegBoolDelegate(this));           // Volatile
-    m_fieldsTableView->setItemDelegateForColumn(9, new RegBoolDelegate(this));           // Has Reset
-    m_fieldsTableView->setItemDelegateForColumn(10, new RegMapDelegate(this));          // Description
-    m_fieldsTableView->setColumnHidden(0, true);
-    regViewLayout->addWidget(m_fieldsTableView);
+  // Focus Search Bar shortcut (Ctrl+F / Find)
+  auto *searchShortcut = new QShortcut(QKeySequence::Find, this);
+  connect(searchShortcut, &QShortcut::activated, this, [this]() {
+    if (m_searchEdit) {
+      m_searchEdit->setFocus();
+      m_searchEdit->selectAll();
+    }
+  });
+  connect(actionCheck, &QAction::triggered, this, &RegMapWindow::btnCheck);
+  connect(actionExport, &QAction::triggered, this, &RegMapWindow::btnExport);
+  connect(actionQuit, &QAction::triggered, this, &RegMapWindow::btnQuitButton);
+  connect(actionAbout, &QAction::triggered, this, &RegMapWindow::btnAbout);
+  connect(actionConfig, &QAction::triggered, this, &RegMapWindow::btnConfig);
+  connect(actionPreferences, &QAction::triggered, this,
+          &RegMapWindow::btnPreferences);
+  connect(actionColorBlindMode, &QAction::toggled, this,
+          &RegMapWindow::onToggleColorBlindMode);
+  connect(actionKeyboardShortcuts, &QAction::triggered, this,
+          &RegMapWindow::btnKeyBindings);
 
-    m_rightStackedWidget->addWidget(m_regViewWidget);
+  this->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(this->treeView, &QWidget::customContextMenuRequested, this,
+          &RegMapWindow::showTreeContextMenu);
 
-    // ==========================================
-    // Page 1: Block View (Header + Memory Map Diagram)
-    // ==========================================
-    m_blockViewWidget = new QWidget(m_rightStackedWidget);
-    m_blockViewWidget->setObjectName("blockViewWidget");
-    QVBoxLayout *blockViewLayout = new QVBoxLayout(m_blockViewWidget);
-    blockViewLayout->setContentsMargins(0, 0, 0, 0);
-    blockViewLayout->setSpacing(6);
+  m_fieldsTableView->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(m_fieldsTableView, &QWidget::customContextMenuRequested, this,
+          &RegMapWindow::showTreeContextMenu);
 
-    m_blockHeaderWidget = new QWidget(m_blockViewWidget);
-    m_blockHeaderWidget->setObjectName("blockHeaderWidget");
-    QHBoxLayout *blockHeaderLayout = new QHBoxLayout(m_blockHeaderWidget);
-    blockHeaderLayout->setContentsMargins(4, 2, 4, 2);
-    blockHeaderLayout->setSpacing(8);
+  setupThemeMenu();
+  setupColorBlindMenu();
+  setupLanguageMenu();
+  setColourBlindMode(AppSettings::instance().colorBlindMode());
+  setColourScheme(AppSettings::instance().colorScheme());
+  setLanguage(AppSettings::instance().language());
 
-    QLabel *blkNameTitle = new QLabel(tr("Name:"), m_blockHeaderWidget);
-    blkNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  restoreWindowStateFromSettings();
 
-    m_blkNameEdit = new QLineEdit(m_blockHeaderWidget);
-    m_blkNameEdit->setObjectName("blkNameEdit");
-    m_blkNameEdit->setPlaceholderText(tr("Block name..."));
-    m_blkNameEdit->setClearButtonEnabled(true);
-    m_blkNameEdit->setMinimumWidth(120);
+  if (!m_rmap_filename.isEmpty()) {
+    fileOpen(rmap_filename);
+  } else {
+    updatePaneVisibility();
+  }
 
-    QLabel *blkOffsetTitle = new QLabel(tr("Offset:"), m_blockHeaderWidget);
-    blkOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  auto *hexDelegate = new RegHexDecBinDelegate(this);
+  auto *boolDelegate = new RegBoolDelegate(this);
 
-    m_blkOffsetEdit = new QLineEdit(m_blockHeaderWidget);
-    m_blkOffsetEdit->setObjectName("blkOffsetEdit");
-    m_blkOffsetEdit->setPlaceholderText(tr("0x0000"));
-    m_blkOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
-    m_blkOffsetEdit->setClearButtonEnabled(true);
-    m_blkOffsetEdit->setMaximumWidth(100);
+  this->treeView->setItemDelegateForColumn(1, hexDelegate); // Offset
+  this->treeView->setItemDelegateForColumn(2, hexDelegate); // Size
+  this->treeView->setItemDelegateForColumn(3, new RegStrDelegate(this)); // Name
+  this->treeView->setItemDelegateForColumn(
+      4, new RegAccessPolicyDelegate(this)); // SW Access
+  this->treeView->setItemDelegateForColumn(
+      5, new RegHwAccessDelegate(this));                     // HW Access
+  this->treeView->setItemDelegateForColumn(6, hexDelegate);  // Reset Value
+  this->treeView->setItemDelegateForColumn(7, boolDelegate); // Is Rand
+  this->treeView->setItemDelegateForColumn(8, boolDelegate); // Volatile
+  this->treeView->setItemDelegateForColumn(9, boolDelegate); // Has Reset
+  this->treeView->setItemDelegateForColumn(
+      10, new RegMapDelegate(this)); // Description
+}
 
-    QLabel *blkDescTitle = new QLabel(tr("Description:"), m_blockHeaderWidget);
-    blkDescTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+RegMapWindow::~RegMapWindow() {
+  saveWindowStateToSettings();
+  if (m_undoStack) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_undoStack->clear();
+  }
+  if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldsTableView->setModel(nullptr);
+  }
+  if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    this->treeView->setModel(nullptr);
+  }
+  if (m_treeProxy) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_treeProxy->setSourceModel(nullptr);
+  }
+  if (m_fieldProxy) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldProxy->setSourceModel(nullptr);
+  }
+  delete m_pref_window;
+  m_pref_window = nullptr;
+  delete m_config_window;
+  m_config_window = nullptr;
+  delete m_model;
+  m_model = nullptr;
+}
 
-    m_blkDescEdit = new QLineEdit(m_blockHeaderWidget);
-    m_blkDescEdit->setObjectName("blkDescEdit");
-    m_blkDescEdit->setPlaceholderText(tr("Block description..."));
-    m_blkDescEdit->setClearButtonEnabled(true);
+void RegMapWindow::onSearchTextChanged(const QString &text) {
+  if (m_treeProxy) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_treeProxy->setSearchFilter(text);
+    if (!text.isEmpty()) {
+      this->treeView->expandAll();
+    }
+  }
+}
 
-    blockHeaderLayout->addWidget(blkNameTitle);
-    blockHeaderLayout->addWidget(m_blkNameEdit);
-    blockHeaderLayout->addWidget(blkOffsetTitle);
-    blockHeaderLayout->addWidget(m_blkOffsetEdit);
-    blockHeaderLayout->addWidget(blkDescTitle);
-    blockHeaderLayout->addWidget(m_blkDescEdit, 1);
+void RegMapWindow::btnConfig(void) {
+  m_config_window->show();
+  m_config_window->raise();
+  m_config_window->activateWindow();
+}
 
-    blockViewLayout->addWidget(m_blockHeaderWidget);
+void RegMapWindow::btnPreferences(void) {
+  if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_pref_window->show();
+    m_pref_window->raise();
+    m_pref_window->activateWindow();
+  }
+}
 
-    connect(m_blkNameEdit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_currentBlkItem) return;
-        QString newName = m_blkNameEdit->text().trimmed();
-        QString oldName = m_currentBlkItem->data("Name").toString();
-        if (newName != oldName && !newName.isEmpty()) {
-            QModelIndex currentBlkProxy = this->treeView->currentIndex();
-            if (currentBlkProxy.isValid()) {
-                QModelIndex currentBlkSource = m_treeProxy->mapToSource(currentBlkProxy);
-                QModelIndex nameIndex = m_model->index(currentBlkSource.row(), 3, currentBlkSource.parent());
-                m_undoStack->push(new EditCellCommand(m_model, nameIndex, oldName, newName));
-            }
-        }
-    });
-
-    connect(m_blkOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_currentBlkItem) return;
-        QString rawOffset = m_blkOffsetEdit->text().trimmed();
-        QString newOffset = padHexOffsetString(rawOffset);
-        m_blkOffsetEdit->setText(newOffset);
-        QString oldOffset = m_currentBlkItem->data("Offset/LSB").toString();
-        if (newOffset != oldOffset && !newOffset.isEmpty()) {
-            QModelIndex currentBlkProxy = this->treeView->currentIndex();
-            if (currentBlkProxy.isValid()) {
-                QModelIndex currentBlkSource = m_treeProxy->mapToSource(currentBlkProxy);
-                QModelIndex offsetIndex = m_model->index(currentBlkSource.row(), 1, currentBlkSource.parent());
-                m_undoStack->push(new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
-            }
-        }
-    });
-
-    connect(m_blkDescEdit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_currentBlkItem) return;
-        QString newDesc = m_blkDescEdit->text();
-        QString oldDesc = m_currentBlkItem->data("Description").toString();
-        if (newDesc != oldDesc) {
-            QModelIndex currentBlkProxy = this->treeView->currentIndex();
-            if (currentBlkProxy.isValid()) {
-                QModelIndex currentBlkSource = m_treeProxy->mapToSource(currentBlkProxy);
-                QModelIndex descIndex = m_model->index(currentBlkSource.row(), 10, currentBlkSource.parent());
-                m_undoStack->push(new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
-            }
-        }
-    });
-
-    m_mapScrollArea = new QScrollArea(m_blockViewWidget);
-    m_mapScrollArea->setObjectName("mapScrollArea");
-    m_mapScrollArea->setWidgetResizable(true);
-    m_mapScrollArea->setFrameShape(QFrame::StyledPanel);
-
-    m_blockMemoryMapWidget = new BlockMemoryMapWidget(m_mapScrollArea);
-    m_blockMemoryMapWidget->setObjectName("blockMemoryMapWidget");
-    m_mapScrollArea->setWidget(m_blockMemoryMapWidget);
-    blockViewLayout->addWidget(m_mapScrollArea);
-
-    m_rightStackedWidget->addWidget(m_blockViewWidget);
-
-    // ==========================================
-    // Page 2: Empty View (Shown when no register or block is selected)
-    // ==========================================
-    m_emptyViewWidget = new QWidget(m_rightStackedWidget);
-    m_emptyViewWidget->setObjectName("emptyViewWidget");
-    m_rightStackedWidget->addWidget(m_emptyViewWidget);
-    m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
-
-    rightLayout->addWidget(m_rightStackedWidget);
-
-    // Connect block memory map diagram navigation
-    connect(m_blockMemoryMapWidget, &BlockMemoryMapWidget::registerClicked, this, &RegMapWindow::navigateToRegister);
-
-    // Splitter setup
-    m_splitter = new QSplitter(Qt::Horizontal, this);
-    m_splitter->addWidget(leftPanel);
-    m_splitter->addWidget(rightPanel);
-    m_splitter->setSizes(QList<int>() << 350 << 850);
-    this->setCentralWidget(m_splitter);
-
-    // Synchronize Bitfield Bar click with Fields Table selection (bidirectional cross-probing)
-    connect(m_bitfieldBar, &RegBitfieldBarWidget::fieldClicked, this, [this](int childRow) {
-        if (!m_fieldProxy || !m_fieldsTableView || !m_model) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-        QModelIndex currentRegProxy = this->treeView->currentIndex();
-        if (!currentRegProxy.isValid()) return;
-        QModelIndex currentRegSource = m_treeProxy->mapToSource(currentRegProxy);
-        QModelIndex regCol0 = m_model->index(currentRegSource.row(), 0, currentRegSource.parent());
-        QModelIndex fieldSource = m_model->index(childRow, 0, regCol0);
-        if (!fieldSource.isValid()) return;
-        QModelIndex fieldProxy = m_fieldProxy->mapFromSource(fieldSource);
-        if (fieldProxy.isValid()) {
-            QModelIndex root = m_fieldsTableView->rootIndex();
-            QModelIndex tableIdx = m_fieldProxy->index(fieldProxy.row(), 1, root);
-            if (!tableIdx.isValid()) tableIdx = fieldProxy; // GCOV_EXCL_BR_LINE - Defensive fallback
-            m_fieldsTableView->setCurrentIndex(tableIdx);
-            m_fieldsTableView->selectionModel()->select(tableIdx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-            m_fieldsTableView->scrollTo(tableIdx, QAbstractItemView::PositionAtCenter);
-        }
-    });
-
-    connectFieldsTableSignals();
-
-    // Connect tree selection change
-    connect(this->treeView->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, &RegMapWindow::updateFieldsTable);
-
-    // Menu and Action connections
-    connect(actionFileNew,      &QAction::triggered, this, &RegMapWindow::btnFileNew);
-    connect(actionFileOpen,     &QAction::triggered, this, &RegMapWindow::btnFileOpen);
-    connect(actionFileClose,    &QAction::triggered, this, &RegMapWindow::btnFileClose);
-    connect(actionFileSave,     &QAction::triggered, this, &RegMapWindow::btnFileSave);
-    connect(actionFileSaveAs,   &QAction::triggered, this, &RegMapWindow::btnFileSaveAs);
-    connect(actionFileReload,   &QAction::triggered, this, &RegMapWindow::btnFileReload);
-    connect(actionAddMem,       &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::mem); });
-    connect(actionAddRegBlock,  &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::blk); });
-    connect(actionAddRegField,  &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::fld); });
-    connect(actionAddRegMap,    &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::map); });
-    connect(actionAddReg,       &QAction::triggered, this, [this]{ insertChild(RegMapTreeItem::e_rmmKind::reg); });
-    connect(actionDuplicate,    &QAction::triggered, this, &RegMapWindow::duplicateSelectedRegister);
-    connect(actionDeleteItem,   &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
-
-    // Ergonomic power-user shortcuts
-    actionAddReg->setShortcut(QKeySequence("Ctrl+Shift+R"));
-    actionAddRegField->setShortcut(QKeySequence("Ctrl+Shift+F"));
-    actionDeleteItem->setShortcut(QKeySequence::Delete);
-    actionDuplicate->setShortcut(QKeySequence("Ctrl+D"));
-    connect(actionCheck,        &QAction::triggered, this, &RegMapWindow::btnCheck);
-    connect(actionExport,       &QAction::triggered, this, &RegMapWindow::btnExport);
-    connect(actionQuit,         &QAction::triggered, this, &RegMapWindow::btnQuitButton);
-    connect(actionAbout,        &QAction::triggered, this, &RegMapWindow::btnAbout);
-    connect(actionConfig,       &QAction::triggered, this, &RegMapWindow::btnConfig);
-    connect(actionPreferences,  &QAction::triggered, this, &RegMapWindow::btnPreferences);
-    connect(actionColorBlindMode, &QAction::toggled, this, &RegMapWindow::onToggleColorBlindMode);
-    connect(actionKeyboardShortcuts, &QAction::triggered, this, &RegMapWindow::btnKeyBindings);
-
-    this->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(this->treeView, &QWidget::customContextMenuRequested, this, &RegMapWindow::showTreeContextMenu);
-
-    m_fieldsTableView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_fieldsTableView, &QWidget::customContextMenuRequested, this, &RegMapWindow::showTreeContextMenu);
-
-    setupThemeMenu();
-    setupColorBlindMenu();
-    setupLanguageMenu();
-    setColourBlindMode(AppSettings::instance().colorBlindMode());
-    setColourScheme(AppSettings::instance().colorScheme());
-    setLanguage(AppSettings::instance().language());
-
-    restoreWindowStateFromSettings();
-
-    if (!m_rmap_filename.isEmpty()) {
-        fileOpen(rmap_filename);
+void RegMapWindow::onToggleColorBlindMode(bool checked) {
+  this->setProperty("colorBlindMode", checked);
+  AppSettings::instance().setColorBlindMode(checked);
+  ColorBlindMode mode =
+      checked ? AppSettings::instance().colorBlindType() : ColorBlindMode::None;
+  ThemeManager::instance().setColorBlindMode(mode);
+  if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_bitfieldBar->setColorBlindMode(mode);
+  }
+  if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_blockMemoryMapWidget->setColorBlindMode(mode);
+  }
+  if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_pref_window->setColourBlindMode(checked);
+    m_pref_window->setColourBlindType(AppSettings::instance().colorBlindType());
+  }
+  if (actionColorBlindMode && actionColorBlindMode->isChecked() != checked) {
+    actionColorBlindMode->setChecked(checked);
+  }
+  if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    if (!checked) {
+      for (auto *act : m_colorBlindActionGroup->actions()) {
+        act->setChecked(false);
+      }
     } else {
-        updatePaneVisibility();
+      QString curType = AppSettings::instance().colorBlindTypeString();
+      for (auto *act : m_colorBlindActionGroup->actions()) {
+        act->setChecked(act->data().toString() == curType);
+      }
     }
-
-    auto *hexDelegate = new RegHexDecBinDelegate(this);
-    auto *boolDelegate = new RegBoolDelegate(this);
-
-    this->treeView->setItemDelegateForColumn(1, hexDelegate);                              // Offset
-    this->treeView->setItemDelegateForColumn(2, hexDelegate);                              // Size
-    this->treeView->setItemDelegateForColumn(3, new RegStrDelegate(this));                 // Name
-    this->treeView->setItemDelegateForColumn(4, new RegAccessPolicyDelegate(this));       // SW Access
-    this->treeView->setItemDelegateForColumn(5, new RegHwAccessDelegate(this));           // HW Access
-    this->treeView->setItemDelegateForColumn(6, hexDelegate);                              // Reset Value
-    this->treeView->setItemDelegateForColumn(7, boolDelegate);                             // Is Rand
-    this->treeView->setItemDelegateForColumn(8, boolDelegate);                             // Volatile
-    this->treeView->setItemDelegateForColumn(9, boolDelegate);                             // Has Reset
-    this->treeView->setItemDelegateForColumn(10, new RegMapDelegate(this));               // Description
+  }
+  if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    this->treeView->viewport()->update();
+  }
+  if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldsTableView->viewport()->update();
+  }
+  if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    QString msg;
+    if (checked) {
+      msg = tr("Colour-Blind Mode (%1) Enabled")
+                .arg(colorBlindModeToString(
+                    AppSettings::instance().colorBlindType()));
+    } else {
+      msg = tr("Standard Colour Palette Active");
+    }
+    this->statusBar()->showMessage(msg, 3000);
+  }
 }
 
-RegMapWindow::~RegMapWindow()
-{
-    saveWindowStateToSettings();
-    if (m_undoStack) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_undoStack->clear();
-    }
-    if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldsTableView->setModel(nullptr);
-    }
-    if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        this->treeView->setModel(nullptr);
-    }
-    if (m_treeProxy) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_treeProxy->setSourceModel(nullptr);
-    }
-    if (m_fieldProxy) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldProxy->setSourceModel(nullptr);
-    }
-    delete m_pref_window;
-    m_pref_window = nullptr;
-    delete m_config_window;
-    m_config_window = nullptr;
-    delete m_model;
-    m_model = nullptr;
+void RegMapWindow::setColourBlindMode(bool enabled) {
+  onToggleColorBlindMode(enabled);
 }
 
-void RegMapWindow::onSearchTextChanged(const QString &text)
-{
-    if (m_treeProxy) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_treeProxy->setSearchFilter(text);
-        if (!text.isEmpty()) {
-            this->treeView->expandAll();
-        }
-    }
+bool RegMapWindow::isColourBlindMode() const {
+  return m_bitfieldBar ? m_bitfieldBar->isColorBlindMode()
+                       : false; // GCOV_EXCL_BR_LINE - Defensive invariant
 }
 
-void RegMapWindow::btnConfig(void)
-{
-    m_config_window->show();
-    m_config_window->raise();
-    m_config_window->activateWindow();
-}
-
-void RegMapWindow::btnPreferences(void)
-{
-    if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_pref_window->show();
-        m_pref_window->raise();
-        m_pref_window->activateWindow();
-    }
-}
-
-void RegMapWindow::onToggleColorBlindMode(bool checked)
-{
-    this->setProperty("colorBlindMode", checked);
-    AppSettings::instance().setColorBlindMode(checked);
-    ColorBlindMode mode = checked ? AppSettings::instance().colorBlindType() : ColorBlindMode::None;
+void RegMapWindow::setColourBlindType(ColorBlindMode mode) {
+  if (mode == ColorBlindMode::None) {
+    onToggleColorBlindMode(false);
+    return;
+  }
+  AppSettings::instance().setColorBlindType(mode);
+  if (!isColourBlindMode()) {
+    onToggleColorBlindMode(true);
+  } else {
     ThemeManager::instance().setColorBlindMode(mode);
     if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_bitfieldBar->setColorBlindMode(mode);
+      m_bitfieldBar->setColorBlindMode(mode);
     }
     if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_blockMemoryMapWidget->setColorBlindMode(mode);
+      m_blockMemoryMapWidget->setColorBlindMode(mode);
     }
     if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_pref_window->setColourBlindMode(checked);
-        m_pref_window->setColourBlindType(AppSettings::instance().colorBlindType());
-    }
-    if (actionColorBlindMode && actionColorBlindMode->isChecked() != checked) {
-        actionColorBlindMode->setChecked(checked);
+      m_pref_window->setColourBlindType(mode);
     }
     if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        if (!checked) {
-            for (auto *act : m_colorBlindActionGroup->actions()) {
-                act->setChecked(false);
-            }
-        } else {
-            QString curType = AppSettings::instance().colorBlindTypeString();
-            for (auto *act : m_colorBlindActionGroup->actions()) {
-                act->setChecked(act->data().toString() == curType);
-            }
-        }
+      QString curType = colorBlindModeToString(mode);
+      for (auto *act : m_colorBlindActionGroup->actions()) {
+        act->setChecked(act->data().toString() == curType);
+      }
     }
     if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        this->treeView->viewport()->update();
+      this->treeView->viewport()->update();
     }
     if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldsTableView->viewport()->update();
+      m_fieldsTableView->viewport()->update();
     }
     if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        QString msg;
-        if (checked) {
-            msg = tr("Colour-Blind Mode (%1) Enabled").arg(colorBlindModeToString(AppSettings::instance().colorBlindType()));
-        } else {
-            msg = tr("Standard Colour Palette Active");
-        }
-        this->statusBar()->showMessage(msg, 3000);
+      this->statusBar()->showMessage(
+          tr("Colour-Blind Profile: %1").arg(colorBlindModeToString(mode)),
+          3000);
     }
+  }
 }
 
-void RegMapWindow::setColourBlindMode(bool enabled)
-{
-    onToggleColorBlindMode(enabled);
+ColorBlindMode RegMapWindow::colourBlindType() const {
+  if (!isColourBlindMode()) {
+    return ColorBlindMode::None;
+  }
+  return AppSettings::instance().colorBlindType();
 }
 
-bool RegMapWindow::isColourBlindMode() const
-{
-    return m_bitfieldBar ? m_bitfieldBar->isColorBlindMode() : false; // GCOV_EXCL_BR_LINE - Defensive invariant
-}
+void RegMapWindow::setupColorBlindMenu(void) {
+  if (!menuView)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
 
-void RegMapWindow::setColourBlindType(ColorBlindMode mode)
-{
-    if (mode == ColorBlindMode::None) {
-        onToggleColorBlindMode(false);
-        return;
+  m_colorBlindMenu = new QMenu(tr("Colour-&Blind Profile"), menuView);
+  m_colorBlindMenu->setObjectName("menuColorBlindProfile");
+
+  rebuildColorBlindMenu();
+
+  connect(m_colorBlindMenu, &QMenu::aboutToShow, this, [this]() {
+    if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (!isColourBlindMode()) {
+        for (auto *act : m_colorBlindActionGroup->actions()) {
+          act->setChecked(false);
+        }
+      } else {
+        QString activeType = AppSettings::instance().colorBlindTypeString();
+        for (auto *act : m_colorBlindActionGroup->actions()) {
+          act->setChecked(act->data().toString() == activeType);
+        }
+      }
     }
-    AppSettings::instance().setColorBlindType(mode);
-    if (!isColourBlindMode()) {
-        onToggleColorBlindMode(true);
-    } else {
-        ThemeManager::instance().setColorBlindMode(mode);
-        if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_bitfieldBar->setColorBlindMode(mode);
-        }
-        if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_blockMemoryMapWidget->setColorBlindMode(mode);
-        }
-        if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_pref_window->setColourBlindType(mode);
-        }
-        if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            QString curType = colorBlindModeToString(mode);
-            for (auto *act : m_colorBlindActionGroup->actions()) {
-                act->setChecked(act->data().toString() == curType);
-            }
-        }
-        if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            this->treeView->viewport()->update();
-        }
-        if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_fieldsTableView->viewport()->update();
-        }
-        if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            this->statusBar()->showMessage(
-                tr("Colour-Blind Profile: %1").arg(colorBlindModeToString(mode)),
-                3000
-            );
-        }
-    }
-}
+  });
 
-ColorBlindMode RegMapWindow::colourBlindType() const
-{
-    if (!isColourBlindMode()) {
-        return ColorBlindMode::None;
-    }
-    return AppSettings::instance().colorBlindType();
-}
-
-void RegMapWindow::setupColorBlindMenu(void)
-{
-    if (!menuView) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-
-    m_colorBlindMenu = new QMenu(tr("Colour-&Blind Profile"), menuView);
-    m_colorBlindMenu->setObjectName("menuColorBlindProfile");
-
-    rebuildColorBlindMenu();
-
-    connect(m_colorBlindMenu, &QMenu::aboutToShow, this, [this]() {
-        if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (!isColourBlindMode()) {
+  connect(&ThemeManager::instance(), &ThemeManager::colorBlindModeChanged, this,
+          [this](ColorBlindMode mode) {
+            if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive
+                                           // invariant
+              if (mode == ColorBlindMode::None) {
                 for (auto *act : m_colorBlindActionGroup->actions()) {
-                    act->setChecked(false);
+                  act->setChecked(false);
                 }
-            } else {
-                QString activeType = AppSettings::instance().colorBlindTypeString();
-                for (auto *act : m_colorBlindActionGroup->actions()) {
-                    act->setChecked(act->data().toString() == activeType);
-                }
-            }
-        }
-    });
-
-    connect(&ThemeManager::instance(), &ThemeManager::colorBlindModeChanged, this, [this](ColorBlindMode mode) {
-        if (m_colorBlindActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (mode == ColorBlindMode::None) {
-                for (auto *act : m_colorBlindActionGroup->actions()) {
-                    act->setChecked(false);
-                }
-            } else {
+              } else {
                 QString curType = colorBlindModeToString(mode);
                 for (auto *act : m_colorBlindActionGroup->actions()) {
-                    act->setChecked(act->data().toString() == curType);
+                  act->setChecked(act->data().toString() == curType);
                 }
+              }
             }
-        }
-    });
+          });
 
-    menuView->addMenu(m_colorBlindMenu);
+  menuView->addMenu(m_colorBlindMenu);
 }
 
-void RegMapWindow::rebuildColorBlindMenu(void)
-{
-    if (!m_colorBlindMenu) return; // GCOV_EXCL_BR_LINE - Defensive invariant
+void RegMapWindow::rebuildColorBlindMenu(void) {
+  if (!m_colorBlindMenu)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
 
-    m_colorBlindMenu->clear();
-    delete m_colorBlindActionGroup;
-    m_colorBlindActionGroup = new QActionGroup(m_colorBlindMenu);
-    m_colorBlindActionGroup->setExclusive(true);
+  m_colorBlindMenu->clear();
+  delete m_colorBlindActionGroup;
+  m_colorBlindActionGroup = new QActionGroup(m_colorBlindMenu);
+  m_colorBlindActionGroup->setExclusive(true);
 
-    bool isCb = isColourBlindMode();
-    QString activeType = AppSettings::instance().colorBlindTypeString();
+  bool isCb = isColourBlindMode();
+  QString activeType = AppSettings::instance().colorBlindTypeString();
 
-    for (const auto &info : availableColorBlindModes()) {
-        QAction *act = m_colorBlindMenu->addAction(info.name);
-        act->setCheckable(true);
-        act->setData(info.id);
-        m_colorBlindActionGroup->addAction(act);
-        if (isCb && info.id == activeType) {
-            act->setChecked(true);
-        }
-
-        connect(act, &QAction::triggered, this, [this, mode = info.mode]() {
-            setColourBlindType(mode);
-        });
+  for (const auto &info : availableColorBlindModes()) {
+    QAction *act = m_colorBlindMenu->addAction(info.name);
+    act->setCheckable(true);
+    act->setData(info.id);
+    m_colorBlindActionGroup->addAction(act);
+    if (isCb && info.id == activeType) {
+      act->setChecked(true);
     }
+
+    connect(act, &QAction::triggered, this,
+            [this, mode = info.mode]() { setColourBlindType(mode); });
+  }
 }
 
-void RegMapWindow::setupThemeMenu(void)
-{
-    if (!menuView) return; // GCOV_EXCL_BR_LINE - Defensive invariant
+void RegMapWindow::setupThemeMenu(void) {
+  if (!menuView)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
 
-    m_themeMenu = new QMenu(tr("&Colour Scheme"), menuView);
-    m_themeMenu->setObjectName("menuColourScheme");
+  m_themeMenu = new QMenu(tr("&Colour Scheme"), menuView);
+  m_themeMenu->setObjectName("menuColourScheme");
 
-    rebuildThemeMenu();
+  rebuildThemeMenu();
 
-    connect(m_themeMenu, &QMenu::aboutToShow, this, [this]() {
-        ThemeManager::instance().scanThemes();
-        QString cur = ThemeManager::instance().currentThemeId();
-        if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            for (auto *act : m_themeActionGroup->actions()) {
-                act->setChecked(act->data().toString() == cur);
-            }
-        }
-    });
-
-    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const ColorScheme &theme) {
-        if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            for (auto *act : m_themeActionGroup->actions()) {
-                act->setChecked(act->data().toString() == theme.id);
-            }
-        }
-    });
-
-    connect(&ThemeManager::instance(), &ThemeManager::themesUpdated, this, [this]() {
-        rebuildThemeMenu();
-    });
-
-    menuView->addMenu(m_themeMenu);
-}
-
-void RegMapWindow::rebuildThemeMenu(void)
-{
-    if (!m_themeMenu) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-
-    m_themeMenu->clear();
-    delete m_themeActionGroup;
-    m_themeActionGroup = new QActionGroup(m_themeMenu);
-    m_themeActionGroup->setExclusive(true);
-
-    QString currentTheme = ThemeManager::instance().currentThemeId();
-
-    for (const auto& t : ThemeManager::instance().availableThemes()) {
-        QAction* act = m_themeMenu->addAction(t.name);
-        act->setCheckable(true);
-        act->setData(t.id);
-        m_themeActionGroup->addAction(act);
-        if (t.id == currentTheme) {
-            act->setChecked(true);
-        }
-
-        connect(act, &QAction::triggered, this, [this, id = t.id]() {
-            setColourScheme(id);
-        });
-    }
-}
-
-void RegMapWindow::setColourScheme(const QString &scheme)
-{
-    ThemeManager::instance().setTheme(scheme);
-    AppSettings::instance().setColorScheme(scheme);
-    if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_pref_window->setColourScheme(scheme);
-    }
+  connect(m_themeMenu, &QMenu::aboutToShow, this, [this]() {
+    ThemeManager::instance().scanThemes();
+    QString cur = ThemeManager::instance().currentThemeId();
     if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        QString cur = ThemeManager::instance().currentThemeId();
-        for (auto *act : m_themeActionGroup->actions()) {
-            act->setChecked(act->data().toString() == cur);
-        }
+      for (auto *act : m_themeActionGroup->actions()) {
+        act->setChecked(act->data().toString() == cur);
+      }
     }
-    if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        this->treeView->viewport()->update();
-    }
-    if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldsTableView->viewport()->update();
-    }
-    if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_bitfieldBar->update();
-    }
-    if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_blockMemoryMapWidget->update();
-    }
-    if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        this->statusBar()->showMessage(
-            tr("Colour Scheme: %1").arg(ThemeManager::instance().currentThemeName()),
-            3000
-        );
-    }
+  });
+
+  connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
+          [this](const ColorScheme &theme) {
+            if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+              for (auto *act : m_themeActionGroup->actions()) {
+                act->setChecked(act->data().toString() == theme.id);
+              }
+            }
+          });
+
+  connect(&ThemeManager::instance(), &ThemeManager::themesUpdated, this,
+          [this]() { rebuildThemeMenu(); });
+
+  menuView->addMenu(m_themeMenu);
 }
 
-QString RegMapWindow::colourScheme() const
-{
-    return ThemeManager::instance().currentThemeId();
-}
+void RegMapWindow::rebuildThemeMenu(void) {
+  if (!m_themeMenu)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
 
-void RegMapWindow::setupLanguageMenu(void)
-{
-    if (!menuView) return; // GCOV_EXCL_BR_LINE - Defensive invariant
+  m_themeMenu->clear();
+  delete m_themeActionGroup;
+  m_themeActionGroup = new QActionGroup(m_themeMenu);
+  m_themeActionGroup->setExclusive(true);
 
-    m_languageMenu = new QMenu(tr("&Language"), menuView);
-    m_languageMenu->setObjectName("menuLanguage");
-    m_languageActionGroup = new QActionGroup(m_languageMenu);
-    m_languageActionGroup->setExclusive(true);
+  QString currentTheme = ThemeManager::instance().currentThemeId();
 
-    QString currentLang = LanguageManager::instance().currentLanguage();
-
-    for (const auto &lang : LanguageManager::instance().availableLanguages()) {
-        QString displayName = lang.displayName();
-
-        QAction *act = m_languageMenu->addAction(displayName);
-        act->setCheckable(true);
-        act->setData(lang.code);
-        m_languageActionGroup->addAction(act);
-        if (lang.code.compare(currentLang, Qt::CaseInsensitive) == 0) {
-            act->setChecked(true);
-        }
-
-        connect(act, &QAction::triggered, this, [this, code = lang.code]() {
-            setLanguage(code);
-        });
+  for (const auto &t : ThemeManager::instance().availableThemes()) {
+    QAction *act = m_themeMenu->addAction(t.name);
+    act->setCheckable(true);
+    act->setData(t.id);
+    m_themeActionGroup->addAction(act);
+    if (t.id == currentTheme) {
+      act->setChecked(true);
     }
 
-    // Always keep checkmarks perfectly synchronized when menu is opened
-    connect(m_languageMenu, &QMenu::aboutToShow, this, [this]() {
-        QString cur = LanguageManager::instance().currentLanguage();
-        if (m_languageActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            for (auto *act : m_languageActionGroup->actions()) {
-                act->setChecked(act->data().toString().compare(cur, Qt::CaseInsensitive) == 0);
-            }
-        }
-    });
+    connect(act, &QAction::triggered, this,
+            [this, id = t.id]() { setColourScheme(id); });
+  }
+}
 
-    // Synchronize checkmarks whenever language changes from anywhere
-    connect(&LanguageManager::instance(), &LanguageManager::languageChanged, this, [this](const QString &code) {
+void RegMapWindow::setColourScheme(const QString &scheme) {
+  ThemeManager::instance().setTheme(scheme);
+  AppSettings::instance().setColorScheme(scheme);
+  if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_pref_window->setColourScheme(scheme);
+  }
+  if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    QString cur = ThemeManager::instance().currentThemeId();
+    for (auto *act : m_themeActionGroup->actions()) {
+      act->setChecked(act->data().toString() == cur);
+    }
+  }
+  if (this->treeView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    this->treeView->viewport()->update();
+  }
+  if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldsTableView->viewport()->update();
+  }
+  if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_bitfieldBar->update();
+  }
+  if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_blockMemoryMapWidget->update();
+  }
+  if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    this->statusBar()->showMessage(
+        tr("Colour Scheme: %1")
+            .arg(ThemeManager::instance().currentThemeName()),
+        3000);
+  }
+}
+
+QString RegMapWindow::colourScheme() const {
+  return ThemeManager::instance().currentThemeId();
+}
+
+void RegMapWindow::setupLanguageMenu(void) {
+  if (!menuView)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
+
+  m_languageMenu = new QMenu(tr("&Language"), menuView);
+  m_languageMenu->setObjectName("menuLanguage");
+  m_languageActionGroup = new QActionGroup(m_languageMenu);
+  m_languageActionGroup->setExclusive(true);
+
+  QString currentLang = LanguageManager::instance().currentLanguage();
+
+  for (const auto &lang : LanguageManager::instance().availableLanguages()) {
+    QString displayName = lang.displayName();
+
+    QAction *act = m_languageMenu->addAction(displayName);
+    act->setCheckable(true);
+    act->setData(lang.code);
+    m_languageActionGroup->addAction(act);
+    if (lang.code.compare(currentLang, Qt::CaseInsensitive) == 0) {
+      act->setChecked(true);
+    }
+
+    connect(act, &QAction::triggered, this,
+            [this, code = lang.code]() { setLanguage(code); });
+  }
+
+  // Always keep checkmarks perfectly synchronized when menu is opened
+  connect(m_languageMenu, &QMenu::aboutToShow, this, [this]() {
+    QString cur = LanguageManager::instance().currentLanguage();
+    if (m_languageActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      for (auto *act : m_languageActionGroup->actions()) {
+        act->setChecked(
+            act->data().toString().compare(cur, Qt::CaseInsensitive) == 0);
+      }
+    }
+  });
+
+  // Synchronize checkmarks whenever language changes from anywhere
+  connect(
+      &LanguageManager::instance(), &LanguageManager::languageChanged, this,
+      [this](const QString &code) {
         if (m_languageActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            for (auto *act : m_languageActionGroup->actions()) {
-                act->setChecked(act->data().toString().compare(code, Qt::CaseInsensitive) == 0);
-            }
+          for (auto *act : m_languageActionGroup->actions()) {
+            act->setChecked(
+                act->data().toString().compare(code, Qt::CaseInsensitive) == 0);
+          }
         }
         if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_pref_window->setLanguage(code);
+          m_pref_window->setLanguage(code);
         }
         if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            this->statusBar()->showMessage(
-                tr("Language: %1").arg(LanguageManager::instance().currentLanguageName()),
-                3000
-            );
+          this->statusBar()->showMessage(
+              tr("Language: %1")
+                  .arg(LanguageManager::instance().currentLanguageName()),
+              3000);
         }
-    });
+      });
 
-    menuView->addMenu(m_languageMenu);
+  menuView->addMenu(m_languageMenu);
 }
 
-void RegMapWindow::setLanguage(const QString &code)
-{
-    LanguageManager::instance().setLanguage(code);
-    AppSettings::instance().setLanguage(code);
-    if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_pref_window->setLanguage(code);
-    }
+void RegMapWindow::setLanguage(const QString &code) {
+  LanguageManager::instance().setLanguage(code);
+  AppSettings::instance().setLanguage(code);
+  if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_pref_window->setLanguage(code);
+  }
 
+  QString currentLang = LanguageManager::instance().currentLanguage();
+  if (m_languageActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    for (auto *act : m_languageActionGroup->actions()) {
+      act->setChecked(act->data().toString().compare(currentLang,
+                                                     Qt::CaseInsensitive) == 0);
+    }
+  }
+
+  if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    this->statusBar()->showMessage(
+        tr("Language: %1")
+            .arg(LanguageManager::instance().currentLanguageName()),
+        3000);
+  }
+}
+
+QString RegMapWindow::language() const {
+  return LanguageManager::instance().currentLanguage();
+}
+
+void RegMapWindow::updateDynamicTranslations(void) {
+  if (m_languageMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_languageMenu->setTitle(tr("&Language"));
     QString currentLang = LanguageManager::instance().currentLanguage();
     if (m_languageActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        for (auto *act : m_languageActionGroup->actions()) {
-            act->setChecked(act->data().toString().compare(currentLang, Qt::CaseInsensitive) == 0);
-        }
+      for (auto *act : m_languageActionGroup->actions()) {
+        act->setChecked(act->data().toString().compare(
+                            currentLang, Qt::CaseInsensitive) == 0);
+      }
     }
-
-    if (this->statusBar()) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        this->statusBar()->showMessage(
-            tr("Language: %1").arg(LanguageManager::instance().currentLanguageName()),
-            3000
-        );
+  }
+  if (m_themeMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_themeMenu->setTitle(tr("&Colour Scheme"));
+    QString currentTheme = ThemeManager::instance().currentThemeId();
+    if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      for (auto *act : m_themeActionGroup->actions()) {
+        act->setChecked(act->data().toString() == currentTheme);
+      }
     }
+  }
+  if (m_colorBlindMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_colorBlindMenu->setTitle(tr("Colour-&Blind Profile"));
+    rebuildColorBlindMenu();
+  }
+  if (m_model) {
+    m_model->refreshHeaderData();
+  }
+  if (m_rmap_filename.isEmpty()) {
+    setWindowTitle(tr("Register Map Generation Tool"));
+  } else {
+    setWindowTitle(QString("%1 — %2").arg(QFileInfo(m_rmap_filename).fileName(),
+                                          tr("Register Map Generation Tool")));
+  }
 }
 
-QString RegMapWindow::language() const
-{
-    return LanguageManager::instance().currentLanguage();
+void RegMapWindow::changeEvent(QEvent *event) {
+  if (event->type() == QEvent::LanguageChange) {
+    retranslateUi(this);
+    updateDynamicTranslations();
+  }
+  QMainWindow::changeEvent(event);
 }
 
-void RegMapWindow::updateDynamicTranslations(void)
-{
-    if (m_languageMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_languageMenu->setTitle(tr("&Language"));
-        QString currentLang = LanguageManager::instance().currentLanguage();
-        if (m_languageActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            for (auto *act : m_languageActionGroup->actions()) {
-                act->setChecked(act->data().toString().compare(currentLang, Qt::CaseInsensitive) == 0);
-            }
-        }
+void RegMapWindow::restoreWindowStateFromSettings() {
+  QByteArray geom = AppSettings::instance().mainWindowGeometry();
+  if (!geom.isEmpty()) {
+    restoreGeometry(geom);
+  } else {
+    QSize sz = AppSettings::instance().mainWindowSize();
+    QPoint p = AppSettings::instance().mainWindowPos();
+    if (!sz.isEmpty()) {
+      resize(sz);
     }
-    if (m_themeMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_themeMenu->setTitle(tr("&Colour Scheme"));
-        QString currentTheme = ThemeManager::instance().currentThemeId();
-        if (m_themeActionGroup) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            for (auto *act : m_themeActionGroup->actions()) {
-                act->setChecked(act->data().toString() == currentTheme);
-            }
-        }
+    if (!p.isNull()) {
+      move(p);
     }
-    if (m_colorBlindMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_colorBlindMenu->setTitle(tr("Colour-&Blind Profile"));
-        rebuildColorBlindMenu();
-    }
-    if (m_model) {
-        m_model->refreshHeaderData();
-    }
-    if (m_rmap_filename.isEmpty()) {
-        setWindowTitle(tr("Register Map Generation Tool"));
-    } else {
-        setWindowTitle(QString("%1 — %2").arg(QFileInfo(m_rmap_filename).fileName(), tr("Register Map Generation Tool")));
-    }
+  }
+  AppSettings::ensureWindowOnScreen(this, QSize(600, 450), QSize(1200, 800));
+
+  QByteArray state = AppSettings::instance().mainWindowState();
+  if (!state.isEmpty()) {
+    restoreState(state);
+  }
+  QByteArray splitterState = AppSettings::instance().mainWindowSplitter();
+  if (!splitterState.isEmpty() && m_splitter) {
+    m_splitter->restoreState(splitterState);
+  }
 }
 
-void RegMapWindow::changeEvent(QEvent *event)
-{
-    if (event->type() == QEvent::LanguageChange) {
-        retranslateUi(this);
-        updateDynamicTranslations();
-    }
-    QMainWindow::changeEvent(event);
+void RegMapWindow::saveWindowStateToSettings() {
+  AppSettings::instance().setMainWindowGeometry(saveGeometry());
+  AppSettings::instance().setMainWindowState(saveState());
+  AppSettings::instance().setMainWindowPos(pos());
+  AppSettings::instance().setMainWindowSize(size());
+  if (m_splitter) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    AppSettings::instance().setMainWindowSplitter(m_splitter->saveState());
+  }
 }
 
-void RegMapWindow::restoreWindowStateFromSettings()
-{
-    QByteArray geom = AppSettings::instance().mainWindowGeometry();
-    if (!geom.isEmpty()) {
-        restoreGeometry(geom);
-    } else {
-        QSize sz = AppSettings::instance().mainWindowSize();
-        QPoint p = AppSettings::instance().mainWindowPos();
-        if (!sz.isEmpty()) {
-            resize(sz);
-        }
-        if (!p.isNull()) {
-            move(p);
-        }
-    }
-    AppSettings::ensureWindowOnScreen(this, QSize(600, 450), QSize(1200, 800));
-
-    QByteArray state = AppSettings::instance().mainWindowState();
-    if (!state.isEmpty()) {
-        restoreState(state);
-    }
-    QByteArray splitterState = AppSettings::instance().mainWindowSplitter();
-    if (!splitterState.isEmpty() && m_splitter) {
-        m_splitter->restoreState(splitterState);
-    }
+void RegMapWindow::closeEvent(QCloseEvent *event) {
+  saveWindowStateToSettings();
+  QMainWindow::closeEvent(event);
 }
 
-void RegMapWindow::saveWindowStateToSettings()
-{
-    AppSettings::instance().setMainWindowGeometry(saveGeometry());
-    AppSettings::instance().setMainWindowState(saveState());
-    AppSettings::instance().setMainWindowPos(pos());
-    AppSettings::instance().setMainWindowSize(size());
-    if (m_splitter) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        AppSettings::instance().setMainWindowSplitter(m_splitter->saveState());
-    }
+void RegMapWindow::resizeEvent(QResizeEvent *event) {
+  QMainWindow::resizeEvent(event);
+  AppSettings::instance().setMainWindowSize(size());
 }
 
-void RegMapWindow::closeEvent(QCloseEvent *event)
-{
-    saveWindowStateToSettings();
-    QMainWindow::closeEvent(event);
+void RegMapWindow::moveEvent(QMoveEvent *event) {
+  QMainWindow::moveEvent(event);
+  AppSettings::instance().setMainWindowPos(pos());
 }
 
-void RegMapWindow::resizeEvent(QResizeEvent *event)
-{
-    QMainWindow::resizeEvent(event);
-    AppSettings::instance().setMainWindowSize(size());
+void RegMapWindow::btnAbout(void) {
+  if (m_about_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_about_window->show();
+    m_about_window->raise();
+    m_about_window->activateWindow();
+  }
 }
 
-void RegMapWindow::moveEvent(QMoveEvent *event)
-{
-    QMainWindow::moveEvent(event);
-    AppSettings::instance().setMainWindowPos(pos());
+void RegMapWindow::btnKeyBindings(void) {
+  QDialog dialog(this, Qt::Window);
+  dialog.setWindowTitle(tr("Keyboard Shortcuts & Key Bindings"));
+  dialog.resize(580, 480);
+  dialog.setMinimumSize(450, 350);
+
+  QVBoxLayout *layout = new QVBoxLayout(&dialog);
+
+  QTextBrowser *browser = new QTextBrowser(&dialog);
+  browser->setOpenExternalLinks(true);
+  browser->setHtml(
+      "<h3>rmap — Keyboard Shortcuts & Key Bindings</h3>"
+      "<table border='0' cellspacing='4' cellpadding='4' width='100%'>"
+      "<tr style='background-color:#EAECEE;'><th "
+      "align='left'><b>Category</b></th><th "
+      "align='left'><b>Shortcut</b></th><th "
+      "align='left'><b>Description</b></th></tr>"
+      "<tr><td colspan='3' style='padding-top:8px;'><b>File "
+      "Operations</b></td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+N</kbd></td><td>Create New Register "
+      "Map</td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+O</kbd></td><td>Open File (SVD, RDL, "
+      "XML, JSON, CSV, RMT, RMB)</td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+W</kbd></td><td>Close Register Map "
+      "Model</td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+S</kbd></td><td>Save Register "
+      "Map</td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+Shift+S</kbd></td><td>Save Register Map "
+      "As...</td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+R</kbd></td><td>Reload Active "
+      "File</td></tr>"
+      "<tr><td>File</td><td><kbd>Ctrl+Q</kbd></td><td>Quit "
+      "Application</td></tr>"
+      "<tr><td colspan='3' style='padding-top:8px;'><b>Edit & "
+      "History</b></td></tr>"
+      "<tr><td>Edit</td><td><kbd>Ctrl+Z</kbd></td><td>Undo Last "
+      "Action</td></tr>"
+      "<tr><td>Edit</td><td><kbd>Ctrl+Y</kbd></td><td>Redo Last "
+      "Action</td></tr>"
+      "<tr><td colspan='3' style='padding-top:8px;'><b>Hardware Structure "
+      "Elements</b></td></tr>"
+      "<tr><td>Structure</td><td><kbd>Ctrl+Shift+B</kbd></td><td>Add Register "
+      "Block (blk)</td></tr>"
+      "<tr><td>Structure</td><td><kbd>Ctrl+Shift+R</kbd> / "
+      "<kbd>Ctrl+Return</kbd></td><td>Add Register (reg)</td></tr>"
+      "<tr><td>Structure</td><td><kbd>Ctrl+Shift+F</kbd> / "
+      "<kbd>Ctrl+Shift+Return</kbd></td><td>Add Bitfield (fld)</td></tr>"
+      "<tr><td>Structure</td><td><kbd>Ctrl+D</kbd></td><td>Duplicate Selected "
+      "Register &amp; Bitfields</td></tr>"
+      "<tr><td>Structure</td><td><kbd>Ctrl+Shift+M</kbd></td><td>Add Memory "
+      "Region (mem)</td></tr>"
+      "<tr><td>Structure</td><td><kbd>Ctrl+M</kbd></td><td>Add Address Map "
+      "(map)</td></tr>"
+      "<tr><td>Structure</td><td><kbd>Delete</kbd> / <kbd>Del</kbd> / "
+      "<kbd>Backspace</kbd></td><td>Delete Selected Item</td></tr>"
+      "<tr><td colspan='3' style='padding-top:8px;'><b>Validation & Code "
+      "Generation</b></td></tr>"
+      "<tr><td>Tools</td><td><kbd>Ctrl+K</kbd></td><td>Run Architectural "
+      "Linter / Overlap Check</td></tr>"
+      "<tr><td>Tools</td><td><kbd>Ctrl+E</kbd></td><td>Export & Generate "
+      "Hardware/Software Models</td></tr>"
+      "<tr><td>Tools</td><td><kbd>Ctrl+P</kbd></td><td>Open Project "
+      "Configuration</td></tr>"
+      "<tr><td>Tools</td><td><kbd>Ctrl+,</kbd></td><td>Open Application "
+      "Preferences</td></tr>"
+      "<tr><td colspan='3' style='padding-top:8px;'><b>View & "
+      "Accessibility</b></td></tr>"
+      "<tr><td>View</td><td><kbd>Ctrl+F</kbd></td><td>Focus Search "
+      "Bar</td></tr>"
+      "<tr><td>View</td><td><kbd>Ctrl+Alt+C</kbd></td><td>Toggle Color-Blind "
+      "Mode (Barrier-Free CVD Palette)</td></tr>"
+      "<tr><td>Help</td><td><kbd>F1</kbd></td><td>Show Key Bindings & "
+      "Shortcuts</td></tr>"
+      "<tr><td>Help</td><td><kbd>Ctrl+I</kbd></td><td>Show About "
+      "Window</td></tr>"
+      "</table>");
+  layout->addWidget(browser);
+
+  QDialogButtonBox *btnBox =
+      new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+  connect(btnBox, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
+  layout->addWidget(btnBox);
+
+  dialog.exec();
 }
 
-void RegMapWindow::btnAbout(void)
-{
-    if (m_about_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_about_window->show();
-        m_about_window->raise();
-        m_about_window->activateWindow();
+void RegMapWindow::btnQuitButton(void) { this->close(); }
+
+void RegMapWindow::btnFileNew(void) {
+  if (m_is_regmap_modified) {
+    QMessageBox::StandardButton result = QMessageBox::warning(
+        this, tr("New file"),
+        tr("This action will remove all unsaved data, do you wish to "
+           "continue?"),
+        QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
+    if (result == QMessageBox::Cancel) {
+      return;
     }
+    if (result == QMessageBox::Save && !btnFileSave()) {
+      return;
+    }
+  }
+  fileNew();
 }
 
-void RegMapWindow::btnKeyBindings(void)
-{
-    QDialog dialog(this, Qt::Window);
-    dialog.setWindowTitle(tr("Keyboard Shortcuts & Key Bindings"));
-    dialog.resize(580, 480);
-    dialog.setMinimumSize(450, 350);
-
-    QVBoxLayout *layout = new QVBoxLayout(&dialog);
-
-    QTextBrowser *browser = new QTextBrowser(&dialog);
-    browser->setOpenExternalLinks(true);
-    browser->setHtml(
-        "<h3>rmap — Keyboard Shortcuts & Key Bindings</h3>"
-        "<table border='0' cellspacing='4' cellpadding='4' width='100%'>"
-        "<tr style='background-color:#EAECEE;'><th align='left'><b>Category</b></th><th align='left'><b>Shortcut</b></th><th align='left'><b>Description</b></th></tr>"
-        "<tr><td colspan='3' style='padding-top:8px;'><b>File Operations</b></td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+N</kbd></td><td>Create New Register Map</td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+O</kbd></td><td>Open File (SVD, RDL, XML, JSON, CSV, RMT, RMB)</td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+W</kbd></td><td>Close Register Map Model</td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+S</kbd></td><td>Save Register Map</td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+Shift+S</kbd></td><td>Save Register Map As...</td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+R</kbd></td><td>Reload Active File</td></tr>"
-        "<tr><td>File</td><td><kbd>Ctrl+Q</kbd></td><td>Quit Application</td></tr>"
-        "<tr><td colspan='3' style='padding-top:8px;'><b>Edit & History</b></td></tr>"
-        "<tr><td>Edit</td><td><kbd>Ctrl+Z</kbd></td><td>Undo Last Action</td></tr>"
-        "<tr><td>Edit</td><td><kbd>Ctrl+Y</kbd></td><td>Redo Last Action</td></tr>"
-        "<tr><td colspan='3' style='padding-top:8px;'><b>Hardware Structure Elements</b></td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+B</kbd></td><td>Add Register Block (blk)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+R</kbd> / <kbd>Ctrl+Return</kbd></td><td>Add Register (reg)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+F</kbd> / <kbd>Ctrl+Shift+Return</kbd></td><td>Add Bitfield (fld)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+D</kbd></td><td>Duplicate Selected Register &amp; Bitfields</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+Shift+M</kbd></td><td>Add Memory Region (mem)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Ctrl+M</kbd></td><td>Add Address Map (map)</td></tr>"
-        "<tr><td>Structure</td><td><kbd>Delete</kbd></td><td>Delete Selected Item</td></tr>"
-        "<tr><td colspan='3' style='padding-top:8px;'><b>Validation & Code Generation</b></td></tr>"
-        "<tr><td>Tools</td><td><kbd>Ctrl+K</kbd></td><td>Run Architectural Linter / Overlap Check</td></tr>"
-        "<tr><td>Tools</td><td><kbd>Ctrl+E</kbd></td><td>Export & Generate Hardware/Software Models</td></tr>"
-        "<tr><td>Tools</td><td><kbd>Ctrl+P</kbd></td><td>Open Preferences & Configuration Dialog</td></tr>"
-        "<tr><td colspan='3' style='padding-top:8px;'><b>View & Accessibility</b></td></tr>"
-        "<tr><td>View</td><td><kbd>Ctrl+Alt+C</kbd></td><td>Toggle Color-Blind Mode (Barrier-Free CVD Palette)</td></tr>"
-        "<tr><td>Help</td><td><kbd>F1</kbd></td><td>Show Key Bindings & Shortcuts</td></tr>"
-        "</table>"
-    );
-    layout->addWidget(browser);
-
-    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
-    connect(btnBox, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
-    layout->addWidget(btnBox);
-
-    dialog.exec();
+void RegMapWindow::btnFileClose(void) {
+  if (m_is_regmap_modified) {
+    QMessageBox::StandardButton result = QMessageBox::warning(
+        this, tr("Close model"),
+        tr("This action will remove all unsaved data, do you wish to "
+           "continue?"),
+        QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
+    if (result == QMessageBox::Cancel) {
+      return;
+    }
+    if (result == QMessageBox::Save && !btnFileSave()) {
+      return;
+    }
+  }
+  fileNew();
 }
 
-void RegMapWindow::btnQuitButton(void)
-{
-    this->close();
+bool RegMapWindow::btnFileSave(void) {
+  bool save_status = false;
+  if (m_rmap_filename.isEmpty()) {
+    save_status = btnFileSaveAs();
+  } else {
+    save_status = fileSave();
+  }
+  return save_status;
 }
 
-void RegMapWindow::btnFileNew(void)
-{
-    if (m_is_regmap_modified) {
-        QMessageBox::StandardButton result = QMessageBox::warning(this, tr("New file"),
-                tr("This action will remove all unsaved data, do you wish to continue?"),
-                QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
-        if (result == QMessageBox::Cancel) {
-            return;
-        }
-        if (result == QMessageBox::Save && !btnFileSave()) {
-            return;
-        }
-    }
-    fileNew();
+bool RegMapWindow::btnFileSaveAs(void) {
+  QString fname =
+      m_rmap_filename.isEmpty() ? m_default_filename : m_rmap_filename;
+  QString selectedFilter;
+  QString chosen = QFileDialog::getSaveFileName(
+      this, tr("Save Register Map As"), fname,
+      FormatManager::instance().allFilterString(), &selectedFilter);
+
+  if (chosen.isEmpty()) {
+    return false;
+  }
+
+  bool save_status = fileSave(chosen);
+  if (save_status) {
+    m_rmap_filename = chosen;
+    QString filename = m_default_window_title + " - " + chosen;
+    this->setWindowTitle(filename);
+  }
+  return save_status;
 }
 
-void RegMapWindow::btnFileClose(void)
-{
-    if (m_is_regmap_modified) {
-        QMessageBox::StandardButton result = QMessageBox::warning(this, tr("Close model"),
-                tr("This action will remove all unsaved data, do you wish to continue?"),
-                QMessageBox::Ok | QMessageBox::Save | QMessageBox::Cancel);
-        if (result == QMessageBox::Cancel) {
-            return;
-        }
-        if (result == QMessageBox::Save && !btnFileSave()) {
-            return;
-        }
+void RegMapWindow::btnFileOpen(void) {
+  QMessageBox::StandardButton result;
+  if (m_is_regmap_modified) {
+    result = QMessageBox::warning(this, tr("Open file"),
+                                  tr("This action will remove all unsaved "
+                                     "data, do you wish to continue?"),
+                                  QMessageBox::Ok | QMessageBox::Cancel);
+  }
+  if (!m_is_regmap_modified || result == QMessageBox::Ok) {
+    QString fname = QFileDialog::getOpenFileName(
+        this, tr("Open Register Map File"), m_active_folder,
+        FormatManager::instance().allFilterString());
+    if (!fname.isEmpty()) {
+      fileOpen(fname);
+      QString filename = m_default_window_title + " - " + fname;
+      this->setWindowTitle(filename);
     }
-    fileNew();
+  }
 }
 
-bool RegMapWindow::btnFileSave(void)
-{
-    bool save_status = false;
-    if (m_rmap_filename.isEmpty()) {
-        save_status = btnFileSaveAs();
-    } else {
-        save_status = fileSave();
-    }
-    return save_status;
+void RegMapWindow::btnFileReload(void) {
+  QMessageBox::StandardButton result;
+  if (m_is_regmap_modified) {
+    result = QMessageBox::warning(this, tr("Reload file"),
+                                  tr("This action will remove all unsaved "
+                                     "data, do you wish to continue?"),
+                                  QMessageBox::Ok | QMessageBox::Cancel);
+  }
+  if (!m_is_regmap_modified || result == QMessageBox::Ok) {
+    QString fname = m_rmap_filename;
+    fileOpen(fname);
+    QString filename = m_default_window_title + " - " + fname;
+    this->setWindowTitle(filename);
+  }
 }
 
-bool RegMapWindow::btnFileSaveAs(void)
-{
-    QString fname = m_rmap_filename.isEmpty() ? m_default_filename : m_rmap_filename;
-    QString selectedFilter;
-    QString chosen = QFileDialog::getSaveFileName(
-        this,
-        tr("Save Register Map As"),
-        fname,
-        FormatManager::instance().allFilterString(),
-        &selectedFilter
-    );
+void RegMapWindow::btnCheck(void) {
+  protormap::Config *cfg = m_config_window->serialize();
+  uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
+  delete cfg;
 
-    if (chosen.isEmpty()) {
-        return false;
-    }
+  QStringList errors = m_model->checkData(regWidth);
+  this->treeView->viewport()->update();
+  if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldsTableView->viewport()->update();
+  }
+  if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_bitfieldBar->update();
+  }
 
-    bool save_status = fileSave(chosen);
-    if (save_status) {
-        m_rmap_filename = chosen;
-        QString filename = m_default_window_title + " - " + chosen;
-        this->setWindowTitle(filename);
+  if (errors.isEmpty()) {
+    QMessageBox::information(
+        this, tr("Check Successful"),
+        tr("✓ Register Map validation successful!\n\nNo overlapping addresses, "
+           "bitfield collisions, or register width violations were found."),
+        QMessageBox::Ok);
+  } else {
+    QString errorSummary =
+        tr("⚠ Validation found %1 issue(s):\n\n").arg(errors.size());
+    for (const QString &err : errors) {
+      errorSummary += QString("• %1\n").arg(err);
     }
-    return save_status;
+    errorSummary += tr("\nProblematic cells have been highlighted in red.");
+
+    QMessageBox::warning(this, tr("Check Issues Found"), errorSummary,
+                         QMessageBox::Ok);
+  }
 }
 
-void RegMapWindow::btnFileOpen(void)
-{
-    QMessageBox::StandardButton result;
-    if (m_is_regmap_modified) {
-        result = QMessageBox::warning(this, tr("Open file"),
-                tr("This action will remove all unsaved data, do you wish to continue?"),
-                QMessageBox::Ok | QMessageBox::Cancel);
+void RegMapWindow::btnExport(void) {
+  QString baseDir = m_config_window->baseDir();
+
+  protormap::Config *cfg = m_config_window->serialize();
+  uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
+
+  QStringList validationErrors = m_model->checkData(regWidth);
+  this->treeView->viewport()->update();
+  if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldsTableView->viewport()->update();
+  }
+
+  if (!validationErrors.isEmpty()) {
+    QString msg =
+        tr("Validation found %1 issue(s):\n\n").arg(validationErrors.size());
+    for (const QString &err : validationErrors) {
+      msg += QString("• %1\n").arg(err);
     }
-    if (!m_is_regmap_modified || result == QMessageBox::Ok) {
-        QString fname = QFileDialog::getOpenFileName(
-                this,
-                tr("Open Register Map File"),
-                m_active_folder,
-                FormatManager::instance().allFilterString());
-        if (!fname.isEmpty()) {
-            fileOpen(fname);
-            QString filename = m_default_window_title + " - " + fname;
-            this->setWindowTitle(filename);
-        }
+    msg += tr("\nDo you want to proceed with export anyway?");
+
+    auto reply = QMessageBox::question(this, tr("Validation Warnings"), msg,
+                                       QMessageBox::Yes | QMessageBox::No);
+    if (reply != QMessageBox::Yes) {
+      delete cfg;
+      return;
     }
+  }
+
+  CodeGenerator cg;
+  std::string template_folder = cfg->templatefolder();
+  std::string default_output = resolveExportOutputFolder(QString(), cfg);
+
+  bool hwPrec =
+      cfg->has_hw_precedence()
+          ? cfg->hw_precedence()
+          : (m_config_window ? m_config_window->hwPrecedence() : true);
+  json jsonData = m_model->extractJsonData(regWidth, hwPrec);
+  resolveExportProjectName(cfg, m_rmap_filename, jsonData);
+  jsonData["project_name"] = cfg->project_name();
+  jsonData["project_version"] = cfg->project_version();
+  for (const auto &[key, value] : cfg->custom_parameters()) {
+    jsonData[key] = value;
+  }
+
+  std::vector<TemplateMapping> mappings;
+  for (const auto &entry : cfg->template_outputs()) {
+    if (!entry.template_filename().empty() &&
+        (!entry.has_enabled() || entry.enabled())) {
+      mappings.push_back({entry.template_filename(), entry.output_filepath()});
+    }
+  }
+
+  std::string pythonScript = "";
+  bool pyEnabled = isExportPythonEnabled(cfg);
+  if (pyEnabled && !cfg->pythonscript().empty()) {
+    pythonScript = cfg->pythonscript();
+  }
+
+  GenerationReport report =
+      cg.generate(jsonData, template_folder, default_output, mappings,
+                  baseDir.toStdString(), pythonScript);
+
+  if (!report.errors.empty()) {
+    QString errorMsg = tr("Code generation completed with errors:\n\n");
+    for (const auto &err : report.errors) {
+      errorMsg += QString("• %1: %2\n")
+                      .arg(QString::fromStdString(err.first),
+                           QString::fromStdString(err.second));
+    }
+    if (!report.success_files.empty()) {
+      errorMsg += tr("\nSuccessfully generated files:\n");
+      for (const auto &f : report.success_files) {
+        errorMsg += QString("• %1\n").arg(QString::fromStdString(f));
+      }
+    }
+    QMessageBox::warning(this, tr("Export Issues Detected"), errorMsg,
+                         QMessageBox::Ok);
+  } else if (report.success_files.empty()) {
+    QMessageBox::information(
+        this, tr("Export Notice"),
+        tr("No template files were found or specified for generation.\n"
+           "Please check template paths in the Configuration dialog."),
+        QMessageBox::Ok);
+  } else {
+    QString successMsg =
+        tr("Code generation completed successfully!\n\nGenerated files:\n");
+    for (const auto &f : report.success_files) {
+      successMsg += QString("• %1\n").arg(QString::fromStdString(f));
+    }
+    QMessageBox::information(this, tr("Export Successful"), successMsg,
+                             QMessageBox::Ok);
+  }
+
+  delete cfg;
 }
 
-void RegMapWindow::btnFileReload(void)
-{
-    QMessageBox::StandardButton result;
-    if (m_is_regmap_modified) {
-        result = QMessageBox::warning(this, tr("Reload file"),
-                tr("This action will remove all unsaved data, do you wish to continue?"),
-                QMessageBox::Ok | QMessageBox::Cancel);
-    }
-    if (!m_is_regmap_modified || result == QMessageBox::Ok) {
-        QString fname = m_rmap_filename;
-        fileOpen(fname);
-        QString filename = m_default_window_title + " - " + fname;
-        this->setWindowTitle(filename);
-    }
+void RegMapWindow::btnDeleteItem(void) {
+  QModelIndex index = this->treeView->currentIndex();
+  if (index.isValid() && index.row() >= 0) {
+    QModelIndex source_index = m_treeProxy->mapToSource(index);
+    m_undoStack->push(new DeleteItemCommand(m_model, source_index.row(),
+                                            source_index.parent()));
+  }
 }
 
-void RegMapWindow::btnCheck(void)
-{
-    protormap::Config* cfg = m_config_window->serialize();
-    uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
-    delete cfg;
-
-    QStringList errors = m_model->checkData(regWidth);
-    this->treeView->viewport()->update();
-    if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldsTableView->viewport()->update();
-    }
-    if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_bitfieldBar->update();
-    }
-
-    if (errors.isEmpty()) {
-        QMessageBox::information(
-            this,
-            tr("Check Successful"),
-            tr("✓ Register Map validation successful!\n\nNo overlapping addresses, bitfield collisions, or register width violations were found."),
-            QMessageBox::Ok
-        );
-    } else {
-        QString errorSummary = tr("⚠ Validation found %1 issue(s):\n\n").arg(errors.size());
-        for (const QString &err : errors) {
-            errorSummary += QString("• %1\n").arg(err);
-        }
-        errorSummary += tr("\nProblematic cells have been highlighted in red.");
-
-        QMessageBox::warning(
-            this,
-            tr("Check Issues Found"),
-            errorSummary,
-            QMessageBox::Ok
-        );
-    }
+bool RegMapWindow::isModelLoaded() const {
+  return (m_model != nullptr &&
+          m_model->rowCount() >
+              0); // GCOV_EXCL_BR_LINE - m_model guaranteed non-null
 }
 
-void RegMapWindow::btnExport(void)
-{
-    QString baseDir = m_config_window->baseDir();
-
-    protormap::Config* cfg = m_config_window->serialize();
-    uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
-
-    QStringList validationErrors = m_model->checkData(regWidth);
-    this->treeView->viewport()->update();
-    if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldsTableView->viewport()->update();
-    }
-
-    if (!validationErrors.isEmpty()) {
-        QString msg = tr("Validation found %1 issue(s):\n\n").arg(validationErrors.size());
-        for (const QString &err : validationErrors) {
-            msg += QString("• %1\n").arg(err);
-        }
-        msg += tr("\nDo you want to proceed with export anyway?");
-
-        auto reply = QMessageBox::question(
-            this,
-            tr("Validation Warnings"),
-            msg,
-            QMessageBox::Yes | QMessageBox::No
-        );
-        if (reply != QMessageBox::Yes) {
-            delete cfg;
-            return;
-        }
-    }
-
-    CodeGenerator cg;
-    std::string template_folder = cfg->templatefolder();
-    std::string default_output  = resolveExportOutputFolder(QString(), cfg);
-
-    json jsonData = m_model->extractJsonData(regWidth);
-    resolveExportProjectName(cfg, m_rmap_filename, jsonData);
-    jsonData["project_name"] = cfg->project_name();
-    jsonData["project_version"] = cfg->project_version();
-    for (const auto& [key, value] : cfg->custom_parameters()) {
-        jsonData[key] = value;
-    }
-
-    std::vector<TemplateMapping> mappings;
-    for (const auto& entry : cfg->template_outputs()) {
-        if (!entry.template_filename().empty() && (!entry.has_enabled() || entry.enabled())) {
-            mappings.push_back({entry.template_filename(), entry.output_filepath()});
-        }
-    }
-
-    std::string pythonScript = "";
-    bool pyEnabled = isExportPythonEnabled(cfg);
-    if (pyEnabled && !cfg->pythonscript().empty()) {
-        pythonScript = cfg->pythonscript();
-    }
-
-    GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
-
-    if (!report.errors.empty()) {
-        QString errorMsg = tr("Code generation completed with errors:\n\n");
-        for (const auto& err : report.errors) {
-            errorMsg += QString("• %1: %2\n").arg(QString::fromStdString(err.first), QString::fromStdString(err.second));
-        }
-        if (!report.success_files.empty()) {
-            errorMsg += tr("\nSuccessfully generated files:\n");
-            for (const auto& f : report.success_files) {
-                errorMsg += QString("• %1\n").arg(QString::fromStdString(f));
-            }
-        }
-        QMessageBox::warning(this, tr("Export Issues Detected"), errorMsg, QMessageBox::Ok);
-    } else if (report.success_files.empty()) {
-        QMessageBox::information(this, tr("Export Notice"),
-            tr("No template files were found or specified for generation.\n"
-               "Please check template paths in the Configuration dialog."), QMessageBox::Ok);
-    } else {
-        QString successMsg = tr("Code generation completed successfully!\n\nGenerated files:\n");
-        for (const auto& f : report.success_files) {
-            successMsg += QString("• %1\n").arg(QString::fromStdString(f));
-        }
-        QMessageBox::information(this, tr("Export Successful"), successMsg, QMessageBox::Ok);
-    }
-
-    delete cfg;
+void RegMapWindow::updatePaneVisibility(void) {
+  const bool modelLoaded = isModelLoaded();
+  if (m_leftStackedWidget && m_leftViewWidget &&
+      m_leftEmptyWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_leftStackedWidget->setCurrentWidget(modelLoaded ? m_leftViewWidget
+                                                      : m_leftEmptyWidget);
+  }
+  if (!modelLoaded && m_rightStackedWidget &&
+      m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+  }
 }
 
-void RegMapWindow::btnDeleteItem(void)
-{
-    QModelIndex index = this->treeView->currentIndex();
-    if (index.isValid() && index.row() >= 0) {
-        QModelIndex source_index = m_treeProxy->mapToSource(index);
-        m_undoStack->push(new DeleteItemCommand(m_model, source_index.row(), source_index.parent()));
-    }
-}
-
-bool RegMapWindow::isModelLoaded() const
-{
-    return (m_model != nullptr && m_model->rowCount() > 0); // GCOV_EXCL_BR_LINE - m_model guaranteed non-null
-}
-
-void RegMapWindow::updatePaneVisibility(void)
-{
-    const bool modelLoaded = isModelLoaded();
-    if (m_leftStackedWidget && m_leftViewWidget && m_leftEmptyWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_leftStackedWidget->setCurrentWidget(modelLoaded ? m_leftViewWidget : m_leftEmptyWidget);
-    }
-    if (!modelLoaded && m_rightStackedWidget && m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
-    }
-}
-
-void RegMapWindow::connectModelSignals(void)
-{
-    if (!m_model) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-    connect(m_model, &RegMapTreeModel::dataChanged, this, [this](const QModelIndex &topLeft, const QModelIndex &bottomRight) {
-        Q_UNUSED(topLeft); Q_UNUSED(bottomRight);
+void RegMapWindow::connectModelSignals(void) {
+  if (!m_model)
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
+  connect(
+      m_model, &RegMapTreeModel::dataChanged, this,
+      [this](const QModelIndex &topLeft, const QModelIndex &bottomRight) {
+        Q_UNUSED(topLeft);
+        Q_UNUSED(bottomRight);
         regmap_modified();
         if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_bitfieldBar->refresh();
+          m_bitfieldBar->refresh();
         }
         if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_blockMemoryMapWidget->refresh();
+          m_blockMemoryMapWidget->refresh();
         }
         if (m_currentRegItem) {
-            if (m_regNameEdit && !m_regNameEdit->hasFocus()) m_regNameEdit->setText(m_currentRegItem->data("Name").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_regOffsetEdit && !m_regOffsetEdit->hasFocus()) m_regOffsetEdit->setText(padHexOffsetString(m_currentRegItem->data("Offset/LSB").toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_regDescEdit && !m_regDescEdit->hasFocus()) m_regDescEdit->setText(m_currentRegItem->data("Description").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+          if (m_regNameEdit && !m_regNameEdit->hasFocus())
+            m_regNameEdit->setText(
+                m_currentRegItem->data("Name")
+                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+          if (m_regOffsetEdit && !m_regOffsetEdit->hasFocus())
+            m_regOffsetEdit->setText(padHexOffsetString(
+                m_currentRegItem->data("Offset/LSB")
+                    .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+          if (m_regDescEdit && !m_regDescEdit->hasFocus())
+            m_regDescEdit->setText(
+                m_currentRegItem->data("Description")
+                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
         }
         if (m_currentBlkItem) {
-            if (m_blkNameEdit && !m_blkNameEdit->hasFocus()) m_blkNameEdit->setText(m_currentBlkItem->data("Name").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_blkOffsetEdit && !m_blkOffsetEdit->hasFocus()) m_blkOffsetEdit->setText(padHexOffsetString(m_currentBlkItem->data("Offset/LSB").toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_blkDescEdit && !m_blkDescEdit->hasFocus()) m_blkDescEdit->setText(m_currentBlkItem->data("Description").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+          if (m_blkNameEdit && !m_blkNameEdit->hasFocus())
+            m_blkNameEdit->setText(
+                m_currentBlkItem->data("Name")
+                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+          if (m_blkOffsetEdit && !m_blkOffsetEdit->hasFocus())
+            m_blkOffsetEdit->setText(padHexOffsetString(
+                m_currentBlkItem->data("Offset/LSB")
+                    .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+          if (m_blkDescEdit && !m_blkDescEdit->hasFocus())
+            m_blkDescEdit->setText(
+                m_currentBlkItem->data("Description")
+                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
         }
-    });
-    connect(m_model, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex &parent, int first, int last) {
-        Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+      });
+  connect(
+      m_model, &QAbstractItemModel::rowsInserted, this,
+      [this](const QModelIndex &parent, int first, int last) {
+        Q_UNUSED(parent);
+        Q_UNUSED(first);
+        Q_UNUSED(last);
         regmap_modified();
         updatePaneVisibility();
         if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_bitfieldBar->refresh();
+          m_bitfieldBar->refresh();
         }
         if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_blockMemoryMapWidget->refresh();
+          m_blockMemoryMapWidget->refresh();
         }
-    });
-    connect(m_model, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex &parent, int first, int last) {
-        Q_UNUSED(parent); Q_UNUSED(first); Q_UNUSED(last);
+      });
+  connect(
+      m_model, &QAbstractItemModel::rowsRemoved, this,
+      [this](const QModelIndex &parent, int first, int last) {
+        Q_UNUSED(parent);
+        Q_UNUSED(first);
+        Q_UNUSED(last);
         regmap_modified();
         updatePaneVisibility();
         if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_bitfieldBar->refresh();
+          m_bitfieldBar->refresh();
         }
         if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_blockMemoryMapWidget->refresh();
+          m_blockMemoryMapWidget->refresh();
         }
-    });
-    connect(m_model, &QAbstractItemModel::modelReset, this, [this]() {
-        updatePaneVisibility();
-        if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_bitfieldBar->refresh();
-        }
-        if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_blockMemoryMapWidget->refresh();
-        }
-    });
-}
-
-void RegMapWindow::connectFieldsTableSignals(void)
-{
-    if (!m_fieldsTableView || !m_fieldsTableView->selectionModel()) return; // GCOV_EXCL_BR_LINE - Defensive invariant
-
-    disconnect(m_fieldsTableView->selectionModel(), nullptr, this, nullptr);
-
-    connect(m_fieldsTableView->selectionModel(), &QItemSelectionModel::currentRowChanged, this, [this](const QModelIndex &curr, const QModelIndex &prev) {
-        Q_UNUSED(prev);
-        if (curr.isValid()) {
-            QModelIndex sourceIdx = m_fieldProxy->mapToSource(curr);
-            m_bitfieldBar->setSelectedField(sourceIdx.row());
-        } else {
-            m_bitfieldBar->setSelectedField(-1);
-        }
-    });
-
-    connect(m_fieldsTableView->selectionModel(), &QItemSelectionModel::selectionChanged, this, [this](const QItemSelection &selected, const QItemSelection &deselected) {
-        Q_UNUSED(deselected);
-        if (selected.isEmpty()) {
-            if (m_bitfieldBar) m_bitfieldBar->setSelectedField(-1); // GCOV_EXCL_BR_LINE - Defensive invariant
-            return;
-        }
-        QModelIndex firstIdx = selected.indexes().value(0);
-        if (firstIdx.isValid()) { // GCOV_EXCL_BR_LINE - Non-empty selection index is guaranteed valid
-            QModelIndex sourceIdx = m_fieldProxy->mapToSource(firstIdx);
-            m_bitfieldBar->setSelectedField(sourceIdx.row());
-        }
-    });
-}
-
-void RegMapWindow::fileNew(void)
-{
-    m_model->clear();
-    delete m_model;
-    m_model = new RegMapTreeModel(this);
-    connectModelSignals();
-
-    m_treeProxy->setSourceModel(m_model);
-    m_treeProxy->setSearchFilter(QString());
-    m_fieldProxy->setSourceModel(m_model);
-    this->treeView->setModel(m_treeProxy);
-    this->treeView->setSortingEnabled(true);
-    this->treeView->sortByColumn(1, Qt::AscendingOrder);
-    this->treeView->clearSelection();
-    this->treeView->setCurrentIndex(QModelIndex());
-    this->treeView->reset();
-
-    connect(this->treeView->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, &RegMapWindow::updateFieldsTable);
-
-    if (m_searchEdit) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_searchEdit->clear();
-    }
-
-    if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_fieldsTableView->setModel(m_fieldProxy);
-        m_fieldsTableView->setRootIndex(QModelIndex());
-        connectFieldsTableSignals();
-    }
+      });
+  connect(m_model, &QAbstractItemModel::modelReset, this, [this]() {
+    updatePaneVisibility();
     if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_bitfieldBar->clear();
+      m_bitfieldBar->refresh();
     }
     if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_blockMemoryMapWidget->clear();
+      m_blockMemoryMapWidget->refresh();
     }
-    if (m_regNameEdit) m_regNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_regOffsetEdit) m_regOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_regDescEdit) m_regDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_blkNameEdit) m_blkNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_blkOffsetEdit) m_blkOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_blkDescEdit) m_blkDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-    m_currentRegItem = nullptr;
-    m_currentBlkItem = nullptr;
+  });
+}
 
-    updatePaneVisibility();
+void RegMapWindow::connectFieldsTableSignals(void) {
+  if (!m_fieldsTableView || !m_fieldsTableView->selectionModel())
+    return; // GCOV_EXCL_BR_LINE - Defensive invariant
 
-    if (m_undoStack) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_undoStack->clear();
+  disconnect(m_fieldsTableView->selectionModel(), nullptr, this, nullptr);
+
+  connect(m_fieldsTableView->selectionModel(),
+          &QItemSelectionModel::currentRowChanged, this,
+          [this](const QModelIndex &curr, const QModelIndex &prev) {
+            Q_UNUSED(prev);
+            if (curr.isValid()) {
+              QModelIndex sourceIdx = m_fieldProxy->mapToSource(curr);
+              m_bitfieldBar->setSelectedField(sourceIdx.row());
+            } else {
+              m_bitfieldBar->setSelectedField(-1);
+            }
+          });
+
+  connect(
+      m_fieldsTableView->selectionModel(),
+      &QItemSelectionModel::selectionChanged, this,
+      [this](const QItemSelection &selected, const QItemSelection &deselected) {
+        Q_UNUSED(deselected);
+        if (selected.isEmpty()) {
+          if (m_bitfieldBar)
+            m_bitfieldBar->setSelectedField(
+                -1); // GCOV_EXCL_BR_LINE - Defensive invariant
+          return;
+        }
+        QModelIndex firstIdx = selected.indexes().value(0);
+        if (firstIdx.isValid()) { // GCOV_EXCL_BR_LINE - Non-empty selection
+                                  // index is guaranteed valid
+          QModelIndex sourceIdx = m_fieldProxy->mapToSource(firstIdx);
+          m_bitfieldBar->setSelectedField(sourceIdx.row());
+        }
+      });
+}
+
+void RegMapWindow::fileNew(void) {
+  m_model->clear();
+  delete m_model;
+  m_model = new RegMapTreeModel(this);
+  connectModelSignals();
+
+  m_treeProxy->setSourceModel(m_model);
+  m_treeProxy->setSearchFilter(QString());
+  m_fieldProxy->setSourceModel(m_model);
+  this->treeView->setModel(m_treeProxy);
+  this->treeView->setSortingEnabled(true);
+  this->treeView->sortByColumn(1, Qt::AscendingOrder);
+  this->treeView->clearSelection();
+  this->treeView->setCurrentIndex(QModelIndex());
+  this->treeView->reset();
+
+  connect(this->treeView->selectionModel(),
+          &QItemSelectionModel::currentChanged, this,
+          &RegMapWindow::updateFieldsTable);
+
+  if (m_searchEdit) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_searchEdit->clear();
+  }
+
+  if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_fieldsTableView->setModel(m_fieldProxy);
+    m_fieldsTableView->setRootIndex(QModelIndex());
+    connectFieldsTableSignals();
+  }
+  if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_bitfieldBar->clear();
+  }
+  if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_blockMemoryMapWidget->clear();
+  }
+  if (m_regNameEdit)
+    m_regNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regOffsetEdit)
+    m_regOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regDescEdit)
+    m_regDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkNameEdit)
+    m_blkNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkOffsetEdit)
+    m_blkOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkDescEdit)
+    m_blkDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  m_currentRegItem = nullptr;
+  m_currentBlkItem = nullptr;
+
+  updatePaneVisibility();
+
+  if (m_undoStack) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_undoStack->clear();
+  }
+
+  this->regmap_notModified();
+  this->m_rmap_filename = QString();
+  this->setWindowTitle(this->m_default_window_title);
+
+  if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_config_window->deserialize(protormap::Config());
+  }
+}
+
+void RegMapWindow::fileOpen(QString fname) {
+  QString expanded = PathUtils::expandEnvVars(fname);
+  QFileInfo check_file(expanded);
+  if (check_file.exists() && check_file.isFile()) {
+    fileNew();
+    this->m_rmap_filename =
+        PathUtils::normalizeSeparators(check_file.filePath());
+    m_config_window->setBaseDir(check_file.absolutePath());
+
+    FormatResult res =
+        FormatManager::instance().loadFile(expanded, m_model, m_config_window);
+    if (!res.success) {
+      fileNew();
+      QMessageBox::warning(
+          this, tr("Open Error"),
+          tr("Failed to open %1:\n%2").arg(fname, res.errorMessage));
+      return;
     }
 
     this->regmap_notModified();
-    this->m_rmap_filename = QString();
-    this->setWindowTitle(this->m_default_window_title);
+    this->setWindowTitle(this->m_default_window_title + " (" +
+                         this->m_rmap_filename + ")");
 
-    if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_config_window->deserialize(protormap::Config());
+    updatePaneVisibility();
+
+    if (this->treeView->model() && this->treeView->model()->rowCount() > 0) {
+      this->treeView->expandAll();
+      QModelIndex firstIdx = this->treeView->model()->index(0, 0);
+      this->treeView->setCurrentIndex(firstIdx);
     }
+  } else {
+    QMessageBox::critical(this, tr("Error file not found"),
+                          tr("Filename: %1 not found").arg(fname),
+                          QMessageBox::Ok);
+  }
 }
 
-void RegMapWindow::fileOpen(QString fname)
-{
-    QString expanded = PathUtils::expandEnvVars(fname);
-    QFileInfo check_file(expanded);
-    if (check_file.exists() && check_file.isFile()) {
-        fileNew();
-        this->m_rmap_filename = PathUtils::normalizeSeparators(check_file.filePath());
-        m_config_window->setBaseDir(check_file.absolutePath());
+protormap::RegModel &operator<<(protormap::RegModel &reg_model,
+                                const SerializationContext &context) {
+  for (SerializationContext::Record rec : context.m_records) {
+    protormap::RegItem *item = reg_model.add_item();
+    switch (rec.m_data["kind"].value<RegMapTreeItem::e_rmmKind>()) {
+    case RegMapTreeItem::e_rmmKind::root:
+      item->set_kind(protormap::RegItem_Kind_ROOT);
+      break;
+    case RegMapTreeItem::e_rmmKind::mem:
+      item->set_kind(protormap::RegItem_Kind_MEM);
+      break;
+    case RegMapTreeItem::e_rmmKind::map:
+      item->set_kind(protormap::RegItem_Kind_MAP);
+      break;
+    case RegMapTreeItem::e_rmmKind::blk:
+      item->set_kind(protormap::RegItem_Kind_BLK);
+      break;
+    case RegMapTreeItem::e_rmmKind::reg:
+      item->set_kind(protormap::RegItem_Kind_REG);
+      break;
+    case RegMapTreeItem::e_rmmKind::fld:
+      item->set_kind(protormap::RegItem_Kind_FLD);
+      break;
+    }
+    item->set_id(rec.m_data["id"].toUInt());
+    item->set_parent_id(rec.m_data["parent"].toUInt());
+    QList<QVariant> childItems = rec.m_data["childItems"].toList();
+    for (int i = 0; i < childItems.size(); i++) {
+      item->add_child_id(childItems.at(i).toUInt());
+    }
+    QVariantMap itemData = rec.m_data["itemData"].toMap();
+    auto &itd = *item->mutable_itemdata();
+    for (auto key : itemData.keys()) {
+      itd[key.toStdString()] = itemData.value(key).toString().toStdString();
+    }
+  }
+  return (reg_model);
+}
 
-        FormatResult res = FormatManager::instance().loadFile(expanded, m_model, m_config_window);
-        if (!res.success) {
-            fileNew();
-            QMessageBox::warning(this, tr("Open Error"),
-                                tr("Failed to open %1:\n%2").arg(fname, res.errorMessage));
-            return;
-        }
+protormap::RegModel &operator>>(protormap::RegModel &reg_model,
+                                SerializationContext &context) {
+  for (int j = 0; j < reg_model.item_size(); j++) {
+    QVariantMap m_data;
+    QVariantMap itemData;
+    QList<QVariant> childItemsList;
+    QObject *object = NULL;
 
-        this->regmap_notModified();
-        this->setWindowTitle(this->m_default_window_title + " (" + this->m_rmap_filename + ")");
-
-        updatePaneVisibility();
-
-        if (this->treeView->model() && this->treeView->model()->rowCount() > 0) {
-            this->treeView->expandAll();
-            QModelIndex firstIdx = this->treeView->model()->index(0, 0);
-            this->treeView->setCurrentIndex(firstIdx);
-        }
+    const protormap::RegItem &item = reg_model.item(j);
+    switch (item.kind()) {
+    case protormap::RegItem_Kind_ROOT:
+      m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::root);
+      break;
+    case protormap::RegItem_Kind_MEM:
+      m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::mem);
+      break;
+    case protormap::RegItem_Kind_MAP:
+      m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::map);
+      break;
+    case protormap::RegItem_Kind_BLK:
+      m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::blk);
+      break;
+    case protormap::RegItem_Kind_REG:
+      m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+      break;
+    case protormap::RegItem_Kind_FLD:
+      m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::fld);
+      break;
+    default:;
+    }
+    m_data["id"] = item.id();
+    if (item.kind() == protormap::RegItem_Kind_ROOT ||
+        (item.parent_id() == item.id() && item.id() == 0)) {
+      m_data["parent"] = QVariant();
     } else {
-        QMessageBox::critical(this,
-                tr("Error file not found"),
-                tr("Filename: %1 not found").arg(fname),
-                QMessageBox::Ok);
+      m_data["parent"] = item.parent_id();
     }
+    for (const auto &child : item.child_id()) {
+      childItemsList.append(child);
+    }
+    m_data["childItems"] = childItemsList;
+
+    for (const auto &[key, value] : item.itemdata()) {
+      itemData[QString(key.c_str())] = QVariant(value.c_str());
+    }
+    if (itemData.contains("Access Policy") && !itemData.contains("SW Access")) {
+      itemData["SW Access"] = itemData["Access Policy"];
+    } else if (itemData.contains("SW Access") &&
+               !itemData.contains("Access Policy")) {
+      itemData["Access Policy"] = itemData["SW Access"];
+    }
+    m_data["itemData"] = QVariant(itemData);
+
+    context.append_record(object, m_data);
+  }
+  return (reg_model);
 }
 
-protormap::RegModel& operator <<( protormap::RegModel& reg_model, const SerializationContext& context )
-{
-    for(SerializationContext::Record rec : context.m_records) {
-        protormap::RegItem* item = reg_model.add_item();
-        switch (rec.m_data["kind"].value<RegMapTreeItem::e_rmmKind>()){
-            case RegMapTreeItem::e_rmmKind::root: item->set_kind(protormap::RegItem_Kind_ROOT); break;
-            case RegMapTreeItem::e_rmmKind::mem:  item->set_kind(protormap::RegItem_Kind_MEM);  break;
-            case RegMapTreeItem::e_rmmKind::map:  item->set_kind(protormap::RegItem_Kind_MAP);  break;
-            case RegMapTreeItem::e_rmmKind::blk:  item->set_kind(protormap::RegItem_Kind_BLK);  break;
-            case RegMapTreeItem::e_rmmKind::reg:  item->set_kind(protormap::RegItem_Kind_REG);  break;
-            case RegMapTreeItem::e_rmmKind::fld:  item->set_kind(protormap::RegItem_Kind_FLD);  break;
-        }
-        item->set_id(rec.m_data["id"].toUInt());
-        item->set_parent_id(rec.m_data["parent"].toUInt());
-        QList<QVariant> childItems = rec.m_data["childItems"].toList();
-        for(int i=0; i<childItems.size(); i++) {
-            item->add_child_id(childItems.at(i).toUInt());
-        }
-        QVariantMap itemData = rec.m_data["itemData"].toMap();
-        auto & itd = *item->mutable_itemdata();
-        for(auto key : itemData.keys()) {
-            itd[key.toStdString()] = itemData.value(key).toString().toStdString();
-        }
-    }
-    return(reg_model);
-}
+bool RegMapWindow::fileSave(QString fname) {
+  if (fname.isEmpty()) {
+    fname = m_rmap_filename;
+  }
+  if (fname.isEmpty()) {
+    return btnFileSaveAs();
+  }
 
-protormap::RegModel& operator >>( protormap::RegModel& reg_model, SerializationContext& context )
-{
-    for (int j = 0; j < reg_model.item_size(); j++) {
-        QVariantMap m_data;
-        QVariantMap itemData;
-        QList<QVariant> childItemsList;
-        QObject* object = NULL;
+  QString expanded = PathUtils::expandEnvVars(fname);
+  QFileInfo saveFi(expanded);
+  m_config_window->setBaseDir(saveFi.absolutePath());
 
-        const protormap::RegItem& item = reg_model.item(j);
-        switch (item.kind()){
-            case protormap::RegItem_Kind_ROOT: m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::root); break;
-            case protormap::RegItem_Kind_MEM:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::mem);  break;
-            case protormap::RegItem_Kind_MAP:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::map);  break;
-            case protormap::RegItem_Kind_BLK:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::blk);  break;
-            case protormap::RegItem_Kind_REG:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);  break;
-            case protormap::RegItem_Kind_FLD:  m_data["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::fld);  break;
-            default: ;
-        }
-        m_data["id"]   = item.id();
-        if (item.kind() == protormap::RegItem_Kind_ROOT || (item.parent_id() == item.id() && item.id() == 0)) {
-            m_data["parent"] = QVariant();
-        } else {
-            m_data["parent"] = item.parent_id();
-        }
-        for (const auto &child : item.child_id()) {
-            childItemsList.append(child);
-        }
-        m_data["childItems"] = childItemsList;
-
-        for (const auto & [key, value] : item.itemdata()) {
-            itemData[QString(key.c_str())] = QVariant(value.c_str());
-        }
-        if (itemData.contains("Access Policy") && !itemData.contains("SW Access")) {
-            itemData["SW Access"] = itemData["Access Policy"];
-        } else if (itemData.contains("SW Access") && !itemData.contains("Access Policy")) {
-            itemData["Access Policy"] = itemData["SW Access"];
-        }
-        m_data["itemData"] = QVariant(itemData);
-
-        context.append_record(object, m_data );
-    }
-    return(reg_model);
-}
-
-bool RegMapWindow::fileSave(QString fname)
-{
-    if (fname.isEmpty()) {
-        fname = m_rmap_filename;
-    }
-    if (fname.isEmpty()) {
-        return btnFileSaveAs();
-    }
-
-    QString expanded = PathUtils::expandEnvVars(fname);
-    QFileInfo saveFi(expanded);
-    m_config_window->setBaseDir(saveFi.absolutePath());
-
-    FormatResult res = FormatManager::instance().saveFile(expanded, m_model, m_config_window);
-    if (!res.success) {
-        if (this->isVisible()) {
-            QMessageBox::critical(this,
-                    tr("Failed to write output file"),
-                    tr("Error writing to file: %1\n%2").arg(fname, res.errorMessage),
-                    QMessageBox::Ok);
-        } else {
-            std::cerr << "Error writing to file: " << fname.toStdString() << " - " << res.errorMessage.toStdString() << std::endl;
-        }
-        return false;
-    }
-
-    this->m_rmap_filename = PathUtils::normalizeSeparators(saveFi.filePath());
-    regmap_notModified();
-    return true;
-}
-
-void RegMapWindow::regmap_modified(void)
-{
-    if(!m_is_regmap_modified) {
-        m_is_regmap_modified = true;
-        QString win_title = this->windowTitle();
-        if (!win_title.endsWith('*')) {
-            win_title.append('*');
-        }
-        this->setWindowTitle(win_title);
-    }
-}
-
-void RegMapWindow::regmap_notModified(void)
-{
-    if(m_is_regmap_modified) {
-        m_is_regmap_modified = false;
-        QString win_title = this->windowTitle();
-        if (win_title.endsWith('*')) {
-            win_title.remove(win_title.size()-1,1);
-        }
-        this->setWindowTitle(win_title);
-    }
-}
-
-void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind)
-{
-    QModelIndexList indexes = this->treeView->selectionModel()->selectedIndexes();
-    QModelIndex index;
-    if (indexes.size() > 0) {
-        index = indexes.at(0);
+  FormatResult res =
+      FormatManager::instance().saveFile(expanded, m_model, m_config_window);
+  if (!res.success) {
+    if (this->isVisible()) {
+      QMessageBox::critical(
+          this, tr("Failed to write output file"),
+          tr("Error writing to file: %1\n%2").arg(fname, res.errorMessage),
+          QMessageBox::Ok);
     } else {
-        index = this->treeView->selectionModel()->currentIndex();
+      std::cerr << "Error writing to file: " << fname.toStdString() << " - "
+                << res.errorMessage.toStdString() << std::endl;
     }
-    QModelIndex source_index = index.isValid() ? m_treeProxy->mapToSource(index) : QModelIndex();
+    return false;
+  }
 
-    RegMapTreeItem *targetParentItem = nullptr;
-    QModelIndex targetParentSource;
-    int insertRow = 0;
-
-    if (source_index.isValid()) {
-        RegMapTreeItem *selectedItem = m_model->getItem(source_index);
-        if (selectedItem) {
-            if (selectedItem->possibleChildren().contains(kind)) {
-                targetParentItem = selectedItem;
-                targetParentSource = source_index;
-                insertRow = selectedItem->childCount();
-            } else {
-                // Ascend ancestor hierarchy to find the nearest parent capable of accepting 'kind'
-                RegMapTreeItem *curr = selectedItem;
-                QModelIndex currSource = source_index;
-                while (curr && curr->parentItem() && curr->parentItem() != curr) {
-                    RegMapTreeItem *p = curr->parentItem();
-                    QModelIndex pSource = currSource.parent();
-                    if (p->possibleChildren().contains(kind)) {
-                        targetParentItem = p;
-                        targetParentSource = pSource;
-                        insertRow = curr->row() + 1; // Insert as sibling immediately following current
-                        break;
-                    }
-                    curr = p;
-                    currSource = pSource;
-                }
-            }
-        }
-    }
-
-    if (!targetParentItem) {
-        // Fallback to root or top-level item if possible
-        RegMapTreeItem *root = m_model->getRootItem();
-        if (root && root->possibleChildren().contains(kind)) {
-            targetParentItem = root;
-            targetParentSource = QModelIndex();
-            insertRow = root->childCount();
-        } else if (root && root->childCount() > 0) {
-            // Check if first child (e.g. first block) can accept it
-            RegMapTreeItem *firstChild = root->child(0);
-            if (firstChild && firstChild->possibleChildren().contains(kind)) {
-                targetParentItem = firstChild;
-                targetParentSource = m_model->index(0, 0, QModelIndex());
-                insertRow = firstChild->childCount();
-            }
-        }
-    }
-
-    if (!targetParentItem) {
-        return;
-    }
-
-    m_undoStack->push(new InsertItemCommand(m_model, kind, insertRow, targetParentSource));
-
-    for (int col = 0; col < m_treeProxy->columnCount(); col++) {
-        this->treeView->resizeColumnToContents(col);
-    }
-
-    // Expand parent in treeView
-    if (targetParentSource.isValid()) {
-        QModelIndex parentProxy = m_treeProxy->mapFromSource(targetParentSource);
-        if (parentProxy.isValid()) {
-            this->treeView->setExpanded(parentProxy, true);
-        }
-    }
-
-    // Automatically navigate / move to the newly created item
-    QModelIndex newSourceIdx = m_model->index(insertRow, 0, targetParentSource);
-    if (newSourceIdx.isValid()) {
-        QModelIndex newProxyIdx = m_treeProxy->mapFromSource(newSourceIdx);
-        if (newProxyIdx.isValid()) {
-            this->treeView->setCurrentIndex(newProxyIdx);
-            this->treeView->selectionModel()->setCurrentIndex(newProxyIdx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-            this->treeView->scrollTo(newProxyIdx, QAbstractItemView::EnsureVisible);
-            updateFieldsTable(newProxyIdx, QModelIndex());
-        }
-    }
-
-    // For fields, also ensure the fields table highlights the new field
-    if (kind == RegMapTreeItem::e_rmmKind::fld && m_fieldsTableView && m_fieldProxy) {
-        QModelIndex newFldSource = m_model->index(insertRow, 0, targetParentSource);
-        QModelIndex newFldProxy = m_fieldProxy->mapFromSource(newFldSource);
-        if (newFldProxy.isValid()) {
-            m_fieldsTableView->setCurrentIndex(newFldProxy);
-            m_fieldsTableView->selectionModel()->setCurrentIndex(newFldProxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-            m_fieldsTableView->scrollTo(newFldProxy, QAbstractItemView::EnsureVisible);
-        }
-    }
+  this->m_rmap_filename = PathUtils::normalizeSeparators(saveFi.filePath());
+  regmap_notModified();
+  return true;
 }
 
-void RegMapWindow::updateFieldsTable(const QModelIndex &current, const QModelIndex &previous)
-{
-    Q_UNUSED(previous);
-
-    if (!current.isValid()) {
-        if (m_fieldsTableView) m_fieldsTableView->setRootIndex(QModelIndex()); // GCOV_EXCL_BR_LINE - Defensive invariant
-        if (m_bitfieldBar) m_bitfieldBar->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_currentRegItem = nullptr;
-        m_currentBlkItem = nullptr;
-        if (m_rightStackedWidget && m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
-        }
-        return;
+void RegMapWindow::regmap_modified(void) {
+  if (!m_is_regmap_modified) {
+    m_is_regmap_modified = true;
+    QString win_title = this->windowTitle();
+    if (!win_title.endsWith('*')) {
+      win_title.append('*');
     }
-
-    QModelIndex source_current = m_treeProxy->mapToSource(current);
-    QModelIndex source_col0 = m_model->index(source_current.row(), 0, source_current.parent());
-    RegMapTreeItem *item = m_model->getItem(source_col0);
-    if (item->kindString() == "reg") {
-        m_currentRegItem = item;
-        m_currentBlkItem = nullptr;
-        if (m_regHeaderWidget) {
-            m_regHeaderWidget->setVisible(true);
-            if (m_regNameEdit) m_regNameEdit->setText(item->data("Name").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_regOffsetEdit) m_regOffsetEdit->setText(padHexOffsetString(item->data("Offset/LSB").toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_regDescEdit) m_regDescEdit->setText(item->data("Description").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
-        }
-
-        if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            if (m_fieldsTableView->model() != m_fieldProxy) {
-                m_fieldsTableView->setModel(m_fieldProxy);
-                connectFieldsTableSignals();
-            }
-            m_fieldsTableView->setRootIndex(m_fieldProxy->mapFromSource(source_col0));
-            for (int col = 1; col < 10; ++col) {
-                m_fieldsTableView->resizeColumnToContents(col);
-            }
-            m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
-            m_fieldsTableView->horizontalHeader()->setSectionResizeMode(10, QHeaderView::Stretch);
-        }
-
-        uint32_t regWidth = 32;
-        if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            protormap::Config* cfg = m_config_window->serialize();
-            if (cfg && cfg->reg_width() > 0) regWidth = cfg->reg_width();
-            delete cfg;
-        }
-
-        if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_bitfieldBar->setRegister(item, regWidth);
-        }
-
-        if (m_rightStackedWidget && m_regViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_rightStackedWidget->setCurrentWidget(m_regViewWidget);
-        }
-    } else if (item->kindString() == "blk" || item->kindString() == "map" || item->kindString() == "mem") {
-        updateBlockView(item);
-    // GCOV_EXCL_START - Defensive invariant: TreeFilterProxyModel filters out fields, so only reg/blk/map/mem can be selected in treeView
-    } else {
-        m_currentRegItem = nullptr;
-        m_currentBlkItem = nullptr;
-        if (m_rightStackedWidget && m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-            m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
-        }
-    }
-    // GCOV_EXCL_STOP
+    this->setWindowTitle(win_title);
+  }
 }
 
-void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem)
-{
-    if (!blkItem) return;
-    m_currentBlkItem = blkItem;
+void RegMapWindow::regmap_notModified(void) {
+  if (m_is_regmap_modified) {
+    m_is_regmap_modified = false;
+    QString win_title = this->windowTitle();
+    if (win_title.endsWith('*')) {
+      win_title.remove(win_title.size() - 1, 1);
+    }
+    this->setWindowTitle(win_title);
+  }
+}
+
+void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind) {
+  QModelIndexList indexes = this->treeView->selectionModel()->selectedIndexes();
+  QModelIndex index;
+  if (indexes.size() > 0) {
+    index = indexes.at(0);
+  } else {
+    index = this->treeView->selectionModel()->currentIndex();
+  }
+  QModelIndex source_index =
+      index.isValid() ? m_treeProxy->mapToSource(index) : QModelIndex();
+
+  RegMapTreeItem *targetParentItem = nullptr;
+  QModelIndex targetParentSource;
+  int insertRow = 0;
+
+  if (source_index.isValid()) {
+    RegMapTreeItem *selectedItem = m_model->getItem(source_index);
+    if (selectedItem) {
+      if (selectedItem->possibleChildren().contains(kind)) {
+        targetParentItem = selectedItem;
+        targetParentSource = source_index;
+        insertRow = selectedItem->childCount();
+      } else {
+        // Ascend ancestor hierarchy to find the nearest parent capable of
+        // accepting 'kind'
+        RegMapTreeItem *curr = selectedItem;
+        QModelIndex currSource = source_index;
+        while (curr && curr->parentItem() && curr->parentItem() != curr) {
+          RegMapTreeItem *p = curr->parentItem();
+          QModelIndex pSource = currSource.parent();
+          if (p->possibleChildren().contains(kind)) {
+            targetParentItem = p;
+            targetParentSource = pSource;
+            insertRow = curr->row() +
+                        1; // Insert as sibling immediately following current
+            break;
+          }
+          curr = p;
+          currSource = pSource;
+        }
+      }
+    }
+  }
+
+  if (!targetParentItem) {
+    // Fallback to root or top-level item if possible
+    RegMapTreeItem *root = m_model->getRootItem();
+    if (root && root->possibleChildren().contains(kind)) {
+      targetParentItem = root;
+      targetParentSource = QModelIndex();
+      insertRow = root->childCount();
+    } else if (root && root->childCount() > 0) {
+      // Check if first child (e.g. first block) can accept it
+      RegMapTreeItem *firstChild = root->child(0);
+      if (firstChild && firstChild->possibleChildren().contains(kind)) {
+        targetParentItem = firstChild;
+        targetParentSource = m_model->index(0, 0, QModelIndex());
+        insertRow = firstChild->childCount();
+      }
+    }
+  }
+
+  if (!targetParentItem) {
+    return;
+  }
+
+  m_undoStack->push(
+      new InsertItemCommand(m_model, kind, insertRow, targetParentSource));
+
+  for (int col = 0; col < m_treeProxy->columnCount(); col++) {
+    this->treeView->resizeColumnToContents(col);
+  }
+
+  // Expand parent in treeView
+  if (targetParentSource.isValid()) {
+    QModelIndex parentProxy = m_treeProxy->mapFromSource(targetParentSource);
+    if (parentProxy.isValid()) {
+      this->treeView->setExpanded(parentProxy, true);
+    }
+  }
+
+  // Automatically navigate / move to the newly created item
+  QModelIndex newSourceIdx = m_model->index(insertRow, 0, targetParentSource);
+  if (newSourceIdx.isValid()) {
+    QModelIndex newProxyIdx = m_treeProxy->mapFromSource(newSourceIdx);
+    if (newProxyIdx.isValid()) {
+      this->treeView->setCurrentIndex(newProxyIdx);
+      this->treeView->selectionModel()->setCurrentIndex(
+          newProxyIdx,
+          QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+      this->treeView->scrollTo(newProxyIdx, QAbstractItemView::EnsureVisible);
+      updateFieldsTable(newProxyIdx, QModelIndex());
+    }
+  }
+
+  // For fields, also ensure the fields table highlights the new field
+  if (kind == RegMapTreeItem::e_rmmKind::fld && m_fieldsTableView &&
+      m_fieldProxy) {
+    QModelIndex newFldSource = m_model->index(insertRow, 0, targetParentSource);
+    QModelIndex newFldProxy = m_fieldProxy->mapFromSource(newFldSource);
+    if (newFldProxy.isValid()) {
+      m_fieldsTableView->setCurrentIndex(newFldProxy);
+      m_fieldsTableView->selectionModel()->setCurrentIndex(
+          newFldProxy,
+          QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+      m_fieldsTableView->scrollTo(newFldProxy,
+                                  QAbstractItemView::EnsureVisible);
+    }
+  }
+}
+
+void RegMapWindow::updateFieldsTable(const QModelIndex &current,
+                                     const QModelIndex &previous) {
+  Q_UNUSED(previous);
+
+  if (!current.isValid()) {
+    if (m_fieldsTableView)
+      m_fieldsTableView->setRootIndex(
+          QModelIndex()); // GCOV_EXCL_BR_LINE - Defensive invariant
+    if (m_bitfieldBar)
+      m_bitfieldBar->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
     m_currentRegItem = nullptr;
+    m_currentBlkItem = nullptr;
+    if (m_rightStackedWidget &&
+        m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+    }
+    return;
+  }
 
-    if (m_blkNameEdit) m_blkNameEdit->setText(blkItem->data("Name").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_blkOffsetEdit) m_blkOffsetEdit->setText(padHexOffsetString(blkItem->data("Offset/LSB").toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
-    if (m_blkDescEdit) m_blkDescEdit->setText(blkItem->data("Description").toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  QModelIndex source_current = m_treeProxy->mapToSource(current);
+  QModelIndex source_col0 =
+      m_model->index(source_current.row(), 0, source_current.parent());
+  RegMapTreeItem *item = m_model->getItem(source_col0);
+  if (item->kindString() == "reg") {
+    m_currentRegItem = item;
+    m_currentBlkItem = nullptr;
+    if (m_regHeaderWidget) {
+      m_regHeaderWidget->setVisible(true);
+      if (m_regNameEdit)
+        m_regNameEdit->setText(
+            item->data("Name")
+                .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regOffsetEdit)
+        m_regOffsetEdit->setText(padHexOffsetString(
+            item->data("Offset/LSB")
+                .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regDescEdit)
+        m_regDescEdit->setText(
+            item->data("Description")
+                .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+    }
+
+    if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_fieldsTableView->model() != m_fieldProxy) {
+        m_fieldsTableView->setModel(m_fieldProxy);
+        connectFieldsTableSignals();
+      }
+      m_fieldsTableView->setRootIndex(m_fieldProxy->mapFromSource(source_col0));
+      for (int col = 1; col < 10; ++col) {
+        m_fieldsTableView->resizeColumnToContents(col);
+      }
+      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+          10, QHeaderView::Stretch);
+    }
 
     uint32_t regWidth = 32;
     if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        protormap::Config* cfg = m_config_window->serialize();
-        if (cfg && cfg->reg_width() > 0) regWidth = cfg->reg_width();
-        delete cfg;
+      protormap::Config *cfg = m_config_window->serialize();
+      if (cfg && cfg->reg_width() > 0)
+        regWidth = cfg->reg_width();
+      delete cfg;
     }
 
-    if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_blockMemoryMapWidget->setBlock(blkItem, regWidth);
+    if (m_bitfieldBar) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      m_bitfieldBar->setRegister(item, regWidth);
     }
 
-    if (m_rightStackedWidget && m_blockViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        m_rightStackedWidget->setCurrentWidget(m_blockViewWidget);
+    if (m_rightStackedWidget &&
+        m_regViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      m_rightStackedWidget->setCurrentWidget(m_regViewWidget);
     }
+  } else if (item->kindString() == "blk" || item->kindString() == "map" ||
+             item->kindString() == "mem") {
+    updateBlockView(item);
+    // GCOV_EXCL_START - Defensive invariant: TreeFilterProxyModel filters out
+    // fields, so only reg/blk/map/mem can be selected in treeView
+  } else {
+    m_currentRegItem = nullptr;
+    m_currentBlkItem = nullptr;
+    if (m_rightStackedWidget &&
+        m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+    }
+  }
+  // GCOV_EXCL_STOP
 }
 
-void RegMapWindow::navigateToRegister(int childRow, RegMapTreeItem *regItem)
-{
-    Q_UNUSED(regItem);
-    if (!m_currentBlkItem) return;
+void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem) {
+  if (!blkItem)
+    return;
+  m_currentBlkItem = blkItem;
+  m_currentRegItem = nullptr;
 
-    QModelIndex blkProxy = this->treeView->currentIndex();
-    if (!blkProxy.isValid()) return;
-    QModelIndex blkSource = m_treeProxy->mapToSource(blkProxy);
-    QModelIndex blkCol0 = m_model->index(blkSource.row(), 0, blkSource.parent());
+  if (m_blkNameEdit)
+    m_blkNameEdit->setText(
+        blkItem->data("Name")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkOffsetEdit)
+    m_blkOffsetEdit->setText(padHexOffsetString(
+        blkItem->data("Offset/LSB")
+            .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkDescEdit)
+    m_blkDescEdit->setText(
+        blkItem->data("Description")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
 
-    QModelIndex regSource = m_model->index(childRow, 0, blkCol0);
-    if (!regSource.isValid()) return;
+  uint32_t regWidth = 32;
+  if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    protormap::Config *cfg = m_config_window->serialize();
+    if (cfg && cfg->reg_width() > 0)
+      regWidth = cfg->reg_width();
+    delete cfg;
+  }
 
-    QModelIndex regProxy = m_treeProxy->mapFromSource(regSource);
-    if (regProxy.isValid()) {
-        this->treeView->setCurrentIndex(regProxy);
-        this->treeView->selectionModel()->select(regProxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-        this->treeView->scrollTo(regProxy, QAbstractItemView::PositionAtCenter);
-    }
+  if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_blockMemoryMapWidget->setBlock(blkItem, regWidth);
+  }
+
+  if (m_rightStackedWidget &&
+      m_blockViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_rightStackedWidget->setCurrentWidget(m_blockViewWidget);
+  }
 }
 
-void RegMapWindow::showTreeContextMenu(const QPoint &pos)
-{
-    QPoint globalPos;
-    QModelIndex index;
-    QWidget* senderWidget = qobject_cast<QWidget*>(sender());
+void RegMapWindow::navigateToRegister(int childRow, RegMapTreeItem *regItem) {
+  Q_UNUSED(regItem);
+  if (!m_currentBlkItem)
+    return;
 
-    if (senderWidget == this->treeView) {
-        index = this->treeView->indexAt(pos);
-        globalPos = this->treeView->viewport()->mapToGlobal(pos);
-    } else if (senderWidget == m_fieldsTableView) {
-        index = m_fieldsTableView->indexAt(pos);
-        globalPos = m_fieldsTableView->viewport()->mapToGlobal(pos);
-    }
+  QModelIndex blkProxy = this->treeView->currentIndex();
+  if (!blkProxy.isValid())
+    return;
+  QModelIndex blkSource = m_treeProxy->mapToSource(blkProxy);
+  QModelIndex blkCol0 = m_model->index(blkSource.row(), 0, blkSource.parent());
 
-    QMenu menu(this);
-    menu.setObjectName("treeContextMenu");
-    if (index.isValid()) {
-        QAction* duplicateAction = menu.addAction(tr("Duplicate"));
-        QAction* deleteAction = menu.addAction(tr("Delete"));
-        connect(duplicateAction, &QAction::triggered, this, [this, index, senderWidget]() {
-            if (senderWidget == this->treeView) {
+  QModelIndex regSource = m_model->index(childRow, 0, blkCol0);
+  if (!regSource.isValid())
+    return;
+
+  QModelIndex regProxy = m_treeProxy->mapFromSource(regSource);
+  if (regProxy.isValid()) {
+    this->treeView->setCurrentIndex(regProxy);
+    this->treeView->selectionModel()->select(
+        regProxy,
+        QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    this->treeView->scrollTo(regProxy, QAbstractItemView::PositionAtCenter);
+  }
+}
+
+void RegMapWindow::showTreeContextMenu(const QPoint &pos) {
+  QPoint globalPos;
+  QModelIndex index;
+  QWidget *senderWidget = qobject_cast<QWidget *>(sender());
+
+  if (senderWidget == this->treeView) {
+    index = this->treeView->indexAt(pos);
+    globalPos = this->treeView->viewport()->mapToGlobal(pos);
+  } else if (senderWidget == m_fieldsTableView) {
+    index = m_fieldsTableView->indexAt(pos);
+    globalPos = m_fieldsTableView->viewport()->mapToGlobal(pos);
+  }
+
+  QMenu menu(this);
+  menu.setObjectName("treeContextMenu");
+  if (index.isValid()) {
+    QAction *duplicateAction = menu.addAction(tr("Duplicate"));
+    QAction *deleteAction = menu.addAction(tr("Delete"));
+    connect(duplicateAction, &QAction::triggered, this,
+            [this, index, senderWidget]() {
+              if (senderWidget == this->treeView) {
                 duplicateItem(index);
-            } else {
+              } else {
                 duplicateItem(index);
-            }
-        });
-        connect(deleteAction, &QAction::triggered, this, &RegMapWindow::btnDeleteItem);
-    }
-    menu.exec(globalPos);
+              }
+            });
+    connect(deleteAction, &QAction::triggered, this,
+            &RegMapWindow::btnDeleteItem);
+  }
+  menu.exec(globalPos);
 }
 
-void RegMapWindow::duplicateSelectedRegister(void)
-{
-    QModelIndex proxyIndex;
-    if (m_fieldsTableView && m_fieldsTableView->hasFocus()) {
-        QModelIndex fieldProxyIdx = m_fieldsTableView->currentIndex();
-        if (fieldProxyIdx.isValid()) {
-            proxyIndex = fieldProxyIdx;
-        }
+void RegMapWindow::duplicateSelectedRegister(void) {
+  QModelIndex proxyIndex;
+  if (m_fieldsTableView && m_fieldsTableView->hasFocus()) {
+    QModelIndex fieldProxyIdx = m_fieldsTableView->currentIndex();
+    if (fieldProxyIdx.isValid()) {
+      proxyIndex = fieldProxyIdx;
     }
-    if (!proxyIndex.isValid()) {
-        proxyIndex = this->treeView->currentIndex();
+  }
+  if (!proxyIndex.isValid()) {
+    proxyIndex = this->treeView->currentIndex();
+  }
+  if (!proxyIndex.isValid() && m_currentRegItem) {
+    RegMapTreeItem *blk = m_currentRegItem->parentItem();
+    if (blk) {
+      QModelIndex blkIdx = (blk->parentItem() == m_model->getRootItem())
+                               ? m_model->index(blk->row(), 0, QModelIndex())
+                               : QModelIndex();
+      QModelIndex regSrcIdx =
+          m_model->index(m_currentRegItem->row(), 0, blkIdx);
+      proxyIndex = m_treeProxy->mapFromSource(regSrcIdx);
     }
-    if (!proxyIndex.isValid() && m_currentRegItem) {
-        RegMapTreeItem *blk = m_currentRegItem->parentItem();
-        if (blk) {
-            QModelIndex blkIdx = (blk->parentItem() == m_model->getRootItem())
-                ? m_model->index(blk->row(), 0, QModelIndex())
-                : QModelIndex();
-            QModelIndex regSrcIdx = m_model->index(m_currentRegItem->row(), 0, blkIdx);
-            proxyIndex = m_treeProxy->mapFromSource(regSrcIdx);
-        }
-    }
+  }
 
-    if (proxyIndex.isValid()) {
-        duplicateItem(proxyIndex);
-    }
+  if (proxyIndex.isValid()) {
+    duplicateItem(proxyIndex);
+  }
 }
 
-void RegMapWindow::duplicateItem(const QModelIndex &index)
-{
-    QModelIndex source_index;
-    if (index.model() == m_fieldProxy) {
-        source_index = m_fieldProxy->mapToSource(index);
-    } else if (index.model() == m_model) {
-        source_index = index;
+void RegMapWindow::duplicateItem(const QModelIndex &index) {
+  QModelIndex source_index;
+  if (index.model() == m_fieldProxy) {
+    source_index = m_fieldProxy->mapToSource(index);
+  } else if (index.model() == m_model) {
+    source_index = index;
+  } else {
+    source_index = m_treeProxy->mapToSource(index);
+  }
+  RegMapTreeItem *item = m_model->getItem(source_index);
+  if (!item || item->kindString() == "root")
+    return;
+
+  DeleteItemCommand::StoredNode storedData;
+  DeleteItemCommand::captureItem(item, storedData);
+
+  protormap::Config *cfg = m_config_window->serialize();
+  uint32_t regWidth = (cfg && cfg->reg_width() > 0) ? cfg->reg_width() : 32;
+  delete cfg;
+  uint64_t regBytes = (regWidth > 0 ? regWidth : 32) / 8;
+  if (regBytes == 0)
+    regBytes = 4; // GCOV_EXCL_BR_LINE - Defensive fallback
+
+  QString oldName = storedData.colData.value("Name").toString();
+  storedData.colData["Name"] = oldName + "_COPY";
+
+  if (item->kindString() == "reg") {
+    uint64_t offset = parseNumericValue(storedData.colData.value("Offset/LSB"));
+    uint64_t newOff = offset + regBytes;
+    storedData.colData["Offset/LSB"] = padHexOffsetString(
+        QString("0x") + QString("%1").arg(newOff, 4, 16, QChar('0')).toUpper());
+  } else if (item->kindString() == "fld") {
+    uint64_t lsb = parseNumericValue(storedData.colData.value("Offset/LSB"));
+    uint64_t width = parseNumericValue(storedData.colData.value("Size/Width"));
+    storedData.colData["Offset/LSB"] = QString::number(lsb + width);
+  }
+
+  int row = source_index.row() + 1;
+  QModelIndex parent = source_index.parent();
+
+  m_undoStack->push(new DuplicateItemCommand(m_model, row, parent, storedData));
+
+  QModelIndex new_source = m_model->index(row, 0, parent);
+  if (index.model() == m_fieldProxy && m_fieldsTableView && m_fieldProxy) {
+    QModelIndex new_fld_proxy = m_fieldProxy->mapFromSource(new_source);
+    if (new_fld_proxy.isValid()) {
+      m_fieldsTableView->setCurrentIndex(new_fld_proxy);
+      m_fieldsTableView->scrollTo(new_fld_proxy);
+      m_fieldsTableView->selectionModel()->select(
+          new_fld_proxy,
+          QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    }
+  } else {
+    QModelIndex new_proxy = m_treeProxy->mapFromSource(new_source);
+    if (new_proxy.isValid()) {
+      this->treeView->setCurrentIndex(new_proxy);
+      this->treeView->scrollTo(new_proxy);
+      this->treeView->selectionModel()->select(
+          new_proxy,
+          QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    }
+  }
+  this->treeView->viewport()->update();
+}
+
+bool RegMapWindow::headlessExport(const QString &out_dir) {
+  if (m_rmap_filename.isEmpty()) {
+    std::cerr << "No input file specified for headless export" << std::endl;
+    return false;
+  }
+
+  QString baseDir = m_config_window->baseDir();
+
+  protormap::Config *cfg = m_config_window->serialize();
+  uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
+
+  QStringList validationErrors = m_model->checkData(regWidth);
+  if (!validationErrors.isEmpty()) {
+    std::cerr << "Validation warnings found:" << std::endl;
+    for (const QString &err : validationErrors) {
+      std::cerr << " - " << err.toStdString() << std::endl;
+    }
+  }
+
+  CodeGenerator cg;
+  std::string template_folder = cfg->templatefolder();
+  std::string default_output = resolveExportOutputFolder(out_dir, cfg);
+
+  bool hwPrec =
+      cfg->has_hw_precedence()
+          ? cfg->hw_precedence()
+          : (m_config_window ? m_config_window->hwPrecedence() : true);
+  json jsonData = m_model->extractJsonData(regWidth, hwPrec);
+  resolveExportProjectName(cfg, m_rmap_filename, jsonData);
+  jsonData["project_name"] = cfg->project_name();
+  jsonData["project_version"] = cfg->project_version();
+  for (const auto &[key, value] : cfg->custom_parameters()) {
+    jsonData[key] = value;
+  }
+
+  std::string defaultOut = cfg->outputfolder().empty()
+                               ? PathUtils::DEFAULT_OUTPUT_DIR
+                               : cfg->outputfolder();
+  QString cfgOut =
+      PathUtils::normalizeSeparators(QString::fromStdString(defaultOut));
+
+  std::vector<TemplateMapping> mappings;
+  for (const auto &entry : cfg->template_outputs()) {
+    if (entry.template_filename().empty())
+      continue;
+    if (entry.has_enabled() && !entry.enabled())
+      continue;
+
+    if (!out_dir.isEmpty()) {
+      QString entryOut = QString::fromStdString(entry.output_filepath());
+      QString normalizedEntryOut = PathUtils::normalizeSeparators(entryOut);
+
+      QString relPath;
+      if (normalizedEntryOut.startsWith(cfgOut + "/", Qt::CaseInsensitive)) {
+        relPath = normalizedEntryOut.mid(cfgOut.length() + 1);
+      } else if (normalizedEntryOut.startsWith("./" + cfgOut + "/",
+                                               Qt::CaseInsensitive)) {
+        relPath = normalizedEntryOut.mid(cfgOut.length() + 3);
+      } else if (normalizedEntryOut.startsWith("work/", Qt::CaseInsensitive)) {
+        relPath = normalizedEntryOut.mid(5);
+      } else if (normalizedEntryOut.startsWith("./work/",
+                                               Qt::CaseInsensitive)) {
+        relPath = normalizedEntryOut.mid(7);
+      } else {
+        relPath = normalizedEntryOut;
+      }
+
+      QString expOutDir = PathUtils::expandEnvVars(out_dir);
+      QString absOutDir = QDir(QDir::currentPath()).absoluteFilePath(expOutDir);
+      QString customOut =
+          PathUtils::normalizeSeparators(QDir(absOutDir).filePath(relPath));
+      mappings.push_back({entry.template_filename(), customOut.toStdString()});
     } else {
-        source_index = m_treeProxy->mapToSource(index);
+      mappings.push_back({entry.template_filename(), entry.output_filepath()});
     }
-    RegMapTreeItem* item = m_model->getItem(source_index);
-    if (!item || item->kindString() == "root") return;
+  }
 
-    DeleteItemCommand::StoredNode storedData;
-    DeleteItemCommand::captureItem(item, storedData);
+  std::string pythonScript = "";
+  bool pyEnabled = isExportPythonEnabled(cfg);
+  if (pyEnabled && !cfg->pythonscript().empty()) {
+    pythonScript = cfg->pythonscript();
+  }
 
-    protormap::Config* cfg = m_config_window->serialize();
-    uint32_t regWidth = (cfg && cfg->reg_width() > 0) ? cfg->reg_width() : 32;
+  GenerationReport report =
+      cg.generate(jsonData, template_folder, default_output, mappings,
+                  baseDir.toStdString(), pythonScript);
+
+  if (!report.errors.empty()) {
+    std::cerr << "Code generation completed with errors:" << std::endl;
+    for (const auto &err : report.errors) {
+      std::cerr << err.first << ": " << err.second << std::endl;
+    }
     delete cfg;
-    uint64_t regBytes = (regWidth > 0 ? regWidth : 32) / 8;
-    if (regBytes == 0) regBytes = 4; // GCOV_EXCL_BR_LINE - Defensive fallback
+    return false;
+  }
+  std::cout << "Successfully exported " << report.success_files.size()
+            << " files." << std::endl;
 
-    QString oldName = storedData.colData.value("Name").toString();
-    storedData.colData["Name"] = oldName + "_COPY";
+  delete cfg;
+  return true;
+}
 
-    if (item->kindString() == "reg") {
-        uint64_t offset = parseNumericValue(storedData.colData.value("Offset/LSB"));
-        uint64_t newOff = offset + regBytes;
-        storedData.colData["Offset/LSB"] = padHexOffsetString(QString("0x") + QString("%1").arg(newOff, 4, 16, QChar('0')).toUpper());
-    } else if (item->kindString() == "fld") {
-        uint64_t lsb = parseNumericValue(storedData.colData.value("Offset/LSB"));
-        uint64_t width = parseNumericValue(storedData.colData.value("Size/Width"));
-        storedData.colData["Offset/LSB"] = QString::number(lsb + width);
+std::string
+RegMapWindow::resolveExportOutputFolder(const QString &outDir,
+                                        const protormap::Config *cfg) {
+  if (!outDir.isEmpty()) {
+    return PathUtils::expandEnvVars(outDir).toStdString();
+  }
+  if (cfg && !cfg->outputfolder().empty()) {
+    return cfg->outputfolder();
+  }
+  return PathUtils::DEFAULT_OUTPUT_DIR;
+}
+
+void RegMapWindow::resolveExportProjectName(const protormap::Config *cfg,
+                                            const QString &filename,
+                                            nlohmann::json &jsonData) {
+  if (cfg && !cfg->project_name().empty()) {
+    jsonData["name"] = cfg->project_name();
+    return;
+  }
+  if (!filename.isEmpty()) {
+    std::string currentName;
+    if (jsonData.is_object()) {
+      currentName = jsonData.value("name", "");
     }
+    if (currentName.empty() || currentName == "regmap") {
+      QFileInfo fi(filename);
+      QString base = fi.baseName();
+      if (!base.isEmpty()) {
+        jsonData["name"] = base.toStdString();
+      }
+    }
+  }
+}
 
-    int row = source_index.row() + 1;
-    QModelIndex parent = source_index.parent();
+bool RegMapWindow::isExportPythonEnabled(const protormap::Config *cfg) const {
+  if (!cfg) {
+    return false;
+  }
+  if (cfg->has_python_script_enabled()) {
+    return cfg->python_script_enabled();
+  }
+  if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    return m_config_window->isPythonScriptEnabled();
+  }
+  return !cfg->pythonscript().empty();
+}
 
-    m_undoStack->push(new DuplicateItemCommand(m_model, row, parent, storedData));
+bool RegMapWindow::headlessLint(bool strict, const QString &format,
+                                const QString &outFile) {
+  protormap::Config *cfg = m_config_window->serialize();
+  uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
+  delete cfg;
 
-    QModelIndex new_source = m_model->index(row, 0, parent);
-    if (index.model() == m_fieldProxy && m_fieldsTableView && m_fieldProxy) {
-        QModelIndex new_fld_proxy = m_fieldProxy->mapFromSource(new_source);
-        if (new_fld_proxy.isValid()) {
-            m_fieldsTableView->setCurrentIndex(new_fld_proxy);
-            m_fieldsTableView->scrollTo(new_fld_proxy);
-            m_fieldsTableView->selectionModel()->select(new_fld_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-        }
+  QStringList errors = m_model->checkData(regWidth);
+  QStringList warnings;
+
+  // Strict checks: check for empty descriptions or unaligned offsets
+  if (strict && m_model->getRootItem()) { // GCOV_EXCL_BR_LINE - getRootItem
+                                          // guaranteed non-null
+    performStrictLintChecks(m_model->getRootItem(), regWidth, warnings);
+  }
+
+  bool isPassed = errors.isEmpty() && (!strict || warnings.isEmpty());
+  QString reportContent;
+  QString fmt = format.toLower().trimmed();
+
+  if (fmt == "json") {
+    QJsonObject rootObj;
+    rootObj["status"] = isPassed ? "PASS" : "FAIL";
+    rootObj["file"] = m_rmap_filename;
+    QJsonArray errArr, warnArr;
+    for (const QString &e : errors)
+      errArr.append(e);
+    for (const QString &w : warnings)
+      warnArr.append(w);
+    rootObj["errors"] = errArr;
+    rootObj["warnings"] = warnArr;
+    reportContent = QJsonDocument(rootObj).toJson(QJsonDocument::Indented);
+  } else if (fmt == "sarif") {
+    QJsonObject sarif;
+    sarif["$schema"] = "https://schemastore.azurewebsites.net/schemas/json/"
+                       "sarif-2.1.0-rtm.5.json";
+    sarif["version"] = "2.1.0";
+    QJsonArray runs;
+    QJsonObject run;
+    QJsonObject tool;
+    QJsonObject driver;
+    driver["name"] = "rmap-lint";
+    driver["version"] = RMAP_VERSION_STRING;
+    tool["driver"] = driver;
+    run["tool"] = tool;
+
+    QJsonArray results;
+    for (const QString &e : errors) {
+      QJsonObject res;
+      res["level"] = "error";
+      QJsonObject msg;
+      msg["text"] = e;
+      res["message"] = msg;
+      results.append(res);
+    }
+    for (const QString &w : warnings) {
+      QJsonObject res;
+      res["level"] = "warning";
+      QJsonObject msg;
+      msg["text"] = w;
+      res["message"] = msg;
+      results.append(res);
+    }
+    run["results"] = results;
+    runs.append(run);
+    sarif["runs"] = runs;
+    reportContent = QJsonDocument(sarif).toJson(QJsonDocument::Indented);
+  } else if (fmt == "junit") {
+    int totalTests = 1 + warnings.size();
+    int failures = errors.size() + (strict ? warnings.size() : 0);
+    reportContent =
+        QString(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites "
+            "name=\"rmap-lint\" tests=\"%1\" failures=\"%2\">\n  <testsuite "
+            "name=\"RegisterMapValidation\" tests=\"%1\" failures=\"%2\">\n")
+            .arg(totalTests)
+            .arg(failures);
+
+    if (errors.isEmpty()) {
+      reportContent += "    <testcase name=\"AddressAndOverlapCheck\"/>\n";
     } else {
-        QModelIndex new_proxy = m_treeProxy->mapFromSource(new_source);
-        if (new_proxy.isValid()) {
-            this->treeView->setCurrentIndex(new_proxy);
-            this->treeView->scrollTo(new_proxy);
-            this->treeView->selectionModel()->select(new_proxy, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-        }
+      reportContent +=
+          QString("    <testcase name=\"AddressAndOverlapCheck\"><failure "
+                  "message=\"Validation Errors\">%1</failure></testcase>\n")
+              .arg(errors.join("\n"));
     }
-    this->treeView->viewport()->update();
-}
-
-bool RegMapWindow::headlessExport(const QString &out_dir)
-{
-    if (m_rmap_filename.isEmpty()) {
-        std::cerr << "No input file specified for headless export" << std::endl;
-        return false;
+    for (int i = 0; i < warnings.size(); ++i) {
+      reportContent +=
+          QString("    <testcase name=\"StrictLint_%1\"><failure "
+                  "message=\"Strict Rule Violation\">%2</failure></testcase>\n")
+              .arg(i + 1)
+              .arg(warnings[i]);
     }
-
-    QString baseDir = m_config_window->baseDir();
-
-    protormap::Config* cfg = m_config_window->serialize();
-    uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
-
-    QStringList validationErrors = m_model->checkData(regWidth);
-    if (!validationErrors.isEmpty()) {
-        std::cerr << "Validation warnings found:" << std::endl;
-        for (const QString &err : validationErrors) {
-            std::cerr << " - " << err.toStdString() << std::endl;
-        }
-    }
-
-    CodeGenerator cg;
-    std::string template_folder = cfg->templatefolder();
-    std::string default_output = resolveExportOutputFolder(out_dir, cfg);
-
-    json jsonData = m_model->extractJsonData(regWidth);
-    resolveExportProjectName(cfg, m_rmap_filename, jsonData);
-    jsonData["project_name"] = cfg->project_name();
-    jsonData["project_version"] = cfg->project_version();
-    for (const auto& [key, value] : cfg->custom_parameters()) {
-        jsonData[key] = value;
-    }
-
-    std::string defaultOut = cfg->outputfolder().empty() ? PathUtils::DEFAULT_OUTPUT_DIR : cfg->outputfolder();
-    QString cfgOut = PathUtils::normalizeSeparators(QString::fromStdString(defaultOut));
-
-    std::vector<TemplateMapping> mappings;
-    for (const auto& entry : cfg->template_outputs()) {
-        if (entry.template_filename().empty()) continue;
-        if (entry.has_enabled() && !entry.enabled()) continue;
-
-        if (!out_dir.isEmpty()) {
-            QString entryOut = QString::fromStdString(entry.output_filepath());
-            QString normalizedEntryOut = PathUtils::normalizeSeparators(entryOut);
-
-            QString relPath;
-            if (normalizedEntryOut.startsWith(cfgOut + "/", Qt::CaseInsensitive)) {
-                relPath = normalizedEntryOut.mid(cfgOut.length() + 1);
-            } else if (normalizedEntryOut.startsWith("./" + cfgOut + "/", Qt::CaseInsensitive)) {
-                relPath = normalizedEntryOut.mid(cfgOut.length() + 3);
-            } else if (normalizedEntryOut.startsWith("work/", Qt::CaseInsensitive)) {
-                relPath = normalizedEntryOut.mid(5);
-            } else if (normalizedEntryOut.startsWith("./work/", Qt::CaseInsensitive)) {
-                relPath = normalizedEntryOut.mid(7);
-            } else {
-                relPath = normalizedEntryOut;
-            }
-
-            QString expOutDir = PathUtils::expandEnvVars(out_dir);
-            QString absOutDir = QDir(QDir::currentPath()).absoluteFilePath(expOutDir);
-            QString customOut = PathUtils::normalizeSeparators(QDir(absOutDir).filePath(relPath));
-            mappings.push_back({entry.template_filename(), customOut.toStdString()});
-        } else {
-            mappings.push_back({entry.template_filename(), entry.output_filepath()});
-        }
-    }
-
-    std::string pythonScript = "";
-    bool pyEnabled = isExportPythonEnabled(cfg);
-    if (pyEnabled && !cfg->pythonscript().empty()) {
-        pythonScript = cfg->pythonscript();
-    }
-
-    GenerationReport report = cg.generate(jsonData, template_folder, default_output, mappings, baseDir.toStdString(), pythonScript);
-
-    if (!report.errors.empty()) {
-        std::cerr << "Code generation completed with errors:" << std::endl;
-        for (const auto& err : report.errors) {
-            std::cerr << err.first << ": " << err.second << std::endl;
-        }
-        delete cfg;
-        return false;
-    }
-    std::cout << "Successfully exported " << report.success_files.size() << " files." << std::endl;
-
-    delete cfg;
-    return true;
-}
-
-std::string RegMapWindow::resolveExportOutputFolder(const QString &outDir, const protormap::Config *cfg)
-{
-    if (!outDir.isEmpty()) {
-        return PathUtils::expandEnvVars(outDir).toStdString();
-    }
-    if (cfg && !cfg->outputfolder().empty()) {
-        return cfg->outputfolder();
-    }
-    return PathUtils::DEFAULT_OUTPUT_DIR;
-}
-
-void RegMapWindow::resolveExportProjectName(const protormap::Config *cfg, const QString &filename, nlohmann::json &jsonData)
-{
-    if (cfg && !cfg->project_name().empty()) {
-        jsonData["name"] = cfg->project_name();
-        return;
-    }
-    if (!filename.isEmpty()) {
-        std::string currentName;
-        if (jsonData.is_object()) {
-            currentName = jsonData.value("name", "");
-        }
-        if (currentName.empty() || currentName == "regmap") {
-            QFileInfo fi(filename);
-            QString base = fi.baseName();
-            if (!base.isEmpty()) {
-                jsonData["name"] = base.toStdString();
-            }
-        }
-    }
-}
-
-bool RegMapWindow::isExportPythonEnabled(const protormap::Config *cfg) const
-{
-    if (!cfg) {
-        return false;
-    }
-    if (cfg->has_python_script_enabled()) {
-        return cfg->python_script_enabled();
-    }
-    if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
-        return m_config_window->isPythonScriptEnabled();
-    }
-    return !cfg->pythonscript().empty();
-}
-
-bool RegMapWindow::headlessLint(bool strict, const QString &format, const QString &outFile)
-{
-    protormap::Config* cfg = m_config_window->serialize();
-    uint32_t regWidth = cfg->reg_width() > 0 ? cfg->reg_width() : 32;
-    delete cfg;
-
-    QStringList errors = m_model->checkData(regWidth);
-    QStringList warnings;
-
-    // Strict checks: check for empty descriptions or unaligned offsets
-    if (strict && m_model->getRootItem()) { // GCOV_EXCL_BR_LINE - getRootItem guaranteed non-null
-        performStrictLintChecks(m_model->getRootItem(), regWidth, warnings);
-    }
-
-    bool isPassed = errors.isEmpty() && (!strict || warnings.isEmpty());
-    QString reportContent;
-    QString fmt = format.toLower().trimmed();
-
-    if (fmt == "json") {
-        QJsonObject rootObj;
-        rootObj["status"] = isPassed ? "PASS" : "FAIL";
-        rootObj["file"] = m_rmap_filename;
-        QJsonArray errArr, warnArr;
-        for (const QString &e : errors) errArr.append(e);
-        for (const QString &w : warnings) warnArr.append(w);
-        rootObj["errors"] = errArr;
-        rootObj["warnings"] = warnArr;
-        reportContent = QJsonDocument(rootObj).toJson(QJsonDocument::Indented);
-    } else if (fmt == "sarif") {
-        QJsonObject sarif;
-        sarif["$schema"] = "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json";
-        sarif["version"] = "2.1.0";
-        QJsonArray runs;
-        QJsonObject run;
-        QJsonObject tool;
-        QJsonObject driver;
-        driver["name"] = "rmap-lint";
-        driver["version"] = RMAP_VERSION_STRING;
-        tool["driver"] = driver;
-        run["tool"] = tool;
-
-        QJsonArray results;
-        for (const QString &e : errors) {
-            QJsonObject res;
-            res["level"] = "error";
-            QJsonObject msg; msg["text"] = e; res["message"] = msg;
-            results.append(res);
-        }
-        for (const QString &w : warnings) {
-            QJsonObject res;
-            res["level"] = "warning";
-            QJsonObject msg; msg["text"] = w; res["message"] = msg;
-            results.append(res);
-        }
-        run["results"] = results;
-        runs.append(run);
-        sarif["runs"] = runs;
-        reportContent = QJsonDocument(sarif).toJson(QJsonDocument::Indented);
-    } else if (fmt == "junit") {
-        int totalTests = 1 + warnings.size();
-        int failures = errors.size() + (strict ? warnings.size() : 0);
-        reportContent = QString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites name=\"rmap-lint\" tests=\"%1\" failures=\"%2\">\n  <testsuite name=\"RegisterMapValidation\" tests=\"%1\" failures=\"%2\">\n").arg(totalTests).arg(failures);
-
-        if (errors.isEmpty()) {
-            reportContent += "    <testcase name=\"AddressAndOverlapCheck\"/>\n";
-        } else {
-            reportContent += QString("    <testcase name=\"AddressAndOverlapCheck\"><failure message=\"Validation Errors\">%1</failure></testcase>\n")
-                             .arg(errors.join("\n"));
-        }
-        for (int i = 0; i < warnings.size(); ++i) {
-            reportContent += QString("    <testcase name=\"StrictLint_%1\"><failure message=\"Strict Rule Violation\">%2</failure></testcase>\n")
-                             .arg(i + 1).arg(warnings[i]);
-        }
-        reportContent += "  </testsuite>\n</testsuites>\n";
+    reportContent += "  </testsuite>\n</testsuites>\n";
+  } else {
+    // Text format
+    reportContent =
+        QString("=== rmap Linter Report: %1 ===\n").arg(m_rmap_filename);
+    if (errors.isEmpty()) {
+      reportContent += "✓ Validation Check: PASSED (0 errors)\n";
     } else {
-        // Text format
-        reportContent = QString("=== rmap Linter Report: %1 ===\n").arg(m_rmap_filename);
-        if (errors.isEmpty()) {
-            reportContent += "✓ Validation Check: PASSED (0 errors)\n";
-        } else {
-            reportContent += QString("✗ Validation Check: FAILED (%1 errors)\n").arg(errors.size());
-            for (const QString &e : errors) reportContent += QString("  • ERROR: %1\n").arg(e);
-        }
-        if (!warnings.isEmpty()) {
-            reportContent += QString("⚠ Strict Lint Warnings: (%1 warnings)\n").arg(warnings.size());
-            for (const QString &w : warnings) reportContent += QString("  • WARN: %1\n").arg(w);
-        }
-        reportContent += isPassed ? "\nResult: SUCCESS\n" : "\nResult: FAILED\n";
+      reportContent += QString("✗ Validation Check: FAILED (%1 errors)\n")
+                           .arg(errors.size());
+      for (const QString &e : errors)
+        reportContent += QString("  • ERROR: %1\n").arg(e);
     }
+    if (!warnings.isEmpty()) {
+      reportContent += QString("⚠ Strict Lint Warnings: (%1 warnings)\n")
+                           .arg(warnings.size());
+      for (const QString &w : warnings)
+        reportContent += QString("  • WARN: %1\n").arg(w);
+    }
+    reportContent += isPassed ? "\nResult: SUCCESS\n" : "\nResult: FAILED\n";
+  }
 
-    QString expOut = PathUtils::expandEnvVars(outFile);
-    if (!expOut.isEmpty()) {
-        QFileInfo fi(expOut);
-        QDir().mkpath(fi.absolutePath());
-        QFile f(expOut);
-        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QTextStream(&f) << reportContent;
-            f.close();
-            std::cout << "Lint report saved to: " << expOut.toStdString() << std::endl;
-        } else {
-            std::cerr << "Failed to write lint report to: " << expOut.toStdString() << std::endl;
-            return false;
-        }
+  QString expOut = PathUtils::expandEnvVars(outFile);
+  if (!expOut.isEmpty()) {
+    QFileInfo fi(expOut);
+    QDir().mkpath(fi.absolutePath());
+    QFile f(expOut);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+      QTextStream(&f) << reportContent;
+      f.close();
+      std::cout << "Lint report saved to: " << expOut.toStdString()
+                << std::endl;
     } else {
-        std::cout << reportContent.toStdString() << std::endl;
+      std::cerr << "Failed to write lint report to: " << expOut.toStdString()
+                << std::endl;
+      return false;
     }
+  } else {
+    std::cout << reportContent.toStdString() << std::endl;
+  }
 
-    return isPassed;
+  return isPassed;
 }
 
-bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2, const QString &format, const QString &outFile)
-{
-    QString expFile1 = PathUtils::expandEnvVars(file1);
-    QString expFile2 = PathUtils::expandEnvVars(file2);
-    QString expOut = PathUtils::expandEnvVars(outFile);
+bool RegMapWindow::semanticDiff(const QString &file1, const QString &file2,
+                                const QString &format, const QString &outFile) {
+  QString expFile1 = PathUtils::expandEnvVars(file1);
+  QString expFile2 = PathUtils::expandEnvVars(file2);
+  QString expOut = PathUtils::expandEnvVars(outFile);
 
-    RegMapTreeModel model1, model2;
-    RegConfigWindow cfg1, cfg2;
+  RegMapTreeModel model1, model2;
+  RegConfigWindow cfg1, cfg2;
 
-    FormatResult r1 = FormatManager::instance().loadFile(expFile1, &model1, &cfg1);
-    if (!r1.success) {
-        std::cerr << "Diff error: Failed to load file1: " << r1.errorMessage.toStdString() << std::endl;
-        return false;
-    }
-    FormatResult r2 = FormatManager::instance().loadFile(expFile2, &model2, &cfg2);
-    if (!r2.success) {
-        std::cerr << "Diff error: Failed to load file2: " << r2.errorMessage.toStdString() << std::endl;
-        return false;
-    }
+  FormatResult r1 =
+      FormatManager::instance().loadFile(expFile1, &model1, &cfg1);
+  if (!r1.success) {
+    std::cerr << "Diff error: Failed to load file1: "
+              << r1.errorMessage.toStdString() << std::endl;
+    return false;
+  }
+  FormatResult r2 =
+      FormatManager::instance().loadFile(expFile2, &model2, &cfg2);
+  if (!r2.success) {
+    std::cerr << "Diff error: Failed to load file2: "
+              << r2.errorMessage.toStdString() << std::endl;
+    return false;
+  }
 
-    std::map<QString, RegSummary> map1, map2;
-    gatherRegs(model1, map1);
-    gatherRegs(model2, map2);
+  std::map<QString, RegSummary> map1, map2;
+  gatherRegs(model1, map1);
+  gatherRegs(model2, map2);
 
-    QStringList addedRegs, removedRegs, modifiedRegs;
+  QStringList addedRegs, removedRegs, modifiedRegs;
 
-    for (const auto& [key, s2] : map2) {
-        auto it1 = map1.find(key);
-        if (it1 == map1.end()) {
-            addedRegs.append(key);
-        } else {
-            const auto &s1 = it1->second;
-            QStringList diffs;
-            if (s1.offset != s2.offset) diffs.append(QString("Offset: %1 -> %2").arg(s1.offset).arg(s2.offset));
-            if (s1.access != s2.access) diffs.append(QString("Access: %1 -> %2").arg(s1.access).arg(s2.access));
-            if (s1.reset != s2.reset) diffs.append(QString("Reset: %1 -> %2").arg(s1.reset).arg(s2.reset));
-
-            // Compare fields
-            for (const auto& [fName, fVal] : s2.fields) {
-                auto fit1 = s1.fields.find(fName);
-                if (fit1 == s1.fields.end()) {
-                    diffs.append(QString("Added field '%1' (%2)").arg(fName).arg(fVal));
-                } else if (fit1->second != fVal) {
-                    diffs.append(QString("Modified field '%1': %2 -> %3").arg(fName).arg(fit1->second).arg(fVal));
-                }
-            }
-            for (const auto& [fName, fVal] : s1.fields) {
-                Q_UNUSED(fVal);
-                if (s2.fields.find(fName) == s2.fields.end()) {
-                    diffs.append(QString("Removed field '%1'").arg(fName));
-                }
-            }
-
-            if (!diffs.isEmpty()) {
-                modifiedRegs.append(key + " (" + diffs.join("; ") + ")");
-            }
-        }
-    }
-
-    for (const auto& [key, val] : map1) {
-        Q_UNUSED(val);
-        if (map2.find(key) == map2.end()) {
-            removedRegs.append(key);
-        }
-    }
-
-    QString outputStr;
-    if (format.toLower() == "markdown") {
-        outputStr = QString("# Register Map Diff: `%1` vs `%2`\n\n").arg(file1, file2);
-        outputStr += QString("### Summary\n- **Added Registers:** %1\n- **Removed Registers:** %2\n- **Modified Registers:** %3\n\n")
-            .arg(addedRegs.size()).arg(removedRegs.size()).arg(modifiedRegs.size());
-
-        if (!addedRegs.isEmpty()) {
-            outputStr += "#### ➕ Added Registers\n";
-            for (const QString &r : addedRegs) outputStr += QString("- `%1`\n").arg(r);
-            outputStr += "\n";
-        }
-        if (!removedRegs.isEmpty()) {
-            outputStr += "#### ➖ Removed Registers\n";
-            for (const QString &r : removedRegs) outputStr += QString("- `%1`\n").arg(r);
-            outputStr += "\n";
-        }
-        if (!modifiedRegs.isEmpty()) {
-            outputStr += "#### 📝 Modified Registers\n";
-            for (const QString &r : modifiedRegs) outputStr += QString("- `%1`\n").arg(r);
-            outputStr += "\n";
-        }
+  for (const auto &[key, s2] : map2) {
+    auto it1 = map1.find(key);
+    if (it1 == map1.end()) {
+      addedRegs.append(key);
     } else {
-        outputStr = QString("=== Register Map Diff: %1 vs %2 ===\n").arg(file1, file2);
-        outputStr += QString("Added: %1 | Removed: %2 | Modified: %3\n\n").arg(addedRegs.size()).arg(removedRegs.size()).arg(modifiedRegs.size());
-        for (const QString &r : addedRegs) outputStr += QString("+ ADDED:    %1\n").arg(r);
-        for (const QString &r : removedRegs) outputStr += QString("- REMOVED:  %1\n").arg(r);
-        for (const QString &r : modifiedRegs) outputStr += QString("~ MODIFIED: %1\n").arg(r);
-    }
+      const auto &s1 = it1->second;
+      QStringList diffs;
+      if (s1.offset != s2.offset)
+        diffs.append(QString("Offset: %1 -> %2").arg(s1.offset).arg(s2.offset));
+      if (s1.access != s2.access)
+        diffs.append(QString("Access: %1 -> %2").arg(s1.access).arg(s2.access));
+      if (s1.reset != s2.reset)
+        diffs.append(QString("Reset: %1 -> %2").arg(s1.reset).arg(s2.reset));
 
-    if (!expOut.isEmpty()) {
-        QFileInfo fi(expOut);
-        QDir().mkpath(fi.absolutePath());
-        QFile f(expOut);
-        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QTextStream(&f) << outputStr;
-            f.close();
-            std::cout << "Diff saved to: " << expOut.toStdString() << std::endl;
-        } else {
-            std::cerr << "Failed to write diff report to: " << expOut.toStdString() << std::endl;
-            return false;
+      // Compare fields
+      for (const auto &[fName, fVal] : s2.fields) {
+        auto fit1 = s1.fields.find(fName);
+        if (fit1 == s1.fields.end()) {
+          diffs.append(QString("Added field '%1' (%2)").arg(fName).arg(fVal));
+        } else if (fit1->second != fVal) {
+          diffs.append(QString("Modified field '%1': %2 -> %3")
+                           .arg(fName)
+                           .arg(fit1->second)
+                           .arg(fVal));
         }
+      }
+      for (const auto &[fName, fVal] : s1.fields) {
+        Q_UNUSED(fVal);
+        if (s2.fields.find(fName) == s2.fields.end()) {
+          diffs.append(QString("Removed field '%1'").arg(fName));
+        }
+      }
+
+      if (!diffs.isEmpty()) {
+        modifiedRegs.append(key + " (" + diffs.join("; ") + ")");
+      }
     }
+  }
 
-    std::cout << outputStr.toStdString() << std::endl;
+  for (const auto &[key, val] : map1) {
+    Q_UNUSED(val);
+    if (map2.find(key) == map2.end()) {
+      removedRegs.append(key);
+    }
+  }
 
-    return true;
+  QString outputStr;
+  if (format.toLower() == "markdown") {
+    outputStr =
+        QString("# Register Map Diff: `%1` vs `%2`\n\n").arg(file1, file2);
+    outputStr += QString("### Summary\n- **Added Registers:** %1\n- **Removed "
+                         "Registers:** %2\n- **Modified Registers:** %3\n\n")
+                     .arg(addedRegs.size())
+                     .arg(removedRegs.size())
+                     .arg(modifiedRegs.size());
+
+    if (!addedRegs.isEmpty()) {
+      outputStr += "#### ➕ Added Registers\n";
+      for (const QString &r : addedRegs)
+        outputStr += QString("- `%1`\n").arg(r);
+      outputStr += "\n";
+    }
+    if (!removedRegs.isEmpty()) {
+      outputStr += "#### ➖ Removed Registers\n";
+      for (const QString &r : removedRegs)
+        outputStr += QString("- `%1`\n").arg(r);
+      outputStr += "\n";
+    }
+    if (!modifiedRegs.isEmpty()) {
+      outputStr += "#### 📝 Modified Registers\n";
+      for (const QString &r : modifiedRegs)
+        outputStr += QString("- `%1`\n").arg(r);
+      outputStr += "\n";
+    }
+  } else {
+    outputStr =
+        QString("=== Register Map Diff: %1 vs %2 ===\n").arg(file1, file2);
+    outputStr += QString("Added: %1 | Removed: %2 | Modified: %3\n\n")
+                     .arg(addedRegs.size())
+                     .arg(removedRegs.size())
+                     .arg(modifiedRegs.size());
+    for (const QString &r : addedRegs)
+      outputStr += QString("+ ADDED:    %1\n").arg(r);
+    for (const QString &r : removedRegs)
+      outputStr += QString("- REMOVED:  %1\n").arg(r);
+    for (const QString &r : modifiedRegs)
+      outputStr += QString("~ MODIFIED: %1\n").arg(r);
+  }
+
+  if (!expOut.isEmpty()) {
+    QFileInfo fi(expOut);
+    QDir().mkpath(fi.absolutePath());
+    QFile f(expOut);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+      QTextStream(&f) << outputStr;
+      f.close();
+      std::cout << "Diff saved to: " << expOut.toStdString() << std::endl;
+    } else {
+      std::cerr << "Failed to write diff report to: " << expOut.toStdString()
+                << std::endl;
+      return false;
+    }
+  }
+
+  std::cout << outputStr.toStdString() << std::endl;
+
+  return true;
 }
 
 #include "RegMapWindow.moc"

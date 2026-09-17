@@ -559,6 +559,41 @@ def render_console_summary(metrics: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def generate_badge_endpoints(metrics: Dict[str, Any], output_dir: Path) -> List[Path]:
+    """Generate Shields.io endpoint JSON files for dynamic badge rendering."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    s = metrics["summary"]
+    badge_files = []
+
+    badge_configs = [
+        ("badge_line.json", "Line Coverage", s["lines"]["percent"]),
+        ("badge_function.json", "Function Coverage", s["functions"]["percent"]),
+        ("badge_branch.json", "Branch Coverage", s["branches"]["percent"]),
+        ("badge_condition.json", "Condition Coverage", s["conditions"]["percent"]),
+        ("badge_calls.json", "Call Coverage", s["calls"]["percent"]),
+        ("badge_blocks.json", "Basic Blocks", s["blocks"]["percent"]),
+        # Aliases for convenience
+        ("line_badge.json", "Line Coverage", s["lines"]["percent"]),
+        ("function_badge.json", "Function Coverage", s["functions"]["percent"]),
+        ("branch_badge.json", "Branch Coverage", s["branches"]["percent"]),
+        ("condition_badge.json", "Condition Coverage", s["conditions"]["percent"]),
+    ]
+
+    for filename, label, pct in badge_configs:
+        color = get_color_for_percent(pct)
+        payload = {
+            "schemaVersion": 1,
+            "label": label,
+            "message": f"{pct:.1f}%",
+            "color": color,
+        }
+        dest = output_dir / filename
+        dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        badge_files.append(dest)
+
+    return badge_files
+
+
 def render_markdown_report(metrics: Dict[str, Any]) -> str:
     """Generate GitHub-Flavored Markdown report with tables and badges."""
     s = metrics["summary"]
@@ -566,7 +601,10 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
 
     md.append("## Code Coverage Metrics")
     md.append("")
-    md.append("Automated test coverage analysis across all 6 compiler-supported metrics:")
+    md.append("Automated test coverage analysis across all 6 compiler-supported metrics, published continuously by the [GitHub Actions CI Pipeline](https://github.com/zkalves/rmap/actions/workflows/ci.yml):")
+    md.append("")
+    md.append("> [!TIP]")
+    md.append("> **Live CI/CD Coverage Pipeline**: Interactive coverage reports, line-by-line profiling, and call graphs are updated continuously by the pipeline and hosted live on [GitHub Pages: rmap Coverage Dashboard](https://zkalves.github.io/rmap/coverage/).")
     md.append("")
     md.append("| Metric | Covered | Total | Coverage Rate | Status |")
     md.append("| :--- | :---: | :---: | :---: | :---: |")
@@ -889,22 +927,12 @@ def update_readme(readme_path: Path, metrics: Dict[str, Any]) -> None:
     content = readme_path.read_text(encoding="utf-8")
     s = metrics["summary"]
 
-    # 1. Prepare Coverage Badges
-    l_pct = s["lines"]["percent"]
-    f_pct = s["functions"]["percent"]
-    b_pct = s["branches"]["percent"]
-    c_pct = s["conditions"]["percent"]
-
-    l_col = get_color_for_percent(l_pct)
-    f_col = get_color_for_percent(f_pct)
-    b_col = get_color_for_percent(b_pct)
-    c_col = get_color_for_percent(c_pct)
-
+    # 1. Prepare Coverage Badges (Dynamic pipeline endpoints from GitHub Pages)
     cov_badges = (
-        f"[![Line Coverage](https://img.shields.io/badge/Line_Coverage-{l_pct:.1f}%25-{l_col}.svg)](#code-coverage-metrics)\n"
-        f"[![Function Coverage](https://img.shields.io/badge/Function_Coverage-{f_pct:.1f}%25-{f_col}.svg)](#code-coverage-metrics)\n"
-        f"[![Branch Coverage](https://img.shields.io/badge/Branch_Coverage-{b_pct:.1f}%25-{b_col}.svg)](#code-coverage-metrics)\n"
-        f"[![Condition Coverage](https://img.shields.io/badge/Condition_Coverage-{c_pct:.1f}%25-{c_col}.svg)](#code-coverage-metrics)"
+        "[![Line Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_line.json)](https://zkalves.github.io/rmap/coverage/)\n"
+        "[![Function Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_function.json)](https://zkalves.github.io/rmap/coverage/)\n"
+        "[![Branch Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_branch.json)](https://zkalves.github.io/rmap/coverage/)\n"
+        "[![Condition Coverage](https://img.shields.io/endpoint?url=https://zkalves.github.io/rmap/coverage/badge_condition.json)](https://zkalves.github.io/rmap/coverage/)"
     )
 
     # Insert or replace coverage badges below existing badges in README.md
@@ -965,6 +993,7 @@ def main():
     parser.add_argument("--fail-under-functions", type=float, default=0.0, help="Fail if function coverage is below this threshold")
     parser.add_argument("--fail-under-conditions", type=float, default=0.0, help="Fail if condition coverage is below this threshold")
     parser.add_argument("--include-throw-branches", action="store_true", help="Include compiler-synthesized exception unwinding landing pads in branch metrics")
+    parser.add_argument("--badges-dir", type=Path, help="Directory to output dynamic Shields.io badge endpoint JSON files")
     parser.add_argument("--gcov-dir", type=Path, default=PROJECT_ROOT / "work" / "coverage" / "gcov", help="Directory where temporary gcov intermediate files are generated (default: work/coverage/gcov)")
 
     args = parser.parse_args()
@@ -993,6 +1022,12 @@ def main():
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
         print(f"Wrote JSON report to {args.json}")
+
+    if args.badges_dir:
+        generate_badge_endpoints(metrics, args.badges_dir)
+        print(f"Wrote dynamic Shields.io badge endpoint JSON files to {args.badges_dir}")
+    elif args.html:
+        generate_badge_endpoints(metrics, args.html.parent)
 
     if args.github_step_summary:
         step_summary_file = os.environ.get("GITHUB_STEP_SUMMARY")

@@ -728,14 +728,25 @@ void TestRegMapTreeModel::testModelCoverageEdgeCases()
     nlohmann::json emptyAccessJson = model.extractJsonData(32);
     Q_UNUSED(emptyAccessJson);
 
-    // 20. Child item of kind 'map' in extractJsonData
-    QVariantMap mapData;
-    mapData["Name"] = "SYS_MAP";
+    // 20. Child items of kind 'map' in extractJsonData (exercises line 770 sorting lambda on non-block items)
+    QVariantMap mapData1;
+    mapData1["Name"] = "SYS_MAP_B";
+    mapData1["Offset/LSB"] = "0x2000";
     RegMapTreeItem *rootItem = model.getRootItem();
-    RegMapTreeItem *mapChild = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData, rootItem);
-    rootItem->appendChild(mapChild);
+    RegMapTreeItem *mapChild1 = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData1, rootItem);
+    rootItem->appendChild(mapChild1);
+
+    QVariantMap mapData2;
+    mapData2["Name"] = "SYS_MAP_A";
+    mapData2["Offset/LSB"] = "0x1000";
+    RegMapTreeItem *mapChild2 = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::map, mapData2, rootItem);
+    rootItem->appendChild(mapChild2);
+
     nlohmann::json mapJson = model.extractJsonData(32);
-    Q_UNUSED(mapJson);
+    QVERIFY(mapJson.contains("maps"));
+    QCOMPARE(mapJson["maps"].size(), 2);
+    QCOMPARE(mapJson["maps"][0]["name"].get<std::string>(), std::string("SYS_MAP_A"));
+    QCOMPARE(mapJson["maps"][1]["name"].get<std::string>(), std::string("SYS_MAP_B"));
 
     // 21. setRootItem with the SAME root item (exercises line 280: m_rootItem == item)
     model.setRootItem(model.getRootItem());

@@ -27,6 +27,27 @@ def main():
         block.write_field(reg, 'ENABLE', 1)
         assert block.read_field(reg, 'ENABLE') == 1
         print('Tested field ENABLE read/write')
+
+    once_reg = getattr(block, 'once_and_toggle')
+    assert once_reg is not None
+    assert once_reg.offset == 0x10
+    print(f'Tested register {once_reg.name} at offset 0x{once_reg.offset:X}')
+
+    side_reg = getattr(block, 'write_read_side_effects')
+    assert side_reg is not None
+    assert side_reg.offset == 0x14
+    print(f'Tested register {side_reg.name} at offset 0x{side_reg.offset:X}')
+
+    comb_reg = getattr(block, 'combined_bit_side_effects')
+    assert comb_reg is not None
+    assert comb_reg.offset == 0x18
+    print(f'Tested register {comb_reg.name} at offset 0x{comb_reg.offset:X}')
+
+    only_reg = getattr(block, 'write_only_side_effects')
+    assert only_reg is not None
+    assert only_reg.offset == 0x1C
+    print(f'Tested register {only_reg.name} at offset 0x{only_reg.offset:X}')
+
     print("[Python Harness] All comprehensive driver tests PASSED!")
 
 if __name__ == "__main__":

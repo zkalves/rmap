@@ -61,7 +61,7 @@ public:
     void refreshHeaderData();
     bool isIndexInvalid(const QModelIndex &index) const;
     json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32);
-    json extractJsonData(uint32_t regWidth = 32) noexcept;
+    json extractJsonData(uint32_t regWidth = 32, bool hwPrecedence = true) noexcept;
 
     static uint32_t calculateCrc32(const uint8_t *data, size_t length, uint32_t previousCrc32 = 0);
     static uint32_t computeBlockCrc32(const json &blkJson);

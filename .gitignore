@@ -1,6 +1,6 @@
 __pycache__
 CMakeLists.txt.user
-build
+build*
 work/
 _site/
 .pelican-cache/

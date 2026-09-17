@@ -178,7 +178,8 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model, R
                 QVariantMap regData;
                 regData["Type"] = "reg";
                 regData["Offset/LSB"] = (type == "reg") ? offsetLsb : "0x0";
-                regData["Size/Width"] = "32";
+                QString regWidth = (type == "reg" && width.toUInt() > 0) ? width : (config && config->registerWidth() > 0 ? QString::number(config->registerWidth()) : "32");
+                regData["Size/Width"] = regWidth;
                 regData["Name"] = regName;
                 regData["SW Access"] = access;
                 regData["HW Access"] = "RO";
@@ -255,8 +256,12 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model, 
             QString regName = reg->data("Name").toString().trimmed();
             QString regOffset = reg->data("Offset/LSB").toString().trimmed();
             QString regDesc = reg->data("Description").toString().trimmed();
+            QString regWidth = reg->data("Size/Width").toString().trimmed();
+            if (regWidth.isEmpty() || regWidth.toUInt() == 0) {
+                regWidth = (config && config->registerWidth() > 0) ? QString::number(config->registerWidth()) : "32";
+            }
 
-            QStringList regRow = {"reg", blkName, regName, "", regOffset, "32", "RW", "0x0", "false", "false", "false", regDesc};
+            QStringList regRow = {"reg", blkName, regName, "", regOffset, regWidth, "RW", "0x0", "false", "false", "false", regDesc};
             for (int i = 0; i < regRow.size(); ++i) {
                 out << escapeCsv(regRow[i], delimiter) << (i + 1 < regRow.size() ? QChar(delimiter) : QChar('\n'));
             }

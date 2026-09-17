@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -66,7 +66,7 @@ test-frontend: all
 	@mkdir -p work
 	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "frontend" --output-on-failure
 
-# Run comprehensive template verification tests across all 15 output templates
+# Run comprehensive template verification tests
 test-templates: rmap
 	@rm -rf work/test_templates
 	@mkdir -p work/test_templates
@@ -128,22 +128,40 @@ docs-pdf:
 docs-user:
 	@python3 ./script/generate_docs.py --user-only
 
-# Generate Developer Guide PDF only
-docs-dev:
+# Generate Developer Guide (Doxygen API docs + Developer Guide PDF)
+docs-dev: docs-doxygen
 	@python3 ./script/generate_docs.py --dev-only
 
-# Serve documentation locally with Pelican
-docs-serve:
-	@export PYTHONPATH="$$(pwd)/.python_packages:$${PYTHONPATH}"; \
-	if python3 -m pelican --version >/dev/null 2>&1; then \
-		echo "Serving documentation on http://127.0.0.1:8000 ..."; \
-		python3 -m pelican -l docs -s docs/pelicanconf.py -o _site; \
-	elif command -v pelican >/dev/null 2>&1; then \
-		echo "Serving documentation on http://127.0.0.1:8000 ..."; \
-		pelican -l docs -s docs/pelicanconf.py -o _site; \
+# Generate Doxygen C++ API reference documentation
+docs-doxygen:
+	@if command -v doxygen >/dev/null 2>&1; then \
+		echo "Generating Doxygen C++ API documentation..."; \
+		doxygen docs/Doxyfile; \
 	else \
-		echo "Pelican not found. Install with: pip install pelican markdown"; \
+		echo "======================================================================"; \
+		echo "ERROR: Doxygen is required to generate C++ API documentation,"; \
+		echo "       but 'doxygen' was not found on PATH."; \
+		echo "======================================================================"; \
+		echo "Please install Doxygen:"; \
+		echo "  - Ubuntu/Debian: sudo apt-get install -y doxygen graphviz"; \
+		echo "  - macOS:         brew install doxygen graphviz"; \
+		echo "  - Fedora/RHEL:   sudo dnf install doxygen graphviz"; \
+		echo "  - Arch Linux:    sudo pacman -S doxygen graphviz"; \
+		exit 1; \
 	fi
+
+docs-classes: docs-doxygen
+
+
+# Serve documentation portal locally
+docs-serve:
+	@if [ ! -d "_site" ] || [ ! -f "_site/index.html" ]; then \
+		echo "Documentation portal not yet generated. Building with 'make docs'..."; \
+		$(MAKE) docs; \
+	fi
+	@echo "Serving documentation portal on http://127.0.0.1:8000 (Ctrl+C to stop)..."; \
+	python3 -m http.server 8000 --directory _site
+
 
 # Semantic Versioning Automation
 version:

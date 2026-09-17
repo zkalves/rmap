@@ -69,6 +69,8 @@ jobs:
           - test_RegMapTreeView
           - test_Coverage
           - test_SemVer
+          - test_Templates
+          - test_ArchitecturalInvariants
 
     steps:
       - name: Checkout repository
@@ -96,40 +98,40 @@ jobs:
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build -R "^${{ matrix.test_name }}$" --output-on-failure
 
   build-verilator:
-    name: Prepare Verilator 5.050
+    name: Prepare Verilator 5.052
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Cache Verilator 5.050
+      - name: Cache Verilator 5.052
         id: cache-verilator
         uses: actions/cache@v5
         with:
-          path: /home/runner/verilator-5.050
-          key: verilator-5.050-${{ runner.os }}
+          path: /home/runner/verilator-5.052
+          key: verilator-5.052-${{ runner.os }}
 
-      - name: Install & Compile Verilator 5.050
+      - name: Install & Compile Verilator 5.052
         if: steps.cache-verilator.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             git help2man perl python3 make autoconf g++ flex bison ccache \
             libfl2 libfl-dev zlib1g zlib1g-dev liblz4-dev
-          git clone --depth 1 --branch v5.050 https://github.com/verilator/verilator.git /tmp/verilator
+          git clone --depth 1 --branch v5.052 https://github.com/verilator/verilator.git /tmp/verilator
           cd /tmp/verilator
           autoconf
-          ./configure --prefix=/home/runner/verilator-5.050
+          ./configure --prefix=/home/runner/verilator-5.052
           make -j$(nproc)
           make install
           rm -rf /tmp/verilator
 
       - name: Package Verilator
-        run: tar -czf /tmp/verilator-5.050.tar.gz -C /home/runner verilator-5.050
+        run: tar -czf /tmp/verilator-5.052.tar.gz -C /home/runner verilator-5.052
 
       - name: Upload Verilator artifact
         uses: actions/upload-artifact@v5
         with:
           name: verilator-artifact
-          path: /tmp/verilator-5.050.tar.gz
+          path: /tmp/verilator-5.052.tar.gz
 
   test-templates:
     name: Template Test (${{ matrix.template }})
@@ -141,6 +143,11 @@ jobs:
         template:
           - c
           - rtl
+          - verilog
+          - vhdl
+          - apb
+          - axil
+          - sva
           - uvm
           - rust
           - python
@@ -172,18 +179,18 @@ jobs:
             jq
 
       - name: Download Verilator artifact
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb'
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva'
         uses: actions/download-artifact@v5
         with:
           name: verilator-artifact
           path: /tmp
 
       - name: Extract Verilator and Add to PATH
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb'
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva'
         run: |
-          tar -xzf /tmp/verilator-5.050.tar.gz -C /home/runner
-          echo "/home/runner/verilator-5.050/bin" >> $GITHUB_PATH
-          /home/runner/verilator-5.050/bin/verilator --version
+          tar -xzf /tmp/verilator-5.052.tar.gz -C /home/runner
+          echo "/home/runner/verilator-5.052/bin" >> $GITHUB_PATH
+          /home/runner/verilator-5.052/bin/verilator --version
 
       - name: Install Template-Specific Toolchain
         run: |
@@ -191,8 +198,11 @@ jobs:
             c)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential
               ;;
-            rtl|rtl_tb)
+            rtl|rtl_tb|verilog|apb|axil)
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iverilog
+              ;;
+            vhdl)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ghdl || true
               ;;
             pyuvm_tb)
               python3 -m pip install --break-system-packages cocotb pyuvm || true
@@ -263,8 +273,18 @@ jobs:
             --html work/coverage/index.html \
             --markdown work/coverage/coverage.md \
             --json work/coverage/coverage.json \
+            --badges-dir work/coverage \
             --github-step-summary \
             --summary
+
+      - name: Update README Coverage Report from Pipeline
+        if: github.ref == 'refs/heads/main'
+        run: |
+          python3 script/generate_coverage.py --build-dir build --update-readme
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || (git commit -m "docs: Update coverage metrics from CI pipeline [skip ci]" && git push)
 
       - name: Upload Coverage Artifacts
         uses: actions/upload-artifact@v5
@@ -273,26 +293,21 @@ jobs:
           path: work/coverage/
 
   docs-build:
-    name: Build & Render Documentation (Pelican)
+    name: Build & Render Documentation (Doxygen)
     needs: coverage
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Pelican & Markdown
+      - name: Install Doxygen & Graphviz
         run: |
-          python -m pip install --upgrade pip
-          pip install pelican markdown
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
 
       - name: Render Documentation Site
         run: |
-          pelican docs -s docs/pelicanconf.py -o _site
+          doxygen docs/Doxyfile
 
       - name: Download Coverage Artifact
         uses: actions/download-artifact@v5
