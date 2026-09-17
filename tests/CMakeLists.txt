@@ -76,4 +76,10 @@ if(Python3_FOUND)
         LABELS "unit;backend;templates"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
+
+    add_test(NAME test_ArchitecturalInvariants COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_architectural_invariants.py)
+    set_tests_properties(test_ArchitecturalInvariants PROPERTIES
+        LABELS "unit;backend;architecture"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
 endif()

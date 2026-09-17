@@ -914,6 +914,44 @@ def test_sim_makefile(rmap_bin, work_dir):
     print("✓ Simulation Makefile template verified successfully.\n")
 
 
+def export_custom_mapping(template_rel_path, output_rel_path, rmap_bin, target_work_dir):
+    os.makedirs(target_work_dir, exist_ok=True)
+    comp_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "features", "comprehensive.rmt")
+    spi_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "peripherals", "spi.rmt")
+
+    with open(comp_rmt, "r") as f:
+        comp_text = f.read()
+    with open(spi_rmt, "r") as f:
+        spi_text = f.read()
+
+    custom_entry = f'''  template_outputs {{
+    template_filename: "./{template_rel_path}"
+    output_filepath: "./work/{output_rel_path}"
+  }}
+'''
+    marker = '    output_filepath: "./work/rtl/reg_map.sv"\n  }'
+    comp_wrapped = comp_text if template_rel_path in comp_text else comp_text.replace(marker, marker + "\n" + custom_entry)
+    spi_wrapped = spi_text if template_rel_path in spi_text else spi_text.replace(marker, marker + "\n" + custom_entry)
+
+    tag = os.path.splitext(os.path.basename(template_rel_path))[0].replace('.', '_')
+    tmp_comp_rmt = os.path.join(target_work_dir, f"comp_{tag}.rmt")
+    with open(tmp_comp_rmt, "w") as f:
+        f.write(comp_wrapped)
+
+    tmp_spi_rmt = os.path.join(target_work_dir, f"spi_{tag}.rmt")
+    with open(tmp_spi_rmt, "w") as f:
+        f.write(spi_wrapped)
+
+    comp_out = os.path.join(target_work_dir, "comprehensive")
+    spi_out = os.path.join(target_work_dir, "spi")
+    os.makedirs(comp_out, exist_ok=True)
+    os.makedirs(spi_out, exist_ok=True)
+
+    run_command([rmap_bin, "-f", tmp_comp_rmt, "-e", "-o", comp_out], cwd=PROJECT_ROOT)
+    run_command([rmap_bin, "-f", tmp_spi_rmt, "-e", "-o", spi_out], cwd=PROJECT_ROOT)
+    return comp_out, spi_out
+
+
 def export_bus_wrapper(template_name, rmap_bin, target_work_dir):
     os.makedirs(target_work_dir, exist_ok=True)
     comp_rmt = os.path.join(PROJECT_ROOT, "examples", "rmt", "features", "comprehensive.rmt")
@@ -1071,13 +1109,148 @@ def test_axil(rmap_bin, work_dir):
 
 
 # =============================================================================
-# Main Dispatcher
+# 18. Synthesizable Verilog-2001 Register File Validator
+# =============================================================================
+def test_verilog(rmap_bin, work_dir):
+    print("Testing 'verilog' template (Synthesizable Verilog-2001 Register File)...")
+    comp_out, spi_out = export_custom_mapping("templates/rtl/reg_map.v.inja", "rtl/reg_map.v", rmap_bin, work_dir)
+
+    v_comp_file = os.path.join(comp_out, "rtl", "reg_map.v")
+    v_spi_file = os.path.join(spi_out, "rtl", "reg_map.v")
+
+    assert os.path.isfile(v_comp_file), f"Verilog output '{v_comp_file}' not found!"
+    assert os.path.isfile(v_spi_file), f"Verilog output '{v_spi_file}' not found!"
+
+    with open(v_comp_file, "r") as f:
+        content = f.read()
+
+    # Structural assertions
+    assert "timescale 1ns / 1ps" in content
+    assert "module core_subsystem_reg_file" in content
+    assert "input  wire                      clk_i" in content
+    assert "input  wire                      rst_ni" in content
+    assert "input  wire                      bus_wr_en_i" in content
+    assert "input  wire                      bus_rd_en_i" in content
+    assert "input  wire [ADDR_WIDTH-1:0]     bus_addr_i" in content
+    assert "input  wire [DATA_WIDTH-1:0]     bus_wdata_i" in content
+    assert "input  wire [STRB_WIDTH-1:0]     bus_wstrb_i" in content
+    assert "output wire [DATA_WIDTH-1:0]     bus_rdata_o" in content
+    assert "output wire                      bus_ready_o" in content
+    assert "output wire                      bus_error_o" in content
+    assert "output wire                      sw_control_wr_strobe_o" in content
+    assert "output wire                      sw_control_rd_strobe_o" in content
+    assert "always @(posedge clk_i or negedge rst_ni)" in content
+
+    # Verilator lint if installed
+    verilator_bin = find_verilator()
+    if verilator_bin:
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", v_comp_file])
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", v_spi_file])
+        print("  ✓ Verilator lint checks passed.")
+
+    # Icarus Verilog if installed
+    iverilog_bin = shutil.which("iverilog")
+    if iverilog_bin:
+        run_command([iverilog_bin, "-t", "null", v_comp_file])
+        run_command([iverilog_bin, "-t", "null", v_spi_file])
+        print("  ✓ Icarus Verilog syntax checks passed.")
+
+    print("✓ Verilog-2001 template verified successfully.\n")
+
+
+# =============================================================================
+# 19. Synthesizable VHDL Register File Validator
+# =============================================================================
+def test_vhdl(rmap_bin, work_dir):
+    print("Testing 'vhdl' template (Synthesizable VHDL Register File)...")
+    comp_out, spi_out = export_custom_mapping("templates/rtl/reg_map.vhd.inja", "rtl/reg_map.vhd", rmap_bin, work_dir)
+
+    vhd_comp_file = os.path.join(comp_out, "rtl", "reg_map.vhd")
+    vhd_spi_file = os.path.join(spi_out, "rtl", "reg_map.vhd")
+
+    assert os.path.isfile(vhd_comp_file), f"VHDL output '{vhd_comp_file}' not found!"
+    assert os.path.isfile(vhd_spi_file), f"VHDL output '{vhd_spi_file}' not found!"
+
+    with open(vhd_comp_file, "r") as f:
+        content = f.read()
+
+    # Structural assertions
+    assert "library ieee;" in content
+    assert "use ieee.std_logic_1164.all;" in content
+    assert "use ieee.numeric_std.all;" in content
+    assert "entity core_subsystem_reg_file is" in content
+    assert "architecture rtl of core_subsystem_reg_file is" in content
+    assert "clk_i                     : in  std_logic;" in content
+    assert "rst_ni                    : in  std_logic;" in content
+    assert "bus_wr_en_i               : in  std_logic;" in content
+    assert "bus_rd_en_i               : in  std_logic;" in content
+    assert "sw_control_wr_strobe_o : out std_logic;" in content
+    assert "process(clk_i, rst_ni)" in content
+
+    # GHDL if installed
+    ghdl_bin = shutil.which("ghdl")
+    if ghdl_bin:
+        run_command([ghdl_bin, "-s", "--std=08", vhd_comp_file])
+        run_command([ghdl_bin, "-s", "--std=08", vhd_spi_file])
+        print("  ✓ GHDL syntax checks passed.")
+
+    print("✓ VHDL template verified successfully.\n")
+
+
+# =============================================================================
+# 20. SystemVerilog Assertions (SVA) Validator
+# =============================================================================
+def test_sva(rmap_bin, work_dir):
+    print("Testing 'sva' template (Formal & Dynamic SystemVerilog Assertions)...")
+    comp_out, spi_out = export_custom_mapping("templates/rtl/reg_map_sva.sv.inja", "rtl/reg_map_sva.sv", rmap_bin, work_dir)
+
+    rtl_comp_file = os.path.join(comp_out, "rtl", "reg_map.sv")
+    sva_comp_file = os.path.join(comp_out, "rtl", "reg_map_sva.sv")
+    rtl_spi_file = os.path.join(spi_out, "rtl", "reg_map.sv")
+    sva_spi_file = os.path.join(spi_out, "rtl", "reg_map_sva.sv")
+
+    assert os.path.isfile(sva_comp_file), f"SVA output '{sva_comp_file}' not found!"
+    assert os.path.isfile(sva_spi_file), f"SVA output '{sva_spi_file}' not found!"
+
+    with open(sva_comp_file, "r") as f:
+        content = f.read()
+
+    # Structural assertions
+    assert "timeunit 1ns;" in content
+    assert "timeprecision 1ps;" in content
+    assert "module core_subsystem_reg_map_sva" in content
+    assert "default clocking cb_clk @(posedge clk_i); endclocking" in content
+    assert "default disable iff (!rst_ni);" in content
+    assert "assert property" in content
+
+    # Verilator lint if installed
+    verilator_bin = find_verilator()
+    if verilator_bin:
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_comp_file, sva_comp_file])
+        run_command([verilator_bin, "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME", rtl_spi_file, sva_spi_file])
+        print("  ✓ Verilator lint checks passed.")
+
+    # Icarus Verilog if installed
+    iverilog_bin = shutil.which("iverilog")
+    if iverilog_bin:
+        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_comp_file, sva_comp_file])
+        run_command([iverilog_bin, "-g2012", "-t", "null", rtl_spi_file, sva_spi_file])
+        print("  ✓ Icarus Verilog syntax checks passed.")
+
+    print("✓ SVA template verified successfully.\n")
+
+
+# =============================================================================
+# Main Dispatcher (All 20 Production Deliverables)
 # =============================================================================
 TEMPLATES = {
     "c": test_c,
     "rtl": test_rtl,
+    "verilog": test_verilog,
+    "vhdl": test_vhdl,
     "apb": test_apb,
     "axil": test_axil,
+    "sva": test_sva,
     "uvm": test_uvm,
     "rust": test_rust,
     "python": test_python,
@@ -1093,6 +1266,11 @@ TEMPLATES = {
     "sim_makefile": test_sim_makefile,
 }
 
+ALIASES = {
+    "v": "verilog",
+    "vhd": "vhdl",
+}
+
 def main():
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <template_name|all>")
@@ -1100,6 +1278,7 @@ def main():
         sys.exit(1)
 
     target = sys.argv[1].lower()
+    target = ALIASES.get(target, target)
     rmap_bin = find_rmap_binary()
 
     if target == "all":
