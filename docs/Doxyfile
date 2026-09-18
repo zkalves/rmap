@@ -128,9 +128,10 @@ PREDEFINED             = HAVE_QT_GUI=1 \
 GENERATE_HTML          = YES
 HTML_OUTPUT            = .
 HTML_FILE_EXTENSION    = .html
-HTML_COLORSTYLE_HUE    = 220
-HTML_COLORSTYLE_SAT    = 100
-HTML_COLORSTYLE_GAMMA  = 80
+HTML_COLORSTYLE        = TOGGLE
+HTML_COLORSTYLE_HUE    = 193
+HTML_COLORSTYLE_SAT    = 60
+HTML_COLORSTYLE_GAMMA  = 90
 HTML_DYNAMIC_MENUS     = YES
 GENERATE_DOCSET        = NO
 GENERATE_HTMLHELP      = NO
@@ -139,8 +140,9 @@ GENERATE_TREEVIEW      = YES
 FULL_SIDEBAR           = YES
 SEARCHENGINE           = YES
 
-# Optional Doxygen Awesome CSS theme
-HTML_EXTRA_STYLESHEET  = docs/theme/doxygen-awesome.css
+# Solarized CSS theme
+HTML_EXTRA_STYLESHEET  = docs/theme/solarized.css
+HTML_FOOTER            = docs/theme/footer.html
 
 GENERATE_LATEX         = NO
 GENERATE_RTF           = NO

@@ -17,7 +17,7 @@ rmap [OPTIONS] [file]
 
 | Option | Long Option | Description |
 | :--- | :--- | :--- |
-| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.systemrdl`, `.xml`, `.json`, `.csv`, `.rmt`, `.rmb`). Can also be passed directly as a positional argument `[file]`. |
+| `-f <file>` | `--file <file>` | Path to register map file to load (`.svd`, `.rdl`, `.systemrdl`, `.xml`, `.json`, `.csv`, `.tsv`, `.rmt`, `.rmb`). Can also be passed directly as a positional argument `[file]`. |
 | `-c <file>` | `--convert <file>` | Headlessly convert the loaded register map into another format (e.g. `--convert out.svd`). |
 | `-e` | `--export` | Run in **headless mode** and generate all configured template outputs. |
 | `-l` | `--lint` | Run automated linter validation check on the loaded register map. |
@@ -30,6 +30,17 @@ rmap [OPTIONS] [file]
 | `-h` | `--help` | Display command-line help and usage. |
 | | `--help-all` | Display command-line help including generic Qt options. |
 | `-v` | `--version` | Display application version. |
+
+### Headless Action Precedence & Execution
+
+When invoked in headless mode, multiple actions are evaluated sequentially in the following priority order, executing the first matching action and terminating execution with its respective exit status code:
+
+1. **Semantic Diff** (`-d` / `--diff`): Compares loaded register map against another file. Exits `0` if models are structurally identical, `1` if differences are found or an error occurs.
+2. **Linter Validation** (`-l` / `--lint`): Audits the register map against structural and alignment rules. Exits `0` on clean pass, `1` on lint failure.
+3. **Format Conversion** (`-c` / `--convert`): Converts the loaded register map into the target format specified in `<file>`. Exits `0` on success, `1` on failure.
+4. **Template Export** (`-e` / `--export`): Generates code across all enabled templates into the specified output directory (`-o`). Exits `0` on success, `1` on failure.
+
+Because each headless action exits immediately upon completion, specifying multiple action flags in a single command invocation (for instance, `rmap -f spi.rmt --lint --export`) executes only the highest-priority action (`--lint`). To execute multiple operations, invoke them as separate steps in your build system or CI pipeline.
 
 ---
 
@@ -51,6 +62,7 @@ rmap [OPTIONS] [file]
 | `RMAP_EXAMPLES_DIR` | Explicit filesystem path overriding the default bundled examples directory. |
 | `RMAP_DOCS_DIR` | Explicit filesystem path overriding the default offline documentation directory. |
 | `RMAP_PYTHON` | Custom Python interpreter path/binary (defaults to `python3` or `python` discovered on `PATH`). |
+| `PYTHON` | Fallback Python interpreter path/binary checked if `RMAP_PYTHON` is not set. |
 | `RMAP_PYTHON_TIMEOUT` | Execution timeout in milliseconds (default: `60000` ms / 60 seconds) for custom Python generation scripts and post-processing filters. |
 | `RMAP_TMPDIR` | Explicit temporary directory path for intermediate JSON context files generated during script execution (defaults to system temp directory). |
 
