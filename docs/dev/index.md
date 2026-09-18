@@ -137,6 +137,6 @@ signals:
 
 ## 👤 Author & GitHub Repository
 
-- **Author**: Ezequiel Alves ([@zkalves](https://github.com/zkalves))
+- **Author**: Ezequiel Alves ([@@zkalves](https://github.com/zkalves))
 - **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
 - **Issue Tracker**: [https://github.com/zkalves/rmap/issues](https://github.com/zkalves/rmap/issues)

@@ -142,6 +142,7 @@ SEARCHENGINE           = YES
 
 # Solarized CSS theme
 HTML_EXTRA_STYLESHEET  = docs/theme/solarized.css
+HTML_HEADER            = docs/theme/header.html
 HTML_FOOTER            = docs/theme/footer.html
 
 GENERATE_LATEX         = NO
