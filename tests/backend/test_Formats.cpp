@@ -2323,6 +2323,124 @@ void TestFormats::test_FormatManagerEdgeCases() {
   fm.clearHandlers();
   fm.registerDefaultHandlers();
   QVERIFY(fm.handlers().size() >= 6);
+
+  // Content inspection & disambiguation tests
+  // 1. ARM CMSIS-SVD with .xml extension
+  {
+    QFile f("work/test_formats/cmsis_as_xml.xml");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<device schemaVersion=\"1.3\">\n"
+            "  <name>TestDev</name>\n"
+            "  <addressUnitBits>8</addressUnitBits>\n"
+            "  <width>32</width>\n"
+            "  <peripherals>\n"
+            "    <peripheral>\n"
+            "      <name>UART</name>\n"
+            "      <baseAddress>0x4000</baseAddress>\n"
+            "      <registers>\n"
+            "        <register>\n"
+            "          <name>DR</name>\n"
+            "          <addressOffset>0x0</addressOffset>\n"
+            "          <size>32</size>\n"
+            "        </register>\n"
+            "      </registers>\n"
+            "    </peripheral>\n"
+            "  </peripherals>\n"
+            "</device>\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/cmsis_as_xml.xml");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("ARM CMSIS-SVD"));
+
+    RegMapTreeModel m;
+    RegConfigWindow c;
+    FormatResult res =
+        fm.loadFile("work/test_formats/cmsis_as_xml.xml", &m, &c);
+    QVERIFY2(res.success, qPrintable(res.errorMessage));
+  }
+
+  // 2. IP-XACT with .xml extension
+  {
+    QFile f("work/test_formats/ipxact_as_xml.xml");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<ipxact:component "
+            "xmlns:ipxact=\"http://www.accellera.org/XMLSchema/IPXACT/"
+            "1685-2014\">\n"
+            "  <ipxact:vendor>test</ipxact:vendor>\n"
+            "  <ipxact:library>lib</ipxact:library>\n"
+            "  <ipxact:name>comp</ipxact:name>\n"
+            "  <ipxact:version>1.0</ipxact:version>\n"
+            "</ipxact:component>\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/ipxact_as_xml.xml");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("IP-XACT (IEEE 1685)"));
+  }
+
+  // 3. Extensionless SystemRDL file
+  {
+    QFile f("work/test_formats/no_ext_rdl");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("addrmap test_map {\n"
+            "  reg {\n"
+            "    field { sw = rw; hw = r; } fld[31:0];\n"
+            "  } reg1;\n"
+            "};\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/no_ext_rdl");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("SystemRDL"));
+  }
+
+  // 4. Extensionless JSON file
+  {
+    QFile f("work/test_formats/no_ext_json");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("{\n"
+            "  \"name\": \"test_dev\",\n"
+            "  \"project_name\": \"TestProj\",\n"
+            "  \"reg_width\": 32,\n"
+            "  \"blocks\": []\n"
+            "}\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/no_ext_json");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("JSON Schema"));
+  }
+
+  // 5. Extensionless CSV file
+  {
+    QFile f("work/test_formats/no_ext_csv");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("Type,Offset,Size,Name,SW Access,HW Access,Reset Value,Is "
+            "Rand,Volatile,Has Reset,Description\n"
+            "blk,0x0,,TestBlk,,,,,,,,\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/no_ext_csv");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("CSV Spreadsheet"));
+  }
+
+  // 6. Extensionless Protobuf Text file
+  {
+    QFile f("work/test_formats/no_ext_rmt");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("reg_model {\n"
+            "  name: \"test_pb\"\n"
+            "}\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/no_ext_rmt");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("Protobuf"));
+  }
 }
 
 void TestFormats::test_ProtobufExtendedSyntaxAndErrors() {

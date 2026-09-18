@@ -65,3 +65,13 @@ make test
 # Headless batch code generation
 ./build/bin/rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```
+
+---
+
+## 👤 Author & Project Repository
+
+- **Author**: Ezequiel Alves ([@zkalves](https://github.com/zkalves))
+- **Email**: [alvesel@gmail.com](mailto:alvesel@gmail.com)
+- **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
+- **Documentation Portal**: [https://zkalves.github.io/rmap/](https://zkalves.github.io/rmap/)
+- **License**: Mozilla Public License 2.0 (MPL-2.0)

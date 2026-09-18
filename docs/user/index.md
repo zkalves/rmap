@@ -41,3 +41,11 @@ make test
 # Generate C header, RTL, and UVM models headlessly from an existing map
 ./build/bin/rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```
+
+---
+
+## 👤 Author & GitHub Repository
+
+- **Author**: Ezequiel Alves ([@zkalves](https://github.com/zkalves))
+- **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
+- **License**: Mozilla Public License 2.0 (MPL-2.0)

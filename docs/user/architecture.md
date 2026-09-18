@@ -128,13 +128,13 @@ Defines how internal peripheral hardware logic interfaces with the register stor
 - **Architecture**: `rmap` allows assigning registers to multiple distinct `uvm_reg_map` instances within a `uvm_reg_block` (e.g. `apb_map`, `axi_map`), configuring independent base addresses, offsets, and access privileges per map.
 
 ### Multi-Format Architecture & Compatibility Matrix (`src/format/`)
-- `FormatManager`: Central format registry and dispatcher supporting automatic format detection from file extension and content inspection.
+- `FormatManager`: Central format registry and dispatcher supporting automatic format detection from file extension and content inspection. When extensions are ambiguous (such as `.xml` shared by ARM CMSIS-SVD and IP-XACT), missing, or unrecognized, `FormatManager` performs non-destructive content inspection to identify the correct handler (e.g., detecting `<device` for CMSIS-SVD, `<ipxact:` or `<spirit:` for IP-XACT, `addrmap` for SystemRDL, JSON schema tokens, and Protobuf binary wire headers).
 - `IFormatHandler`: Abstract base interface defining standard `read()` and `write()` operations for all register map formats.
-  - **`CmsisSvdHandler`**: Full reader and writer for **ARM CMSIS-SVD** (`.svd`) microcontroller specifications.
-  - **`SystemRdlHandler`**: Custom lexer and recursive-descent parser for **SystemRDL 1.0 & 2.0** (`.rdl`).
+  - **`CmsisSvdHandler`**: Full reader and writer for **ARM CMSIS-SVD** (`.svd`, `.xml`) microcontroller specifications.
+  - **`SystemRdlHandler`**: Custom lexer and recursive-descent parser for **SystemRDL 1.0 & 2.0** (`.rdl`, `.systemrdl`).
   - **`IpxactHandler`**: Streaming XML parser and serializer for **IP-XACT IEEE 1685-2009, 2014, and 2022** (`.xml`, `.ipxact`).
-  - **`JsonHandler`**: Structured JSON schema serialization via `nlohmann/json`.
-  - **`CsvHandler`**: RFC 4180 compliant CSV / TSV spreadsheet format for Excel-based register authoring.
+  - **`JsonHandler`**: Structured JSON schema serialization via `nlohmann/json` (`.json`).
+  - **`CsvHandler`**: RFC 4180 compliant CSV / TSV spreadsheet format for Excel-based register authoring (`.csv`, `.tsv`).
   - **`ProtobufHandler`**: Protobuf text format (`.rmt`) and high-performance binary serialization (`.rmb`).
 
 #### Format Capabilities, Limitations & Implications Matrix
