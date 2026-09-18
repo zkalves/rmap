@@ -172,7 +172,7 @@ The context passed to Inja templates provides rich hardware architecture and ver
 
 **rmap** includes a comprehensive suite of production-grade generation templates organized by output type in `templates/`:
 
-1. **Synthesizable SystemVerilog Register File (`rtl/reg_map.sv.inja`)**:
+1. **Synthesizable SystemVerilog Register File** (`rtl/reg_map.sv.inja`):
    - IEEE 1800-2017 SystemVerilog synthesizable register file conforming to ASIC/FPGA HDL coding guidelines.
    - Standardized signal suffixes (`clk_i`, `rst_ni`, `_i` inputs, `_o` outputs, `_q`/`_d` register state).
    - Bus-agnostic generic slave register file with address decode logic and 2-space indentation.
@@ -183,24 +183,24 @@ The context passed to Inja templates provides rich hardware architecture and ver
    - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
 
-2. **Synthesizable Verilog-2001 Register File (`rtl/reg_map.v.inja`)**:
+2. **Synthesizable Verilog-2001 Register File** (`rtl/reg_map.v.inja`):
    - IEEE 1364-2001 synthesizable Verilog implementation for legacy ASIC synthesis and FPGA toolchains.
    - Matches bus-agnostic interface, byte write strobes, configurable `DATA_WIDTH`, and `HW_PRECEDENCE` parameterization.
 
-3. **Synthesizable VHDL Register File (`rtl/reg_map.vhd.inja`)**:
+3. **Synthesizable VHDL Register File** (`rtl/reg_map.vhd.inja`):
    - IEEE 1076-1993/2008 compliant synthesizable VHDL register file with `std_logic_vector` ports, generic parameters (`DATA_WIDTH`, `HW_PRECEDENCE`), and synchronous process blocks.
 
-4. **Synthesizable APB4 Register Slave Wrapper (`rtl/apb_reg_file.sv.inja`)**:
+4. **Synthesizable APB4 Register Slave Wrapper** (`rtl/apb_reg_file.sv.inja`):
    - AMBA 4 APB (APB4) compliant synthesizable bridge wrapping the generic register file with `paddr`, `psel`, `penable`, `pwrite`, `pwdata`, `pstrb`, `pready`, `prdata`, and `pslverr` signals.
 
-5. **Synthesizable AXI4-Lite Register Slave Wrapper (`rtl/axil_reg_file.sv.inja`)**:
+5. **Synthesizable AXI4-Lite Register Slave Wrapper** (`rtl/axil_reg_file.sv.inja`):
    - AMBA 4 AXI4-Lite compliant synthesizable bridge wrapping the generic register file with standard 5-channel handshakes (AW, W, B, AR, R channels) and parameterized data widths.
 
-6. **Formal & Dynamic SystemVerilog Assertions (`rtl/reg_map_sva.sv.inja`)**:
+6. **Formal & Dynamic SystemVerilog Assertions** (`rtl/reg_map_sva.sv.inja`):
    - IEEE 1800-2017 SystemVerilog Assertions (SVA) checker bindable directly to `reg_map`.
    - Formally verifies reset states, bus write/read protocol properties, write-1-to-clear invariants, and hardware precedence arbitration.
 
-7. **UVM SystemVerilog Register Model (`uvm/reg_model.sv.inja`)**:
+7. **UVM SystemVerilog Register Model** (`uvm/reg_model.sv.inja`):
    - Complete `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy.
    - Explicit multi-map support: models multiple distinct `uvm_reg_map` instances per block (e.g. `apb_map`, `axi_map`, `sec_map`), assigning registers to distinct bus domains, offsets, and privilege levels.
    - `uvm_mem` instance and address mapping integration for hardware memory windows.
@@ -208,52 +208,52 @@ The context passed to Inja templates provides rich hardware architecture and ver
    - Functional coverage sampling hooks (`build_coverage`).
    - Universal multi-version UVM compatibility across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020 via version macros, conditional `post_predict` parameter typing, and `uvm_door_e` / `uvm_path_e` compatibility aliases.
 
-8. **C/C++ Firmware Header (`c/reg_map.h.inja`)**:
+8. **C/C++ Firmware Header** (`c/reg_map.h.inja`):
    - Clean register address offsets and bitfield definitions.
    - Bitfield extraction and update macros (`RMAP_REG_GET`, `RMAP_REG_SET`).
    - Packed volatile C struct representation.
 
-9. **Rust Peripheral Access Crate (`rust/reg_map.rs.inja`)**:
+9. **Rust Peripheral Access Crate** (`rust/reg_map.rs.inja`):
    - `#[repr(C)]` memory-mapped register block structures.
    - Type-safe `read()`, `write()`, and `modify()` accessors using volatile pointer operations.
 
-10. **Python Bring-Up Driver (`python/reg_map.py.inja`)**:
+10. **Python Bring-Up Driver** (`python/reg_map.py.inja`):
     - Standalone Python object-oriented register driver class.
     - Bitfield getter/setter helpers.
     - Pluggable bus transport adapters for Cocotb, PyUVM, PyFTDI, PySerial, or JTAG.
 
-11. **Interactive HTML Specification (`html/reg_doc.html.inja`)**:
+11. **Interactive HTML Specification** (`html/reg_doc.html.inja`):
     - Responsive, styled single-page HTML documentation.
     - Live interactive search bar.
     - Color-coded graphical bitfield slice bars with access policy tags.
 
-12. **SystemRDL 2.0 Specification (`systemrdl/reg_map.rdl.inja`)**:
+12. **SystemRDL 2.0 Specification** (`systemrdl/reg_map.rdl.inja`):
     - Standard Accellera SystemRDL 2.0 register file and addrmap specification.
     - Complete `field`, `reg`, and `regfile` component hierarchy with SW and HW access policies.
 
-13. **IP-XACT IEEE 1685-2014/2022 (`ipxact/reg_map.xml.inja`)**:
+13. **IP-XACT IEEE 1685-2014/2022** (`ipxact/reg_map.xml.inja`):
     - Complete IP-XACT XML register model component definition (`ipxact:component`, `ipxact:memoryMaps`, `ipxact:addressBlock`, `ipxact:register`, `ipxact:field`).
 
-14. **ARM CMSIS-SVD Peripheral XML (`svd/reg_map.xml.inja`)**:
+14. **ARM CMSIS-SVD Peripheral XML** (`svd/reg_map.xml.inja`):
     - Cortex-M CMSIS-SVD device specification (`<device>`, `<peripheral>`, `<register>`, `<field>`) for IDE debuggers (Keil, IAR, VS Code Cortex-Debug, SVDconv).
 
-15. **Markdown Documentation Specification (`markdown/reg_doc.md.inja`)**:
+15. **Markdown Documentation Specification** (`markdown/reg_doc.md.inja`):
     - Clean GitHub-flavored Markdown register map table specification with block anchors and bitfield tables.
 
-16. **JSON Schema Specification (`json/reg_map.json.inja`)**:
+16. **JSON Schema Specification** (`json/reg_map.json.inja`):
     - Formatted JSON register map schema export for custom tooling, CI scripts, and automation pipelines.
 
-17. **Self-Checking RTL Testbench (`rtl_tb/tb_reg_map.sv.inja`)**:
+17. **Self-Checking RTL Testbench** (`rtl_tb/tb_reg_map.sv.inja`):
     - Standalone SystemVerilog testbench exercising reset values, read/write accesses, bitfield masks, and read-only/write-1-to-clear behaviors in Icarus Verilog or Verilator.
 
-18. **Open-Source Python UVM Testbench (`pyuvm_tb/tb_pyuvm.py.inja`)**:
+18. **Open-Source Python UVM Testbench** (`pyuvm_tb/tb_pyuvm.py.inja`):
     - Complete Python verification testbench utilizing Cocotb and pyuvm to run register tests headlessly with open-source simulators.
 
-19. **Universal UVM Verification Environment (`uvm_tb/*.sv.inja`)**:
+19. **Universal UVM Verification Environment** (`uvm_tb/*.sv.inja`):
     - Complete modular UVM testbench suite containing generic bus interface (`reg_bus_if.sv`), bus VIP package (`reg_bus_pkg.sv`), register environment (`reg_env.sv`), built-in test sequences (`reg_tests.sv`), and top-level harness (`tb_top.sv`).
     - Compatible across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020.
 
-20. **Multi-Tool Simulation Makefile (`sim/Makefile.inja`)**:
+20. **Multi-Tool Simulation Makefile** (`sim/Makefile.inja`):
     - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and commercial EDA simulators (`sim-uvm SIM=vcs|xrun|mti`).
     - Configurable UVM version selection via `UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d` or custom path via `UVM_HOME=/path/to/uvm`, with automatic local repository discovery.
 
@@ -266,9 +266,9 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
 - **Multiple Template Search Folders**: Configure one or more search directories (e.g. `./templates`, `../shared_templates`, `$MY_TEMPLATES`).
 - **Automatic Template Scanning**: Click **Scan / Refresh** to recursively discover all `*.inja` and `*.tmpl` files across all configured search folders. Newly discovered templates are added to the list unchecked (disabled by default) so you can selectively enable only what you need, while preserving your existing configuration.
 - **Granular Enable / Disable Controls**: Toggle individual templates via checkboxes in the **Enable** column, or use **All** / **None** buttons to bulk-toggle generation. Only enabled templates are processed during GUI export (`Ctrl+E`) and headless export (`--export`).
-- **Relative Path Resolution**: Template and output paths specified as relative (e.g. `templates/c/reg_map.h.inja`, `work/c/reg_map.h`) resolve relative to the register map file's directory first, with fallback to the Current Working Directory (CWD).
+- **Relative Path Resolution**: Template and output paths specified as relative resolve relative to the register map file directory first, with fallback to the Current Working Directory (CWD).
 - **Environment Variable Expansion**: Paths can include `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (home directory), expanded dynamically at generation time.
-- **Mirrored Output Directory Architecture**: By default, generated files automatically mirror the category subdirectory of their source template (e.g. `templates/rtl/reg_map.sv.inja` &rarr; `<out_dir>/rtl/reg_map.sv`, `templates/c/reg_map.h.inja` &rarr; `<out_dir>/c/reg_map.h`).
+- **Mirrored Output Directory Architecture**: By default, generated files automatically mirror the category subdirectory of their source template (e.g. `templates/rtl/reg_map.sv.inja` &rarr; `&lt;out_dir&gt;/rtl/reg_map.sv`, `templates/c/reg_map.h.inja` &rarr; `&lt;out_dir&gt;/c/reg_map.h`).
 - **Dynamic GUI Synchronization**: Changing the **Default Output Folder** in the Configuration Dialog automatically updates all rows using default mirrored paths, while leaving any custom per-template overrides untouched.
 - **Sync Outputs**: Click **Sync Outputs** in the toolbar to synchronize or reset all template outputs to the active default output folder.
 - **Dynamic Path Variables**: Output destination paths support meaningful dynamic variables and aliases for flexible SoC repository layouts:
@@ -305,7 +305,7 @@ The Python script has full access to the exact same data model and variables ava
    - `blocks`: Full list of register blocks with all registers, fields, memories, and CRC32 checksums.
    - Any user-defined custom key-value parameters.
 
-2. **`rmap` Module & Aliases**:
+2. **rmap Module & Aliases**:
    You can also access the data through `import rmap` or the predefined `data`, `context`, and `regmap` objects:
    ```python
    import rmap
@@ -341,26 +341,26 @@ The Python script has full access to the exact same data model and variables ava
 Every template in `templates/` is validated through automated test pipelines in CI/CD and locally:
 
 - **Automated Verification Harness (`tests/test_template.py`)**: Runs comprehensive functional, structural, and syntax tests on each deliverable:
-  - **`c`**: Verifies include guards, `extern "C"`, bit manipulation macros (`_GET`, `_SET`, `_MASK`, `_SHIFT`), alignment padding (`_reserved_`), CRC32 macros, and compiles a C99/C++17 runtime test harness with `gcc`/`g++`.
-  - **`rtl`**: Verifies synthesizable SystemVerilog module declaration, bus slave interface, hardware sideband signals, address decoding, byte-strobe updates, W1C/W1S/W0C logic, and runs `verilator` / `iverilog` syntax & lint checks.
-  - **`verilog`**: Verifies IEEE 1364-2001 synthesizable Verilog module structure, bus slave ports, byte-write enables, hardware sidebands, and checks syntax with `iverilog`.
-  - **`vhdl`**: Verifies IEEE 1076 synthesizable VHDL entity and architecture, `std_logic_vector` ports, address decoding, and syntax verification.
-  - **`apb`**: Verifies AMBA 4 APB (APB4) synthesizable bridge wrapper port bindings, setup and access phase state machine, byte-strobe decoding, and linting.
-  - **`axil`**: Verifies AMBA 4 AXI4-Lite synthesizable bridge wrapper port handshakes, 5-channel transaction logic, and linting.
-  - **`sva`**: Verifies formal and dynamic SystemVerilog Assertions (SVA) checking write-strobe protocol rules, address decode invariants, and reset integrity with `verilator` / `iverilog`.
-  - **`uvm`**: Verifies `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy, factory registration, field access configuration, backdoor HDL paths, and address map registration.
-  - **`rust`**: Verifies `#![no_std]` PAC layout, volatile pointers, transparent struct wrappers, bit extraction functions (`get_*`, `set_*`), and compiles library and functional tests with `rustc`.
-  - **`python`**: Validates syntax with `py_compile`, dynamically imports the driver module, attaches mock bus read/write callbacks, and tests field read-modify-write operations.
-  - **`html`**: Validates HTML5 syntax with `HTMLParser`, DOM table structures, interactive search inputs, and verifies no unrendered Inja tags remain.
-  - **`markdown`**: Validates table column alignments, bit range formatting `[msb:lsb]`, block headings, and renders tables with Python markdown.
-  - **`systemrdl`**: Validates Accellera SystemRDL 2.0 `addrmap`, `regfile`, `reg`, `field` hierarchy, balanced braces, and software/hardware access properties.
-  - **`ipxact`**: Validates IEEE 1685-2014 XML schema hierarchy, namespaces, memory maps, address blocks, registers, and fields with `xml.etree` and `xmllint`.
-  - **`svd`**: Validates ARM CMSIS-SVD 1.3 XML schema, peripherals, registers, and bit ranges.
-  - **`json`**: Validates JSON schema correctness, block/register/field nesting, and verifies strict boolean/integer data types.
-  - **`rtl_tb`**: Validates self-checking testbench syntax, reset verification, and read/write register checks.
-  - **`pyuvm_tb`**: Validates Python syntax via `py_compile`, Cocotb `@cocotb.test()` decorators, and pyuvm sequence inheritance.
-  - **`uvm_tb`**: Validates universal UVM testbench suite, agent, VIP driver/monitor/adapter, reset/access test sequences, and multi-version `uvm_revision_string()` version reporting.
-  - **`sim_makefile`**: Validates multi-tool simulation targets (`sim-rtl`, `sim-verilator`, `sim-pyuvm`, `sim-uvm`) and UVM version selection variables (`UVM_VER`, `1800.2-2020`, `1800.2-2017`, `1.2`, `1.1d`).
+  - **c**: Verifies include guards, `extern "C"`, bit manipulation macros (`_GET`, `_SET`, `_MASK`, `_SHIFT`), alignment padding (`_reserved_`), CRC32 macros, and compiles a C99/C++17 runtime test harness with `gcc`/`g++`.
+  - **rtl**: Verifies synthesizable SystemVerilog module declaration, bus slave interface, hardware sideband signals, address decoding, byte-strobe updates, W1C/W1S/W0C logic, and runs `verilator` / `iverilog` syntax & lint checks.
+  - **verilog**: Verifies IEEE 1364-2001 synthesizable Verilog module structure, bus slave ports, byte-write enables, hardware sidebands, and checks syntax with `iverilog`.
+  - **vhdl**: Verifies IEEE 1076 synthesizable VHDL entity and architecture, `std_logic_vector` ports, address decoding, and syntax verification.
+  - **apb**: Verifies AMBA 4 APB (APB4) synthesizable bridge wrapper port bindings, setup and access phase state machine, byte-strobe decoding, and linting.
+  - **axil**: Verifies AMBA 4 AXI4-Lite synthesizable bridge wrapper port handshakes, 5-channel transaction logic, and linting.
+  - **sva**: Verifies formal and dynamic SystemVerilog Assertions (SVA) checking write-strobe protocol rules, address decode invariants, and reset integrity with `verilator` / `iverilog`.
+  - **uvm**: Verifies `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy, factory registration, field access configuration, backdoor HDL paths, and address map registration.
+  - **rust**: Verifies `#![no_std]` PAC layout, volatile pointers, transparent struct wrappers, bit extraction functions (`get_*`, `set_*`), and compiles library and functional tests with `rustc`.
+  - **python**: Validates syntax with `py_compile`, dynamically imports the driver module, attaches mock bus read/write callbacks, and tests field read-modify-write operations.
+  - **html**: Validates HTML5 syntax with `HTMLParser`, DOM table structures, interactive search inputs, and verifies no unrendered Inja tags remain.
+  - **markdown**: Validates table column alignments, bit range formatting `[msb:lsb]`, block headings, and renders tables with Python markdown.
+  - **systemrdl**: Validates Accellera SystemRDL 2.0 `addrmap`, `regfile`, `reg`, `field` hierarchy, balanced braces, and software/hardware access properties.
+  - **ipxact**: Validates IEEE 1685-2014 XML schema hierarchy, namespaces, memory maps, address blocks, registers, and fields with `xml.etree` and `xmllint`.
+  - **svd**: Validates ARM CMSIS-SVD 1.3 XML schema, peripherals, registers, and bit ranges.
+  - **json**: Validates JSON schema correctness, block/register/field nesting, and verifies strict boolean/integer data types.
+  - **rtl_tb**: Validates self-checking testbench syntax, reset verification, and read/write register checks.
+  - **pyuvm_tb**: Validates Python syntax via `py_compile`, Cocotb `@cocotb.test()` decorators, and pyuvm sequence inheritance.
+  - **uvm_tb**: Validates universal UVM testbench suite, agent, VIP driver/monitor/adapter, reset/access test sequences, and multi-version `uvm_revision_string()` version reporting.
+  - **sim_makefile**: Validates multi-tool simulation targets (`sim-rtl`, `sim-verilator`, `sim-pyuvm`, `sim-uvm`) and UVM version selection variables (`UVM_VER`, `1800.2-2020`, `1800.2-2017`, `1.2`, `1.1d`).
 
 - **Local Execution**:
   ```bash

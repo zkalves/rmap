@@ -1,24 +1,25 @@
 /**
  * Solarized Theme for Doxygen (Customized for rmap)
  * Based on Ethan Schoonover's precision 16-color Solarized palette.
- * Supports Solarized Dark (default for rmap) and Solarized Light with seamless toggle.
+ * Default: Solarized Dark (#002b36).
+ * Seamlessly toggles to Solarized Light (#fdf6e3).
  */
 
 /* ==========================================================================
-   1. Solarized Base Palette Tokens
+   1. Solarized Base 16-Color Palette Tokens
    ========================================================================== */
 :root {
-    /* Solarized Eight Monotones */
-    --sol-base03:  #002b36; /* Darkest background */
-    --sol-base02:  #073642; /* Dark background highlights / cards */
-    --sol-base01:  #586e75; /* Dark comments / secondary text */
-    --sol-base00:  #657b83; /* Dark muted / Light primary body text */
-    --sol-base0:   #839496; /* Dark primary body text / Light muted */
-    --sol-base1:   #93a1a1; /* Dark headings / Light comments & secondary */
-    --sol-base2:   #eee8d5; /* Light background highlights / cards */
-    --sol-base3:   #fdf6e3; /* Lightest background */
+    /* Eight Monotones */
+    --sol-base03:  #002b36; /* Dark background */
+    --sol-base02:  #073642; /* Dark highlights / cards / panels */
+    --sol-base01:  #586e75; /* Comments / secondary text */
+    --sol-base00:  #657b83; /* Muted text */
+    --sol-base0:   #839496; /* Dark body text */
+    --sol-base1:   #93a1a1; /* Light headings / comments */
+    --sol-base2:   #eee8d5; /* Light highlights / cards */
+    --sol-base3:   #fdf6e3; /* Light background */
 
-    /* Solarized Eight Accents */
+    /* Eight Accents */
     --sol-yellow:  #b58900;
     --sol-orange:  #cb4b16;
     --sol-red:     #dc322f;
@@ -28,7 +29,7 @@
     --sol-cyan:    #2aa198;
     --sol-green:   #859900;
 
-    /* Typography */
+    /* Fonts & Metrics */
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-monospace: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-size: 15px;
@@ -40,10 +41,12 @@
    ========================================================================== */
 :root,
 html,
+body,
+html:not(.light-mode),
 html.dark-mode {
     color-scheme: dark;
 
-    /* Semantic Mappings - Solarized Dark */
+    /* Semantic Mappings */
     --primary-color: var(--sol-blue);
     --primary-dark-color: #1e70a9;
     --primary-light-color: #0e3c54;
@@ -55,7 +58,7 @@ html.dark-mode {
     --page-background-color: var(--sol-base03);
     --page-foreground-color: var(--sol-base0);
     --page-secondary-foreground-color: var(--sol-base01);
-    --page-heading-color: var(--sol-base1);
+    --page-heading-color: var(--sol-cyan);
 
     --page-link-color: var(--sol-blue);
     --page-link-hover-color: var(--sol-cyan);
@@ -63,130 +66,83 @@ html.dark-mode {
 
     --side-nav-background: var(--sol-base02);
     --side-nav-foreground: var(--sol-base0);
-    --side-nav-hover-background: #0b3b48;
-    --side-nav-active-background: #0d4857;
+    --side-nav-hover-background: #0b3d4b;
+    --side-nav-active-background: var(--sol-base03);
     --side-nav-active-foreground: var(--sol-cyan);
 
-    --border-color: #0d4857;
+    --border-color: #0b3d4b;
+    --separator-color: #0b3d4b;
     --border-subtle: #073642;
 
     --card-background: var(--sol-base02);
-    --card-header-background: #052c36;
+    --card-header-background: #00212b;
     --card-header-foreground: var(--sol-cyan);
 
     --code-background: #00212b;
     --code-foreground: var(--sol-base0);
-    --code-border: #0d4857;
+    --code-border: #0b3d4b;
 
     --table-header-background: var(--sol-base02);
     --table-header-foreground: var(--sol-base1);
-    --table-alt-row-background: #04252f;
-    --table-hover-row-background: #0b3b48;
+    --table-alt-row-background: #052c36;
+    --table-hover-row-background: #0b3d4b;
 
-    --selection-background: #1e5666;
+    --selection-background: #0b3d4b;
     --selection-foreground: var(--sol-base3);
 
     --search-background: var(--sol-base02);
     --search-foreground: var(--sol-base0);
-    --search-border: #0d4857;
-    --search-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+    --search-border: #0b3d4b;
 
-    --scrollbar-thumb: #0d4857;
-    --scrollbar-thumb-hover: var(--sol-base01);
-    --scrollbar-track: var(--sol-base03);
-
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-
-    /* Doxygen 1.9+ built-in variables override for Dark Mode */
-    --index-odd-item-bg-color: #04252f;
-    --index-even-item-bg-color: var(--sol-base03);
-    --index-header-color: var(--sol-base1);
-    --index-separator-color: #0d4857;
-
-    --header-background-color: var(--sol-base02);
-    --header-separator-color: #0d4857;
-    --header-gradient-image: none !important;
-    --group-header-separator-color: #0d4857;
-    --group-header-color: var(--sol-cyan);
-    --inherit-header-color: var(--sol-base01);
+    /* Doxygen 1.9+ Internal Variables Override (Dark) */
+    --header-background-color: var(--sol-base03);
+    --header-separator-color: var(--border-color);
+    --header-gradient-image: none;
 
     --title-background-color: var(--sol-base03);
-    --title-separator-color: #0d4857;
-    --directory-separator-color: #0d4857;
-    --separator-color: #0d4857;
-
-    --footer-foreground-color: var(--sol-base01);
-    --citation-label-color: var(--sol-cyan);
-    --glow-color: var(--sol-cyan);
-
-    --blockquote-background-color: var(--sol-base02);
-    --blockquote-border-color: var(--sol-blue);
-
-    --scrollbar-thumb-color: #0d4857;
-    --scrollbar-background-color: var(--sol-base03);
-
-    --icon-background-color: var(--sol-blue);
-    --icon-foreground-color: var(--sol-base3);
-
-    --memdecl-background-color: var(--sol-base02);
-    --memdecl-separator-color: #0d4857;
-    --memdecl-foreground-color: var(--sol-base0);
-    --memdecl-template-color: var(--sol-violet);
-
-    --memdef-border-color: #0d4857;
-    --memdef-title-background-color: #052c36;
-    --memdef-title-gradient-image: none !important;
-    --memdef-proto-background-color: #052c36;
-    --memdef-proto-text-color: var(--sol-cyan);
-    --memdef-proto-text-shadow: none !important;
-    --memdef-doc-background-color: var(--sol-base02);
-    --memdef-param-name-color: var(--sol-orange);
-    --memdef-template-color: var(--sol-violet);
-
-    --table-cell-border-color: #0d4857;
-    --table-header-background-color: var(--sol-base02);
-    --table-header-foreground-color: var(--sol-base1);
-
-    --label-background-color: #0d4857;
-    --label-left-top-border-color: var(--sol-blue);
-    --label-right-bottom-border-color: #0d4857;
-    --label-foreground-color: var(--sol-base1);
+    --title-separator-color: var(--border-color);
 
     --nav-background-color: var(--sol-base02);
     --nav-foreground-color: var(--sol-base0);
-    --nav-gradient-image: none !important;
-    --nav-gradient-hover-image: none !important;
-    --nav-gradient-active-image: none !important;
-    --nav-gradient-active-image-parent: none !important;
-    --nav-separator-image: none !important;
-    --nav-breadcrumb-image: none !important;
-    --nav-breadcrumb-border-color: #0d4857;
-    --nav-splitbar-image: none !important;
+    --nav-gradient-image: none;
+    --nav-gradient-hover-image: none;
+    --nav-gradient-active-image: none;
+    --nav-separator-image: none;
+    --nav-breadcrumb-image: none;
+    --nav-splitbar-image: none;
+
     --nav-text-normal-color: var(--sol-base0);
     --nav-text-hover-color: var(--sol-cyan);
-    --nav-text-active-color: var(--sol-cyan);
-    --nav-text-normal-shadow: none !important;
-    --nav-text-hover-shadow: none !important;
-    --nav-text-active-shadow: none !important;
+    --nav-text-active-color: var(--sol-blue);
     --nav-menu-button-color: var(--sol-base0);
     --nav-menu-background-color: var(--sol-base02);
     --nav-menu-foreground-color: var(--sol-base0);
     --nav-arrow-color: var(--sol-base01);
     --nav-arrow-selected-color: var(--sol-cyan);
 
-    --toc-background-color: var(--sol-base02);
-    --toc-border-color: #0d4857;
-    --toc-header-color: var(--sol-cyan);
+    --memdecl-background-color: var(--sol-base02);
+    --memdecl-separator-color: var(--border-color);
+    --memdecl-foreground-color: var(--sol-base0);
 
+    --memdef-border-color: var(--border-color);
+    --memdef-title-background-color: #00212b;
+    --memdef-title-gradient-image: none;
+    --memdef-proto-background-color: var(--sol-base02);
+    --memdef-proto-text-color: var(--sol-cyan);
+    --memdef-doc-background-color: var(--sol-base03);
+    --memdef-param-name-color: var(--sol-orange);
+    --memdef-template-color: var(--sol-violet);
+
+    --table-header-background-color: var(--sol-base02);
+    --table-header-foreground-color: var(--sol-base1);
+    --table-cell-border-color: var(--border-color);
+
+    --search-background-color: var(--sol-base02);
+    --search-foreground-color: var(--sol-base0);
     --search-filter-background-color: var(--sol-base02);
-    --search-filter-foreground-color: var(--sol-base0);
-    --search-filter-border-color: #0d4857;
-    --search-filter-highlight-bg-color: #0d4857;
-    --search-filter-highlight-text-color: var(--sol-cyan);
+    --search-results-background-color: var(--sol-base03);
     --search-results-foreground-color: var(--sol-base0);
-    --search-results-background-color: var(--sol-base02);
-    --search-results-border-color: #0d4857;
+    --search-results-border-color: var(--border-color);
 
     --code-keyword-color: var(--sol-green);
     --code-type-keyword-color: var(--sol-yellow);
@@ -196,35 +152,25 @@ html.dark-mode {
     --code-string-literal-color: var(--sol-cyan);
     --code-char-literal-color: var(--sol-cyan);
     --code-link-color: var(--sol-blue);
-    --code-external-link-color: var(--sol-cyan);
-    --code-xml-cdata-color: var(--sol-base0);
 
     --fragment-foreground-color: var(--sol-base0);
     --fragment-background-color: #00212b;
-    --fragment-border-color: #0d4857;
-    --fragment-lineno-border-color: #0d4857;
+    --fragment-border-color: var(--border-color);
+    --fragment-lineno-border-color: var(--border-color);
     --fragment-lineno-background-color: #00212b;
     --fragment-lineno-foreground-color: var(--sol-base01);
-    --fragment-lineno-link-fg-color: var(--sol-base01);
-    --fragment-lineno-link-bg-color: #00212b;
-    --fragment-lineno-link-hover-fg-color: var(--sol-cyan);
-    --fragment-lineno-link-hover-bg-color: #073642;
 
-    --tooltip-foreground-color: var(--sol-base0);
-    --tooltip-background-color: var(--sol-base02);
-    --tooltip-border-color: #0d4857;
-    --tooltip-doc-color: var(--sol-base01);
-    --tooltip-declaration-color: var(--sol-green);
-    --tooltip-link-color: var(--sol-blue);
+    --footer-foreground-color: var(--sol-base01);
+    --glow-color: var(--sol-cyan);
 }
 
 /* ==========================================================================
-   3. Solarized Light Theme
+   3. Solarized Light Theme (Active on .light-mode)
    ========================================================================== */
 html.light-mode {
     color-scheme: light;
 
-    /* Semantic Mappings - Solarized Light */
+    /* Semantic Mappings */
     --primary-color: var(--sol-blue);
     --primary-dark-color: #1a6da8;
     --primary-light-color: #bbdefb;
@@ -236,7 +182,7 @@ html.light-mode {
     --page-background-color: var(--sol-base3);
     --page-foreground-color: var(--sol-base00);
     --page-secondary-foreground-color: var(--sol-base1);
-    --page-heading-color: var(--sol-base01);
+    --page-heading-color: var(--sol-blue);
 
     --page-link-color: var(--sol-blue);
     --page-link-hover-color: var(--sol-cyan);
@@ -244,15 +190,16 @@ html.light-mode {
 
     --side-nav-background: var(--sol-base2);
     --side-nav-foreground: var(--sol-base00);
-    --side-nav-hover-background: #e8dfc8;
-    --side-nav-active-background: #e0d7be;
+    --side-nav-hover-background: #e4dcc4;
+    --side-nav-active-background: var(--sol-base3);
     --side-nav-active-foreground: var(--sol-blue);
 
     --border-color: #d3cbb7;
+    --separator-color: #d3cbb7;
     --border-subtle: #eee8d5;
 
-    --card-background: #fbf5e2;
-    --card-header-background: var(--sol-base2);
+    --card-background: var(--sol-base2);
+    --card-header-background: #e4dcc4;
     --card-header-foreground: var(--sol-blue);
 
     --code-background: var(--sol-base2);
@@ -262,7 +209,7 @@ html.light-mode {
     --table-header-background: var(--sol-base2);
     --table-header-foreground: var(--sol-base01);
     --table-alt-row-background: #f7f1dd;
-    --table-hover-row-background: #ede5cf;
+    --table-hover-row-background: #e4dcc4;
 
     --selection-background: var(--sol-blue);
     --selection-foreground: var(--sol-base3);
@@ -270,104 +217,56 @@ html.light-mode {
     --search-background: #ffffff;
     --search-foreground: var(--sol-base00);
     --search-border: #d3cbb7;
-    --search-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
 
-    --scrollbar-thumb: #d3cbb7;
-    --scrollbar-thumb-hover: var(--sol-base1);
-    --scrollbar-track: var(--sol-base3);
-
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-
-    /* Doxygen 1.9+ built-in variables override for Light Mode */
-    --index-odd-item-bg-color: #f7f1dd;
-    --index-even-item-bg-color: var(--sol-base3);
-    --index-header-color: var(--sol-base01);
-    --index-separator-color: #d3cbb7;
-
-    --header-background-color: var(--sol-base2);
-    --header-separator-color: #d3cbb7;
-    --header-gradient-image: none !important;
-    --group-header-separator-color: #d3cbb7;
-    --group-header-color: var(--sol-blue);
-    --inherit-header-color: var(--sol-base1);
+    /* Doxygen 1.9+ Internal Variables Override (Light) */
+    --header-background-color: var(--sol-base3);
+    --header-separator-color: var(--border-color);
+    --header-gradient-image: none;
 
     --title-background-color: var(--sol-base3);
-    --title-separator-color: #d3cbb7;
-    --directory-separator-color: #d3cbb7;
-    --separator-color: #d3cbb7;
-
-    --footer-foreground-color: var(--sol-base1);
-    --citation-label-color: var(--sol-blue);
-    --glow-color: var(--sol-blue);
-
-    --blockquote-background-color: var(--sol-base2);
-    --blockquote-border-color: var(--sol-blue);
-
-    --scrollbar-thumb-color: #d3cbb7;
-    --scrollbar-background-color: var(--sol-base3);
-
-    --icon-background-color: var(--sol-blue);
-    --icon-foreground-color: var(--sol-base3);
-
-    --memdecl-background-color: var(--sol-base2);
-    --memdecl-separator-color: #d3cbb7;
-    --memdecl-foreground-color: var(--sol-base00);
-    --memdecl-template-color: var(--sol-violet);
-
-    --memdef-border-color: #d3cbb7;
-    --memdef-title-background-color: var(--sol-base2);
-    --memdef-title-gradient-image: none !important;
-    --memdef-proto-background-color: var(--sol-base2);
-    --memdef-proto-text-color: var(--sol-blue);
-    --memdef-proto-text-shadow: none !important;
-    --memdef-doc-background-color: #fbf5e2;
-    --memdef-param-name-color: var(--sol-orange);
-    --memdef-template-color: var(--sol-violet);
-
-    --table-cell-border-color: #d3cbb7;
-    --table-header-background-color: var(--sol-base2);
-    --table-header-foreground-color: var(--sol-base01);
-
-    --label-background-color: #e0d7be;
-    --label-left-top-border-color: var(--sol-blue);
-    --label-right-bottom-border-color: #d3cbb7;
-    --label-foreground-color: var(--sol-base01);
+    --title-separator-color: var(--border-color);
 
     --nav-background-color: var(--sol-base2);
     --nav-foreground-color: var(--sol-base00);
-    --nav-gradient-image: none !important;
-    --nav-gradient-hover-image: none !important;
-    --nav-gradient-active-image: none !important;
-    --nav-gradient-active-image-parent: none !important;
-    --nav-separator-image: none !important;
-    --nav-breadcrumb-image: none !important;
-    --nav-breadcrumb-border-color: #d3cbb7;
-    --nav-splitbar-image: none !important;
+    --nav-gradient-image: none;
+    --nav-gradient-hover-image: none;
+    --nav-gradient-active-image: none;
+    --nav-separator-image: none;
+    --nav-breadcrumb-image: none;
+    --nav-splitbar-image: none;
+
     --nav-text-normal-color: var(--sol-base00);
     --nav-text-hover-color: var(--sol-blue);
-    --nav-text-active-color: var(--sol-blue);
-    --nav-text-normal-shadow: none !important;
-    --nav-text-hover-shadow: none !important;
-    --nav-text-active-shadow: none !important;
+    --nav-text-active-color: var(--sol-cyan);
     --nav-menu-button-color: var(--sol-base00);
     --nav-menu-background-color: var(--sol-base2);
     --nav-menu-foreground-color: var(--sol-base00);
     --nav-arrow-color: var(--sol-base1);
     --nav-arrow-selected-color: var(--sol-blue);
 
-    --toc-background-color: var(--sol-base2);
-    --toc-border-color: #d3cbb7;
-    --toc-header-color: var(--sol-blue);
+    --memdecl-background-color: var(--sol-base2);
+    --memdecl-separator-color: var(--border-color);
+    --memdecl-foreground-color: var(--sol-base00);
 
+    --memdef-border-color: var(--border-color);
+    --memdef-title-background-color: #e4dcc4;
+    --memdef-title-gradient-image: none;
+    --memdef-proto-background-color: var(--sol-base2);
+    --memdef-proto-text-color: var(--sol-blue);
+    --memdef-doc-background-color: var(--sol-base3);
+    --memdef-param-name-color: var(--sol-orange);
+    --memdef-template-color: var(--sol-violet);
+
+    --table-header-background-color: var(--sol-base2);
+    --table-header-foreground-color: var(--sol-base01);
+    --table-cell-border-color: var(--border-color);
+
+    --search-background-color: #ffffff;
+    --search-foreground-color: var(--sol-base00);
     --search-filter-background-color: var(--sol-base2);
-    --search-filter-foreground-color: var(--sol-base00);
-    --search-filter-border-color: #d3cbb7;
-    --search-filter-highlight-bg-color: #e0d7be;
-    --search-filter-highlight-text-color: var(--sol-blue);
+    --search-results-background-color: var(--sol-base3);
     --search-results-foreground-color: var(--sol-base00);
-    --search-results-background-color: #fbf5e2;
-    --search-results-border-color: #d3cbb7;
+    --search-results-border-color: var(--border-color);
 
     --code-keyword-color: var(--sol-green);
     --code-type-keyword-color: var(--sol-yellow);
@@ -377,221 +276,71 @@ html.light-mode {
     --code-string-literal-color: var(--sol-cyan);
     --code-char-literal-color: var(--sol-cyan);
     --code-link-color: var(--sol-blue);
-    --code-external-link-color: var(--sol-cyan);
-    --code-xml-cdata-color: var(--sol-base00);
 
     --fragment-foreground-color: var(--sol-base01);
     --fragment-background-color: var(--sol-base2);
-    --fragment-border-color: #d3cbb7;
-    --fragment-lineno-border-color: #d3cbb7;
+    --fragment-border-color: var(--border-color);
+    --fragment-lineno-border-color: var(--border-color);
     --fragment-lineno-background-color: var(--sol-base2);
     --fragment-lineno-foreground-color: var(--sol-base1);
-    --fragment-lineno-link-fg-color: var(--sol-base1);
-    --fragment-lineno-link-bg-color: var(--sol-base2);
-    --fragment-lineno-link-hover-fg-color: var(--sol-blue);
-    --fragment-lineno-link-hover-bg-color: #e0d7be;
 
-    --tooltip-foreground-color: var(--sol-base00);
-    --tooltip-background-color: var(--sol-base2);
-    --tooltip-border-color: #d3cbb7;
-    --tooltip-doc-color: var(--sol-base1);
-    --tooltip-declaration-color: var(--sol-green);
-    --tooltip-link-color: var(--sol-blue);
+    --footer-foreground-color: var(--sol-base1);
+    --glow-color: var(--sol-blue);
 }
 
 /* ==========================================================================
-   4. Automatic System Color-Scheme Media Queries
+   4. Universal Annihilation of Legacy Doxygen Bitmap Gradients
    ========================================================================== */
-@media (prefers-color-scheme: light) {
-    html:not(.dark-mode) {
-        color-scheme: light;
-
-        --primary-color: var(--sol-blue);
-        --primary-dark-color: #1a6da8;
-        --primary-light-color: #bbdefb;
-        --primary-lighter-color: rgba(38, 139, 210, 0.12);
-
-        --accent-color: var(--sol-cyan);
-        --accent-dark-color: #1e7871;
-
-        --page-background-color: var(--sol-base3);
-        --page-foreground-color: var(--sol-base00);
-        --page-secondary-foreground-color: var(--sol-base1);
-        --page-heading-color: var(--sol-base01);
-
-        --page-link-color: var(--sol-blue);
-        --page-link-hover-color: var(--sol-cyan);
-        --page-visited-link-color: var(--sol-violet);
-
-        --side-nav-background: var(--sol-base2);
-        --side-nav-foreground: var(--sol-base00);
-        --side-nav-hover-background: #e8dfc8;
-        --side-nav-active-background: #e0d7be;
-        --side-nav-active-foreground: var(--sol-blue);
-
-        --border-color: #d3cbb7;
-        --border-subtle: #eee8d5;
-
-        --card-background: #fbf5e2;
-        --card-header-background: var(--sol-base2);
-        --card-header-foreground: var(--sol-blue);
-
-        --code-background: var(--sol-base2);
-        --code-foreground: var(--sol-base01);
-        --code-border: #d3cbb7;
-
-        --table-header-background: var(--sol-base2);
-        --table-header-foreground: var(--sol-base01);
-        --table-alt-row-background: #f7f1dd;
-        --table-hover-row-background: #ede5cf;
-
-        --selection-background: var(--sol-blue);
-        --selection-foreground: var(--sol-base3);
-
-        --search-background: #ffffff;
-        --search-foreground: var(--sol-base00);
-        --search-border: #d3cbb7;
-        --search-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
-
-        --scrollbar-thumb: #d3cbb7;
-        --scrollbar-thumb-hover: var(--sol-base1);
-        --scrollbar-track: var(--sol-base3);
-
-        --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-
-        --index-odd-item-bg-color: #f7f1dd;
-        --index-even-item-bg-color: var(--sol-base3);
-        --index-header-color: var(--sol-base01);
-        --index-separator-color: #d3cbb7;
-
-        --header-background-color: var(--sol-base2);
-        --header-separator-color: #d3cbb7;
-        --header-gradient-image: none !important;
-        --group-header-separator-color: #d3cbb7;
-        --group-header-color: var(--sol-blue);
-        --inherit-header-color: var(--sol-base1);
-
-        --title-background-color: var(--sol-base3);
-        --title-separator-color: #d3cbb7;
-        --directory-separator-color: #d3cbb7;
-        --separator-color: #d3cbb7;
-
-        --footer-foreground-color: var(--sol-base1);
-        --citation-label-color: var(--sol-blue);
-        --glow-color: var(--sol-blue);
-
-        --blockquote-background-color: var(--sol-base2);
-        --blockquote-border-color: var(--sol-blue);
-
-        --scrollbar-thumb-color: #d3cbb7;
-        --scrollbar-background-color: var(--sol-base3);
-
-        --icon-background-color: var(--sol-blue);
-        --icon-foreground-color: var(--sol-base3);
-
-        --memdecl-background-color: var(--sol-base2);
-        --memdecl-separator-color: #d3cbb7;
-        --memdecl-foreground-color: var(--sol-base00);
-        --memdecl-template-color: var(--sol-violet);
-
-        --memdef-border-color: #d3cbb7;
-        --memdef-title-background-color: var(--sol-base2);
-        --memdef-title-gradient-image: none !important;
-        --memdef-proto-background-color: var(--sol-base2);
-        --memdef-proto-text-color: var(--sol-blue);
-        --memdef-proto-text-shadow: none !important;
-        --memdef-doc-background-color: #fbf5e2;
-        --memdef-param-name-color: var(--sol-orange);
-        --memdef-template-color: var(--sol-violet);
-
-        --table-cell-border-color: #d3cbb7;
-        --table-header-background-color: var(--sol-base2);
-        --table-header-foreground-color: var(--sol-base01);
-
-        --label-background-color: #e0d7be;
-        --label-left-top-border-color: var(--sol-blue);
-        --label-right-bottom-border-color: #d3cbb7;
-        --label-foreground-color: var(--sol-base01);
-
-        --nav-background-color: var(--sol-base2);
-        --nav-foreground-color: var(--sol-base00);
-        --nav-gradient-image: none !important;
-        --nav-gradient-hover-image: none !important;
-        --nav-gradient-active-image: none !important;
-        --nav-gradient-active-image-parent: none !important;
-        --nav-separator-image: none !important;
-        --nav-breadcrumb-image: none !important;
-        --nav-breadcrumb-border-color: #d3cbb7;
-        --nav-splitbar-image: none !important;
-        --nav-text-normal-color: var(--sol-base00);
-        --nav-text-hover-color: var(--sol-blue);
-        --nav-text-active-color: var(--sol-blue);
-        --nav-text-normal-shadow: none !important;
-        --nav-text-hover-shadow: none !important;
-        --nav-text-active-shadow: none !important;
-        --nav-menu-button-color: var(--sol-base00);
-        --nav-menu-background-color: var(--sol-base2);
-        --nav-menu-foreground-color: var(--sol-base00);
-        --nav-arrow-color: var(--sol-base1);
-        --nav-arrow-selected-color: var(--sol-blue);
-
-        --toc-background-color: var(--sol-base2);
-        --toc-border-color: #d3cbb7;
-        --toc-header-color: var(--sol-blue);
-
-        --search-filter-background-color: var(--sol-base2);
-        --search-filter-foreground-color: var(--sol-base00);
-        --search-filter-border-color: #d3cbb7;
-        --search-filter-highlight-bg-color: #e0d7be;
-        --search-filter-highlight-text-color: var(--sol-blue);
-        --search-results-foreground-color: var(--sol-base00);
-        --search-results-background-color: #fbf5e2;
-        --search-results-border-color: #d3cbb7;
-
-        --code-keyword-color: var(--sol-green);
-        --code-type-keyword-color: var(--sol-yellow);
-        --code-flow-keyword-color: var(--sol-green);
-        --code-comment-color: var(--sol-base1);
-        --code-preprocessor-color: var(--sol-orange);
-        --code-string-literal-color: var(--sol-cyan);
-        --code-char-literal-color: var(--sol-cyan);
-        --code-link-color: var(--sol-blue);
-        --code-external-link-color: var(--sol-cyan);
-        --code-xml-cdata-color: var(--sol-base00);
-
-        --fragment-foreground-color: var(--sol-base01);
-        --fragment-background-color: var(--sol-base2);
-        --fragment-border-color: #d3cbb7;
-        --fragment-lineno-border-color: #d3cbb7;
-        --fragment-lineno-background-color: var(--sol-base2);
-        --fragment-lineno-foreground-color: var(--sol-base1);
-        --fragment-lineno-link-fg-color: var(--sol-base1);
-        --fragment-lineno-link-bg-color: var(--sol-base2);
-        --fragment-lineno-link-hover-fg-color: var(--sol-blue);
-        --fragment-lineno-link-hover-bg-color: #e0d7be;
-
-        --tooltip-foreground-color: var(--sol-base00);
-        --tooltip-background-color: var(--sol-base2);
-        --tooltip-border-color: #d3cbb7;
-        --tooltip-doc-color: var(--sol-base1);
-        --tooltip-declaration-color: var(--sol-green);
-        --tooltip-link-color: var(--sol-blue);
-    }
+#top,
+#titlearea,
+#nav-tree,
+#nav-tree *,
+#nav-tree .selected,
+#nav-tree-contents,
+.sm-dox,
+.sm-dox *,
+.sm-dox a,
+.sm-dox a:hover,
+.sm-dox a:focus,
+.sm-dox ul,
+.sm-dox ul a,
+.tabs,
+.tabs2,
+.tabs3,
+.tablist,
+.tablist *,
+#navrow1,
+#navrow2,
+#navrow3,
+.navpath,
+.navpath *,
+#nav-path,
+#nav-path *,
+.header,
+.headertitle,
+.memdoc,
+.memproto,
+.memitem,
+.fieldtable th,
+#splitbar {
+    background-image: none !important;
 }
 
 /* ==========================================================================
-   5. Global Elements & Typography
+   5. Base Structure & Global Typography
    ========================================================================== */
-*, *::before, *::after {
-    box-sizing: border-box;
-}
-
-body, table, div, p, dl {
+html, body {
+    background-color: var(--page-background-color) !important;
+    color: var(--page-foreground-color) !important;
     font-family: var(--font-family) !important;
     font-size: var(--font-size);
-    color: var(--page-foreground-color);
-    background-color: var(--page-background-color);
+    line-height: var(--line-height);
+    margin: 0;
+    padding: 0;
+}
+
+p, dl, ul, ol {
+    color: var(--page-foreground-color) !important;
     line-height: var(--line-height);
 }
 
@@ -602,7 +351,6 @@ body, table, div, p, dl {
 
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-family) !important;
-    color: var(--page-heading-color) !important;
     font-weight: 600;
     margin-top: 1.5em;
     margin-bottom: 0.5em;
@@ -610,19 +358,27 @@ h1, h2, h3, h4, h5, h6 {
 
 h1 {
     font-size: 2rem;
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 0.35em;
     color: var(--sol-cyan) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    padding-bottom: 0.35em;
 }
 
 h2 {
     font-size: 1.45rem;
-    border-bottom: 1px solid var(--border-color);
+    color: var(--sol-blue) !important;
+    border-bottom: 1px solid var(--border-color) !important;
     padding-bottom: 0.25em;
 }
 
-h3 { font-size: 1.2rem; }
-h4 { font-size: 1.05rem; }
+h3 {
+    font-size: 1.2rem;
+    color: var(--sol-yellow) !important;
+}
+
+h4 {
+    font-size: 1.05rem;
+    color: var(--sol-green) !important;
+}
 
 a, a:visited {
     color: var(--page-link-color) !important;
@@ -635,19 +391,24 @@ a:hover, a:focus {
     text-decoration: underline;
 }
 
+hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 2em 0;
+}
+
 /* ==========================================================================
    6. Top Header & Title Area
    ========================================================================== */
 #top {
+    background-color: var(--header-background-color) !important;
     border-bottom: 1px solid var(--border-color) !important;
-    background-color: var(--page-background-color) !important;
 }
 
 #titlearea {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--page-background-color) !important;
-    position: relative;
+    background-color: var(--header-background-color) !important;
+    border-bottom: none !important;
+    padding: 14px 24px;
 }
 
 #titlearea table {
@@ -656,11 +417,10 @@ a:hover, a:focus {
 
 #projectname {
     font-size: 1.85rem !important;
-    font-weight: 700;
+    font-weight: 700 !important;
     color: var(--sol-cyan) !important;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
 }
 
 #projectbrief {
@@ -671,47 +431,109 @@ a:hover, a:focus {
 
 #projectnumber {
     font-size: 0.8rem !important;
-    font-weight: 600;
-    color: var(--primary-color) !important;
-    background: var(--primary-lighter-color);
-    border: 1px solid var(--border-color);
-    border-radius: 9999px;
-    padding: 2px 10px;
+    font-weight: 600 !important;
+    color: var(--sol-blue) !important;
+    background: var(--primary-lighter-color) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 9999px !important;
+    padding: 2px 10px !important;
     margin-left: 10px;
-    display: inline-block;
     vertical-align: middle;
 }
 
 /* ==========================================================================
-   7. Dark Mode Toggle Component
+   7. Top Menu & SmartMenus (.sm-dox)
    ========================================================================== */
-dark-mode-toggle {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 6px;
-    padding: 6px;
-    color: var(--page-secondary-foreground-color) !important;
-    background: transparent;
-    transition: color 0.15s ease, background-color 0.15s ease;
-    user-select: none;
+.sm-dox {
+    background-color: var(--side-nav-background) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 0 16px !important;
+    line-height: 38px !important;
 }
 
-dark-mode-toggle:hover,
-dark-mode-toggle:focus {
-    color: var(--sol-cyan) !important;
+.sm-dox a, .sm-dox a:focus, .sm-dox a:active {
+    font-family: var(--font-family) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: var(--nav-text-normal-color) !important;
+    text-shadow: none !important;
+    border: none !important;
+    padding: 0 14px !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sm-dox a:hover {
     background-color: var(--side-nav-hover-background) !important;
+    color: var(--nav-text-hover-color) !important;
+    text-shadow: none !important;
 }
 
-dark-mode-toggle svg {
-    width: 20px;
-    height: 20px;
-    fill: currentColor;
+.sm-dox a.current {
+    color: var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+}
+
+.sm-dox ul {
+    background-color: var(--side-nav-background) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
+    padding: 6px 0 !important;
+}
+
+.sm-dox ul a, .sm-dox ul a:focus, .sm-dox ul a:active {
+    background-color: transparent !important;
+    color: var(--nav-menu-foreground-color) !important;
+    text-shadow: none !important;
+    padding: 6px 16px !important;
+    font-size: 13px !important;
+}
+
+.sm-dox ul a:hover {
+    background-color: var(--side-nav-hover-background) !important;
+    color: var(--nav-text-hover-color) !important;
+    text-shadow: none !important;
+}
+
+/* Fallback for static tabs */
+#navrow1, #navrow2, #navrow3, .tabs, .tabs2, .tabs3 {
+    background-color: var(--side-nav-background) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.tablist {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0 16px !important;
+    border-bottom: none !important;
+}
+
+.tablist li {
+    margin: 0 4px !important;
+}
+
+.tablist a {
+    color: var(--nav-text-normal-color) !important;
+    font-weight: 500 !important;
+    padding: 8px 14px !important;
+    text-shadow: none !important;
+    border-radius: 4px 4px 0 0;
+}
+
+.tablist a:hover {
+    color: var(--nav-text-hover-color) !important;
+    background-color: var(--side-nav-hover-background) !important;
+    text-decoration: none !important;
+}
+
+.tablist li.current a {
+    color: var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+    background-color: var(--primary-lighter-color) !important;
 }
 
 /* ==========================================================================
-   8. Navigation Tree & Sidebar
+   8. Navigation Tree Sidebar (#nav-tree)
    ========================================================================== */
 #side-nav {
     background-color: var(--side-nav-background) !important;
@@ -723,13 +545,22 @@ dark-mode-toggle svg {
 }
 
 #nav-tree-contents {
-    padding: 8px 4px;
+    background-color: var(--side-nav-background) !important;
+    padding: 10px 4px;
+}
+
+#nav-tree ul {
+    background: transparent !important;
+}
+
+#nav-tree li {
+    color: var(--side-nav-foreground) !important;
 }
 
 #nav-tree .item {
     font-family: var(--font-family) !important;
     font-size: 0.9rem;
-    color: var(--side-nav-foreground);
+    color: var(--side-nav-foreground) !important;
     padding: 4px 8px;
     border-radius: 4px;
     transition: background-color 0.15s ease, color 0.15s ease;
@@ -737,154 +568,56 @@ dark-mode-toggle svg {
 
 #nav-tree .item:hover {
     background-color: var(--side-nav-hover-background) !important;
-    color: var(--page-link-hover-color) !important;
+    color: var(--nav-text-hover-color) !important;
 }
 
 #nav-tree .selected {
     background-color: var(--side-nav-active-background) !important;
     color: var(--side-nav-active-foreground) !important;
-    font-weight: 600;
+    font-weight: 600 !important;
+    text-shadow: none !important;
+    border-left: 3px solid var(--sol-cyan) !important;
+    border-radius: 0 4px 4px 0;
 }
 
-#nav-sync {
-    top: 14px;
-    right: 14px;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
+#nav-tree .selected a {
+    color: var(--side-nav-active-foreground) !important;
+    text-decoration: none !important;
 }
 
-#nav-sync:hover {
-    opacity: 1;
+#nav-tree a {
+    color: var(--side-nav-foreground) !important;
+    text-decoration: none !important;
+}
+
+#nav-tree a:hover {
+    color: var(--nav-text-hover-color) !important;
 }
 
 #splitbar {
     background-color: var(--border-color) !important;
-    background-image: none !important;
     width: 4px !important;
 }
 
 /* ==========================================================================
-   9. Top Menu & Navigation Tabs
-   ========================================================================== */
-#navrow1, #navrow2, #navrow3, .tabs, .tabs2, .tabs3 {
-    background-color: var(--side-nav-background) !important;
-    background-image: none !important;
-    border-bottom: 1px solid var(--border-color) !important;
-}
-
-.tablist {
-    background: transparent !important;
-    background-image: none !important;
-    display: flex;
-    flex-wrap: wrap;
-    margin: 0 !important;
-    padding: 0 16px !important;
-    border-bottom: none !important;
-}
-
-.tablist li {
-    background: transparent !important;
-    background-image: none !important;
-    border: none !important;
-    margin: 0 4px !important;
-    padding: 0 !important;
-}
-
-.tablist a {
-    display: block;
-    padding: 8px 14px !important;
-    font-family: var(--font-family) !important;
-    font-size: 0.9rem !important;
-    font-weight: 500 !important;
-    color: var(--page-foreground-color) !important;
-    background: transparent !important;
-    background-image: none !important;
-    border: none !important;
-    border-bottom: 2px solid transparent !important;
-    border-radius: 4px 4px 0 0;
-    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.tablist a:hover {
-    color: var(--page-link-hover-color) !important;
-    background-color: var(--side-nav-hover-background) !important;
-    text-decoration: none !important;
-}
-
-.tablist li.current a {
-    color: var(--primary-color) !important;
-    font-weight: 600 !important;
-    border-bottom: 2px solid var(--primary-color) !important;
-    background-color: var(--primary-lighter-color) !important;
-}
-
-/* ==========================================================================
-   10. Search Box & Search Popup
-   ========================================================================== */
-#MSearchBox {
-    background: var(--search-background) !important;
-    border: 1px solid var(--search-border) !important;
-    border-radius: 6px;
-    box-shadow: var(--search-box-shadow);
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 8px;
-    margin-right: 12px;
-}
-
-#MSearchField {
-    font-family: var(--font-family) !important;
-    font-size: 0.9rem !important;
-    color: var(--search-foreground) !important;
-    background: transparent !important;
-    border: none !important;
-    outline: none !important;
-}
-
-#MSearchField::placeholder {
-    color: var(--page-secondary-foreground-color) !important;
-    opacity: 0.8;
-}
-
-#MSearchSelectWindow,
-#MSearchResultsWindow {
-    background-color: var(--card-background) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 8px;
-    box-shadow: var(--shadow-md);
-}
-
-.SRPage {
-    background-color: var(--card-background) !important;
-}
-
-.SRResult {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.SRResult:hover {
-    background-color: var(--side-nav-hover-background) !important;
-}
-
-/* ==========================================================================
-   11. Main Content Area
+   9. Main Document Content (#doc-content)
    ========================================================================== */
 #doc-content {
     background-color: var(--page-background-color) !important;
+    color: var(--page-foreground-color) !important;
 }
 
 .contents {
-    padding: 24px 36px;
-    max-width: 1240px;
     background-color: var(--page-background-color) !important;
+    color: var(--page-foreground-color) !important;
+    padding: 24px 36px;
+    max-width: 1280px;
 }
 
 .header {
     background-color: var(--page-background-color) !important;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color) !important;
     padding: 16px 36px 12px;
-    background-image: none !important;
 }
 
 .headertitle .title {
@@ -894,13 +627,13 @@ dark-mode-toggle svg {
 }
 
 .summary {
-    color: var(--page-secondary-foreground-color);
-    font-size: 0.88rem;
+    color: var(--page-secondary-foreground-color) !important;
+    font-size: 0.9rem;
     margin-top: 6px;
 }
 
 .summary a {
-    color: var(--primary-color) !important;
+    color: var(--sol-blue) !important;
 }
 
 .summary a:hover {
@@ -908,77 +641,125 @@ dark-mode-toggle svg {
 }
 
 /* ==========================================================================
-   12. Member Declarations & Detail Cards
+   10. Code Blocks & Syntax Highlighting
    ========================================================================== */
-table.memberdecls {
-    width: 100%;
-    margin-top: 1.5em;
-    margin-bottom: 2em;
-    border-collapse: separate;
-    border-spacing: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    overflow: hidden;
+code, tt {
+    font-family: var(--font-monospace) !important;
+    font-size: 0.88em;
+    background-color: var(--code-background) !important;
+    color: var(--sol-cyan) !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--code-border) !important;
 }
 
+pre, div.fragment {
+    background-color: var(--code-background) !important;
+    border: 1px solid var(--code-border) !important;
+    color: var(--code-foreground) !important;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 1.25em 0;
+    overflow-x: auto;
+    font-family: var(--font-monospace) !important;
+    font-size: 0.88rem;
+    line-height: 1.55;
+}
+
+div.fragment span {
+    font-family: var(--font-monospace) !important;
+}
+
+.lineno {
+    color: var(--page-secondary-foreground-color) !important;
+    background-color: transparent !important;
+    user-select: none;
+    border-right: 1px solid var(--code-border) !important;
+    padding-right: 12px !important;
+    margin-right: 12px !important;
+}
+
+/* Solarized Token Classes */
+.comment { color: var(--sol-base01) !important; font-style: italic; }
+.keyword, .keywordflow { color: var(--sol-green) !important; font-weight: 600; }
+.keywordtype { color: var(--sol-yellow) !important; font-weight: 600; }
+.preprocessor { color: var(--sol-orange) !important; font-weight: 600; }
+.stringliteral, .charliteral { color: var(--sol-cyan) !important; }
+
+/* ==========================================================================
+   11. Tables (Markdown, Class members, File lists)
+   ========================================================================== */
+table.markdownTable,
+table.fieldtable,
+table.doxtable,
+table.directory,
+table.memberdecls {
+    border-collapse: collapse !important;
+    width: 100%;
+    margin: 1.5em 0;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px;
+    background-color: var(--page-background-color) !important;
+}
+
+table.markdownTable th,
+table.fieldtable th,
+table.doxtable th,
+table.directory th,
 table.memberdecls tr.heading td {
     background-color: var(--card-header-background) !important;
-    border-bottom: 1px solid var(--border-color);
-    padding: 10px 16px;
-}
-
-table.memberdecls h2.groupheader {
-    margin: 0 !important;
-    padding: 0 !important;
-    font-size: 1.15rem !important;
     color: var(--card-header-foreground) !important;
-    border-bottom: none !important;
+    font-weight: 600;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color) !important;
+    text-align: left;
 }
 
-table.memberdecls td.memItemLeft,
-table.memberdecls td.memItemRight {
+table.markdownTable td,
+table.fieldtable td,
+table.doxtable td,
+table.directory td,
+table.memberdecls td {
     padding: 8px 14px;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--card-background) !important;
-    font-family: var(--font-monospace) !important;
-    font-size: 0.9rem;
+    border: 1px solid var(--border-color) !important;
+    color: var(--page-foreground-color) !important;
+    background-color: transparent !important;
 }
 
-table.memberdecls tr:hover td.memItemLeft,
-table.memberdecls tr:hover td.memItemRight {
-    background-color: var(--table-hover-row-background) !important;
+table.markdownTable tr:hover td,
+table.doxtable tr:hover td,
+table.directory tr:hover td,
+table.memberdecls tr:hover td {
+    background-color: var(--side-nav-hover-background) !important;
 }
 
-.memSeparator {
-    border-bottom: 1px solid var(--border-color) !important;
-    height: 1px;
-}
-
-/* Detailed Documentation Items */
+/* ==========================================================================
+   12. Member Declarations & Detail Cards (.memitem, .memproto, .memdoc)
+   ========================================================================== */
 .memitem {
     background-color: var(--card-background) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 8px;
     margin-bottom: 24px;
-    box-shadow: var(--shadow);
+    box-shadow: none !important;
     overflow: hidden;
 }
 
 .memproto {
     background-color: var(--card-header-background) !important;
+    border: none !important;
     border-bottom: 1px solid var(--border-color) !important;
     padding: 12px 18px;
     font-family: var(--font-monospace) !important;
     font-size: 0.92rem;
     color: var(--card-header-foreground) !important;
-    background-image: none !important;
     text-shadow: none !important;
+    box-shadow: none !important;
 }
 
 .memproto table td {
     background: transparent !important;
     border: none !important;
-    padding: 2px 4px;
     font-family: var(--font-monospace) !important;
 }
 
@@ -1000,133 +781,69 @@ table.memberdecls tr:hover td.memItemRight {
     padding: 16px 20px;
     background-color: var(--card-background) !important;
     color: var(--page-foreground-color) !important;
-    line-height: var(--line-height);
+    border: none !important;
 }
 
 .permalink a {
     color: var(--page-secondary-foreground-color) !important;
     opacity: 0.5;
-    transition: opacity 0.15s ease;
 }
 
 .permalink a:hover {
     opacity: 1;
     color: var(--sol-cyan) !important;
-    text-decoration: none !important;
 }
 
 /* ==========================================================================
-   13. Code Blocks & Syntax Highlighting
+   13. Search Box & Search Results
    ========================================================================== */
-code, tt {
-    font-family: var(--font-monospace) !important;
-    font-size: 0.88em;
-    background-color: var(--code-background);
-    color: var(--sol-cyan);
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid var(--border-color);
+#MSearchBox {
+    background-color: var(--search-background) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
 }
 
-div.fragment {
-    background-color: var(--code-background) !important;
-    border: 1px solid var(--code-border) !important;
-    border-radius: 8px;
-    padding: 16px 20px;
-    margin: 1.25em 0;
-    box-shadow: var(--shadow);
-    overflow-x: auto;
-    font-family: var(--font-monospace) !important;
-    font-size: 0.88rem;
-    line-height: 1.5;
+#MSearchField {
+    font-family: var(--font-family) !important;
+    font-size: 0.9rem !important;
+    color: var(--search-foreground) !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
 }
 
-div.fragment span {
-    font-family: var(--font-monospace) !important;
-}
-
-.lineno {
+#MSearchField::placeholder {
     color: var(--page-secondary-foreground-color) !important;
-    background-color: transparent !important;
-    user-select: none;
-    border-right: 1px solid var(--border-color) !important;
-    padding-right: 12px !important;
-    margin-right: 12px !important;
 }
 
-/* Solarized Syntax Tokens */
-.comment {
-    color: var(--code-comment-color) !important;
-    font-style: italic;
-}
-
-.keyword, .keywordflow {
-    color: var(--sol-green) !important;
-    font-weight: 600;
-}
-
-.keywordtype {
-    color: var(--sol-yellow) !important;
-    font-weight: 600;
-}
-
-.preprocessor {
-    color: var(--sol-orange) !important;
-    font-weight: 600;
-}
-
-.stringliteral, .charliteral {
-    color: var(--sol-cyan) !important;
-}
-
-/* ==========================================================================
-   14. Tables
-   ========================================================================== */
-table.markdownTable,
-table.fieldtable,
-table.doxtable,
-table.directory {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 1.5em 0;
-    border: 1px solid var(--border-color);
+#MSearchSelectWindow,
+#MSearchResultsWindow {
+    background-color: var(--card-background) !important;
+    border: 1px solid var(--border-color) !important;
     border-radius: 8px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 
-table.markdownTable th,
-table.doxtable th,
-table.fieldtable th,
-table.directory th {
-    background-color: var(--table-header-background) !important;
-    color: var(--table-header-foreground) !important;
-    font-weight: 600;
-    padding: 10px 14px;
-    border-bottom: 2px solid var(--border-color);
-    text-align: left;
+.SRPage {
+    background-color: var(--card-background) !important;
 }
 
-table.markdownTable td,
-table.doxtable td,
-table.fieldtable td,
-table.directory td {
-    padding: 10px 14px;
+.SRResult {
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border-color);
-    color: var(--page-foreground-color);
-    background-color: transparent;
 }
 
-table.markdownTable tr:hover,
-table.doxtable tr:hover,
-table.directory tr:hover {
-    background-color: var(--table-hover-row-background) !important;
+.SRResult:hover {
+    background-color: var(--side-nav-hover-background) !important;
 }
 
 /* ==========================================================================
-   15. Admonitions & Callouts (dl.note, dl.warning, etc.)
+   14. Callouts & Admonitions (dl.note, dl.warning, dl.important)
    ========================================================================== */
-dl.note, dl.warning, dl.attention, dl.important, dl.return, dl.see, dl.todo, dl.deprecated, dl.bug {
+dl.note, dl.warning, dl.attention, dl.important, dl.return, dl.see {
     border-radius: 6px;
     padding: 12px 18px;
     margin: 1.25em 0;
@@ -1134,7 +851,7 @@ dl.note, dl.warning, dl.attention, dl.important, dl.return, dl.see, dl.todo, dl.
     border-left-width: 5px;
 }
 
-dl.note dt, dl.warning dt, dl.attention dt, dl.important dt, dl.return dt, dl.see dt, dl.todo dt, dl.deprecated dt, dl.bug dt {
+dl.note dt, dl.warning dt, dl.attention dt, dl.important dt {
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.8rem;
@@ -1142,74 +859,58 @@ dl.note dt, dl.warning dt, dl.attention dt, dl.important dt, dl.return dt, dl.se
     margin-bottom: 4px;
 }
 
-dl.note dd, dl.warning dd, dl.attention dd, dl.important dd, dl.return dd, dl.see dd, dl.todo dd, dl.deprecated dd, dl.bug dd {
+dl.note dd, dl.warning dd, dl.attention dd, dl.important dd {
     margin-left: 0;
     color: var(--page-foreground-color);
 }
 
 dl.note {
-    border-left-color: var(--sol-blue);
-    background-color: rgba(38, 139, 210, 0.08);
+    border-left-color: var(--sol-blue) !important;
+    background-color: rgba(38, 139, 210, 0.08) !important;
 }
-dl.note dt { color: var(--sol-blue); }
+dl.note dt { color: var(--sol-blue) !important; }
 
 dl.warning, dl.attention {
-    border-left-color: var(--sol-orange);
-    background-color: rgba(203, 75, 22, 0.08);
+    border-left-color: var(--sol-orange) !important;
+    background-color: rgba(203, 75, 22, 0.08) !important;
 }
-dl.warning dt, dl.attention dt { color: var(--sol-orange); }
+dl.warning dt, dl.attention dt { color: var(--sol-orange) !important; }
 
-dl.important, dl.bug {
-    border-left-color: var(--sol-red);
-    background-color: rgba(220, 50, 47, 0.08);
+dl.important {
+    border-left-color: var(--sol-red) !important;
+    background-color: rgba(220, 50, 47, 0.08) !important;
 }
-dl.important dt, dl.bug dt { color: var(--sol-red); }
+dl.important dt { color: var(--sol-red) !important; }
 
 dl.return, dl.see {
-    border-left-color: var(--sol-cyan);
-    background-color: rgba(42, 161, 152, 0.08);
+    border-left-color: var(--sol-cyan) !important;
+    background-color: rgba(42, 161, 152, 0.08) !important;
 }
-dl.return dt, dl.see dt { color: var(--sol-cyan); }
-
-dl.todo {
-    border-left-color: var(--sol-yellow);
-    background-color: rgba(181, 137, 0, 0.08);
-}
-dl.todo dt { color: var(--sol-yellow); }
-
-dl.deprecated {
-    border-left-color: var(--sol-violet);
-    background-color: rgba(108, 113, 196, 0.08);
-}
-dl.deprecated dt { color: var(--sol-violet); }
+dl.return dt, dl.see dt { color: var(--sol-cyan) !important; }
 
 /* ==========================================================================
-   16. Breadcrumbs & Footer
+   15. Breadcrumbs & Footer
    ========================================================================== */
-#nav-path {
+.navpath ul, #nav-path ul {
     background-color: var(--side-nav-background) !important;
-    border-top: 1px solid var(--border-color) !important;
-}
-
-#nav-path ul {
-    background-color: var(--side-nav-background) !important;
-    background-image: none !important;
     border: none !important;
+    border-top: 1px solid var(--border-color) !important;
     padding: 6px 16px;
+    margin: 0;
 }
 
-#nav-path li {
-    background-image: none !important;
-    color: var(--page-secondary-foreground-color);
+.navpath li, #nav-path li {
+    color: var(--page-secondary-foreground-color) !important;
     font-size: 0.85rem;
 }
 
-#nav-path li.navelem a {
+.navpath li.navelem a, #nav-path li.navelem a {
     color: var(--page-foreground-color) !important;
+    text-shadow: none !important;
 }
 
-#nav-path li.navelem a:hover {
-    color: var(--primary-color) !important;
+.navpath li.navelem a:hover, #nav-path li.navelem a:hover {
+    color: var(--sol-cyan) !important;
 }
 
 hr.footer {
@@ -1221,50 +922,39 @@ hr.footer {
 .footer {
     color: var(--page-secondary-foreground-color) !important;
     font-size: 0.85rem;
-    padding: 20px 0 32px;
+    padding: 16px 0 24px;
+}
+
+.footer a {
+    color: var(--sol-blue) !important;
+}
+
+.footer a:hover {
+    color: var(--sol-cyan) !important;
 }
 
 /* ==========================================================================
-   17. Custom Scrollbars
+   16. Dark Mode Toggle Component
    ========================================================================== */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-}
-
-/* ==========================================================================
-   18. Dynamic Diagrams & Index Bars
-   ========================================================================== */
-.dynheader {
-    margin-top: 1.5em;
-    font-weight: 600;
-    color: var(--page-heading-color);
-}
-
-div.ah, span.ah {
-    background-color: var(--primary-color) !important;
-    color: var(--sol-base3) !important;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-weight: bold;
-}
-
-.qindex {
-    background-color: var(--side-nav-background) !important;
-    border: 1px solid var(--border-color) !important;
+dark-mode-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
     border-radius: 6px;
-    padding: 6px 12px;
+    padding: 6px;
+    color: var(--page-secondary-foreground-color) !important;
+    background: transparent;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+dark-mode-toggle:hover {
+    color: var(--sol-cyan) !important;
+    background-color: var(--side-nav-hover-background) !important;
+}
+
+dark-mode-toggle svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
 }
