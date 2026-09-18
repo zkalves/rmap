@@ -104,10 +104,10 @@ int main(int argc, char *argv[]) {
       "rmap — Hardware Register Map Designer & Model Generator");
   parser.addHelpOption();
   parser.addVersionOption();
-  parser.addPositionalArgument(
-      "file",
-      "Register map file to load (.rmt, .rmb, .svd, .rdl, .xml, .json, .csv).",
-      "[file]");
+  parser.addPositionalArgument("file",
+                               "Register map file to load (.rmt, .rmb, .svd, "
+                               ".rdl, .xml, .json, .csv, .tsv).",
+                               "[file]");
   parser.addOption(f_opt);
   parser.addOption(e_opt);
   parser.addOption(o_opt);

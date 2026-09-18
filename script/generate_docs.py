@@ -312,7 +312,7 @@ def compile_latex_book(
     urlcolor=brandblue,
     citecolor=accentgreen,
     pdftitle={""" + doc_title + r"""},
-    pdfauthor={rmap Project Contributors},
+    pdfauthor={Ezequiel Alves <alvesel@gmail.com>},
 }
 
 \lstset{
@@ -340,8 +340,10 @@ def compile_latex_book(
 \vspace*{3cm}
 {\Huge\textbf{\color{brandblue}rmap}}\\[1.5cm]
 {\Large\textbf{""" + doc_subtitle + r"""}}\\[0.8cm]
-{\large """ + doc_type_desc + r"""}\\[3cm]
-\textbf{Version """ + version_str + r"""}\\[0.5cm]
+{\large """ + doc_type_desc + r"""}\\[2.5cm]
+\textbf{Version """ + version_str + r"""}\\[0.4cm]
+\textbf{Author: Ezequiel Alves}\\[0.4cm]
+\textbf{GitHub: \url{https://github.com/zkalves/rmap}}\\[0.6cm]
 \textsl{Mozilla Public License 2.0 (MPL-2.0)}\\[1cm]
 \today
 \vfill
@@ -463,19 +465,20 @@ def run_doxygen(project_root: str, html_dir: str = "", verbose: bool = False, re
     if html_dir and os.path.abspath(html_dir) != os.path.abspath(os.path.join(project_root, "_site")):
         doxy_cfg += f"\nOUTPUT_DIRECTORY = {html_dir}\n"
 
-    # Optional Doxygen Awesome CSS theme: check if available
-    awesome_candidates = [
+    # Solarized CSS theme: check if available
+    theme_candidates = [
+        os.path.join(project_root, "docs", "theme", "solarized.css"),
         os.path.join(project_root, "docs", "theme", "doxygen-awesome.css"),
         os.path.join(project_root, "docs", "doxygen-awesome-css", "doxygen-awesome.css"),
         os.path.join(project_root, "docs", "doxygen-awesome.css"),
     ]
-    awesome_path = next((p for p in awesome_candidates if os.path.isfile(p)), None)
-    if awesome_path:
-        rel_awesome = os.path.relpath(awesome_path, project_root)
-        print(f"--> Using Doxygen Awesome CSS theme: {rel_awesome}")
-        doxy_cfg += f"\nHTML_EXTRA_STYLESHEET = {rel_awesome}\n"
+    theme_path = next((p for p in theme_candidates if os.path.isfile(p)), None)
+    if theme_path:
+        rel_theme = os.path.relpath(theme_path, project_root)
+        print(f"--> Using Doxygen Solarized CSS theme: {rel_theme}")
+        doxy_cfg += f"\nHTML_EXTRA_STYLESHEET = {rel_theme}\n"
     else:
-        print("[INFO] Doxygen Awesome CSS not found. Using standard Doxygen styling.")
+        print("[INFO] Doxygen Solarized CSS not found. Using standard Doxygen styling.")
         doxy_cfg += "\nHTML_EXTRA_STYLESHEET =\n"
 
     print(f"--> Generating Doxygen HTML Documentation Portal into: {target_out}")

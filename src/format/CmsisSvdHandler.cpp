@@ -19,10 +19,10 @@ QString CmsisSvdHandler::formatName() const {
   return QStringLiteral("ARM CMSIS-SVD");
 }
 QStringList CmsisSvdHandler::supportedExtensions() const {
-  return {QStringLiteral("svd")};
+  return {QStringLiteral("svd"), QStringLiteral("xml")};
 }
 QString CmsisSvdHandler::fileFilter() const {
-  return QStringLiteral("ARM CMSIS-SVD (*.svd)");
+  return QStringLiteral("ARM CMSIS-SVD (*.svd *.xml)");
 }
 
 namespace {
