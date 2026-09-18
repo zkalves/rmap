@@ -46,6 +46,6 @@ make test
 
 ## 👤 Author & GitHub Repository
 
-- **Author**: Ezequiel Alves ([@zkalves](https://github.com/zkalves))
+- **Author**: Ezequiel Alves ([@@zkalves](https://github.com/zkalves))
 - **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
 - **License**: GNU General Public License Version 3 (GPL-3.0-or-later)

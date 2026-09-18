@@ -70,7 +70,7 @@ make test
 
 ## 👤 Author & Project Repository
 
-- **Author**: Ezequiel Alves ([@zkalves](https://github.com/zkalves))
+- **Author**: Ezequiel Alves ([@@zkalves](https://github.com/zkalves))
 - **Email**: [alvesel@gmail.com](mailto:alvesel@gmail.com)
 - **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
 - **Documentation Portal**: [https://zkalves.github.io/rmap/](https://zkalves.github.io/rmap/)
