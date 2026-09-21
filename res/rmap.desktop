@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=rmap
+GenericName=Hardware Register Map Designer
+Comment=Hardware Register Map Designer & Model Generator
+Exec=rmap %F
+Icon=rmap
+Terminal=false
+Categories=Development;Engineering;Electronics;
+MimeType=application/json;text/xml;text/csv;
+Keywords=register;map;uvm;systemverilog;asic;fpga;hardware;

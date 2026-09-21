@@ -92,9 +92,57 @@ QT_QPA_PLATFORM=offscreen ./build/bin/rmap --help
 
 ---
 
-## 3. Installing rmap
+## 3. Pre-built Packages (AppImage, DEB, RPM)
 
-You can install the `rmap` executable to a system path or choose a custom user-defined location.
+Pre-compiled distribution packages and standalone binaries for Linux (x86_64) are generated automatically by CI workflows on every release and pull request, available from the GitHub [Releases](https://github.com/zkalves/rmap/releases) page or CI workflow artifacts:
+
+### Standalone AppImage (Portable)
+The AppImage is a single self-contained executable that bundles all Qt6 platform plugins, runtime libraries, templates, themes, and translations without requiring root privileges:
+
+```bash
+# Make executable
+chmod +x rmap-*-x86_64.AppImage
+
+# Launch interactive GUI
+./rmap-*-x86_64.AppImage
+
+# Run headlessly in CI or offscreen server
+QT_QPA_PLATFORM=offscreen ./rmap-*-x86_64.AppImage --version
+```
+
+### Debian / Ubuntu (.deb)
+Install the standard Debian package with automatic dependency resolution:
+
+```bash
+# Install with apt (automatically resolves Qt6 and Protobuf dependencies)
+sudo apt install ./rmap_*_amd64.deb
+
+# Or install using dpkg:
+sudo dpkg -i rmap_*_amd64.deb
+sudo apt-get install -f  # resolve any missing runtime dependencies
+
+# Launches directly from application menu or terminal:
+rmap --version
+```
+
+The Debian package installs the executable to `/usr/bin/rmap`, registers the desktop launcher in `/usr/share/applications/rmap.desktop`, installs icons in `/usr/share/icons/hicolor/`, and bundles all template and documentation assets in `/usr/share/rmap/`.
+
+### Fedora / RHEL / openSUSE (.rpm)
+Install the RPM package using `dnf` or `zypper`:
+
+```bash
+# Fedora / RHEL
+sudo dnf install ./rmap-*.x86_64.rpm
+
+# openSUSE
+sudo zypper install ./rmap-*.x86_64.rpm
+```
+
+---
+
+## 4. Installing from Source
+
+You can install the `rmap` executable built from source to a system path or custom user directory.
 
 ### Using Make
 
@@ -130,9 +178,30 @@ cmake --install build
 cmake --install build --prefix $HOME/.local
 ```
 
+### Generating Packages Locally
+
+You can generate Debian, RPM, and AppImage packages locally using CMake/CPack or top-level `Makefile` targets:
+
+```bash
+# Build Debian (.deb) package in build/packages/
+make package-deb
+# (or: cd build && cpack -G DEB)
+
+# Build RPM (.rpm) package (requires rpm / rpmbuild)
+make package-rpm
+# (or: cd build && cpack -G RPM)
+
+# Build standalone AppImage package
+make package-appimage
+# (or: ./script/build_appimage.sh)
+
+# Build all package formats simultaneously
+make package
+```
+
 ---
 
-## 4. Launching the Application
+## 5. Launching the Application
 
 ### Interactive GUI
 ```bash
@@ -152,7 +221,7 @@ rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 
 ---
 
-## 5. Verifying Installation with Bundled Examples
+## 6. Verifying Installation with Bundled Examples
 
 **rmap** packages a rich suite of reference register maps and self-contained simulation environments in `<prefix>/share/rmap/examples` (and bundled templates in `<prefix>/share/rmap/templates`).
 

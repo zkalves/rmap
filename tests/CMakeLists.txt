@@ -88,4 +88,10 @@ if(Python3_FOUND)
         LABELS "unit;backend;docs;architecture"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
+
+    add_test(NAME test_Packaging COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_packaging.py)
+    set_tests_properties(test_Packaging PROPERTIES
+        LABELS "unit;backend;packaging"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
 endif()

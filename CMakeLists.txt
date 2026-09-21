@@ -284,6 +284,25 @@ install(DIRECTORY themes
     FILES_MATCHING PATTERN "*.json" PATTERN "*.md"
 )
 
+# FreeDesktop Desktop Entry & Icons
+install(FILES res/rmap.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+install(FILES res/images/app_icon.png
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/pixmaps
+    RENAME rmap.png
+)
+
+foreach(icon_size 16 32 48 64 128 256 512)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/images/app_icon_${icon_size}.png")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/images/app_icon_${icon_size}.png"
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps"
+            RENAME rmap.png
+        )
+    endif()
+endforeach()
+
 # Tests Subdirectory
 if(BUILD_TESTING AND Qt6_FOUND)
     add_subdirectory(tests)
@@ -316,6 +335,9 @@ else()
 endif()
 
 add_custom_target(docs-classes DEPENDS docs-doxygen)
+
+# CPack Packaging Configuration
+include(cmake/Packaging.cmake)
 
 
 

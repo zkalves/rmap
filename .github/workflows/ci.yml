@@ -94,6 +94,7 @@ jobs:
           - test_Templates
           - test_ArchitecturalInvariants
           - test_DocImplementationSync
+          - test_Packaging
 
     steps:
       - name: Checkout repository
@@ -370,3 +371,130 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  package-deb:
+    name: Package Debian (.deb)
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            cmake \
+            git \
+            qt6-base-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            dpkg-dev
+
+      - name: Configure CMake (Release)
+        run: cmake -B build-release -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build rmap
+        run: cmake --build build-release -j$(nproc)
+
+      - name: Generate Debian Package (.deb)
+        run: cpack --config build-release/CPackConfig.cmake -G DEB -B build-release/packages
+
+      - name: Inspect & Validate Package
+        run: |
+          ls -lh build-release/packages/*.deb
+          dpkg -I build-release/packages/*.deb
+          dpkg -c build-release/packages/*.deb
+
+      - name: Upload Debian Package Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rmap-deb
+          path: build-release/packages/*.deb
+
+  package-rpm:
+    name: Package Red Hat (.rpm)
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            cmake \
+            git \
+            qt6-base-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            rpm
+
+      - name: Configure CMake (Release)
+        run: cmake -B build-release -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build rmap
+        run: cmake --build build-release -j$(nproc)
+
+      - name: Generate RPM Package (.rpm)
+        run: cpack --config build-release/CPackConfig.cmake -G RPM -B build-release/packages
+
+      - name: Inspect & Validate Package
+        run: |
+          ls -lh build-release/packages/*.rpm
+          rpm -qip build-release/packages/*.rpm
+          rpm -qlp build-release/packages/*.rpm
+
+      - name: Upload RPM Package Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rmap-rpm
+          path: build-release/packages/*.rpm
+
+  package-appimage:
+    name: Package AppImage (.AppImage)
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            cmake \
+            git \
+            qt6-base-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            file \
+            wget \
+            libfuse2t64 \
+            fuse3
+
+      - name: Configure CMake (Release)
+        run: cmake -B build-release -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build rmap
+        run: cmake --build build-release -j$(nproc)
+
+      - name: Generate AppImage
+        run: bash script/build_appimage.sh --build-dir build-release --output-dir build-release/packages
+
+      - name: Inspect & Validate AppImage
+        run: |
+          ls -lh build-release/packages/*.AppImage
+          QT_QPA_PLATFORM=offscreen build-release/packages/*.AppImage --appimage-extract-and-run --version
+          QT_QPA_PLATFORM=offscreen build-release/packages/*.AppImage --appimage-extract-and-run --help
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rmap-appimage
+          path: build-release/packages/*.AppImage
+
