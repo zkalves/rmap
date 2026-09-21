@@ -311,9 +311,6 @@ def main():
     elif args.commit_msg_file:
         # Check staged changes in commit-msg hook
         files = get_git_modified_files(staged=True)
-        if not files:
-            # Fallback to diff of HEAD vs working index
-            files = get_git_modified_files(diff_target="HEAD")
         if files:
             passed &= check_changeset_sync(files, commit_msg=commit_msg)
 

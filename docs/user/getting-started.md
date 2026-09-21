@@ -304,7 +304,7 @@ cp -r /usr/local/share/rmap/examples ~/my_rmap_examples
 
 cd ~/my_rmap_examples
 
-# Run full simulation and compilation across all 19 example environments
+# Run full simulation and compilation across all example environments
 make all
 
 # Or test an individual peripheral environment (e.g. SPI)

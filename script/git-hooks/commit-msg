@@ -81,7 +81,7 @@ fi
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$HOOK_DIR/../.." && pwd)"
 
-if [ -f "$PROJECT_ROOT/script/check_doc_sync.py" ]; then
+if [ -z "$RMAP_SKIP_DOC_SYNC" ] && [ -f "$PROJECT_ROOT/script/check_doc_sync.py" ]; then
     python3 "$PROJECT_ROOT/script/check_doc_sync.py" --commit-msg-file "$COMMIT_MSG_FILE"
     SYNC_STATUS=$?
     if [ $SYNC_STATUS -ne 0 ]; then

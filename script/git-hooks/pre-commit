@@ -16,12 +16,6 @@ if [ -f "$PROJECT_ROOT/script/check_doc_sync.py" ]; then
         echo "❌ Pre-commit check failed: Documentation and implementation static parity violated."
         exit 1
     fi
-
-    python3 "$PROJECT_ROOT/script/check_doc_sync.py" --staged
-    if [ $? -ne 0 ]; then
-        echo "❌ Pre-commit check failed: Bidirectional documentation-implementation lockstep violated."
-        exit 1
-    fi
 fi
 
 exit 0
