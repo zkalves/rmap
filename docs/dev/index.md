@@ -135,6 +135,26 @@ signals:
 
 ---
 
+## Documentation & Implementation Lockstep Invariant
+
+To ensure the canonical documentation and C++ implementation never diverge, **rmap** enforces strict bidirectional synchronization across all pull requests, commits, and autonomous agent tasks:
+
+1. **Documentation &rarr; Implementation**:
+   - Any modification or addition to `docs/` **must** be accompanied by matching implementation updates in `src/`, `templates/`, and `tests/`.
+   - Documentation must never run ahead of working, tested code. Pull requests modifying specifications without updating code are rejected unless explicitly tagged `[doc-only]` for non-functional typo or grammar corrections.
+
+2. **Implementation &rarr; Documentation**:
+   - Any modification in `src/` or `templates/` that alters CLI options, register access semantics, public APIs, format serializers, or template outputs **must** be flagged for documentation review.
+   - If code is updated without modifying `docs/` directly, the commit or pull request must include an explicit `DOC-FLAG: <reason/tracking issue>` tag.
+
+3. **Automated Verification**:
+   - **Static Parity Checks**: `python3 script/check_doc_sync.py --static` verifies 100% bidirectional parity for all CLI options (`src/main.cpp` &harr; `docs/user/cli-reference.md`), format handlers (`src/format/` &harr; `docs/user/architecture.md`), and template deliverables (`templates/` &harr; `docs/user/templates-and-codegen.md`).
+   - **CTest Integration**: Verified automatically as part of `ctest` via `test_ArchitecturalInvariants` and `test_DocImplementationSync`.
+   - **Git Hooks & CI**: Enforced by `.git/hooks/pre-commit`, `.git/hooks/commit-msg`, and the GitHub Actions CI pipeline.
+
+---
+
+
 ## 👤 Author & GitHub Repository
 
 - **Author**: Ezequiel Alves ([@@zkalves](https://github.com/zkalves))

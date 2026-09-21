@@ -41,6 +41,28 @@ jobs:
           path: build/
           include-hidden-files: true
 
+  check-doc-impl-lockstep:
+    name: Documentation & Implementation Lockstep Check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Static Parity Check
+        run: python3 script/check_doc_sync.py --static
+
+      - name: PR Changeset Lockstep Check
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 script/check_doc_sync.py --git-check "origin/${{ github.base_ref }}...HEAD" --commit-msg "${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}"
+
   test-unit:
     name: Unit Test (${{ matrix.test_name }})
     needs: build
@@ -71,6 +93,7 @@ jobs:
           - test_SemVer
           - test_Templates
           - test_ArchitecturalInvariants
+          - test_DocImplementationSync
 
     steps:
       - name: Checkout repository
