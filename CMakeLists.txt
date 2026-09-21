@@ -184,6 +184,7 @@ include(FetchContent)
         RMAP_INSTALL_TEMPLATES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/templates"
         RMAP_INSTALL_EXAMPLES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/examples"
         RMAP_INSTALL_DOCDIR="${CMAKE_INSTALL_FULL_DOCDIR}"
+        RMAP_INSTALL_TRANSLATIONS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/translations"
     )
 
     target_link_libraries(rmap_core PUBLIC

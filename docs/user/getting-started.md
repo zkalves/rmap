@@ -191,7 +191,7 @@ sudo apt-get install -f  # resolve any missing runtime dependencies
 rmap --version
 ```
 
-The Debian package installs the executable to `/usr/bin/rmap`, registers the desktop launcher in `/usr/share/applications/rmap.desktop`, installs icons in `/usr/share/icons/hicolor/`, and bundles all template and documentation assets in `/usr/share/rmap/`.
+The Debian package installs the executable to `/usr/bin/rmap`, registers the desktop launcher in `/usr/share/applications/rmap.desktop`, installs icons in `/usr/share/icons/hicolor/`, and bundles all templates, examples, themes, and translations in `/usr/share/rmap/` and offline documentation in `/usr/share/doc/rmap/`.
 
 ### Fedora / RHEL 9 / Rocky 9 / openSUSE (.rpm)
 Install the Enterprise Linux RPM package using `dnf` or `zypper`:

@@ -56,7 +56,7 @@ docs/
 # Build the application
 make
 
-# Run all 22 automated test suites
+# Run all automated test suites
 make test
 
 # Launch GUI with sample SPI peripheral

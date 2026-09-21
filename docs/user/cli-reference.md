@@ -58,6 +58,7 @@ Because each headless action exits immediately upon completion, specifying multi
 | :--- | :--- |
 | `RMAP_CONFIG_FILE` | Explicit path overriding the default configuration file (`~/.config/rmap/rmap.conf` or `$XDG_CONFIG_HOME/rmap/rmap.conf`). |
 | `RMAP_THEMES_PATH` / `RMAP_THEME_DIR` | Colon-separated (Linux/macOS) or semicolon-separated (Windows) search path list for custom theme JSON definitions. |
+| `RMAP_TRANSLATIONS_PATH` / `RMAP_TRANSLATION_DIR` | Colon-separated (Linux/macOS) or semicolon-separated (Windows) search path list for runtime JSON translation catalogs (`rmap_*.json`). |
 | `RMAP_TEMPLATES_DIR` | Explicit filesystem path overriding the default templates discovery and installation directory. |
 | `RMAP_EXAMPLES_DIR` | Explicit filesystem path overriding the default bundled examples directory. |
 | `RMAP_DOCS_DIR` | Explicit filesystem path overriding the default offline documentation directory. |

@@ -6,6 +6,7 @@
  */
 
 #include "LanguageManager.hpp"
+#include "PathUtils.hpp"
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -13,6 +14,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
+#include <cstdlib>
 
 // -------------------------------------------------------------------------
 // LanguageInfo Implementation
@@ -167,6 +169,8 @@ LanguageManager::~LanguageManager() {
   }
 }
 
+void LanguageManager::rescanLanguages() { initLanguages(); }
+
 void LanguageManager::initLanguages() {
   m_languages.clear();
 
@@ -198,9 +202,22 @@ void LanguageManager::initLanguages() {
           QString code = obj.value("code").toString().trimmed();
           if (!code.isEmpty() && code.compare("en", Qt::CaseInsensitive) != 0) {
             bool exists = false;
-            for (const auto &existing : m_languages) {
+            for (auto &existing : m_languages) {
               if (existing.code.compare(code, Qt::CaseInsensitive) == 0) {
                 exists = true;
+                // If existing entry is built-in and external translation path
+                // is provided, update to the external filesystem catalog
+                if (existing.isBuiltIn && !dirPath.startsWith(":/")) {
+                  QString parsedName = obj.value("name").toString().trimmed();
+                  QString parsedNative =
+                      obj.value("nativeName").toString().trimmed();
+                  if (!parsedName.isEmpty())
+                    existing.name = parsedName;
+                  if (!parsedNative.isEmpty())
+                    existing.nativeName = parsedNative;
+                  existing.resourcePath = fi.absoluteFilePath();
+                  existing.isBuiltIn = false;
+                }
                 break;
               }
             }
@@ -210,7 +227,7 @@ void LanguageManager::initLanguages() {
               info.name = obj.value("name").toString().trimmed();
               info.nativeName = obj.value("nativeName").toString().trimmed();
               info.resourcePath = fi.absoluteFilePath();
-              info.isBuiltIn = true;
+              info.isBuiltIn = dirPath.startsWith(":/");
               m_languages.append(info);
             }
           }
@@ -219,7 +236,29 @@ void LanguageManager::initLanguages() {
     }
   };
 
+  // 1. Scan compiled-in Qt resources
   scanDir(":/translations");
+
+  // 2. Scan explicit environment variable override(s)
+  const char *envTrans = std::getenv("RMAP_TRANSLATIONS_PATH");
+  if (!envTrans || envTrans[0] == '\0') {
+    envTrans = std::getenv("RMAP_TRANSLATION_DIR");
+  }
+  if (envTrans && envTrans[0] != '\0') {
+    for (const QString &p : QString::fromUtf8(envTrans).split(
+             QDir::listSeparator(), Qt::SkipEmptyParts)) {
+      scanDir(PathUtils::normalizeSeparators(
+          PathUtils::expandEnvVars(p.trimmed())));
+    }
+  }
+
+  // 3. Scan default filesystem translations directory from PathUtils
+  QString defTransDir = PathUtils::defaultTranslationsDir();
+  if (!defTransDir.isEmpty() && defTransDir != ":/translations") {
+    scanDir(defTransDir);
+  }
+
+  // 4. Fallback to local ./translations
   if (m_languages.size() <= 1) {
     scanDir("./translations");
   }

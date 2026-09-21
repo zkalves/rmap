@@ -862,8 +862,17 @@ with open(script_path, 'r', encoding='utf-8') as f:
   if (!finished) {
     process.kill();
     process.waitForFinished(1000);
-    if (stderr_str)
-      *stderr_str = "Python script execution timed out (60 seconds).";
+    if (stderr_str) {
+      if (timeoutMs % 1000 == 0) {
+        *stderr_str = QString("Python script execution timed out (%1 seconds).")
+                          .arg(timeoutMs / 1000)
+                          .toStdString();
+      } else {
+        *stderr_str = QString("Python script execution timed out (%1 ms).")
+                          .arg(timeoutMs)
+                          .toStdString();
+      }
+    }
     return false;
   }
 
