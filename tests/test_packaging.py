@@ -113,6 +113,8 @@ class TestPackaging(unittest.TestCase):
         self.assertIn("rmap-deb", content)
         self.assertIn("rmap-rpm", content)
         self.assertIn("rmap-appimage", content)
+        self.assertIn("image: almalinux:9", content)
+        self.assertIn("runs-on: ubuntu-22.04", content)
 
 
 if __name__ == "__main__":

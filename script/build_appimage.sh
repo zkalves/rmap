@@ -68,7 +68,7 @@ SELF=$(readlink -f "$0")
 HERE=${SELF%/*}
 
 export PATH="${HERE}/usr/bin:${PATH}"
-export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64:${HERE}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
 export QT_PLUGIN_PATH="${HERE}/usr/plugins:${QT_PLUGIN_PATH:-}"
 export QML_IMPORT_PATH="${HERE}/usr/qml:${QML_IMPORT_PATH:-}"
 export QML2_IMPORT_PATH="${HERE}/usr/qml:${QML2_IMPORT_PATH:-}"
@@ -85,18 +85,30 @@ exec "${HERE}/usr/bin/rmap" "$@"
 EOF
 chmod +x "${APPDIR}/AppRun"
 
-# 4. Bundle Qt6 plugins and dependent shared libraries
+# 4. Bundle Qt6 plugins and runtime dependencies
 echo "--> Bundling Qt6 plugins and runtime dependencies..."
 mkdir -p "${APPDIR}/usr/plugins"
 mkdir -p "${APPDIR}/usr/lib"
+ln -sf lib "${APPDIR}/usr/lib64" 2>/dev/null || true
 
 QT_PLUGIN_DIR=""
 if command -v qtpaths6 >/dev/null 2>&1; then
     QT_PLUGIN_DIR="$(qtpaths6 --plugin-dir 2>/dev/null || true)"
+elif command -v qtpaths-qt6 >/dev/null 2>&1; then
+    QT_PLUGIN_DIR="$(qtpaths-qt6 --plugin-dir 2>/dev/null || true)"
 elif command -v qtpaths >/dev/null 2>&1; then
     QT_PLUGIN_DIR="$(qtpaths --plugin-dir 2>/dev/null || true)"
 elif command -v qmake6 >/dev/null 2>&1; then
     QT_PLUGIN_DIR="$(qmake6 -query QT_INSTALL_PLUGINS 2>/dev/null || true)"
+fi
+
+if [ -z "${QT_PLUGIN_DIR}" ] || [ ! -d "${QT_PLUGIN_DIR}" ]; then
+    for cand in /usr/lib64/qt6/plugins /usr/lib/qt6/plugins /usr/lib/x86_64-linux-gnu/qt6/plugins; do
+        if [ -d "$cand" ]; then
+            QT_PLUGIN_DIR="$cand"
+            break
+        fi
+    done
 fi
 
 if [ -n "${QT_PLUGIN_DIR}" ] && [ -d "${QT_PLUGIN_DIR}" ]; then
