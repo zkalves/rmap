@@ -38,8 +38,7 @@ inline QString defaultOutputDir() {
  * Resolves in order of priority:
  * 1. RMAP_TEMPLATES_DIR environment variable (if non-empty).
  * 2. Local "./templates" if it exists and contains template subfolders.
- * 3. Application-relative relocatable directory
- * (&lt;bin_dir&gt;/../share/rmap/templates).
+ * 3. Application-relative relocatable directory (&lt;bin_dir&gt;/../share/rmap/templates).
  * 4. Configured compile-time installation path (RMAP_INSTALL_TEMPLATES_DIR).
  * 5. Fallback relative "./templates".
  */
