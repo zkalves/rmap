@@ -30,6 +30,10 @@ config {
     output_filepath: "./work/markdown/reg_doc.md"
   }
   template_outputs {
+    template_filename: "./templates/asciidoctor/reg_doc.adoc.inja"
+    output_filepath: "./work/asciidoctor/reg_doc.adoc"
+  }
+  template_outputs {
     template_filename: "./templates/systemrdl/reg_map.rdl.inja"
     output_filepath: "./work/systemrdl/reg_map.rdl"
   }

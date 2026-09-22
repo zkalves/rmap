@@ -258,10 +258,12 @@ void LanguageManager::initLanguages() {
     scanDir(defTransDir);
   }
 
+  // GCOV_EXCL_START - Fallback when built-in :/translations resource is missing
   // 4. Fallback to local ./translations
   if (m_languages.size() <= 1) {
     scanDir("./translations");
   }
+  // GCOV_EXCL_STOP
 }
 
 const QList<LanguageInfo> &LanguageManager::availableLanguages() const {

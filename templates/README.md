@@ -18,6 +18,8 @@ Templates are rendered using the [Pantor Inja](https://github.com/pantor/inja) m
 
 ```text
 templates/
+├── asciidoctor/
+│   └── reg_doc.adoc.inja       # AsciiDoctor specification document with tables and section anchors
 ├── c/
 │   └── reg_map.h.inja          # C/C++ firmware headers and register struct layouts
 ├── html/
@@ -27,7 +29,8 @@ templates/
 ├── json/
 │   └── reg_map.json.inja       # Formatted JSON register map schema export
 ├── markdown/
-│   └── reg_doc.md.inja         # Markdown documentation tables and register summaries
+│   ├── reg_doc.md.inja         # Markdown documentation tables and register summaries
+│   └── reg_features.md.inja    # Markdown register architecture and features guide
 ├── python/
 │   └── reg_map.py.inja         # Python object-oriented register driver & bus abstraction
 ├── pyuvm_tb/
@@ -179,21 +182,30 @@ templates/
   - Direct import into embedded IDEs (Keil MDK, IAR Embedded Workbench, VS Code Cortex-Debug, Eclipse).
   - Accurate base addresses, register offsets, bit ranges (`[msb:lsb]`), and reset values.
 
-### 15. Markdown Register Specification (`markdown/reg_doc.md.inja`)
+### 15. Markdown Register Specification & Feature Guide (`markdown/reg_doc.md.inja`, `markdown/reg_features.md.inja`)
 - **Language**: GitHub Flavored Markdown (GFM).
-- **Output**: `<out_dir>/markdown/reg_doc.md`
+- **Output**: `<out_dir>/markdown/reg_doc.md`, `<out_dir>/markdown/reg_features.md`
 - **Features**:
   - Ready for inclusion in project Git documentation portals, wikis, and PR reviews.
-  - Clean summary tables showing register addresses, widths, reset states, and bitfield breakdowns.
+  - Clean summary tables showing register addresses, widths, reset states, and bitfield breakdowns (`reg_doc.md`).
+  - Standalone register features guide dynamically filtered to active IEEE 1800.2 access policies, hardware sidebands, volatile behaviors, and byte-strobe semantics implemented in the exported map (`reg_features.md`).
 
-### 16. JSON Schema Export (`json/reg_map.json.inja`)
+### 16. AsciiDoctor Register Specification (`asciidoctor/reg_doc.adoc.inja`)
+- **Language**: AsciiDoc / AsciiDoctor.
+- **Output**: `<out_dir>/asciidoctor/reg_doc.adoc`
+- **Features**:
+  - Publication-ready AsciiDoc register map specification with collapsible table of contents and section numbering.
+  - Top feature summary section dynamically reflecting implemented features, wrapped in inverse-logic conditional `ifndef::skip_features_<name>[]` directives, allowing individual exclusion per register map name by setting the skip variable.
+  - Section anchors for register blocks and bitfield tables conforming to modern AsciiDoctor syntax.
+
+### 17. JSON Schema Export (`json/reg_map.json.inja`)
 - **Language**: JSON.
 - **Output**: `<out_dir>/json/reg_map.json`
 - **Features**:
   - Standard machine-readable serialization of the complete register hierarchy.
   - Perfect for CI/CD linting, automated validation scripts, and custom internal tool pipelines.
 
-### 17. Self-Checking RTL Testbench (`rtl_tb/tb_reg_map.sv.inja`)
+### 18. Self-Checking RTL Testbench (`rtl_tb/tb_reg_map.sv.inja`)
 - **Language**: SystemVerilog.
 - **Output**: `<out_dir>/rtl_tb/tb_reg_map.sv`
 - **Features**:
@@ -201,14 +213,14 @@ templates/
   - Automated tasks verifying reset values, read/write accesses, bitfield masks, and clear-on-write behaviors.
   - Ready for execution in open-source simulators (Icarus Verilog, Verilator) and commercial tools.
 
-### 18. Open-Source Python UVM Testbench (`pyuvm_tb/tb_pyuvm.py.inja`)
+### 19. Open-Source Python UVM Testbench (`pyuvm_tb/tb_pyuvm.py.inja`)
 - **Language**: Python 3 with Cocotb & pyuvm.
 - **Output**: `<out_dir>/pyuvm_tb/tb_pyuvm.py`
 - **Features**:
   - Headless verification using open-source simulators (Icarus Verilog, Verilator).
   - Implements complete UVM testbench structure in Python without requiring proprietary commercial licenses.
 
-### 19. Universal UVM Verification Environment (`uvm_tb/`)
+### 20. Universal UVM Verification Environment (`uvm_tb/`)
 - **Files**:
   - `reg_bus_if.sv.inja`: Generic synchronous bus interface with clock, reset, request, write-enable, address, data, and acknowledge signals.
   - `reg_bus_pkg.sv.inja`: Bus transaction (`reg_bus_trans`), driver, monitor, sequencer, and agent package with register adapter (`reg2bus_adapter`).
@@ -217,7 +229,7 @@ templates/
   - `tb_top.sv.inja`: Top-level SystemVerilog module instantiating the DUT register file, interface, clock/reset generator, and starting the test.
 - **Multi-Version Compatibility**: Compatible with Accellera UVM 1.1d, 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020.
 
-### 20. Multi-Tool Simulation Runner Makefile (`sim/Makefile.inja`)
+### 21. Multi-Tool Simulation Runner Makefile (`sim/Makefile.inja`)
 - **Language**: GNU Makefile.
 - **Output**: `<out_dir>/sim/Makefile`
 - **Features**:
@@ -335,7 +347,7 @@ To add a new code generation template:
 
 ## 6. Testing Templates
 
-Run comprehensive template verification across all 20 template deliverables:
+Run comprehensive template verification across all 21 template deliverables:
 
 ```bash
 # Run template verification suite

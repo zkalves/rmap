@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <QCoreApplication>
 #include "RegMapTreeModel.hpp"
+#include "CodeGenerator.hpp"
 
 // Reserved SystemVerilog and C keywords to prevent identifier collisions
 static const std::unordered_set<std::string> kReservedKeywords = {
@@ -927,6 +928,8 @@ json RegMapTreeModel::extractJsonData(uint32_t regWidth, bool hwPrecedence) noex
     uint32_t treeCrc = computeTreeCrc32(root_json);
     root_json["regmap_crc32"] = treeCrc;
     root_json["regmap_crc32_hex"] = ("0x" + QString("%1").arg(treeCrc, 8, 16, QChar('0')).toUpper()).toStdString();
+
+    root_json["features"] = CodeGenerator::extractFeatures(root_json);
 
     return root_json;
 }

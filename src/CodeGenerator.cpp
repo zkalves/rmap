@@ -6,6 +6,7 @@
  */
 
 #include "CodeGenerator.hpp"
+#include <set>
 #include <QDirIterator>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -449,6 +450,8 @@ GenerationReport CodeGenerator::generate(
     }
   }
 
+  preparedJson["features"] = extractFeatures(preparedJson);
+
   // If no specific template mappings are defined, scan the default template
   // folder
   if (mappings.empty()) {
@@ -885,4 +888,148 @@ with open(script_path, 'r', encoding='utf-8') as f:
 
   int exitCode = process.exitCode();
   return (process.exitStatus() == QProcess::NormalExit && exitCode == 0);
+}
+
+json CodeGenerator::extractFeatures(const json &rootJson) {
+  json feat = json::object();
+
+  std::set<std::string> uniquePolicies;
+  bool hasHwWritable = false;
+  bool hasHwReadable = false;
+  bool hasVolatile = false;
+  bool hasMemories = false;
+  bool hasAddressGaps = false;
+  bool hasInterrupts = false;
+  bool hasSwWritable = false;
+
+  auto blksIt = rootJson.find("blocks");
+  size_t blkCount = 0;
+  size_t regCount = 0;
+  size_t fldCount = 0;
+
+  if (blksIt != rootJson.end() && blksIt->is_array()) {
+    blkCount = blksIt->size();
+    for (const auto &blk : *blksIt) {
+      auto memIt = blk.find("memories");
+      if (memIt != blk.end() && memIt->is_array() && !memIt->empty()) {
+        hasMemories = true;
+      }
+
+      auto regsIt = blk.find("registers");
+      if (regsIt != blk.end() && regsIt->is_array()) {
+        for (const auto &r : *regsIt) {
+          regCount++;
+          uint64_t padBytes = r.value("pad_bytes_before", 0ULL);
+          if (padBytes > 0) {
+            hasAddressGaps = true;
+          }
+
+          auto fldsIt = r.find("fields");
+          if (fldsIt != r.end() && fldsIt->is_array() && !fldsIt->empty()) {
+            for (const auto &fld : *fldsIt) {
+              fldCount++;
+              std::string acc = fld.value("access", "");
+              if (acc.empty()) {
+                acc = r.value("access", "RW");
+              }
+              std::string uAcc = acc;
+              std::transform(uAcc.begin(), uAcc.end(), uAcc.begin(), ::toupper);
+              if (!uAcc.empty()) {
+                uniquePolicies.insert(uAcc);
+                if (uAcc != "RO" && uAcc != "NOACCESS") {
+                  hasSwWritable = true;
+                }
+              }
+
+              std::string hwAcc = fld.value("hw_access", "RO");
+              std::string uHwAcc = hwAcc;
+              std::transform(uHwAcc.begin(), uHwAcc.end(), uHwAcc.begin(), ::toupper);
+              if (uHwAcc != "NA" && !uHwAcc.empty()) {
+                hasHwReadable = true;
+                if (uHwAcc == "WO" || uHwAcc == "RW" || uHwAcc == "W" || uAcc == "RO") {
+                  hasHwWritable = true;
+                }
+              }
+
+              if (fld.value("volatile", false)) {
+                hasVolatile = true;
+              }
+
+              if (uAcc == "W1C" || uAcc == "W0C" || uAcc == "RC" ||
+                  uAcc == "W1SRC" || uAcc == "W1CRS" || uAcc == "W0SRC" || uAcc == "W0CRS") {
+                hasInterrupts = true;
+              }
+              std::string fldName = fld.value("name", "");
+              std::string uName = fldName;
+              std::transform(uName.begin(), uName.end(), uName.begin(), ::toupper);
+              if (uName.find("IRQ") != std::string::npos || uName.find("INT_") != std::string::npos ||
+                  uName == "INT" || uName.find("_INT") != std::string::npos) {
+                hasInterrupts = true;
+              }
+            }
+          } else {
+            std::string acc = r.value("access", "RW");
+            std::string uAcc = acc;
+            std::transform(uAcc.begin(), uAcc.end(), uAcc.begin(), ::toupper);
+            if (!uAcc.empty()) {
+              uniquePolicies.insert(uAcc);
+              if (uAcc != "RO" && uAcc != "NOACCESS") {
+                hasSwWritable = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  auto topMemIt = rootJson.find("memories");
+  if (topMemIt != rootJson.end() && topMemIt->is_array() && !topMemIt->empty()) {
+    hasMemories = true;
+  }
+
+  uint32_t regWidth = rootJson.value("reg_width", 32U);
+  bool hasByteStrobes = (regWidth > 8);
+
+  feat["access_policies"] = json::array();
+  std::string policiesStr;
+  for (const auto &p : uniquePolicies) {
+    feat["access_policies"].push_back(p);
+    std::string key = "has_" + p;
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    feat[key] = true;
+    if (!policiesStr.empty()) {
+      policiesStr += ", ";
+    }
+    policiesStr += "`" + p + "`";
+  }
+  feat["access_policies_str"] = policiesStr;
+
+  static const std::vector<std::string> standardPolicies = {
+      "rw", "ro", "wo", "w1c", "w1s", "w1t", "w0c", "rc", "rs",
+      "wc", "ws", "w1src", "w1crs", "w0src", "w0crs", "woc", "wos",
+      "w1", "wo1", "noaccess"
+  };
+  for (const auto &sp : standardPolicies) {
+    std::string key = "has_" + sp;
+    if (!feat.contains(key)) {
+      feat[key] = false;
+    }
+  }
+
+  feat["has_hw_writable"] = hasHwWritable;
+  feat["has_hw_readable"] = hasHwReadable;
+  feat["has_hw_sidebands"] = (hasHwWritable || hasHwReadable);
+  feat["has_hw_precedence"] = (hasHwWritable && hasSwWritable);
+  feat["has_volatile"] = hasVolatile;
+  feat["has_memories"] = hasMemories;
+  feat["has_address_gaps"] = hasAddressGaps;
+  feat["has_interrupts"] = hasInterrupts;
+  feat["has_byte_strobes"] = hasByteStrobes;
+  feat["has_multiple_blocks"] = (blkCount > 1);
+  feat["block_count"] = blkCount;
+  feat["register_count"] = regCount;
+  feat["field_count"] = fldCount;
+
+  return feat;
 }
