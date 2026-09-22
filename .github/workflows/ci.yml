@@ -64,8 +64,11 @@ jobs:
 
       - name: PR Changeset Lockstep Check
         if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          python3 script/check_doc_sync.py --git-check "origin/${{ github.base_ref }}...HEAD" --commit-msg "${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}"
+          python3 script/check_doc_sync.py --git-check "origin/${{ github.base_ref }}...HEAD" --commit-msg "$PR_TITLE $PR_BODY"
 
   test-unit:
     name: Unit Test (${{ matrix.test_name }})
