@@ -83,6 +83,7 @@ public:
   bool setLanguage(const QString &codeOrName);
   bool hasLanguage(const QString &codeOrName) const;
   LanguageInfo languageInfo(const QString &codeOrName) const;
+  void rescanLanguages();
 
 signals:
   void languageChanged(const QString &languageCode);

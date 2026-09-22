@@ -7,6 +7,10 @@ on:
     branches: [ main, master, dev ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   build:
     name: Build Project
@@ -41,6 +45,28 @@ jobs:
           path: build/
           include-hidden-files: true
 
+  check-doc-impl-lockstep:
+    name: Documentation & Implementation Lockstep Check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Static Parity Check
+        run: python3 script/check_doc_sync.py --static
+
+      - name: PR Changeset Lockstep Check
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 script/check_doc_sync.py --git-check "origin/${{ github.base_ref }}...HEAD" --commit-msg "${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }}"
+
   test-unit:
     name: Unit Test (${{ matrix.test_name }})
     needs: build
@@ -71,6 +97,8 @@ jobs:
           - test_SemVer
           - test_Templates
           - test_ArchitecturalInvariants
+          - test_DocImplementationSync
+          - test_Packaging
 
     steps:
       - name: Checkout repository
@@ -347,3 +375,152 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  package-deb:
+    name: Package Debian (.deb)
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            cmake \
+            git \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            libgl-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            dpkg-dev
+
+      - name: Configure CMake (Release)
+        run: cmake -B build-release -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build rmap
+        run: cmake --build build-release -j$(nproc)
+
+      - name: Generate Debian Package (.deb)
+        run: cpack --config build-release/CPackConfig.cmake -G DEB -B build-release/packages
+
+      - name: Inspect & Validate Package
+        run: |
+          ls -lh build-release/packages/*.deb
+          dpkg -I build-release/packages/*.deb
+          dpkg -c build-release/packages/*.deb
+
+      - name: Upload Debian Package Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rmap-deb
+          path: build-release/packages/*.deb
+
+  package-rpm:
+    name: Package Enterprise Linux (.rpm)
+    needs: build
+    runs-on: ubuntu-24.04
+    container:
+      image: almalinux:9
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release dnf-plugins-core
+          dnf config-manager --set-enabled crb
+          dnf install -y --allowerasing \
+            gcc-c++ \
+            make \
+            cmake \
+            git \
+            qt6-qtbase-devel \
+            qt6-qttools-devel \
+            protobuf-devel \
+            protobuf-compiler \
+            rpm-build \
+            file
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure CMake (Release)
+        run: cmake -B build-release -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build rmap
+        run: cmake --build build-release -j$(nproc)
+
+      - name: Generate RPM Package (.rpm)
+        run: cpack --config build-release/CPackConfig.cmake -G RPM -B build-release/packages
+
+      - name: Inspect & Validate Package
+        run: |
+          ls -lh build-release/packages/*.rpm
+          rpm -qip build-release/packages/*.rpm
+          rpm -qlp build-release/packages/*.rpm
+
+      - name: Upload RPM Package Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rmap-rpm
+          path: build-release/packages/*.rpm
+
+  package-appimage:
+    name: Package AppImage (.AppImage)
+    needs: build
+    runs-on: ubuntu-24.04
+    container:
+      image: almalinux:9
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release dnf-plugins-core
+          dnf config-manager --set-enabled crb
+          dnf install -y --allowerasing \
+            gcc-c++ \
+            make \
+            cmake \
+            git \
+            qt6-qtbase-devel \
+            qt6-qttools-devel \
+            protobuf-devel \
+            protobuf-compiler \
+            file \
+            curl \
+            which \
+            tar \
+            gzip
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure CMake (Release)
+        run: cmake -B build-release -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build rmap
+        run: cmake --build build-release -j$(nproc)
+
+      - name: Generate AppImage
+        run: bash script/build_appimage.sh --build-dir build-release --output-dir build-release/packages
+
+      - name: Inspect & Validate AppImage
+        run: |
+          ls -lh build-release/packages/*.AppImage
+          QT_QPA_PLATFORM=offscreen build-release/packages/*.AppImage --appimage-extract-and-run --version
+          QT_QPA_PLATFORM=offscreen build-release/packages/*.AppImage --appimage-extract-and-run --help
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rmap-appimage
+          path: build-release/packages/*.AppImage
+

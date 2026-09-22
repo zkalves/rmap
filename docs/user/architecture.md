@@ -166,9 +166,15 @@ Defines how internal peripheral hardware logic interfaces with the register stor
   - Resolves relative paths prioritizing active register map file directory over CWD.
   - Converts absolute GUI selections and paths to clean, portable relative paths.
 - **Environment Variables**:
-  - `RMAP_PYTHON_TIMEOUT`: Configures execution timeout in milliseconds for Python scripts and generators (default: 60000 ms).
-  - `RMAP_THEME_DIR` / `RMAP_THEMES_PATH`: Defines filesystem search directories for custom color themes.
   - `RMAP_CONFIG_FILE`: Overrides default path to the persistent user configuration file (`~/.config/rmap/rmap.conf`).
+  - `RMAP_THEMES_PATH` / `RMAP_THEME_DIR`: Defines filesystem search directories for custom color themes.
+  - `RMAP_TRANSLATIONS_PATH` / `RMAP_TRANSLATION_DIR`: Defines filesystem search directories for runtime JSON translation catalogs (`rmap_*.json`).
+  - `RMAP_TEMPLATES_DIR`: Overrides default search path for Inja templates.
+  - `RMAP_EXAMPLES_DIR`: Overrides default search path for bundled examples.
+  - `RMAP_DOCS_DIR`: Overrides default path for offline documentation.
+  - `RMAP_PYTHON` / `PYTHON`: Custom Python interpreter binary.
+  - `RMAP_PYTHON_TIMEOUT`: Configures execution timeout in milliseconds for Python scripts and generators (default: 60000 ms).
+  - `RMAP_TMPDIR`: Custom temporary directory for intermediate JSON context files.
 
 ### Protobuf Serialization (`rmap.proto`)
 - `protormap::Config`: Stores template paths, output destinations, global register width, project metadata, and custom template key-values.

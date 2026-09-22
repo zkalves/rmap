@@ -103,10 +103,10 @@ cmake --build build
 # Run automated unit test suites (100% pass rate)
 make test
 
-# Run comprehensive template verification tests across all 15 output templates
+# Run comprehensive template verification tests across all output templates
 make test-templates
 
-# Run autonomous simulation and compilation across all 19 example environments
+# Run autonomous simulation and compilation across all example environments
 make test-examples
 
 # Run complete verification suite
