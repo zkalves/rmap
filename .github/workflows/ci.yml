@@ -394,6 +394,8 @@ jobs:
             cmake \
             git \
             qt6-base-dev \
+            qt6-base-dev-tools \
+            libgl-dev \
             libprotobuf-dev \
             protobuf-compiler \
             dpkg-dev

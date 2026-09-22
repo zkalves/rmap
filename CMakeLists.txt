@@ -48,7 +48,7 @@ include(CTest)
 include(GNUInstallDirs)
 
 # Find Packages
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 find_package(Protobuf QUIET)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 if(BUILD_TESTING)
@@ -111,16 +111,18 @@ include(FetchContent)
         set(FETCHCONTENT_SOURCE_DIR_INJA "${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/inja-src")
     endif()
 
-    set(extra_fetch_args "")
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.25")
-        list(APPEND extra_fetch_args SYSTEM)
+        FetchContent_Declare(inja
+          GIT_REPOSITORY https://github.com/pantor/inja
+          GIT_TAG v3.3.0
+          SYSTEM
+        )
+    else()
+        FetchContent_Declare(inja
+          GIT_REPOSITORY https://github.com/pantor/inja
+          GIT_TAG v3.3.0
+        )
     endif()
-
-    FetchContent_Declare(inja
-      GIT_REPOSITORY https://github.com/pantor/inja
-      GIT_TAG v3.3.0
-      ${extra_fetch_args}
-    )
     set(PREV_CMAKE_WARN_DEPRECATED "${CMAKE_WARN_DEPRECATED}")
     set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(inja)
