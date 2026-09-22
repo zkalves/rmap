@@ -1,0 +1,113 @@
+= {{ name }} — Register Map Specification
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: highlight.js
+:table-stripes: even
+
+ifndef::skip_features_{{ lower(name) }},skip_{{ lower(name) }}_features,skip_{{ lower(name) }},skip_features[]
+== Implemented Register Features & Architectural Overview
+
+This register map specification defines the memory-mapped register interface for *{{ name }}*. The implemented registers incorporate the following architectural features:
+
+{% if existsIn(features, "access_policies") and length(features.access_policies) > 0 %}
+{% if length(features.access_policies) == 1 %}
+* *Software Bus Access Policies*: Implements {{ features.access_policies_str }} access policy governing software bus read and write interactions.
+{% else %}
+* *Software Bus Access Policies*: Implements {{ features.access_policies_str }} access policies governing software bus read and write interactions.
+{% endif %}
+{% endif %}
+{% if existsIn(features, "has_hw_precedence") and features.has_hw_precedence %}
+* *Hardware Precedence & Sidebands*: Hardware write updates take strict precedence over software writes with dedicated hardware input (`hw_*_i`), write-enable (`hw_*_we_i`), and current state (`hw_*_o`) sideband ports.
+{% else if existsIn(features, "has_hw_sidebands") and features.has_hw_sidebands %}
+* *Hardware Sidebands*: Peripheral hardware monitors register state directly via dedicated current state (`hw_*_o`) sideband ports.
+{% endif %}
+* *Transaction Strobe Signals*: Active-high 1-cycle software read (`sw_*_rd_strobe_o`) and write (`sw_*_wr_strobe_o`) strobes for on-chip peripheral hardware triggering.
+{% if existsIn(features, "has_byte_strobes") and features.has_byte_strobes %}
+* *Bitfield Packing & Alignment*: Configurable bit slice ranges `[msb:lsb]` aligned to the {{ reg_width }}-bit data bus with byte-level write strobing (`wstrb`).
+{% else %}
+* *Bitfield Packing & Alignment*: Configurable bit slice ranges `[msb:lsb]` aligned to the {{ reg_width }}-bit data bus.
+{% endif %}
+{% if existsIn(features, "has_volatile") and features.has_volatile %}
+* *Reset State & Volatility*: Explicit reset vectors and volatility qualifiers for fields altered asynchronously by peripheral hardware.
+{% else %}
+* *Deterministic Reset State*: Explicit power-on reset vectors for all bitfields.
+{% endif %}
+{% if existsIn(features, "has_memories") and features.has_memories %}
+* *Direct Memory Windows*: Dedicated address windows mapped directly to internal or external SRAM buffers.
+{% endif %}
+{% if existsIn(features, "has_address_gaps") and features.has_address_gaps %}
+* *Sparse Address Space*: Memory map accommodates non-contiguous register offsets with automatic address gap decoding.
+{% endif %}
+{% if existsIn(features, "has_interrupts") and features.has_interrupts %}
+* *Interrupt & Event Management*: Dedicated sticky event flags and interrupt clear/acknowledge policies.
+{% endif %}
+{% if existsIn(features, "has_multiple_blocks") and features.has_multiple_blocks %}
+* *Modular Multi-Block Hierarchy*: Organizes memory space into {{ length(blocks) }} independent register blocks.
+{% endif %}
+
+'''
+endif::[]
+
+== Overview
+
+*Register Width:* {{ reg_width }}-bit +
+*Total Blocks:* {{ length(blocks) }} +
+*Description:* {{ description }}
+
+'''
+
+== Summary of Register Blocks
+
+[cols="2,2,4", options="header"]
+|===
+| Block Name | Base Offset | Description
+{% for blk in blocks %}
+| <<blk-{{ lower(blk.name) }},{{ blk.name }}>> | `{{ blk.offset_hex }}` | {{ blk.description }}
+{% endfor %}
+|===
+
+'''
+
+{% for blk in blocks %}
+[#blk-{{ lower(blk.name) }}]
+== Block: {{ blk.name }}
+
+* *Base Offset:* `{{ blk.offset_hex }}`
+* *Description:* {{ blk.description }}
+
+=== Registers
+
+{% for reg in blk.registers %}
+[#reg-{{ lower(blk.name) }}-{{ lower(reg.name) }}]
+==== `{{ reg.name }}` (Offset: `{{ reg.offset_hex }}`)
+
+* *Description:* {{ reg.description }}
+* *Default SW Access:* `{{ reg.access }}`
+* *Reset Value:* `{{ reg.reset_hex }}`
+
+[cols="2,3,2,2,2,4", options="header"]
+|===
+| Bits | Field Name | SW Access | HW Access | Reset | Description
+{% for fld in reg.fields %}
+| `[{{ msb(fld.size_width, fld.offset_lsb) }}:{{ fld.offset_lsb }}]` | *{{ fld.name }}* | `{{ fld.access }}` | `{{ fld.hw_access }}` | `{{ fld.reset_hex }}` | {{ fld.description }}
+{% endfor %}
+|===
+
+{% endfor %}
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+=== Memory Regions
+
+[cols="2,2,2,2,4", options="header"]
+|===
+| Memory Name | Offset | Size (Bytes) | Access | Description
+{% for mem in blk.memories %}
+| *{{ mem.name }}* | `{{ mem.offset_hex }}` | `{{ mem.size_hex }}` | `{{ mem.access }}` | {{ mem.description }}
+{% endfor %}
+|===
+
+{% endif %}
+'''
+{% endfor %}

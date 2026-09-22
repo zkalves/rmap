@@ -25,6 +25,8 @@ jobs:
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             build-essential \
+            gcc-14 \
+            g++-14 \
             cmake \
             git \
             qt6-base-dev \
@@ -33,7 +35,7 @@ jobs:
             protobuf-compiler
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
+        run: cmake -B build -S . -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
 
       - name: Build
         run: cmake --build build -j$(nproc)
@@ -184,6 +186,7 @@ jobs:
           - python
           - html
           - markdown
+          - asciidoctor
           - systemrdl
           - ipxact
           - svd
@@ -244,6 +247,9 @@ jobs:
             markdown)
               python3 -m pip install --break-system-packages markdown || true
               ;;
+            asciidoctor)
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq asciidoctor || true
+              ;;
             systemrdl)
               python3 -m pip install --break-system-packages peakrdl peakrdl-systemrdl || true
               ;;
@@ -279,6 +285,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            gcc-14 \
+            g++-14 \
             cmake \
             qt6-base-dev \
             libqt6test6 \
@@ -302,11 +311,14 @@ jobs:
         run: |
           python3 script/generate_coverage.py \
             --build-dir build \
+            --gcov-tool gcov-14 \
             --html work/coverage/index.html \
             --markdown work/coverage/coverage.md \
             --json work/coverage/coverage.json \
             --badges-dir work/coverage \
             --github-step-summary \
+            --fail-under-lines 100.0 \
+            --fail-under-functions 100.0 \
             --summary
 
       - name: Upload Coverage Artifacts

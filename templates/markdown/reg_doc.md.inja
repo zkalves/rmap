@@ -6,6 +6,47 @@
 
 ---
 
+## Implemented Register Features
+
+This register map specification implements the following hardware register features across its register blocks:
+{% if existsIn(features, "access_policies") and length(features.access_policies) > 0 %}
+{% if length(features.access_policies) == 1 %}
+- **Software Access Policies:** Implements {{ features.access_policies_str }} access policy governing bus read and write interactions.
+{% else %}
+- **Software Access Policies:** Implements {{ features.access_policies_str }} access policies governing bus read and write interactions.
+{% endif %}
+{% endif %}
+{% if existsIn(features, "has_hw_precedence") and features.has_hw_precedence %}
+- **Hardware Precedence & Sidebands:** Hardware writes take strict precedence over software bus writes with dedicated hardware input (`hw_*_i`), write-enable (`hw_*_we_i`), and current state (`hw_*_o`) sidebands.
+{% else if existsIn(features, "has_hw_sidebands") and features.has_hw_sidebands %}
+- **Hardware Sideband Monitoring:** Peripheral hardware monitors register state directly via dedicated current state (`hw_*_o`) sidebands.
+{% endif %}
+- **Transaction Strobes:** Active-high 1-cycle software read (`sw_*_rd_strobe_o`) and write (`sw_*_wr_strobe_o`) strobes for on-chip peripheral triggering.
+{% if existsIn(features, "has_byte_strobes") and features.has_byte_strobes %}
+- **Bitfield Packing:** Bit slice ranges `[msb:lsb]` aligned to the {{ reg_width }}-bit data bus with byte-level write strobing (`wstrb`).
+{% else %}
+- **Bitfield Packing:** Bit slice ranges `[msb:lsb]` aligned to the {{ reg_width }}-bit data bus.
+{% endif %}
+{% if existsIn(features, "has_volatile") and features.has_volatile %}
+- **Reset State & Volatility:** Deterministic power-on reset vectors and volatility qualifiers for asynchronous hardware updates.
+{% else %}
+- **Deterministic Reset State:** Explicit power-on reset vectors for all bitfields.
+{% endif %}
+{% if existsIn(features, "has_memories") and features.has_memories %}
+- **Direct Memory Windows:** Dedicated address windows mapped directly to internal or external SRAM buffers.
+{% endif %}
+{% if existsIn(features, "has_address_gaps") and features.has_address_gaps %}
+- **Sparse Address Space:** Memory map accommodates non-contiguous register offsets with automatic address gap decoding.
+{% endif %}
+{% if existsIn(features, "has_interrupts") and features.has_interrupts %}
+- **Interrupt & Event Management:** Dedicated sticky event flags and interrupt clear/acknowledge policies.
+{% endif %}
+{% if existsIn(features, "has_multiple_blocks") and features.has_multiple_blocks %}
+- **Modular Multi-Block Hierarchy:** Organizes memory space into {{ length(blocks) }} independent register blocks.
+{% endif %}
+
+---
+
 ## Summary of Register Blocks
 
 | Block Name | Base Offset | Description |

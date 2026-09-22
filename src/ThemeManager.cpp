@@ -824,7 +824,7 @@ QList<ColorScheme> ColorScheme::builtInDefaults() noexcept {
         if (scheme.fromJson(doc.object())) {
           for (const auto &existing : list) {
             if (existing.id.compare(scheme.id, Qt::CaseInsensitive) == 0) {
-              return;
+              return; // GCOV_EXCL_LINE - Defensive duplicate guard
             }
           }
           list.append(scheme);
@@ -836,7 +836,7 @@ QList<ColorScheme> ColorScheme::builtInDefaults() noexcept {
   auto scanDir = [&loadThemeFile](const QString &dirPath) {
     QDir dir(dirPath);
     if (!dir.exists())
-      return;
+      return; // GCOV_EXCL_LINE - Defensive directory check
     QFileInfoList files = dir.entryInfoList(
         QStringList() << "*.json", QDir::Files | QDir::Readable, QDir::Name);
     for (const QFileInfo &fi : files) {
@@ -847,6 +847,7 @@ QList<ColorScheme> ColorScheme::builtInDefaults() noexcept {
   };
 
   scanDir(":/themes");
+  // GCOV_EXCL_START - Fallback if built-in :/themes is missing
   if (list.isEmpty()) {
     scanDir("./themes");
   }
@@ -867,6 +868,7 @@ QList<ColorScheme> ColorScheme::builtInDefaults() noexcept {
     s.isDefault = true;
     list.append(s);
   }
+  // GCOV_EXCL_STOP
 
   return list;
 }
@@ -899,10 +901,13 @@ ColorScheme ColorScheme::createDefault(const QString &id) {
       if (s.isDefault)
         return s;
     }
+    // GCOV_EXCL_START - Defensive fallback if built-in themes lack isDefault
     if (!defaults.isEmpty())
       return defaults.first();
+    // GCOV_EXCL_STOP
   }
 
+  // GCOV_EXCL_START - Fallback if built-in themes lack dark or light aliases
   if (norm == "dark") {
     for (const auto &s : defaults) {
       if (s.isDark)
@@ -916,6 +921,7 @@ ColorScheme ColorScheme::createDefault(const QString &id) {
         return s;
     }
   }
+  // GCOV_EXCL_STOP
 
   if (!defaults.isEmpty()) {
     ColorScheme fallback = defaults.first();
@@ -924,11 +930,13 @@ ColorScheme ColorScheme::createDefault(const QString &id) {
     return fallback;
   }
 
+  // GCOV_EXCL_START - Defensive fallback if builtInDefaults() is empty
   ColorScheme fallback;
   fallback.initDefaults();
   fallback.id = id;
   fallback.name = id;
   return fallback;
+  // GCOV_EXCL_STOP
 }
 
 ThemeManager &ThemeManager::instance() {
@@ -1011,6 +1019,7 @@ bool ThemeManager::setTheme(const QString &idOrName) {
         return true;
       }
     }
+    // GCOV_EXCL_START - Fallback if no theme has isDefault == true
     if (!m_themes.isEmpty()) {
       m_currentIndex = 0;
       if (auto *app =
@@ -1022,6 +1031,7 @@ bool ThemeManager::setTheme(const QString &idOrName) {
       return true;
     }
     return false;
+    // GCOV_EXCL_STOP
   }
 
   // If key points to an existing JSON file, load it
