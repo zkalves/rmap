@@ -18,6 +18,7 @@ Verifies:
 6. CLI Flags parity between src/main.cpp and docs/user/cli-reference.md.
 7. Template catalog parity between templates/ and docs/user/templates-and-codegen.md.
 8. Format handlers parity between src/format/ and docs/user/architecture.md.
+9. README.md coverage policy (badges only, no coverage tables/reports).
 """
 
 import os
@@ -34,7 +35,7 @@ EXAMPLES_DIR = os.path.join(PROJECT_ROOT, "examples")
 
 # Add script/ directory to import check_doc_sync
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "script"))
-from check_doc_sync import check_cli_parity, check_templates_parity, check_formats_parity
+from check_doc_sync import check_cli_parity, check_templates_parity, check_formats_parity, check_readme_coverage_parity
 
 
 def collect_source_files():
@@ -208,6 +209,8 @@ def main():
     passed &= check_templates_parity()
     print("Checking Invariant 8: Documentation-Implementation format handler parity...")
     passed &= check_formats_parity()
+    print("Checking Invariant 9: README.md coverage policy (badges only, no coverage tables)...")
+    passed &= check_readme_coverage_parity()
 
     if passed:
         print("\n=======================================================")

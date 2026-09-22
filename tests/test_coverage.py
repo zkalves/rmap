@@ -227,20 +227,36 @@ class TestCoverageEngine(unittest.TestCase):
         }
         metrics = compute_metrics(mock_data)
 
-        # First update
+        # First update: badges added, but NO coverage tables/sections
         update_readme(dummy_readme, metrics)
         c1 = dummy_readme.read_text(encoding="utf-8")
         self.assertIn("<!-- COVERAGE_BADGES_START -->", c1)
-        self.assertIn("<!-- COVERAGE_SECTION_START -->", c1)
-        self.assertIn("## Code Coverage Metrics", c1)
+        self.assertIn("<!-- COVERAGE_BADGES_END -->", c1)
         self.assertIn("[![Line Coverage]", c1)
+        self.assertNotIn("<!-- COVERAGE_SECTION_START -->", c1)
+        self.assertNotIn("## Code Coverage", c1)
 
-        # Second update (must replace in-place without duplicate markers)
+        # Second update (must be idempotent without duplicate markers)
         update_readme(dummy_readme, metrics)
         c2 = dummy_readme.read_text(encoding="utf-8")
         self.assertEqual(c2.count("<!-- COVERAGE_BADGES_START -->"), 1)
-        self.assertEqual(c2.count("<!-- COVERAGE_SECTION_START -->"), 1)
-        self.assertEqual(c2.count("## Code Coverage Metrics"), 1)
+        self.assertEqual(c2.count("<!-- COVERAGE_BADGES_END -->"), 1)
+        self.assertNotIn("<!-- COVERAGE_SECTION_START -->", c2)
+        self.assertNotIn("## Code Coverage", c2)
+
+        # Third test: If legacy coverage section was present, update_readme must strip it
+        legacy_readme = self.work_dir / "LEGACY_README.md"
+        legacy_readme.write_text(
+            "# Legacy\n\n[![Qt 6](https://img.shields.io/badge/Qt-6-green.svg)](https://www.qt.io/)\n\n"
+            "<!-- COVERAGE_SECTION_START -->\n## Code Coverage Metrics\n| Metric | Rate |\n<!-- COVERAGE_SECTION_END -->\n\n"
+            "## Key Features\n",
+            encoding="utf-8",
+        )
+        update_readme(legacy_readme, metrics)
+        c_legacy = legacy_readme.read_text(encoding="utf-8")
+        self.assertIn("<!-- COVERAGE_BADGES_START -->", c_legacy)
+        self.assertNotIn("<!-- COVERAGE_SECTION_START -->", c_legacy)
+        self.assertNotIn("## Code Coverage Metrics", c_legacy)
 
     def test_throw_branch_filtering(self):
         mock_data = {

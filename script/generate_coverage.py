@@ -950,13 +950,16 @@ def render_html_report(metrics: Dict[str, Any]) -> str:
 
 
 def update_readme(readme_path: Path, metrics: Dict[str, Any]) -> None:
-    """Update README.md with coverage badges and the full Code Coverage Metrics section."""
+    """Update README.md with dynamic coverage badges only.
+
+    INVARIANT: Never add coverage information, breakdown tables, or textual reports
+    to README.md. Only coverage badges are allowed.
+    """
     if not readme_path.exists():
         print(f"Warning: {readme_path} not found for updating.", file=sys.stderr)
         return
 
     content = readme_path.read_text(encoding="utf-8")
-    s = metrics["summary"]
 
     # 1. Prepare Coverage Badges (Dynamic pipeline endpoints from GitHub Pages)
     cov_badges = (
@@ -987,26 +990,22 @@ def update_readme(readme_path: Path, metrics: Dict[str, Any]) -> None:
         else:
             content = f"{badge_marker_start}\n{cov_badges}\n{badge_marker_end}\n\n" + content
 
-    # 2. Insert or replace Code Coverage Metrics section
+    # 2. Invariant Enforcement: Strip any coverage tables, metrics sections, or old section markers
     section_marker_start = "<!-- COVERAGE_SECTION_START -->"
     section_marker_end = "<!-- COVERAGE_SECTION_END -->"
-    md_report = render_markdown_report(metrics)
-    wrapped_section = f"{section_marker_start}\n{md_report}\n{section_marker_end}"
-
     if section_marker_start in content and section_marker_end in content:
-        pattern = re.compile(rf"{re.escape(section_marker_start)}.*?{re.escape(section_marker_end)}", re.DOTALL)
-        content = pattern.sub(wrapped_section, content)
-    else:
-        # Find a suitable location before Quickstart & Installation or at the bottom
-        anchor = "## Quickstart & Installation"
-        if anchor in content:
-            idx = content.find(anchor)
-            content = content[:idx] + f"{wrapped_section}\n\n---\n\n" + content[idx:]
-        else:
-            content = content + f"\n\n---\n\n{wrapped_section}\n"
+        pattern = re.compile(rf"\n*---\n*\s*{re.escape(section_marker_start)}.*?{re.escape(section_marker_end)}\s*(?:\n*---\n*)?", re.DOTALL)
+        content = pattern.sub("\n\n---\n\n", content)
+        # In case there was no adjacent divider
+        pattern_fallback = re.compile(rf"{re.escape(section_marker_start)}.*?{re.escape(section_marker_end)}", re.DOTALL)
+        content = pattern_fallback.sub("", content)
 
-    readme_path.write_text(content, encoding="utf-8")
-    print(f"Updated {readme_path} with latest code coverage metrics on the GitHub main page.")
+    # Normalize excess divider lines
+    content = re.sub(r"(\n\s*---\s*\n\s*)+---\s*\n", "\n---\n\n", content)
+    content = re.sub(r"\n{3,}", "\n\n", content)
+
+    readme_path.write_text(content.strip() + "\n", encoding="utf-8")
+    print(f"Updated {readme_path} with coverage badges (coverage tables prohibited).")
 
 
 def check_thresholds(
@@ -1039,7 +1038,7 @@ def main():
     parser.add_argument("--html", type=Path, help="Write standalone HTML report to file")
     parser.add_argument("--json", type=Path, help="Write JSON report to file")
     parser.add_argument("--github-step-summary", action="store_true", help="Append Markdown report to $GITHUB_STEP_SUMMARY")
-    parser.add_argument("--update-readme", nargs="?", const=str(PROJECT_ROOT / "README.md"), help="Update README.md on the GitHub main page")
+    parser.add_argument("--update-readme", nargs="?", const=str(PROJECT_ROOT / "README.md"), help="Update coverage badges in README.md on the GitHub main page")
     parser.add_argument("--fail-under-lines", type=float, default=0.0, help="Fail if line coverage is below this threshold")
     parser.add_argument("--fail-under-branches", type=float, default=0.0, help="Fail if branch coverage is below this threshold")
     parser.add_argument("--fail-under-functions", type=float, default=0.0, help="Fail if function coverage is below this threshold")

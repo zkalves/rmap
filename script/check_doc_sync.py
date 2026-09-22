@@ -207,6 +207,38 @@ def check_formats_parity():
     return True
 
 
+def check_readme_coverage_parity():
+    """Verify that README.md only contains coverage badges and NO coverage tables or textual reports."""
+    readme_path = PROJECT_ROOT / "README.md"
+    if not readme_path.exists():
+        print("  FAIL: README.md not found!", file=sys.stderr)
+        return False
+
+    with open(readme_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    errors = []
+    # 1. Check for forbidden coverage sections / tables
+    if "<!-- COVERAGE_SECTION_START -->" in content or "<!-- COVERAGE_SECTION_END -->" in content:
+        errors.append("README.md contains '<!-- COVERAGE_SECTION_START/END -->'. Coverage tables are prohibited in README.md.")
+
+    if re.search(r"^##\s+Code Coverage", content, re.MULTILINE):
+        errors.append("README.md contains '## Code Coverage' section. Coverage tables/details are prohibited in README.md; only badges are allowed.")
+
+    # 2. Check for required coverage badges
+    if "<!-- COVERAGE_BADGES_START -->" not in content or "<!-- COVERAGE_BADGES_END -->" not in content:
+        errors.append("README.md is missing '<!-- COVERAGE_BADGES_START --> / <!-- COVERAGE_BADGES_END -->' markers.")
+
+    if errors:
+        print("  FAIL: README.md coverage policy violations detected:", file=sys.stderr)
+        for e in errors:
+            print(f"    - {e}", file=sys.stderr)
+        return False
+
+    print("  ✓ Verified README.md contains only coverage badges (zero coverage tables/sections).")
+    return True
+
+
 def get_git_modified_files(diff_target=None, staged=False):
     """Retrieve list of modified files from git."""
     cmd = ["git", "diff", "--name-only"]
@@ -298,6 +330,7 @@ def main():
         passed &= check_cli_parity()
         passed &= check_templates_parity()
         passed &= check_formats_parity()
+        passed &= check_readme_coverage_parity()
 
     # If git staged or range requested
     if args.staged:

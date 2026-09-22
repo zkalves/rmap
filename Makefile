@@ -107,7 +107,7 @@ coverage check-coverage:
 	@python3 tests/test_template.py all
 	@python3 script/generate_coverage.py --build-dir build --html work/coverage/index.html --markdown work/coverage/coverage.md --json work/coverage/coverage.json --fail-under-lines 100.0 --fail-under-functions 100.0 --summary
 
-# Run coverage and update the Code Coverage Metrics report on the GitHub main page (README.md)
+# Run coverage and update coverage badges on the GitHub main page (README.md)
 coverage-report: coverage
 	@python3 script/generate_coverage.py --build-dir build --fail-under-lines 100.0 --fail-under-functions 100.0 --update-readme
 
