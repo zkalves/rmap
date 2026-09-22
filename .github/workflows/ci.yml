@@ -430,8 +430,9 @@ jobs:
         run: |
           dnf install -y epel-release dnf-plugins-core
           dnf config-manager --set-enabled crb
-          dnf install -y \
+          dnf install -y --allowerasing \
             gcc-c++ \
+            make \
             cmake \
             git \
             qt6-qtbase-devel \
@@ -479,8 +480,9 @@ jobs:
         run: |
           dnf install -y epel-release dnf-plugins-core
           dnf config-manager --set-enabled crb
-          dnf install -y \
+          dnf install -y --allowerasing \
             gcc-c++ \
+            make \
             cmake \
             git \
             qt6-qtbase-devel \

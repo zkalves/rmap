@@ -111,10 +111,15 @@ include(FetchContent)
         set(FETCHCONTENT_SOURCE_DIR_INJA "${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/inja-src")
     endif()
 
+    set(extra_fetch_args "")
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.25")
+        list(APPEND extra_fetch_args SYSTEM)
+    endif()
+
     FetchContent_Declare(inja
       GIT_REPOSITORY https://github.com/pantor/inja
       GIT_TAG v3.3.0
-      SYSTEM
+      ${extra_fetch_args}
     )
     set(PREV_CMAKE_WARN_DEPRECATED "${CMAKE_WARN_DEPRECATED}")
     set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
@@ -162,9 +167,31 @@ include(FetchContent)
         ${project_qrc}
     )
 
-    # Protobuf Generation (Modern Target-Based Approach)
-    set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto)
-    protobuf_generate(TARGET rmap_core PROTOS ${PROTOS})
+    # Protobuf Generation (Robust Target-Based Approach with Proto3 Optional Support)
+    set(PROTO_SRC "${CMAKE_CURRENT_BINARY_DIR}/proto/rmap.pb.cc")
+    set(PROTO_HDR "${CMAKE_CURRENT_BINARY_DIR}/proto/rmap.pb.h")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/proto")
+
+    if(TARGET protobuf::protoc)
+        set(PROTOC_CMD protobuf::protoc)
+    elseif(Protobuf_PROTOC_EXECUTABLE)
+        set(PROTOC_CMD ${Protobuf_PROTOC_EXECUTABLE})
+    else()
+        set(PROTOC_CMD protoc)
+    endif()
+
+    add_custom_command(
+        OUTPUT "${PROTO_SRC}" "${PROTO_HDR}"
+        COMMAND ${PROTOC_CMD}
+        ARGS --cpp_out="${CMAKE_CURRENT_BINARY_DIR}/proto"
+             -I"${CMAKE_CURRENT_SOURCE_DIR}/proto"
+             --experimental_allow_proto3_optional
+             "${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto"
+        COMMENT "Running cpp protocol buffer compiler on proto/rmap.proto"
+        VERBATIM
+    )
+    target_sources(rmap_core PRIVATE "${PROTO_SRC}" "${PROTO_HDR}")
 
     target_include_directories(rmap_core PUBLIC
         src
