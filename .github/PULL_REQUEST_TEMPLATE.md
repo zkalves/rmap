@@ -9,9 +9,17 @@ Provide a concise summary of the changes introduced by this pull request. Refere
 - [ ] Documentation update
 - [ ] Performance optimization / Refactoring
 
+## Documentation & Implementation Lockstep Mandate
+- [ ] **Docs -> Implementation**: Any changes in documentation (`docs/`) also update the implementation and tests in lockstep (or marked with `[doc-only]`).
+- [ ] **Implementation -> Docs**: Any changes in implementation (`src/`, `templates/`) have either updated `docs/` in this PR or are flagged below with `DOC-FLAG:`.
+
+### DOC-FLAG (Required if implementation modified without docs/ update)
+<!-- If implementation in src/ or templates/ changed without updating docs/, provide an explanation or link to the upstream documentation tracking issue below: -->
+`DOC-FLAG: `
+
 ## Checklist
 - [ ] My code adheres to the C++17 and Qt 6 conventions used in this repository.
 - [ ] I have added automated tests in `tests/` covering the changes.
 - [ ] All unit and template tests pass (`make test-all`).
 - [ ] I have included the MPL 2.0 license header in any newly created source files.
-- [ ] Documentation has been updated to reflect the changes (if applicable).
+- [ ] Documentation has been updated to reflect the changes (or flagged with `DOC-FLAG`).

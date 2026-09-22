@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package packages
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -47,6 +47,18 @@ uninstall:
 		rm -rf "$(DESTDIR)$(PREFIX)/share/doc/rmap" 2>/dev/null || true; \
 		echo "Uninstalled $(DESTDIR)$(PREFIX)/bin/rmap and assets"; \
 	fi
+
+# Package generation targets (DEB, RPM, AppImage)
+package-deb: rmap
+	@cd build && cpack -G DEB
+
+package-rpm: rmap
+	@cd build && cpack -G RPM
+
+package-appimage: rmap
+	@./script/build_appimage.sh --build-dir build --output-dir build/packages
+
+packages package: package-deb package-rpm package-appimage
 
 # Run C++ unit test suites (backend and frontend)
 test-unit: all

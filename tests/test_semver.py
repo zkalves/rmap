@@ -155,6 +155,9 @@ class TestSemanticVersioning(unittest.TestCase):
             "just fixing a typo",
         ]
 
+        hook_env = os.environ.copy()
+        hook_env["RMAP_SKIP_DOC_SYNC"] = "1"
+
         with tempfile.TemporaryDirectory() as tmpdir:
             msg_file = Path(tmpdir) / "COMMIT_EDITMSG"
 
@@ -165,6 +168,7 @@ class TestSemanticVersioning(unittest.TestCase):
                         [str(hook_path), str(msg_file)],
                         capture_output=True,
                         text=True,
+                        env=hook_env,
                     )
                     self.assertEqual(
                         proc.returncode,
@@ -179,6 +183,7 @@ class TestSemanticVersioning(unittest.TestCase):
                         [str(hook_path), str(msg_file)],
                         capture_output=True,
                         text=True,
+                        env=hook_env,
                     )
                     self.assertNotEqual(
                         proc.returncode,

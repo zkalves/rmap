@@ -8,9 +8,9 @@
 #ifndef PATH_UTILS_HPP
 #define PATH_UTILS_HPP
 
-#include <QString>
 #include <QDir>
 #include <QFileInfo>
+#include <QString>
 #include <string>
 
 namespace PathUtils {
@@ -18,17 +18,19 @@ namespace PathUtils {
 /**
  * @brief Default output directory relative path across the application.
  */
-constexpr const char* DEFAULT_OUTPUT_DIR = "./work";
+constexpr const char *DEFAULT_OUTPUT_DIR = "./work";
 
 /**
  * @brief Default templates directory relative path across the application.
  */
-constexpr const char* DEFAULT_TEMPLATES_DIR = "./templates";
+constexpr const char *DEFAULT_TEMPLATES_DIR = "./templates";
 
 /**
  * @brief Returns the application default output directory ("./work").
  */
-inline QString defaultOutputDir() { return QString::fromUtf8(DEFAULT_OUTPUT_DIR); }
+inline QString defaultOutputDir() {
+  return QString::fromUtf8(DEFAULT_OUTPUT_DIR);
+}
 
 /**
  * @brief Returns the application default templates directory.
@@ -53,7 +55,27 @@ QString defaultExamplesDir();
 QString defaultDocsDir();
 
 /**
- * @brief Expands environment variables ($VAR, ${VAR}, %VAR%) and tilde (~) in the given path.
+ * @brief Default translations directory relative path across the application.
+ */
+constexpr const char *DEFAULT_TRANSLATIONS_DIR = "./translations";
+
+/**
+ * @brief Returns the application default translations directory.
+ *
+ * Resolves in order of priority:
+ * 1. RMAP_TRANSLATIONS_PATH or RMAP_TRANSLATION_DIR environment variable (if
+ * non-empty).
+ * 2. Local "./translations" if it exists and is non-empty.
+ * 3. Application-relative relocatable directory
+ * (&lt;bin_dir&gt;/../share/rmap/translations).
+ * 4. Configured compile-time installation path (RMAP_INSTALL_TRANSLATIONS_DIR).
+ * 5. Fallback relative "./translations".
+ */
+QString defaultTranslationsDir();
+
+/**
+ * @brief Expands environment variables ($VAR, ${VAR}, %VAR%) and tilde (~) in
+ * the given path.
  *
  * Supports:
  * - Leading '~' or '~/' -> user's home directory.
@@ -63,45 +85,69 @@ QString defaultDocsDir();
  */
 QString expandEnvVars(const QString &path);
 std::string expandEnvVars(const std::string &path);
-inline QString expandEnvVars(const char *path) { return expandEnvVars(QString::fromUtf8(path ? path : "")); }
+inline QString expandEnvVars(const char *path) {
+  return expandEnvVars(QString::fromUtf8(path ? path : ""));
+}
 
 /**
- * @brief Converts an absolute or relative path to a clean relative path anchored to baseDir.
+ * @brief Converts an absolute or relative path to a clean relative path
+ * anchored to baseDir.
  *
  * If baseDir is empty, QDir::currentPath() is used.
  * If targetPath is already relative, normalizes forward slashes and returns it.
- * If targetPath begins with an environment variable ($ or %), it is left un-relativized.
+ * If targetPath begins with an environment variable ($ or %), it is left
+ * un-relativized.
  */
-QString toRelativePath(const QString &targetPath, const QString &baseDir = QString());
-std::string toRelativePath(const std::string &targetPath, const std::string &baseDir = "");
-inline QString toRelativePath(const char *targetPath, const char *baseDir = nullptr) {
-    return toRelativePath(QString::fromUtf8(targetPath ? targetPath : ""), baseDir ? QString::fromUtf8(baseDir) : QString());
+QString toRelativePath(const QString &targetPath,
+                       const QString &baseDir = QString());
+std::string toRelativePath(const std::string &targetPath,
+                           const std::string &baseDir = "");
+inline QString toRelativePath(const char *targetPath,
+                              const char *baseDir = nullptr) {
+  return toRelativePath(QString::fromUtf8(targetPath ? targetPath : ""),
+                        baseDir ? QString::fromUtf8(baseDir) : QString());
 }
 
 /**
- * @brief Resolves a path taking into account env var expansion, absolute paths, and relative search order.
+ * @brief Resolves a path taking into account env var expansion, absolute paths,
+ * and relative search order.
  *
  * Resolution order:
  * 1. Expand environment variables and tilde.
- * 2. If the expanded path is absolute and exists, return its canonical/absolute path.
+ * 2. If the expanded path is absolute and exists, return its canonical/absolute
+ * path.
  * 3. If relative, check if it exists in primaryBaseDir.
- * 4. If not found, check if it exists in secondaryBaseDir (e.g. default folder or CWD).
+ * 4. If not found, check if it exists in secondaryBaseDir (e.g. default folder
+ * or CWD).
  * 5. If not found, check if it exists in current working directory (CWD).
- * 6. If the file does not exist (e.g. creating a new output file), return the path constructed
- *    from primaryBaseDir (if non-empty), secondaryBaseDir (if non-empty), or CWD.
+ * 6. If the file does not exist (e.g. creating a new output file), return the
+ * path constructed from primaryBaseDir (if non-empty), secondaryBaseDir (if
+ * non-empty), or CWD.
  */
-QString resolvePath(const QString &path, const QString &primaryBaseDir = QString(), const QString &secondaryBaseDir = QString());
-std::string resolvePath(const std::string &path, const std::string &primaryBaseDir = "", const std::string &secondaryBaseDir = "");
-inline QString resolvePath(const char *path, const char *primaryBaseDir = nullptr, const char *secondaryBaseDir = nullptr) {
-    return resolvePath(QString::fromUtf8(path ? path : ""), primaryBaseDir ? QString::fromUtf8(primaryBaseDir) : QString(), secondaryBaseDir ? QString::fromUtf8(secondaryBaseDir) : QString());
+QString resolvePath(const QString &path,
+                    const QString &primaryBaseDir = QString(),
+                    const QString &secondaryBaseDir = QString());
+std::string resolvePath(const std::string &path,
+                        const std::string &primaryBaseDir = "",
+                        const std::string &secondaryBaseDir = "");
+inline QString resolvePath(const char *path,
+                           const char *primaryBaseDir = nullptr,
+                           const char *secondaryBaseDir = nullptr) {
+  return resolvePath(
+      QString::fromUtf8(path ? path : ""),
+      primaryBaseDir ? QString::fromUtf8(primaryBaseDir) : QString(),
+      secondaryBaseDir ? QString::fromUtf8(secondaryBaseDir) : QString());
 }
 
 /**
- * @brief Normalizes path separators to forward slashes ('/') and cleans redundant separators.
+ * @brief Normalizes path separators to forward slashes ('/') and cleans
+ * redundant separators.
  */
 QString normalizeSeparators(const QString &path);
 std::string normalizeSeparators(const std::string &path);
-inline QString normalizeSeparators(const char *path) { return normalizeSeparators(QString::fromUtf8(path ? path : "")); }
+inline QString normalizeSeparators(const char *path) {
+  return normalizeSeparators(QString::fromUtf8(path ? path : ""));
+}
 
 /**
  * @brief Test hook to simulate or override installation directory checks.

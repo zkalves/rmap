@@ -48,7 +48,7 @@ include(CTest)
 include(GNUInstallDirs)
 
 # Find Packages
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 find_package(Protobuf QUIET)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 if(BUILD_TESTING)
@@ -111,11 +111,18 @@ include(FetchContent)
         set(FETCHCONTENT_SOURCE_DIR_INJA "${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/inja-src")
     endif()
 
-    FetchContent_Declare(inja
-      GIT_REPOSITORY https://github.com/pantor/inja
-      GIT_TAG v3.3.0
-      SYSTEM
-    )
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.25")
+        FetchContent_Declare(inja
+          GIT_REPOSITORY https://github.com/pantor/inja
+          GIT_TAG v3.3.0
+          SYSTEM
+        )
+    else()
+        FetchContent_Declare(inja
+          GIT_REPOSITORY https://github.com/pantor/inja
+          GIT_TAG v3.3.0
+        )
+    endif()
     set(PREV_CMAKE_WARN_DEPRECATED "${CMAKE_WARN_DEPRECATED}")
     set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(inja)
@@ -162,9 +169,32 @@ include(FetchContent)
         ${project_qrc}
     )
 
-    # Protobuf Generation (Modern Target-Based Approach)
-    set(PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto)
-    protobuf_generate(TARGET rmap_core PROTOS ${PROTOS})
+    # Protobuf Generation (Robust Target-Based Approach with Proto3 Optional Support)
+    set(PROTO_SRC "${CMAKE_CURRENT_BINARY_DIR}/proto/rmap.pb.cc")
+    set(PROTO_HDR "${CMAKE_CURRENT_BINARY_DIR}/proto/rmap.pb.h")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/proto")
+
+    if(TARGET protobuf::protoc)
+        set(PROTOC_CMD protobuf::protoc)
+    elseif(Protobuf_PROTOC_EXECUTABLE)
+        set(PROTOC_CMD ${Protobuf_PROTOC_EXECUTABLE})
+    else()
+        set(PROTOC_CMD protoc)
+    endif()
+
+    add_custom_command(
+        OUTPUT "${PROTO_SRC}" "${PROTO_HDR}"
+        COMMAND ${PROTOC_CMD}
+                --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
+                --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
+                --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+                --experimental_allow_proto3_optional
+                ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto"
+        COMMENT "Running cpp protocol buffer compiler on proto/rmap.proto"
+        VERBATIM
+    )
+    target_sources(rmap_core PRIVATE "${PROTO_SRC}" "${PROTO_HDR}")
 
     target_include_directories(rmap_core PUBLIC
         src
@@ -184,6 +214,7 @@ include(FetchContent)
         RMAP_INSTALL_TEMPLATES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/templates"
         RMAP_INSTALL_EXAMPLES_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/examples"
         RMAP_INSTALL_DOCDIR="${CMAKE_INSTALL_FULL_DOCDIR}"
+        RMAP_INSTALL_TRANSLATIONS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/rmap/translations"
     )
 
     target_link_libraries(rmap_core PUBLIC
@@ -284,6 +315,25 @@ install(DIRECTORY themes
     FILES_MATCHING PATTERN "*.json" PATTERN "*.md"
 )
 
+# FreeDesktop Desktop Entry & Icons
+install(FILES res/rmap.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+install(FILES res/images/app_icon.png
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/pixmaps
+    RENAME rmap.png
+)
+
+foreach(icon_size 16 32 48 64 128 256 512)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/images/app_icon_${icon_size}.png")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/images/app_icon_${icon_size}.png"
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps"
+            RENAME rmap.png
+        )
+    endif()
+endforeach()
+
 # Tests Subdirectory
 if(BUILD_TESTING AND Qt6_FOUND)
     add_subdirectory(tests)
@@ -316,6 +366,9 @@ else()
 endif()
 
 add_custom_target(docs-classes DEPENDS docs-doxygen)
+
+# CPack Packaging Configuration
+include(cmake/Packaging.cmake)
 
 
 

@@ -35,7 +35,7 @@ Welcome to the documentation for **rmap**, an open-source tool for hardware regi
 # Build the application
 make
 
-# Run all 22 automated test suites
+# Run all automated test suites
 make test
 
 # Generate C header, RTL, and UVM models headlessly from an existing map

@@ -15,6 +15,9 @@ Verifies:
 3. src/ contains zero hardcoded references to language/locale codes.
 4. src/ contains zero hardcoded references to specific example files.
 5. All Inja templates in templates/ are registered and covered by tests/test_template.py.
+6. CLI Flags parity between src/main.cpp and docs/user/cli-reference.md.
+7. Template catalog parity between templates/ and docs/user/templates-and-codegen.md.
+8. Format handlers parity between src/format/ and docs/user/architecture.md.
 """
 
 import os
@@ -28,6 +31,10 @@ TEMPLATES_DIR = os.path.join(PROJECT_ROOT, "templates")
 THEMES_DIR = os.path.join(PROJECT_ROOT, "themes")
 TRANSLATIONS_DIR = os.path.join(PROJECT_ROOT, "translations")
 EXAMPLES_DIR = os.path.join(PROJECT_ROOT, "examples")
+
+# Add script/ directory to import check_doc_sync
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "script"))
+from check_doc_sync import check_cli_parity, check_templates_parity, check_formats_parity
 
 
 def collect_source_files():
@@ -195,6 +202,12 @@ def main():
     passed &= test_no_hardcoded_languages(sources)
     passed &= test_no_hardcoded_examples(sources)
     passed &= test_all_templates_registered()
+    print("Checking Invariant 6: Documentation-Implementation CLI flag parity...")
+    passed &= check_cli_parity()
+    print("Checking Invariant 7: Documentation-Implementation template deliverable parity...")
+    passed &= check_templates_parity()
+    print("Checking Invariant 8: Documentation-Implementation format handler parity...")
+    passed &= check_formats_parity()
 
     if passed:
         print("\n=======================================================")

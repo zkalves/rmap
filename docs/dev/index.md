@@ -57,7 +57,7 @@ flowchart TD
     WIN --> FMT["FormatManager\n(Multi-Format Handlers)"]
     FMT --> SER["SerializationContext\n(Protobuf / SVD / RDL / XML / JSON / CSV)"]
     
-    WIN --> CODEGEN["CodeGenerator\n(Pantor Inja Engine + 12 Helpers (including sv_hex))"]
+    WIN --> CODEGEN["CodeGenerator\n(Pantor Inja Engine + Custom Helpers + Built-ins)"]
     
     WIN --> THEME["ThemeManager\n(8 Themes & CVD Palettes)"]
     WIN --> LANG["LanguageManager\n(Runtime Translations)"]
@@ -86,7 +86,7 @@ flowchart TD
 - **`SerializationContext`**: Object graph serialization framework providing the abstract `Serializable` interface, template `ObjectFactory`, and `ProtobufLogCollector`.
 
 ### 5. Code Generation, Localization & Utilities
-- **`CodeGenerator`**: Pantor Inja template rendering engine featuring 12 custom naming and bitwise helper callbacks (including sv_hex) for multi-target code generation (SystemVerilog, Verilog, VHDL, UVM, C, Rust, Python).
+- **`CodeGenerator`**: Pantor Inja template rendering engine featuring custom naming and bitwise helper callbacks (including sv_hex) plus built-in Inja helpers (upper, lower) for multi-target code generation (SystemVerilog, Verilog, VHDL, UVM, C, Rust, Python).
 - **`ThemeManager`**: Multi-theme styling engine supporting 8 color schemes and Okabe-Ito / Wong CVD barrier-free palettes.
 - **`LanguageManager`**: Internationalization engine managing runtime JSON translation catalogs (`.json`) and dynamic locale switching via `JsonTranslator`.
 - **`AppSettings`**: Persistent application settings and window geometry persistence via `QSettings`.
@@ -134,6 +134,26 @@ signals:
 ```
 
 ---
+
+## Documentation & Implementation Lockstep Invariant
+
+To ensure the canonical documentation and C++ implementation never diverge, **rmap** enforces strict bidirectional synchronization across all pull requests, commits, and autonomous agent tasks:
+
+1. **Documentation &rarr; Implementation**:
+   - Any modification or addition to `docs/` **must** be accompanied by matching implementation updates in `src/`, `templates/`, and `tests/`.
+   - Documentation must never run ahead of working, tested code. Pull requests modifying specifications without updating code are rejected unless explicitly tagged `[doc-only]` for non-functional typo or grammar corrections.
+
+2. **Implementation &rarr; Documentation**:
+   - Any modification in `src/` or `templates/` that alters CLI options, register access semantics, public APIs, format serializers, or template outputs **must** be flagged for documentation review.
+   - If code is updated without modifying `docs/` directly, the commit or pull request must include an explicit `DOC-FLAG: <reason/tracking issue>` tag.
+
+3. **Automated Verification**:
+   - **Static Parity Checks**: `python3 script/check_doc_sync.py --static` verifies 100% bidirectional parity for all CLI options (`src/main.cpp` &harr; `docs/user/cli-reference.md`), format handlers (`src/format/` &harr; `docs/user/architecture.md`), and template deliverables (`templates/` &harr; `docs/user/templates-and-codegen.md`).
+   - **CTest Integration**: Verified automatically as part of `ctest` via `test_ArchitecturalInvariants` and `test_DocImplementationSync`.
+   - **Git Hooks & CI**: Enforced by `.git/hooks/pre-commit`, `.git/hooks/commit-msg`, and the GitHub Actions CI pipeline.
+
+---
+
 
 ## 👤 Author & GitHub Repository
 
