@@ -1074,6 +1074,23 @@ void TestThemeManager::testThemeEdgeCasesAndCoverage()
             fBad.close();
             QVERIFY(!tm.setTheme(invalidSchemePath));
         }
+
+        // Test ColorScheme::createDefault for dark and light (lines 896-905)
+        ColorScheme darkScheme = ColorScheme::createDefault("dark");
+        ColorScheme lightScheme = ColorScheme::createDefault("light");
+        QVERIFY(darkScheme.isDark);
+        QVERIFY(!lightScheme.isDark);
+
+        // Test all parseAccessKind policies (lines 85, 87, 89, 103, 105, 115-127)
+        const QStringList accessBadgePolicies = {"WO1", "WRC", "WRS", "W1T", "W0T", "WOC", "WOS", "W1SRC", "W0SRC", "W1CRS", "W0CRS", "NOACCESS", "NA"};
+        for (const auto &p : accessBadgePolicies) {
+            auto colors = darkScheme.getAccessColors(p, ColorBlindMode::None);
+            QVERIFY(colors.bg.isValid());
+        }
+
+        // Test ColorScheme::generateStyleSheet (lines 436-505)
+        QVERIFY(!darkScheme.generateStyleSheet().isEmpty());
+        QVERIFY(!lightScheme.generateStyleSheet().isEmpty());
     }
 }
 

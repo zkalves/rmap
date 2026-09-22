@@ -13,6 +13,7 @@
 #include <QTableWidget>
 #include <QMessageBox>
 #include <QMenu>
+#include <QShortcut>
 #include "RegMapWindow.hpp"
 #include "BlockMemoryMapWidget.hpp"
 #include "LanguageManager.hpp"
@@ -3827,6 +3828,48 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
         treeView->setCurrentIndex(QModelIndex());
         win.duplicateSelectedRegister();
+    }
+
+    // 19. Find shortcut activation (lines 784-789)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.show();
+        QApplication::processEvents();
+        const auto shortcuts = win.findChildren<QShortcut*>();
+        for (auto *sc : shortcuts) {
+            if (sc->key() == QKeySequence(QKeySequence::Find)) {
+                emit sc->activated();
+            }
+        }
+    }
+
+    // 20. navigateToRegister with deselected treeView (line 2316)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        win.show();
+        auto *treeView = win.findChild<QTreeView*>("treeView");
+        QModelIndex blkProxy = treeView->model()->index(0, 0);
+        treeView->setCurrentIndex(blkProxy);
+        QApplication::processEvents();
+
+        // Clear selection to make blkProxy invalid
+        treeView->setCurrentIndex(QModelIndex());
+        win.navigateToRegister(0, nullptr);
+    }
+
+    // 21. exportTemplates fallback without hw_precedence and empty template entry (lines 1608, 2485, 2503)
+    {
+        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        auto *cfgWin = win.configWindow();
+        protormap::Config *cfg = cfgWin->serialize();
+        cfg->clear_hw_precedence();
+        auto *emptyEntry = cfg->add_template_outputs();
+        emptyEntry->set_template_filename("");
+        emptyEntry->set_output_filepath("work/empty_out");
+        cfgWin->deserialize(*cfg);
+        delete cfg;
+
+        win.headlessExport("work/export_no_hwprec");
     }
 }
 

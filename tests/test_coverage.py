@@ -31,9 +31,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "script"))
 
 from generate_coverage import (
     categorize_subsystem,
+    check_thresholds,
     compute_metrics,
     generate_badge_endpoints,
     get_color_for_percent,
+    get_gcov_binary,
+    get_gcov_flags,
     process_gcov_json,
     render_console_summary,
     render_html_report,
@@ -419,6 +422,83 @@ class TestCoverageEngine(unittest.TestCase):
         self.assertEqual(data["label"], "Line Coverage")
         self.assertEqual(data["message"], "100.0%")
         self.assertEqual(data["color"], "brightgreen")
+
+    def test_check_thresholds_enforcement(self):
+        # 100% covered mock metrics
+        mock_data_100 = {
+            "src/Full.cpp": {
+                "subsystem": "Code Generation Engine",
+                "lines": {1: 1, 2: 1},
+                "funcs": {"run()": 1},
+                "branches": {(1, 0): 1},
+                "conds": [{"count": 2, "covered": 2}],
+                "calls": [{"returned": 1}],
+                "blocks_total": 1,
+                "blocks_exec": 1,
+            }
+        }
+        metrics_100 = compute_metrics(mock_data_100)
+        # Should pass cleanly under 100% lines and 100% functions enforcement
+        failures = check_thresholds(metrics_100, fail_under_lines=100.0, fail_under_functions=100.0)
+        self.assertEqual(failures, [])
+
+        # Partial coverage mock metrics
+        mock_data_partial = {
+            "src/Partial.cpp": {
+                "subsystem": "Code Generation Engine",
+                "lines": {1: 1, 2: 0},
+                "funcs": {"foo()": 1, "bar()": 0},
+                "branches": {(1, 0): 1, (1, 1): 0},
+                "conds": [{"count": 2, "covered": 1}],
+                "calls": [{"returned": 1}],
+                "blocks_total": 2,
+                "blocks_exec": 1,
+            }
+        }
+        metrics_partial = compute_metrics(mock_data_partial)
+        # 50% line coverage must fail 100% threshold
+        failures = check_thresholds(metrics_partial, fail_under_lines=100.0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Line coverage 50.00% is below threshold 100.0%", failures[0])
+
+        # 50% function coverage must fail 100% threshold
+        failures = check_thresholds(metrics_partial, fail_under_functions=100.0)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Function coverage 50.00% is below threshold 100.0%", failures[0])
+
+        # Both failing must return both errors
+        failures = check_thresholds(metrics_partial, fail_under_lines=100.0, fail_under_functions=100.0)
+        self.assertEqual(len(failures), 2)
+
+    def test_gcov_binary_selection(self):
+        # Override argument takes highest priority
+        self.assertEqual(get_gcov_binary("my-custom-gcov"), "my-custom-gcov")
+
+        # Environment variable override
+        orig_env = os.environ.get("GCOV")
+        try:
+            # Point to a real binary for which() to succeed
+            python_bin = sys.executable
+            os.environ["GCOV"] = python_bin
+            self.assertEqual(get_gcov_binary(), python_bin)
+        finally:
+            if orig_env is not None:
+                os.environ["GCOV"] = orig_env
+            else:
+                os.environ.pop("GCOV", None)
+
+        # Autodetection returns non-empty string
+        candidate = get_gcov_binary()
+        self.assertTrue(candidate)
+
+    def test_gcov_flags(self):
+        flags = get_gcov_flags("gcov")
+        self.assertIn("-b", flags)
+        self.assertIn("-c", flags)
+        self.assertIn("-f", flags)
+        self.assertIn("-a", flags)
+        self.assertIn("-u", flags)
+        self.assertIn("-j", flags)
 
 
 if __name__ == "__main__":

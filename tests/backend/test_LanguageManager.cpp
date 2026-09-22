@@ -438,6 +438,11 @@ void TestLanguageManager::testTranslationsDirectoryDiscovery() {
   lm.setLanguage("en");
   lm.rescanLanguages();
   QVERIFY(!lm.hasLanguage("customtest"));
+
+  // Test non-existent translations path (line 191: if (!dir.exists()) return;)
+  qputenv("RMAP_TRANSLATIONS_PATH", "/non_existent_trans_path_xyz_123");
+  lm.rescanLanguages();
+  qunsetenv("RMAP_TRANSLATIONS_PATH");
 }
 
 QTEST_MAIN(TestLanguageManager)

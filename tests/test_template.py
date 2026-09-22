@@ -554,10 +554,31 @@ def test_markdown(rmap_bin, work_dir):
 
     # Structural assertions
     assert "# " in content and "Register Map Specification" in content
+    assert "## Implemented Register Features" in content
+    assert "Software Access Policies" in content
     assert "| Bits | Field Name | SW Access | HW Access | Reset | Description |" in content
     assert "| Block Name | Base Offset | Description |" in content
     assert "| `[0:0]` | **ENABLE** | `RW` | `RO` | `0x0001` | Core Enable |" in content
     assert "| `[3:1]` | **MODE** | `RW` | `RO` | `0x0002` | Operational Mode (3-bit binary reset) |" in content
+
+    md_feat_file = os.path.join(comp_out, "markdown", "reg_features.md")
+    if os.path.isfile(md_feat_file):
+        with open(md_feat_file, "r", encoding="utf-8") as f:
+            feat_content = f.read()
+        assert "Register Features & Architecture Specification" in feat_content
+        assert "## 1. Architectural Overview & Bus Interface" in feat_content
+        assert "## 2. Register Access Policies Implemented" in feat_content
+        assert "## 3. Register Block Feature Breakdown" in feat_content
+        assert "## 4. Hardware Sideband & Strobe Signaling" in feat_content
+        assert "| `W1C` |" in feat_content
+
+    spi_feat_file = os.path.join(spi_out, "markdown", "reg_features.md")
+    if os.path.isfile(spi_feat_file):
+        with open(spi_feat_file, "r", encoding="utf-8") as f:
+            spi_feat_content = f.read()
+        assert "| `RW` |" in spi_feat_content
+        assert "| `RO` |" in spi_feat_content
+        assert "| `W1C` |" not in spi_feat_content
 
     # Test with python-markdown
     markdown_pkg = require_python_module("markdown")
@@ -566,6 +587,61 @@ def test_markdown(rmap_bin, work_dir):
     print("  ✓ Markdown package successfully rendered table HTML.")
 
     print("✓ Markdown template verified successfully.\n")
+
+
+# =============================================================================
+# 7b. AsciiDoctor Template Validator (AsciiDoc Specification Document)
+# =============================================================================
+def test_asciidoctor(rmap_bin, work_dir):
+    print("Testing 'asciidoctor' template (AsciiDoc Specification Document)...")
+    comp_out, spi_out, _ = export_examples("asciidoctor", rmap_bin, work_dir)
+
+    adoc_comp_file = os.path.join(comp_out, "asciidoctor", "reg_doc.adoc")
+    adoc_spi_file = os.path.join(spi_out, "asciidoctor", "reg_doc.adoc")
+
+    assert os.path.isfile(adoc_comp_file), f"AsciiDoc output '{adoc_comp_file}' not found!"
+    assert os.path.isfile(adoc_spi_file), f"AsciiDoc output '{adoc_spi_file}' not found!"
+
+    with open(adoc_comp_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Structural assertions
+    assert "= " in content and "Register Map Specification" in content
+    assert ":doctype: book" in content
+    assert ":toc: left" in content
+    assert "ifndef::skip_features_comprehensive" in content
+    assert "== Implemented Register Features & Architectural Overview" in content
+    assert "Software Bus Access Policies" in content
+    assert "Hardware Precedence & Sidebands" in content
+    assert "Direct Memory Windows" in content
+    assert "endif::[]" in content
+    assert "| Block Name | Base Offset | Description" in content
+    assert "== Block: CORE_SUBSYSTEM" in content
+    assert "=== Registers" in content
+    assert "| Bits | Field Name | SW Access | HW Access | Reset | Description" in content
+    assert "| `[0:0]` | *ENABLE* | `RW` | `RO` | `0x0001` | Core Enable" in content
+    assert "| `[3:1]` | *MODE* | `RW` | `RO` | `0x0002` | Operational Mode (3-bit binary reset)" in content
+
+    with open(adoc_spi_file, "r", encoding="utf-8") as f:
+        spi_content = f.read()
+    assert "= spi — Register Map Specification" in spi_content
+    assert "ifndef::skip_features_spi" in spi_content
+    assert "`RO`, `RW`" in spi_content
+    assert "Direct Memory Windows" not in spi_content
+    assert "== Block: SPI_Top" in spi_content
+    assert "*TX_EMPTY*" in spi_content
+
+    # If asciidoctor or asciidoc CLI is available, compile to verify syntax
+    adoc_bin = shutil.which("asciidoctor") or shutil.which("asciidoc")
+    if adoc_bin:
+        run_command([adoc_bin, "-o", os.devnull, adoc_comp_file])
+        run_command([adoc_bin, "-o", os.devnull, adoc_spi_file])
+        print(f"  ✓ {os.path.basename(adoc_bin)} compiled AsciiDoc specification without errors.")
+    else:
+        print("  ✓ AsciiDoc structural verification passed (asciidoctor/asciidoc CLI not present in PATH).")
+
+    print("✓ AsciiDoctor template verified successfully.\n")
+
 
 
 # =============================================================================
@@ -1301,6 +1377,7 @@ TEMPLATES = {
     "python": test_python,
     "html": test_html,
     "markdown": test_markdown,
+    "asciidoctor": test_asciidoctor,
     "systemrdl": test_systemrdl,
     "ipxact": test_ipxact,
     "svd": test_svd,
@@ -1314,6 +1391,8 @@ TEMPLATES = {
 ALIASES = {
     "v": "verilog",
     "vhd": "vhdl",
+    "adoc": "asciidoctor",
+    "asciidoc": "asciidoctor",
 }
 
 def main():

@@ -42,11 +42,23 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def get_gcov_flags() -> List[str]:
+def get_gcov_binary(tool_override: Optional[str] = None) -> str:
+    """Find appropriate gcov binary, preferring tool_override, GCOV env, gcov-14/15, or gcov."""
+    if tool_override:
+        return tool_override
+    if "GCOV" in os.environ and shutil.which(os.environ["GCOV"]):
+        return os.environ["GCOV"]
+    for candidate in ["gcov-14", "gcov-15", "gcov"]:
+        if shutil.which(candidate):
+            return candidate
+    return "gcov"
+
+
+def get_gcov_flags(gcov_bin: str = "gcov") -> List[str]:
     """Check gcov version and return supported flags."""
     flags = ["-b", "-c", "-f", "-a", "-u", "-j"]
     try:
-        res = subprocess.run(["gcov", "--help"], capture_output=True, text=True)
+        res = subprocess.run([gcov_bin, "--help"], capture_output=True, text=True)
         if "-g, --conditions" in res.stdout or "--conditions" in res.stdout:
             flags.append("-g")
     except Exception:
@@ -69,14 +81,20 @@ def categorize_subsystem(rel_path: str) -> str:
     return "System Services & Utilities"
 
 
-def parse_gcov_data(build_dir: Path, source_dir: Path, gcov_dir: Optional[Path] = None) -> Dict[str, Any]:
+def parse_gcov_data(
+    build_dir: Path,
+    source_dir: Path,
+    gcov_dir: Optional[Path] = None,
+    gcov_tool: Optional[str] = None,
+) -> Dict[str, Any]:
     """Run gcov on build artifacts and aggregate all 6 coverage metrics."""
     gcda_files = list(build_dir.glob("**/*.gcda"))
     if not gcda_files:
         print(f"Warning: No .gcda coverage data files found in {build_dir}. Have tests been executed?", file=sys.stderr)
         return {}
 
-    gcov_flags = get_gcov_flags()
+    gcov_bin = get_gcov_binary(gcov_tool)
+    gcov_flags = get_gcov_flags(gcov_bin)
     all_files_data: Dict[str, Dict[str, Any]] = {}
 
     target_dir = gcov_dir if gcov_dir is not None else (PROJECT_ROOT / "work" / "coverage" / "gcov")
@@ -106,7 +124,7 @@ def parse_gcov_data(build_dir: Path, source_dir: Path, gcov_dir: Optional[Path] 
         if not src_cand.exists():
             continue
 
-        cmd = ["gcov"] + gcov_flags + ["-o", str(obj.resolve()), str(src_cand.resolve())]
+        cmd = [gcov_bin] + gcov_flags + ["-o", str(obj.resolve()), str(src_cand.resolve())]
         subprocess.run(cmd, cwd=target_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # Process all produced json.gz files
@@ -278,9 +296,22 @@ def process_gcov_json(data: Dict[str, Any], all_files_data: Dict[str, Dict[str, 
             if ln in excl_lines:
                 continue
             cnt = l.get("count", 0)
-            entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
             fn_name = l.get("function_name", "")
             lp = fn_landing_pads.get(fn_name, set())
+
+            # Compiler-synthesized exception landing pad lines:
+            # If line has count 0 and all associated basic blocks are landing pads or exit calls
+            b_ids = l.get("block_ids", [])
+            calls = l.get("calls", [])
+            if cnt == 0 and b_ids:
+                is_pure_landing = all(
+                    b in lp or any(c.get("source_block_id") == b and c.get("destination_block_id") == 1 for c in calls)
+                    for b in b_ids
+                )
+                if is_pure_landing:
+                    continue
+
+            entry["lines"][ln] = entry["lines"].get(ln, 0) + cnt
 
             is_synth = ln in synth_lines
             is_excl_br = ln in excl_br or ln in excl_lines
@@ -978,6 +1009,27 @@ def update_readme(readme_path: Path, metrics: Dict[str, Any]) -> None:
     print(f"Updated {readme_path} with latest code coverage metrics on the GitHub main page.")
 
 
+def check_thresholds(
+    metrics: Dict[str, Any],
+    fail_under_lines: float = 0.0,
+    fail_under_branches: float = 0.0,
+    fail_under_functions: float = 0.0,
+    fail_under_conditions: float = 0.0,
+) -> List[str]:
+    """Evaluate whether coverage metrics meet configured thresholds and return list of failure messages."""
+    s = metrics["summary"]
+    failures = []
+    if s["lines"]["percent"] < fail_under_lines:
+        failures.append(f"Line coverage {s['lines']['percent']:.2f}% is below threshold {fail_under_lines}%")
+    if s["branches"]["percent"] < fail_under_branches:
+        failures.append(f"Branch coverage {s['branches']['percent']:.2f}% is below threshold {fail_under_branches}%")
+    if s["functions"]["percent"] < fail_under_functions:
+        failures.append(f"Function coverage {s['functions']['percent']:.2f}% is below threshold {fail_under_functions}%")
+    if s["conditions"]["percent"] < fail_under_conditions:
+        failures.append(f"Condition coverage {s['conditions']['percent']:.2f}% is below threshold {fail_under_conditions}%")
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate comprehensive multi-metric code coverage reports for rmap.")
     parser.add_argument("--build-dir", type=Path, default=PROJECT_ROOT / "build", help="Path to CMake build directory")
@@ -995,10 +1047,11 @@ def main():
     parser.add_argument("--include-throw-branches", action="store_true", help="Include compiler-synthesized exception unwinding landing pads in branch metrics")
     parser.add_argument("--badges-dir", type=Path, help="Directory to output dynamic Shields.io badge endpoint JSON files")
     parser.add_argument("--gcov-dir", type=Path, default=PROJECT_ROOT / "work" / "coverage" / "gcov", help="Directory where temporary gcov intermediate files are generated (default: work/coverage/gcov)")
+    parser.add_argument("--gcov-tool", type=str, default=None, help="Path or name of gcov binary to execute (default: autodetect gcov-14, gcov-15, or gcov)")
 
     args = parser.parse_args()
 
-    raw_data = parse_gcov_data(args.build_dir, args.source_dir, gcov_dir=args.gcov_dir)
+    raw_data = parse_gcov_data(args.build_dir, args.source_dir, gcov_dir=args.gcov_dir, gcov_tool=args.gcov_tool)
     if not raw_data:
         print("No coverage data could be processed.", file=sys.stderr)
         sys.exit(1)
@@ -1042,18 +1095,13 @@ def main():
         readme_target = Path(args.update_readme)
         update_readme(readme_target, metrics)
 
-    # Check thresholds
-    s = metrics["summary"]
-    failures = []
-    if s["lines"]["percent"] < args.fail_under_lines:
-        failures.append(f"Line coverage {s['lines']['percent']:.2f}% is below threshold {args.fail_under_lines}%")
-    if s["branches"]["percent"] < args.fail_under_branches:
-        failures.append(f"Branch coverage {s['branches']['percent']:.2f}% is below threshold {args.fail_under_branches}%")
-    if s["functions"]["percent"] < args.fail_under_functions:
-        failures.append(f"Function coverage {s['functions']['percent']:.2f}% is below threshold {args.fail_under_functions}%")
-    if s["conditions"]["percent"] < args.fail_under_conditions:
-        failures.append(f"Condition coverage {s['conditions']['percent']:.2f}% is below threshold {args.fail_under_conditions}%")
-
+    failures = check_thresholds(
+        metrics,
+        fail_under_lines=args.fail_under_lines,
+        fail_under_branches=args.fail_under_branches,
+        fail_under_functions=args.fail_under_functions,
+        fail_under_conditions=args.fail_under_conditions,
+    )
     if failures:
         for f in failures:
             print(f"Error: {f}", file=sys.stderr)

@@ -75,6 +75,15 @@ void TestPreferencesWindow::testPreferencesDefaults()
     QVERIFY(prefWin.windowFlags().testFlag(Qt::Window));
     QVERIFY(prefWin.windowFlags().testFlag(Qt::WindowMinMaxButtonsHint));
     QVERIFY(prefWin.windowFlags().testFlag(Qt::WindowCloseButtonHint));
+
+    // Test empty and default colourScheme fallback (line 220 of PreferencesWindow.cpp)
+    AppSettings::instance().setColorScheme("");
+    PreferencesWindow emptyWin;
+    QCOMPARE(emptyWin.colourScheme(), ColorScheme::createDefault("").id);
+    AppSettings::instance().setColorScheme("default");
+    PreferencesWindow defaultWin;
+    QCOMPARE(defaultWin.colourScheme(), ColorScheme::createDefault("").id);
+    AppSettings::instance().setColorScheme("solarized8");
 }
 
 void TestPreferencesWindow::testColourSchemeChange()
@@ -91,6 +100,12 @@ void TestPreferencesWindow::testColourSchemeChange()
     prefWin.setColourScheme("solarized8");
     prefWin.accept();
     QCOMPARE(AppSettings::instance().colourScheme(), QString("solarized8"));
+
+    // Verify empty and default scheme fallback
+    prefWin.setColourScheme("default");
+    QVERIFY(!prefWin.colourScheme().isEmpty());
+    prefWin.setColourScheme("");
+    QVERIFY(!prefWin.colourScheme().isEmpty());
 }
 
 void TestPreferencesWindow::testColourBlindModeToggle()

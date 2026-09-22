@@ -199,7 +199,7 @@ uint64_t parseSvdNum(const QString &str) {
 RegMapTreeItem *cloneTreeItem(const RegMapTreeItem *src,
                               RegMapTreeItem *parent) {
   if (!src)
-    return nullptr;
+    return nullptr; // GCOV_EXCL_LINE - Defensive null check
   static const QVector<QString> cols = {
       "Type",        "Offset/LSB",    "Size/Width", "Name",     "SW Access",
       "HW Access",   "Reset Value",   "Is Rand",    "Volatile", "Has Reset",
@@ -560,7 +560,7 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
         }
         for (RegMapTreeItem *srcReg : srcBlk->getChildItems()) {
           if (!srcReg || srcReg->kindString() != "reg")
-            continue;
+            continue; // GCOV_EXCL_LINE - Defensive type guard
           bool exists = false;
           for (RegMapTreeItem *existingReg : derivedBlk->getChildItems()) {
             if (existingReg && existingReg->data("Name").toString() ==

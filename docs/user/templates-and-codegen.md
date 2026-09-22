@@ -107,6 +107,20 @@ The context passed to Inja templates provides rich hardware architecture and ver
   - `hw_precedence`: Boolean flag indicating whether hardware updates take priority over concurrent software writes.
   - `param_hw_precedence`: Integer parameter value (`1` = hardware over software, `0` = software over hardware) for synthesizable HDL generics.
   - `regmap_crc32` / `regmap_crc32_hex`: Global 32-bit architectural CRC checksum.
+  - `features`: Structured metadata object representing architectural features implemented in the exported register map:
+    - `features.access_policies`: List of uppercase SW access policy strings actually present in the map (e.g. `["RO", "RW"]`).
+    - `features.access_policies_str`: Formatted string of implemented access policies (e.g. `` `RO`, `RW` ``).
+    - `features.has_<policy>`: Booleans (`has_rw`, `has_ro`, `has_w1c`, `has_rc`, etc.) indicating presence of individual IEEE 1800.2 policies.
+    - `features.has_hw_writable`: Boolean indicating if hardware logic writes to any register bitfields.
+    - `features.has_hw_readable`: Boolean indicating if hardware logic monitors/reads any register bitfields.
+    - `features.has_hw_sidebands`: Boolean indicating presence of hardware sideband ports (`has_hw_writable || has_hw_readable`).
+    - `features.has_hw_precedence`: Boolean indicating concurrent hardware and software write capability.
+    - `features.has_volatile`: Boolean indicating presence of volatile bitfields.
+    - `features.has_memories`: Boolean indicating presence of direct memory buffers.
+    - `features.has_address_gaps`: Boolean indicating presence of non-contiguous register offsets with gap padding.
+    - `features.has_interrupts`: Boolean indicating presence of interrupt/sticky event flags (`W1C`, `W0C`, `RC`, etc.).
+    - `features.has_byte_strobes`: Boolean indicating byte write strobe support (`reg_width > 8`).
+    - `features.has_multiple_blocks`: Boolean indicating multiple register blocks.
   - `blocks`: Array of peripheral block structures.
 
 - **Address Maps (`maps[]`)**:
@@ -237,23 +251,27 @@ The context passed to Inja templates provides rich hardware architecture and ver
 14. **ARM CMSIS-SVD Peripheral XML** (`svd/reg_map.xml.inja`):
     - Cortex-M CMSIS-SVD device specification (`<device>`, `<peripheral>`, `<register>`, `<field>`) for IDE debuggers (Keil, IAR, VS Code Cortex-Debug, SVDconv).
 
-15. **Markdown Documentation Specification** (`markdown/reg_doc.md.inja`):
-    - Clean GitHub-flavored Markdown register map table specification with block anchors and bitfield tables.
+15. **Markdown Documentation Specification & Feature Guide** (`markdown/reg_doc.md.inja`, `markdown/reg_features.md.inja`):
+    - Clean GitHub-flavored Markdown register map table specification with block anchors, bitfield tables, and dynamically filtered implemented feature summaries (`markdown/reg_doc.md.inja`).
+    - Dedicated Markdown register architecture and features guide detailing IEEE 1800.2 access policies, hardware sidebands, volatile behavior, and strobing semantics dynamically filtered to only active features implemented in the exported map (`markdown/reg_features.md.inja`).
 
-16. **JSON Schema Specification** (`json/reg_map.json.inja`):
+16. **AsciiDoctor Documentation Specification** (`asciidoctor/reg_doc.adoc.inja`):
+    - Clean AsciiDoc/Asciidoctor document specification with table of contents, top feature summary section dynamically showing only features implemented by the exported register map, wrapped in inverse-logic conditional `ifndef::skip_features_<name>[]` directives (allowing individual per-register-map exclusion by setting the skip variable), block anchors, register sections, and bitfield tables conforming to modern AsciiDoctor syntax.
+
+17. **JSON Schema Specification** (`json/reg_map.json.inja`):
     - Formatted JSON register map schema export for custom tooling, CI scripts, and automation pipelines.
 
-17. **Self-Checking RTL Testbench** (`rtl_tb/tb_reg_map.sv.inja`):
+18. **Self-Checking RTL Testbench** (`rtl_tb/tb_reg_map.sv.inja`):
     - Standalone SystemVerilog testbench exercising reset values, read/write accesses, bitfield masks, and read-only/write-1-to-clear behaviors in Icarus Verilog or Verilator.
 
-18. **Open-Source Python UVM Testbench** (`pyuvm_tb/tb_pyuvm.py.inja`):
+19. **Open-Source Python UVM Testbench** (`pyuvm_tb/tb_pyuvm.py.inja`):
     - Complete Python verification testbench utilizing Cocotb and pyuvm to run register tests headlessly with open-source simulators.
 
-19. **Universal UVM Verification Environment** (`uvm_tb/*.sv.inja`):
+20. **Universal UVM Verification Environment** (`uvm_tb/*.sv.inja`):
     - Complete modular UVM testbench suite containing generic bus interface (`reg_bus_if.sv`), bus VIP package (`reg_bus_pkg.sv`), register environment (`reg_env.sv`), built-in test sequences (`reg_tests.sv`), and top-level harness (`tb_top.sv`).
     - Compatible across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020.
 
-20. **Multi-Tool Simulation Makefile** (`sim/Makefile.inja`):
+21. **Multi-Tool Simulation Makefile** (`sim/Makefile.inja`):
     - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and commercial EDA simulators (`sim-uvm SIM=vcs|xrun|mti`).
     - Configurable UVM version selection via `UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d` or custom path via `UVM_HOME=/path/to/uvm`, with automatic local repository discovery.
 
@@ -353,6 +371,7 @@ Every template in `templates/` is validated through automated test pipelines in 
   - **python**: Validates syntax with `py_compile`, dynamically imports the driver module, attaches mock bus read/write callbacks, and tests field read-modify-write operations.
   - **html**: Validates HTML5 syntax with `HTMLParser`, DOM table structures, interactive search inputs, and verifies no unrendered Inja tags remain.
   - **markdown**: Validates table column alignments, bit range formatting `[msb:lsb]`, block headings, and renders tables with Python markdown.
+  - **asciidoctor**: Validates document structure, book attributes (`:doctype: book`, `:toc: left`), block anchors, register sections, and compiles using `asciidoctor` or `asciidoc` CLI when available.
   - **systemrdl**: Validates Accellera SystemRDL 2.0 `addrmap`, `regfile`, `reg`, `field` hierarchy, balanced braces, and software/hardware access properties.
   - **ipxact**: Validates IEEE 1685-2014 XML schema hierarchy, namespaces, memory maps, address blocks, registers, and fields with `xml.etree` and `xmllint`.
   - **svd**: Validates ARM CMSIS-SVD 1.3 XML schema, peripherals, registers, and bit ranges.
@@ -364,7 +383,7 @@ Every template in `templates/` is validated through automated test pipelines in 
 
 - **Local Execution**:
   ```bash
-  # Test all 20 deliverables
+  # Test all deliverables
   make test-templates
 
   # Test an individual deliverable
@@ -375,9 +394,10 @@ Every template in `templates/` is validated through automated test pipelines in 
   python3 tests/test_template.py verilog
   python3 tests/test_template.py vhdl
   python3 tests/test_template.py c
+  python3 tests/test_template.py asciidoctor
   ```
 
-- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs 20 parallel test jobs in CI with deliverable-specific toolchains (`verilator 5.052`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
+- **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs all parallel test jobs in CI with deliverable-specific toolchains (`verilator 5.052`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
 
 [Next: Architecture & Internal Data Flow &rarr;](architecture.md)
 

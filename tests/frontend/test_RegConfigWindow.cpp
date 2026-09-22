@@ -112,6 +112,12 @@ void TestRegConfigWindow::testConfigDialogDefaults()
     QVERIFY(regWidthBox != nullptr);
     QCOMPARE(regWidthBox->value(), 32);
 
+    // Verify hwPrecedence getter and setter
+    cfgWin.setHwPrecedence(false);
+    QCOMPARE(cfgWin.hwPrecedence(), false);
+    cfgWin.setHwPrecedence(true);
+    QCOMPARE(cfgWin.hwPrecedence(), true);
+
     auto *foldersList = cfgWin.findChild<QListWidget*>("templateFoldersList");
     QVERIFY(foldersList != nullptr);
     QVERIFY(foldersList->count() >= 1);

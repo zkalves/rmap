@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package packages
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage check-coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package packages
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -95,8 +95,8 @@ sim-uvm: rmap
 # Run complete verification: unit tests, template verification, and all example environments
 test-all: test-unit test-templates test-examples
 
-# Run automated unit tests with compiler code coverage and generate multi-metric summary
-coverage:
+# Run automated unit tests with compiler code coverage and generate multi-metric summary (fails under 100% lines/functions)
+coverage check-coverage:
 	@mkdir -p build
 	@cd build && cmake .. -DCMAKE_INSTALL_PREFIX="$(PREFIX)" -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON
 	@cmake --build build --parallel $(JOBS)
@@ -105,11 +105,11 @@ coverage:
 	@find build -name "*.gcda" -delete 2>/dev/null || true
 	@QT_QPA_PLATFORM=offscreen ctest --test-dir build -L "unit" --output-on-failure
 	@python3 tests/test_template.py all
-	@python3 script/generate_coverage.py --build-dir build --html work/coverage/index.html --markdown work/coverage/coverage.md --json work/coverage/coverage.json --summary
+	@python3 script/generate_coverage.py --build-dir build --html work/coverage/index.html --markdown work/coverage/coverage.md --json work/coverage/coverage.json --fail-under-lines 100.0 --fail-under-functions 100.0 --summary
 
 # Run coverage and update the Code Coverage Metrics report on the GitHub main page (README.md)
 coverage-report: coverage
-	@python3 script/generate_coverage.py --build-dir build --update-readme
+	@python3 script/generate_coverage.py --build-dir build --fail-under-lines 100.0 --fail-under-functions 100.0 --update-readme
 
 # Convenience alias for test-unit
 test check: test-unit

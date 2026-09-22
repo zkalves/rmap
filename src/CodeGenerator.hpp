@@ -74,6 +74,9 @@ class CodeGenerator
         void parse(json json_data, const std::string &template_folder = PathUtils::DEFAULT_TEMPLATES_DIR, const std::string &output_folder = PathUtils::DEFAULT_OUTPUT_DIR);
         void parseCustom(json json_data, const std::string &template_folder, const std::vector<TemplateMapping>& mappings);
 
+        // Feature aggregation helper extracting implemented architectural attributes
+        static json extractFeatures(const json &rootJson);
+
     private:
         void registerHelpers(Environment &env);
         std::string resolveTemplatePath(const std::string &tmpl_path, const std::string &default_folder, const std::string &base_dir = "");

@@ -1,0 +1,113 @@
+# {{ name }} — Register Features & Architecture Specification
+
+**Project:** {{ name }}  
+**Register Data Width:** {{ reg_width }}-bit ({{ reg_width_bytes }} bytes per word)  
+**Description:** {{ description }}
+
+---
+
+## 1. Architectural Overview & Bus Interface
+
+This document specifies the architectural features, access semantics, hardware precedence rules, and sideband signaling for all registers implemented in **{{ name }}**.
+
+- **Bus Data Width:** `{{ reg_width }}` bits. Accesses are aligned to `{{ reg_width_bytes }}`-byte word boundaries.
+{% if existsIn(features, "has_byte_strobes") and features.has_byte_strobes %}
+- **Byte Write Strobing:** Granular byte-write strobe signals (`wstrb`) enable partial-word updates without altering neighboring bytes.
+{% endif %}
+{% if existsIn(features, "has_hw_precedence") and features.has_hw_precedence %}
+- **Hardware Precedence:** In case of simultaneous hardware and software writes to the same bitfield, hardware writes take strict precedence over software bus writes to guarantee hardware event integrity.
+{% endif %}
+{% if existsIn(features, "has_address_gaps") and features.has_address_gaps %}
+- **Sparse Addressing:** Memory map contains non-contiguous register offsets with decoded gap alignment.
+{% endif %}
+
+---
+
+## 2. Register Access Policies Implemented
+
+The register blocks in this specification implement the following IEEE 1800.2 access policies ({{ features.access_policies_str }}):
+
+| Access Policy | Access Type | Software Behavior | Hardware Behavior | Description |
+| :--- | :--- | :--- | :--- | :--- |
+{% if existsIn(features, "has_rw") and features.has_rw %}| `RW` | Read / Write | Read returns current value; Write updates field. | Internal state output. | Standard read/write control and configuration field. |
+{% endif %}{% if existsIn(features, "has_ro") and features.has_ro %}| `RO` | Read-Only | Read returns current value; Write is ignored. | Hardware updates or drives state. | Status indicators, sensor readings, and hardware counters. |
+{% endif %}{% if existsIn(features, "has_wo") and features.has_wo %}| `WO` | Write-Only | Read returns 0; Write updates field. | Internal state output. | Trigger commands and security-sensitive keys. |
+{% endif %}{% if existsIn(features, "has_w1c") and features.has_w1c %}| `W1C` | Write-1-to-Clear | Read returns current value; Write `1` clears bit to `0`, write `0` has no effect. | Hardware sets bit on event. | Interrupt request (IRQ) pending flags and sticky event latches. |
+{% endif %}{% if existsIn(features, "has_w1s") and features.has_w1s %}| `W1S` | Write-1-to-Set | Read returns current value; Write `1` sets bit to `1`, write `0` has no effect. | Hardware clears bit. | Software trigger flags and manual event asserting. |
+{% endif %}{% if existsIn(features, "has_w1t") and features.has_w1t %}| `W1T` | Write-1-to-Toggle | Read returns current value; Write `1` inverts bit, write `0` has no effect. | Internal state output. | Diagnostic test toggles and periodic pin inversion. |
+{% endif %}{% if existsIn(features, "has_w0c") and features.has_w0c %}| `W0C` | Write-0-to-Clear | Read returns current value; Write `0` clears bit to `0`, write `1` has no effect. | Hardware sets bit. | Active-low interrupt clear flags. |
+{% endif %}{% if existsIn(features, "has_rc") and features.has_rc %}| `RC` | Read-to-Clear | Read returns current value and clears bit to `0`; Write is ignored. | Hardware increments or sets. | Sticky event counters and auto-acknowledging interrupts. |
+{% endif %}{% if features.has_rs %}| `RS` | Read-to-Set | Read returns current value and sets bit to `1`; Write is ignored. | Hardware clears bit. | Semaphore and token acquisition flags. |
+{% endif %}{% if features.has_wc %}| `WC` | Write-Clear | Software write clears field to 0; Read returns current value. | Hardware sets or updates. | Software command clear register. |
+{% endif %}{% if features.has_ws %}| `WS` | Write-Set | Software write sets all bits to 1; Read returns current value. | Hardware clears or updates. | Software command set register. |
+{% endif %}{% if features.has_w1src %}| `W1SRC` | Write-1-Set-Read-Clear | Write `1` sets field, read clears field to 0. | Internal hardware logic. | Dual-action handshake register. |
+{% endif %}{% if features.has_w1crs %}| `W1CRS` | Write-1-Clear-Read-Set | Write `1` clears field, read sets field to 1. | Internal hardware logic. | Inverted handshake register. |
+{% endif %}{% if features.has_w0src %}| `W0SRC` | Write-0-Set-Read-Clear | Write `0` sets field, read clears field to 0. | Internal hardware logic. | Active-low handshake register. |
+{% endif %}{% if features.has_w0crs %}| `W0CRS` | Write-0-Clear-Read-Set | Write `0` clears field, read sets field to 1. | Internal hardware logic. | Active-low inverted handshake. |
+{% endif %}{% if features.has_woc %}| `WOC` | Write-Only-Clear | Write clears field to 0; Read returns 0. | Internal hardware logic. | Blind clear command register. |
+{% endif %}{% if features.has_wos %}| `WOS` | Write-Only-Set | Write sets field to 1; Read returns 0. | Internal hardware logic. | Blind set command register. |
+{% endif %}{% if features.has_w1 %}| `W1` | Write-Once | First write after reset updates field; subsequent writes are ignored. | Read by hardware. | Boot-time lock and security configuration registers. |
+{% endif %}{% if features.has_wo1 %}| `WO1` | Write-Once-Only | Write-only field that can only be written once after reset; read returns 0. | Read by hardware. | Write-once security keys and authorization words. |
+{% endif %}{% if features.has_noaccess %}| `NOACCESS` | No Access | Software cannot read or write (access returns bus error or zeros). | Internal hardware use. | Reserved or security-isolated bitfields. |
+{% endif %}
+
+---
+
+## 3. Register Block Feature Breakdown
+
+{% for blk in blocks %}
+### Block: `{{ blk.name }}` (Base Offset: `{{ blk.offset_hex }}`)
+
+- **Description:** {{ blk.description }}
+- **Base Address:** `{{ blk.offset_hex }}`
+
+#### Implemented Registers & Feature Utilization
+
+| Register | Offset | Access | Reset | Implemented Features |
+| :--- | :--- | :--- | :--- | :--- |
+{% for reg in blk.registers %}
+| `{{ reg.name }}` | `{{ reg.offset_hex }}` | `{{ reg.access }}` | `{{ reg.reset_hex }}` | {% for fld in reg.fields %}`{{ fld.name }}` (`{{ fld.access }}`{% if existsIn(fld, "volatile") and fld.volatile %}, volatile{% endif %}{% if existsIn(fld, "hw_access") and fld.hw_access != "NA" %}, HW:{{ fld.hw_access }}{% endif %}){% if not loop.is_last %}, {% endif %}{% endfor %} |
+{% endfor %}
+
+#### Detailed Bitfield Access & Hardware Interface
+
+{% for reg in blk.registers %}
+##### `{{ reg.name }}` — `{{ reg.offset_hex }}`
+
+- **Description:** {{ reg.description }}
+- **Default SW Policy:** `{{ reg.access }}`
+- **Reset State:** `{{ reg.reset_hex }}`
+
+| Bits | Field Name | SW Policy | HW Policy | Reset | Volatile | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+{% for fld in reg.fields %}
+| `[{{ msb(fld.size_width, fld.offset_lsb) }}:{{ fld.offset_lsb }}]` | **{{ fld.name }}** | `{{ fld.access }}` | `{{ fld.hw_access }}` | `{{ fld.reset_hex }}` | {% if existsIn(fld, "volatile") and fld.volatile %}Yes{% else %}No{% endif %} | {{ fld.description }} |
+{% endfor %}
+
+{% endfor %}
+
+{% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
+#### Memory Windows
+
+| Memory Name | Offset | Size (Bytes) | Access | Description |
+| :--- | :--- | :--- | :--- | :--- |
+{% for mem in blk.memories %}
+| **{{ mem.name }}** | `{{ mem.offset_hex }}` | `{{ mem.size_hex }}` ({{ mem.size_width }}) | `{{ mem.access }}` | {{ mem.description }} |
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+
+## 4. Hardware Sideband & Strobe Signaling
+
+For each register field with active hardware interaction:
+
+{% if existsIn(features, "has_hw_writable") and features.has_hw_writable %}
+- **Hardware Write Signals (`hw_<reg>_<fld>_i`, `hw_<reg>_<fld>_we_i`)**: When `hw_we` is asserted, hardware updates the field with `hw_i` on the rising clock edge, overriding any pending software write.
+{% endif %}
+{% if existsIn(features, "has_hw_readable") and features.has_hw_readable %}
+- **Hardware Value Signals (`hw_<reg>_<fld>_o`)**: Continuously driven with the current registered field state for direct peripheral logic consumption.
+{% endif %}
+- **Software Read Strobe (`sw_<reg>_<fld>_rd_strobe_o`)**: Active-high 1-cycle pulse generated whenever software executes a successful bus read targeting this register.
+- **Software Write Strobe (`sw_<reg>_<fld>_wr_strobe_o`)**: Active-high 1-cycle pulse generated whenever software executes a bus write targeting this register.

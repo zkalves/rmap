@@ -74,18 +74,12 @@ FormatManager::handlerForFile(const QString &filepath) const {
       if (header.contains("<device") || header.contains("<device>") ||
           header.contains("<device ") || header.contains("<device\n") ||
           header.contains("<device\r")) {
-        auto h = handlerByName(QStringLiteral("CMSIS-SVD"));
-        if (h) {
-          return h;
-        }
+        return handlerByName(QStringLiteral("CMSIS-SVD"));
       }
       if (header.contains("<ipxact:") || header.contains("<spirit:") ||
           header.contains("http://www.accellera.org/XMLSchema/IPXACT") ||
           header.contains("http://www.spiritconsortium.org/XMLSchema/SPIRIT")) {
-        auto h = handlerByName(QStringLiteral("IP-XACT"));
-        if (h) {
-          return h;
-        }
+        return handlerByName(QStringLiteral("IP-XACT"));
       }
 
       // (b) JSON schema format
@@ -94,20 +88,14 @@ FormatManager::handlerForFile(const QString &filepath) const {
           (header.contains("\"blocks\"") || header.contains("\"registers\"") ||
            header.contains("\"project_name\"") ||
            header.contains("\"regmap\""))) {
-        auto h = handlerByName(QStringLiteral("JSON"));
-        if (h) {
-          return h;
-        }
+        return handlerByName(QStringLiteral("JSON"));
       }
 
       // (c) SystemRDL format
       if (header.contains("addrmap ") || header.contains("addrmap\t") ||
           header.contains("addrmap\n") || header.contains("regfile ") ||
           header.contains("// SystemRDL") || header.contains("/* SystemRDL")) {
-        auto h = handlerByName(QStringLiteral("SystemRDL"));
-        if (h) {
-          return h;
-        }
+        return handlerByName(QStringLiteral("SystemRDL"));
       }
 
       // (d) CSV / TSV format
@@ -115,20 +103,14 @@ FormatManager::handlerForFile(const QString &filepath) const {
           trimmed.startsWith("\"Type\",\"Offset\"") ||
           trimmed.startsWith("Offset,Size,Name") ||
           trimmed.startsWith("Type\tOffset")) {
-        auto h = handlerByName(QStringLiteral("CSV"));
-        if (h) {
-          return h;
-        }
+        return handlerByName(QStringLiteral("CSV"));
       }
 
       // (e) Protobuf Text Format
       if (header.contains("config {") || header.contains("item {") ||
           header.contains("reg_model {") ||
           (header.contains("blocks {") && !trimmed.startsWith('{'))) {
-        auto h = handlerByName(QStringLiteral("Protobuf"));
-        if (h) {
-          return h;
-        }
+        return handlerByName(QStringLiteral("Protobuf"));
       }
     }
   }

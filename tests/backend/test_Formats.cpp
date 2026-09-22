@@ -2414,6 +2414,20 @@ void TestFormats::test_FormatManagerEdgeCases() {
     QCOMPARE(handler->formatName(), QString("JSON Schema"));
   }
 
+  // 4b. Extensionless JSON file with only project_name
+  {
+    QFile f("work/test_formats/proj_only_json");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("{\n"
+            "  \"project_name\": \"JustProject\"\n"
+            "}\n");
+    f.close();
+
+    auto handler = fm.handlerForFile("work/test_formats/proj_only_json");
+    QVERIFY(handler != nullptr);
+    QCOMPARE(handler->formatName(), QString("JSON Schema"));
+  }
+
   // 5. Extensionless CSV file
   {
     QFile f("work/test_formats/no_ext_csv");
@@ -2761,6 +2775,71 @@ void TestFormats::test_FormatsBranchAndConditionCoverage() {
                     <access>read-writeOnce</access>
                 </register>
             </registers>
+        </peripheral>
+        <peripheral>
+            <name>PERIPH_ALL_ACCESS</name>
+            <baseAddress>0x40002000</baseAddress>
+            <registers>
+                <register>
+                    <name>REG_DIM0</name>
+                    <dim>0</dim>
+                    <size>0</size>
+                    <addressOffset>0x0</addressOffset>
+                </register>
+                <register><name>R_W1T</name><addressOffset>0x10</addressOffset><access>w1t</access></register>
+                <register><name>R_W0T</name><addressOffset>0x14</addressOffset><access>w0t</access></register>
+                <register><name>R_WRC</name><addressOffset>0x18</addressOffset><access>wrc</access></register>
+                <register><name>R_WRS</name><addressOffset>0x1C</addressOffset><access>wrs</access></register>
+                <register><name>R_WC</name><addressOffset>0x20</addressOffset><access>wc</access></register>
+                <register><name>R_WS</name><addressOffset>0x24</addressOffset><access>ws</access></register>
+                <register><name>R_W1SRC</name><addressOffset>0x28</addressOffset><access>w1src</access></register>
+                <register><name>R_W1CRS</name><addressOffset>0x2C</addressOffset><access>w1crs</access></register>
+                <register><name>R_W0SRC</name><addressOffset>0x30</addressOffset><access>w0src</access></register>
+                <register><name>R_W0CRS</name><addressOffset>0x34</addressOffset><access>w0crs</access></register>
+                <register><name>R_WOC</name><addressOffset>0x38</addressOffset><access>woc</access></register>
+                <register><name>R_WOS</name><addressOffset>0x3C</addressOffset><access>wos</access></register>
+                <register><name>R_NA</name><addressOffset>0x40</addressOffset><access>noaccess</access></register>
+                <register>
+                    <name>R_PROPS1</name>
+                    <addressOffset>0x44</addressOffset>
+                    <modifiedWriteValues>zerotoclear</modifiedWriteValues>
+                    <readAction>set</readAction>
+                </register>
+                <register>
+                    <name>R_PROPS2</name>
+                    <addressOffset>0x48</addressOffset>
+                    <modifiedWriteValues>zerotoset</modifiedWriteValues>
+                    <readAction>clear</readAction>
+                </register>
+                <register>
+                    <name>R_PROPS3</name>
+                    <addressOffset>0x4C</addressOffset>
+                    <access>write-only</access>
+                    <modifiedWriteValues>clear</modifiedWriteValues>
+                </register>
+                <register>
+                    <name>R_PROPS4</name>
+                    <addressOffset>0x50</addressOffset>
+                    <access>write-only</access>
+                    <modifiedWriteValues>set</modifiedWriteValues>
+                </register>
+                <register>
+                    <name>R_PROPS5</name>
+                    <addressOffset>0x54</addressOffset>
+                    <access>read-write</access>
+                    <readAction>clear</readAction>
+                </register>
+                <register>
+                    <name>R_PROPS6</name>
+                    <addressOffset>0x58</addressOffset>
+                    <access>read-write</access>
+                    <readAction>set</readAction>
+                </register>
+            </registers>
+        </peripheral>
+        <peripheral derivedFrom="PERIPH_ALL_ACCESS">
+            <name>PERIPH_DERIVED_A</name>
+            <baseAddress>0x40003000</baseAddress>
         </peripheral>
         <!-- Field outside register to stimulate currentReg == nullptr -->
         <field>

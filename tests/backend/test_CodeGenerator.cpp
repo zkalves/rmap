@@ -52,6 +52,7 @@ private slots:
   void testFullGenerationIpxact();
   void testFullGenerationCmsisSvd();
   void testFullGenerationMarkdownDoc();
+  void testFullGenerationAsciidoctorDoc();
   void testFullGenerationJsonMap();
   void testRelativePathAndBaseDirResolution();
   void testEnvVarExpansionInTemplateAndOutput();
@@ -1280,6 +1281,66 @@ void TestCodeGenerator::testFullGenerationMarkdownDoc() {
   QVERIFY(content.contains("**BAUD**"));
 }
 
+void TestCodeGenerator::testFullGenerationAsciidoctorDoc() {
+  CodeGenerator cg;
+  json root;
+  root["name"] = "SPI_ADOC";
+  root["description"] = "SPI AsciiDoctor Spec";
+  root["reg_width"] = 32;
+
+  json blk;
+  blk["name"] = "SPI_CORE";
+  blk["offset_hex"] = "0x0";
+  blk["description"] = "SPI Core Block";
+
+  json reg;
+  reg["name"] = "BAUD_REG";
+  reg["offset_hex"] = "0x0";
+  reg["offset_lsb"] = 0;
+  reg["size_width"] = 32;
+  reg["access"] = "RW";
+  reg["sw_access"] = "RW";
+  reg["hw_access"] = "RO";
+  reg["reset_hex"] = "0x0000";
+  reg["description"] = "Baud Rate Register";
+
+  json fld;
+  fld["name"] = "BAUD";
+  fld["offset_lsb"] = 0;
+  fld["size_width"] = 16;
+  fld["access"] = "RW";
+  fld["sw_access"] = "RW";
+  fld["hw_access"] = "RO";
+  fld["reset_hex"] = "0x0000";
+  fld["description"] = "Baud Rate Divisor";
+
+  reg["fields"] = json::array({fld});
+  blk["registers"] = json::array({reg});
+  root["blocks"] = json::array({blk});
+
+  std::vector<TemplateMapping> mappings;
+  mappings.push_back(
+      {"templates/asciidoctor/reg_doc.adoc.inja", "work/asciidoctor/spi_doc.adoc"});
+
+  GenerationReport report =
+      cg.generate(root, "./templates", "./work", mappings);
+  QVERIFY(!report.has_errors());
+
+  QFile out("work/asciidoctor/spi_doc.adoc");
+  const bool outOpened = out.open(QIODevice::ReadOnly | QIODevice::Text);
+  QVERIFY(outOpened);
+  QString content = out.readAll();
+  out.close();
+
+  QVERIFY(content.contains("= SPI_ADOC — Register Map Specification"));
+  QVERIFY(content.contains("ifndef::skip_features_spi_adoc"));
+  QVERIFY(content.contains("*Software Bus Access Policies*: Implements `RW` access policy"));
+  QVERIFY(!content.contains("Direct Memory Windows"));
+  QVERIFY(content.contains("== Block: SPI_CORE"));
+  QVERIFY(content.contains("`[15:0]`"));
+  QVERIFY(content.contains("*BAUD*"));
+}
+
 void TestCodeGenerator::testFullGenerationJsonMap() {
   CodeGenerator cg;
   json root;
@@ -1509,7 +1570,7 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration() {
 
   GenerationReport report = cg.parseDirectory(root, "templates", "work");
   QVERIFY(!report.has_errors());
-  QCOMPARE(report.success_files.size(), (size_t)24);
+  QCOMPARE(report.success_files.size(), (size_t)26);
 
   // Verify each expected output subfolder contains its rendered file
   QVERIFY(QFile::exists("work/c/reg_map.h"));
@@ -1524,6 +1585,8 @@ void TestCodeGenerator::testRecursiveDirectoryGeneration() {
   QVERIFY(QFile::exists("work/python/reg_map.py"));
   QVERIFY(QFile::exists("work/html/reg_doc.html"));
   QVERIFY(QFile::exists("work/markdown/reg_doc.md"));
+  QVERIFY(QFile::exists("work/markdown/reg_features.md"));
+  QVERIFY(QFile::exists("work/asciidoctor/reg_doc.adoc"));
   QVERIFY(QFile::exists("work/systemrdl/reg_map.rdl"));
   QVERIFY(QFile::exists("work/ipxact/reg_map.xml"));
   QVERIFY(QFile::exists("work/svd/reg_map.xml"));
@@ -2253,6 +2316,30 @@ void TestCodeGenerator::testPythonRunnerEdgeCases() {
   QVERIFY(err.find("Python script execution timed out") != std::string::npos);
   QVERIFY(err.find("100 ms") != std::string::npos);
 
+  // 6b. Python script timeout formatting in seconds (lines 870-872)
+  qputenv("RMAP_PYTHON_TIMEOUT", "1000");
+  bool okTimeoutSec = cg.runPythonScript(sleepScript.fileName().toStdString(),
+                                         data, "", nullptr, &err);
+  qunsetenv("RMAP_PYTHON_TIMEOUT");
+  QVERIFY(!okTimeoutSec);
+  QVERIFY(err.find("1 seconds") != std::string::npos);
+
+  // 6c. Zero reg_width_bytes fallback (line 433)
+  {
+    json zeroBytesData = json::object();
+    zeroBytesData["reg_width_bytes"] = 0;
+    zeroBytesData["blocks"] = json::array({
+        json::object({
+            {"name", "test_blk"},
+            {"registers", json::array({
+                json::object({{"name", "r0"}, {"offset_lsb", 0}})
+            })}
+        })
+    });
+    GenerationReport rep = cg.generate(zeroBytesData, "templates", "work/zero_out", {});
+    Q_UNUSED(rep);
+  }
+
   // 7. Successful execution with empty base_dir (workDir fallback)
   std::string outStr;
   bool okSuccessEmpty = cg.runPythonScript(scriptFile.fileName().toStdString(),
@@ -2402,6 +2489,10 @@ void TestCodeGenerator::testCommandLineInterface() {
   auto [codeVer, outVer] = runRmap({"--version"});
   QCOMPARE(codeVer, 0);
   QVERIFY(outVer.contains("rmap"));
+
+  // 2b. Positional argument for register map file
+  auto [codePos, outPos] = runRmap({"examples/rmt/peripherals/spi.rmt", "-l"});
+  QCOMPARE(codePos, 0);
 
   // 3. Headless mode auto-detection when neither DISPLAY nor WAYLAND_DISPLAY is
   // set
