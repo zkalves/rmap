@@ -183,10 +183,11 @@ include(FetchContent)
     add_custom_command(
         OUTPUT "${PROTO_SRC}" "${PROTO_HDR}"
         COMMAND ${PROTOC_CMD}
-        ARGS --cpp_out="${CMAKE_CURRENT_BINARY_DIR}/proto"
-             -I"${CMAKE_CURRENT_SOURCE_DIR}/proto"
-             --experimental_allow_proto3_optional
-             "${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto"
+                --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
+                --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
+                --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+                --experimental_allow_proto3_optional
+                ${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/proto/rmap.proto"
         COMMENT "Running cpp protocol buffer compiler on proto/rmap.proto"
         VERBATIM
