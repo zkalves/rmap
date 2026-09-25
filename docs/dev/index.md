@@ -198,7 +198,7 @@ python3 script/generate_coverage.py \
     --fail-under-branches 80.0
 ```
 
-Continuous coverage reports and interactive call graphs are published live on the [rmap Coverage Dashboard](https://zkalves.github.io/rmap/coverage/).
+Continuous coverage reports and interactive call graphs are published live on the [rmap Coverage Dashboard](coverage/index.html).
 
 ---
 

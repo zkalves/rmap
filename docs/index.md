@@ -47,8 +47,8 @@ docs/
 
 ## 📖 Offline Reference Manuals (PDF)
 
-- [**rmap User Manual (PDF)**](https://zkalves.github.io/rmap/pdf/rmap_user_manual.pdf): Complete 50-page user guide covering installation, interactive GUI operation, bitfield visualizer, CLI headless automation, Inja templating, and verification environments.
-- [**rmap Developer Guide (PDF)**](https://zkalves.github.io/rmap/pdf/rmap_developer_guide.pdf): In-depth 77-page C++ architecture and API reference detailing Qt 6 models, custom delegates, visualizer widgets, multi-format registry, undo/redo stack, and serialization.
+- [**rmap User Manual (PDF)**](pdf/rmap_user_manual.pdf): Complete 50-page user guide covering installation, interactive GUI operation, bitfield visualizer, CLI headless automation, Inja templating, and verification environments.
+- [**rmap Developer Guide (PDF)**](pdf/rmap_developer_guide.pdf): In-depth 77-page C++ architecture and API reference detailing Qt 6 models, custom delegates, visualizer widgets, multi-format registry, undo/redo stack, and serialization.
 
 ---
 

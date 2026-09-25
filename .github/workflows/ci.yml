@@ -335,14 +335,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install Doxygen & Graphviz
+      - name: Install Documentation Tools (Doxygen, Graphviz, TeX Live)
         run: |
           sudo apt-get update
-          sudo apt-get install -y doxygen graphviz
+          sudo apt-get install -y --no-install-recommends \
+            doxygen \
+            graphviz \
+            texlive-latex-base \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-recommended
 
-      - name: Render Documentation Site
+      - name: Render Documentation Site & Compile PDF Manuals
         run: |
-          doxygen docs/Doxyfile
+          python3 script/generate_docs.py
 
       - name: Download Coverage Artifact
         uses: actions/download-artifact@v5
