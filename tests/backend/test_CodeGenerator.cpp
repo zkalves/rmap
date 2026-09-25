@@ -2806,6 +2806,20 @@ void TestCodeGenerator::testCommandLineInterface() {
     QCOMPARE(cDiffNoFile, 1);
     QVERIFY(oDiffNoFile.contains("--diff requires an input register map file"));
 
+    // Empty --diff target argument
+    auto [cEmptyDiff, oEmptyDiff] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff", ""});
+    QCOMPARE(cEmptyDiff, 1);
+    QVERIFY(
+        oEmptyDiff.contains("--diff requires a comparison target file argument"));
+
+    // Empty --convert destination argument
+    auto [cEmptyConv, oEmptyConv] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--convert", ""});
+    QCOMPARE(cEmptyConv, 1);
+    QVERIFY(
+        oEmptyConv.contains("--convert requires a destination file argument"));
+
     // --strict compatibility
     auto [cStrictNoLint, oStrictNoLint] =
         runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--strict"});
