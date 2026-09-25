@@ -21,7 +21,7 @@ This document defines the supported operating systems, Linux distribution compat
 | **Fedora** | **38+** | &ge; 2.37 | **Tier-1 Native**: Standard dnf repositories. | Pre-built `.rpm`, `.AppImage`, source build |
 
 ### macOS Support
-- **macOS 12+ (Monterey, Ventura, Sonoma, Sequoia)**: Supported for source builds via Homebrew (`brew install cmake qt@6 protobuf`). Apple Silicon (M1/M2/M3/M4) and Intel x86_64 architectures are supported natively.
+- **macOS 12+ (Monterey, Ventura, Sonoma, Sequoia)**: Supported natively on Apple Silicon (M1/M2/M3/M4) and Intel x86_64 architectures. Install via Homebrew formula (`brew install zkalves/rmap/rmap`) or build from source (`brew install cmake qt@6 protobuf`).
 
 ### Windows Support
 - **Windows 10 / 11 via WSL2 (Ubuntu 22.04 / 24.04)**: Supported natively with full GUI support via WSLg or headless offscreen CLI execution.
@@ -76,6 +76,50 @@ sudo dnf install ./rmap-*.x86_64.rpm
 sudo zypper install ./rmap-*.x86_64.rpm
 ```
 
+#### OCI / Docker Container Image (Multi-Platform / CI/CD)
+Container images are hosted on GitHub Container Registry (`ghcr.io/zkalves/rmap:latest`) for containerized CI pipelines and Linux environments lacking Qt 6:
+
+```bash
+# Pull container image
+docker pull ghcr.io/zkalves/rmap:latest
+
+# Run CLI verification headlessly
+docker run --rm ghcr.io/zkalves/rmap:latest rmap --version
+
+# Run batch code generation
+docker run --rm -v "$(pwd):/work" -w /work ghcr.io/zkalves/rmap:latest \
+  rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
+```
+
+#### Homebrew Formula (macOS & Linux)
+Package formula for the Homebrew package manager supporting macOS (Apple Silicon & Intel) and Linuxbrew:
+
+```bash
+# Tap and install rmap
+brew install zkalves/rmap/rmap
+
+# Or build locally from formula
+brew install --build-from-source Formula/rmap.rb
+
+# Run installed executable
+rmap --version
+```
+
+#### Environment Modules / Lmod (HPC & EDA Clusters)
+Relocatable tarball distribution designed for cluster environments and shared NFS `/tools` installations:
+
+```bash
+# Extract into tool deployment root
+tar -xzf rmap-0.2.0-module-linux-x86_64.tar.gz -C /tools/
+
+# Add modulefiles to search path
+module use /tools/modulefiles
+
+# Load module environment
+module load rmap/0.2.0
+```
+Provides both Lmod Lua (`modulefiles/rmap/0.2.0.lua`) and classical Tcl (`modulefiles/rmap/0.2.0`) modulefiles that automatically configure `PATH`, `RMAP_DIR`, and `RMAP_TEMPLATE_PATH`.
+
 > [!NOTE]
 > **RHEL 8 / Rocky 8 / AlmaLinux 8 Compatibility**:
 > RHEL 8 features `glibc 2.28` and ships Qt 5 by default. To run `rmap` on RHEL 8, build directly from source using the EPEL 8 and `gcc-toolset-11` instructions, or run `make package-rpm` on your RHEL 8 host to create an `el8`-native RPM package.
@@ -84,7 +128,7 @@ sudo zypper install ./rmap-*.x86_64.rpm
 
 ## 2. Generating Packages Locally
 
-You can generate Debian, RPM, and AppImage packages locally using CMake/CPack or top-level `Makefile` targets:
+You can generate distribution packages locally using CMake/CPack, Docker, or top-level `Makefile` targets:
 
 ```bash
 # Build Debian (.deb) package in build/packages/
@@ -98,6 +142,18 @@ make package-rpm
 # Build standalone AppImage package
 make package-appimage
 # (or: ./script/build_appimage.sh)
+
+# Build OCI / Docker container image
+make package-docker
+# (or: docker build -t rmap:latest .)
+
+# Generate and validate Homebrew formula
+make package-homebrew
+# (or: python3 script/generate_homebrew_formula.py)
+
+# Build relocatable Environment Module package tarball
+make package-module
+# (or: ./script/build_module_package.sh)
 
 # Build all package formats simultaneously
 make package

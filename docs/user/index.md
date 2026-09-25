@@ -29,7 +29,7 @@ Depending on your role and operational workflow, we recommend following these re
   Prerequisites, toolchain dependencies, building from source with CMake/Make, and initial verification.
 
 - @subpage supported_os "Supported Operating Systems & Compatibility Matrix"
-  Linux distribution compatibility matrix, glibc baselines, and pre-built packages (AppImage, DEB, RPM).
+  Linux distribution compatibility matrix, glibc baselines, and pre-built packages (AppImage, DEB, RPM, Containers, Homebrew, Modules).
 
 - @subpage gui_guide "GUI User Guide"
   Dual-pane layout, 32/64-bit continuous bitfield visualizer, stacked memory map, inline validation, and shortcuts (`F1`).

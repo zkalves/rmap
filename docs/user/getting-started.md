@@ -10,7 +10,10 @@ Welcome to **rmap**! This guide helps you get started quickly with **rmap**, whe
 | :--- | :--- | :--- | :--- |
 | <b>Option 1: Standalone AppImage (Recommended)</b> | Quick evaluation, portable across all Linux distros | None (fully self-contained) | Download & run (`chmod +x`) |
 | <b>Option 2: Native Package (.deb / .rpm)</b> | Desktop users, standard workstation installations | System package manager (`apt` or `dnf`) | 1 command (`apt install` / `dnf install`) |
-| <b>Option 3: Compiling from Source</b> | Developers, contributors, custom deployments | C++17 compiler, CMake, Qt 6 & Protobuf dev headers | Build with `make` or `cmake` |
+| <b>Option 3: OCI Container Image</b> | CI/CD pipelines, containerized build environments | Docker or Podman | 1 command (`docker run`) |
+| <b>Option 4: Homebrew Formula</b> | macOS users and Linuxbrew environments | Homebrew (`brew`) | 1 command (`brew install`) |
+| <b>Option 5: Environment Modules / Lmod</b> | Shared EDA server clusters & HPC environments | `lmod` or `environment-modules` | Extract & `module load` |
+| <b>Option 6: Compiling from Source</b> | Developers, contributors, custom deployments | C++17 compiler, CMake, Qt 6 & Protobuf dev headers | Build with `make` or `cmake` |
 
 ---
 
@@ -58,6 +61,59 @@ sudo dnf install ./rmap-*.x86_64.rpm
 sudo zypper install ./rmap-*.x86_64.rpm
 
 # Verify installation
+rmap --version
+```
+
+### Option D: OCI / Docker Container Image (Docker / Podman)
+
+Official container images are published to the GitHub Container Registry (`ghcr.io/zkalves/rmap:latest`). The container bundles all dependencies and templates, providing a clean, reproducible headless execution environment:
+
+```bash
+# Pull the latest container image
+docker pull ghcr.io/zkalves/rmap:latest
+
+# Display version
+docker run --rm ghcr.io/zkalves/rmap:latest rmap --version
+
+# Run headless code generation mounting the current directory
+docker run --rm -v "$(pwd):/work" -w /work ghcr.io/zkalves/rmap:latest \
+  rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
+
+# Podman (rootless container runtime)
+podman run --rm -v "$(pwd):/work:Z" -w /work ghcr.io/zkalves/rmap:latest \
+  rmap --help
+```
+
+### Option E: Homebrew Formula (macOS & Linux)
+
+Install `rmap` using Homebrew on macOS (Apple Silicon and Intel) or Linux (Linuxbrew):
+
+```bash
+# Tap repository and install rmap
+brew install zkalves/rmap/rmap
+
+# Or install from local formula in repository
+brew install --build-from-source Formula/rmap.rb
+
+# Verify installation
+rmap --version
+```
+
+### Option F: Environment Modules / Lmod (HPC & EDA Clusters)
+
+For semiconductor design teams, shared EDA compute clusters, and HPC environments utilizing Lmod or classical Environment Modules, `rmap` provides relocatable module packages:
+
+```bash
+# Extract relocatable package into cluster software repository (e.g., /tools)
+tar -xzf rmap-0.2.0-module-linux-x86_64.tar.gz -C /tools/
+
+# Add modulefiles directory to MODULEPATH
+module use /tools/modulefiles
+
+# Load rmap module into current shell session
+module load rmap/0.2.0
+
+# Verify environment variables (PATH, RMAP_DIR, RMAP_TEMPLATE_PATH)
 rmap --version
 ```
 

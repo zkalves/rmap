@@ -103,9 +103,13 @@ def format_inline(text: str) -> str:
             safe_code = escape_latex(token[1:-1])
             parts.append(r'\texttt{' + safe_code + r'}')
         else:
-            sub_tokens = re.split(r'(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))', token)
+            sub_tokens = re.split(r'(<b>[^<]+</b>|<i>[^<]+</i>|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))', token)
             for st in sub_tokens:
-                if st.startswith('**') and st.endswith('**') and len(st) >= 4:
+                if st.startswith('<b>') and st.endswith('</b>') and len(st) >= 7:
+                    parts.append(r'\textbf{' + escape_latex(st[3:-4]) + r'}')
+                elif st.startswith('<i>') and st.endswith('</i>') and len(st) >= 7:
+                    parts.append(r'\textit{' + escape_latex(st[3:-4]) + r'}')
+                elif st.startswith('**') and st.endswith('**') and len(st) >= 4:
                     parts.append(r'\textbf{' + escape_latex(st[2:-2]) + r'}')
                 elif st.startswith('*') and st.endswith('*') and len(st) >= 2:
                     parts.append(r'\textit{' + escape_latex(st[1:-1]) + r'}')
