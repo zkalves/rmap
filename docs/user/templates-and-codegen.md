@@ -1,4 +1,4 @@
-# Templates & Code Generation
+# Templates & Code Generation {#templates_codegen}
 
 **rmap** uses the **Pantor Inja** template engine (a modern C++ template engine inspired by Jinja2) and **nlohmann/json** to render hardware RTL, verification models, embedded firmware, driver classes, and documentation artifacts from the register hierarchy.
 
@@ -399,5 +399,5 @@ Every template in `templates/` is validated through automated test pipelines in 
 
 - **CI/CD Integration**: In GitHub Actions (`.github/workflows/ci.yml`), the `test-templates` matrix job runs all parallel test jobs in CI with deliverable-specific toolchains (`verilator 5.052`, `rustc`, `libxml2-utils`, `peakrdl`, etc.).
 
-[Next: Architecture & Internal Data Flow &rarr;](architecture.md)
+[Next: Architecture & Internal Data Flow &rarr;](@ref architecture)
 

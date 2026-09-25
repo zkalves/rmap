@@ -1,143 +1,141 @@
-# Architecture & Internals
+# Register Map Architecture & Data Model {#architecture}
 
-**rmap** is built with a modular, decoupled architecture adhering to modern Qt 6 and C++17 best practices.
+**rmap** is designed around a unified register map data model that captures hardware register hierarchies, memory spaces, multi-domain bus mappings, and comprehensive hardware/software access semantics across the entire silicon and firmware lifecycle.
 
 ---
 
-## 1. High-Level Architecture
+## 1. Register Map Hierarchy & Data Model
+
+**rmap** organizes hardware address spaces into a strict 4-level parent-child tree hierarchy:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                       Qt 6 GUI Layer                                   │
-│                                                                        │
-│   RegMapWindow (Main Window)                                           │
-│    ├── Search Bar (QLineEdit with live regex & substring matching)     │
-│    ├── Undo Stack (QUndoStack: EditCell, InsertItem, DeleteItem)       │
-│    ├── Left Panel: QTreeView (TreeFilterProxyModel)                    │
-│    │     └─ Displays Blocks (blk), Memories (mem), Maps, & Registers   │
-│    └── Right Panel (Stacked Views):                                    │
-│          ├── Register View: RegBitfieldBarWidget & Fields Table        │
-│          └── Block View: BlockMemoryMapWidget (Stacked Memory Map)     │
-└──────────────────────────────┬─────────────────────────────────────────┘
-                               │
-                               ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                 Data Model & Validation Engine                         │
-│                                                                        │
-│   RegMapTreeModel (QAbstractItemModel)                                 │
-│    ├── RegMapTreeItem Hierarchy: Root -> Blk / Mem / Map -> Reg -> Fld │
-│    ├── Real-time validation: checks address overlaps & bit bounds      │
-│    ├── Linter & Strict Rule Checker (SARIF, JUnit XML, JSON, Text)     │
-│    ├── Semantic Diff Engine (AST-level structural comparison)          │
-│    └── extractJsonData(): Converts tree to nlohmann::json              │
-└──────────────┬───────────────────────────────┬─────────────────────────┘
-               │                               │
-               ▼ (Multi-Format I/O)            ▼ (Multi-Target Codegen)
-┌────────────────────────────────────────┐ ┌─────────────────────────────┐
-│       Format Handlers (src/format/)    │ │     Inja Code Generator     │
-│                                        │ │                             │
-│  - CmsisSvdHandler (ARM CMSIS-SVD)     │ │  CodeGenerator.cpp          │
-│  - SystemRdlHandler (SystemRDL 1.0/2.0)│ │  - Custom helpers:          │
-│  - IpxactHandler (IEEE 1685-2009/2022) │ │    c_type, msb, camel_case, │
-│  - ProtobufHandler (.rmt / .rmb)       │ │    pascal_case, snake_case  │
-│  - JsonHandler (Standard JSON schema)  │ │  - Output: Synthesizable SV,│
-│  - CsvHandler (RFC 4180 Spreadsheet)   │ │    UVM, C/C++, Rust, Python,│
-│                                        │ │    Interactive HTML docs    │
-└────────────────────────────────────────┘ └─────────────────────────────┘
+Root (Project / Address Map)
+ ├── Register Block (blk)       ── Base address, address range, register instances
+ │    ├── Register (reg)        ── Byte offset, data width, reset value, fields
+ │    │    └── Field (fld)      ── Bit position (LSB), bit width, SW/HW access policies
+ │    └── Memory Window (mem)   ── SRAM/FIFO window, size, access permissions
+ └── Address Map (map)          ── Alternative bus domain mapping (e.g. AXI vs APB)
 ```
+
+### The 11-Column Register Model
+
+Every node in the register map is defined through an 11-column attribute specification:
+
+| # | Column | Description | Supported Values / Format |
+| :-: | :--- | :--- | :--- |
+| **0** | **Type** | Node element kind in the address map. | `blk` (Block), `reg` (Register), `fld` (Field), `mem` (Memory), `map` (Address Map) |
+| **1** | **Offset** | Register byte offset or Field bit position (LSB). | Hex zero-padded (`0x0000`), Decimal (`0`), Binary (`0b0`) |
+| **2** | **Size** | Bit width for Fields or byte size for Memories. | Integer (1 to 1024 bits for fields; bytes for memory) |
+| **3** | **Name** | Semantic identifier for RTL signals, macros, and structs. | Valid identifier (`[a-zA-Z_][a-zA-Z0-9_]*`) |
+| **4** | **Access Policy (SW)** | Software / Bus register access policy (24 IEEE 1800.2 policies). | `RW`, `RO`, `WO`, `W1`, `WO1`, `W1C`, `W1S`, `W1T`, `W0C`, `W0S`, `W0T`, `RC`, `RS`, `WRC`, `WRS`, `WC`, `WS`, `W1SRC`, `W1CRS`, `W0SRC`, `W0CRS`, `WOC`, `WOS`, `NOACCESS` |
+| **5** | **HW Access** | Hardware internal core logic access mode. | `RO`, `RW`, `WO`, `NA`, `W1C`, `W1S`, `W0C`, `RS`, `RC` |
+| **6** | **Reset Value** | Hardware reset value for the register or field. | Hexadecimal (`0x0`), Decimal (`0`), Binary (`0b0`) |
+| **7** | **Is Rand** | UVM verification randomization flag (`rand`). | `true` / `false` |
+| **8** | **Volatile** | Hardware volatile qualifier for C/C++ and Rust headers. | `true` / `false` |
+| **9** | **Has Reset** | Whether the bitfield has an explicit reset state. | `true` / `false` |
+| **10**| **Description** | Human-readable documentation string for registers, fields, and blocks. | String |
+
+### Architectural Validation Rules
+
+During interactive editing and headless CLI verification (`--lint`), the validation engine enforces strict architectural invariants:
+- **Bit Range Boundaries**: Field bit spans (`[LSB + Size - 1 : LSB]`) cannot exceed the register's defined data width.
+- **Field Overlap Detection**: Multiple bitfields within the same register cannot share or overlap bit positions.
+- **Register Address Alignment**: Register offsets must align to the native word size of the bus interface.
+- **Block Boundary Enclosure**: Register offsets and memory window ranges must fit completely within their parent block's declared address space.
+- **Unmapped Gap Detection**: Address gaps between registers and unmapped bit positions within registers are explicitly detected and reported.
 
 ---
 
-## 2. Core Components
+## 2. Dynamic & Parameterizable Data Widths
 
-### `RegBitfieldBarWidget` (`src/RegBitfieldBarWidget.*`)
-- Custom `QWidget` rendering a vector graphical representation of the selected register's 32/64-bit architecture.
-- Calculates and renders occupied field slices and unmapped/reserved slices in **40% dark gray** (`#666666`) with 45° diagonal micro-stripes and a bold `RSVD` badge.
-- Provides accessible Color-Blind mode (`Ctrl+Alt+C`) with Okabe-Ito barrier-free palettes and textual tags.
-- Provides interactive hover tooltips with complete bitfield metrics (Name, Bit Range, Width, SW Access, HW Access, Reset, Description).
-- Provides bidirectional synchronization with the bitfields table.
+**rmap** supports flexible, parameterizable register widths:
 
-### `UndoCommands` (`src/UndoCommands.hpp`)
-- Modular `QUndoCommand` implementations supporting granular undo/redo:
-  - `EditCellCommand`: Handles scalar property mutations.
-  - `InsertItemCommand`: Handles row insertions into the tree hierarchy.
-  - `DeleteItemCommand`: Recursively captures complete sub-trees to enable non-destructive restoration.
+- **Arbitrary Data Width Support**: Registers and buses are not constrained to fixed 32-bit or 64-bit boundaries. Register widths are dynamically configurable per project, block, or register (supporting **8, 16, 32, 64, 128, 256, 512, and 1024-bit** widths).
+- **HDL Parameterization**: RTL code generators emit configurable generic parameters (e.g. `DATA_WIDTH`) with automatically computed byte-strobe widths (`[DATA_WIDTH/8-1:0]`) and address decode logic scaled to native word alignments.
+- **Continuous Bitfield Slicing**: Bitfields can span arbitrary bit positions up to the register width, with unmapped bits automatically allocated as reserved slices (`RSVD`).
 
-### `RegMapTreeItem` & `RegMapTreeModel`
-- Implements an 11-column hierarchical tree node structure (`root` &rarr; `blk` &rarr; `reg` &rarr; `fld`).
-- Columns: `Type`, `Offset/LSB`, `Size/Width`, `Name`, `Access Policy (SW)`, `HW Access`, `Reset Value`, `Is Rand`, `Volatile`, `Has Reset`, `Description`.
-- `RegMapTreeModel` subclasses `QAbstractItemModel`, providing Qt Views with observable data, row insertion, deletion, and property updates.
-- Performs non-blocking validation tracking in `m_invalidCells`.
+---
 
-### Dynamic & Parameterizable Data Width
-- **Arbitrary Data Width Support**: Register and bus widths are not constrained to fixed 32-bit or 64-bit boundaries. Register widths are dynamically configurable per project, block, or register (supporting 8, 16, 32, 64, 128, 256, 512+ bits).
-- **HDL Parameterization**: RTL code generators emit a configurable generic parameter (e.g. `DATA_WIDTH`) with automatically computed byte-strobe widths (`[DATA_WIDTH/8-1:0]`) and address decode logic scaled to native word alignments.
+## 3. Access Policy Matrix & Behavioral Semantics
 
-### Access Policy Matrix & Behavioral Semantics
+### Comprehensive Software Access Policies (IEEE 1800.2 UVM Standard)
 
-#### Comprehensive Software Access Policies (IEEE 1800.2 UVM Standard)
-The tool supports the full standard set of UVM access modes defined in IEEE 1800.2 `uvm_reg_field.svh`:
+**rmap** supports the full set of 24 UVM access modes defined in IEEE 1800.2 (`uvm_reg_field`):
 
-| Policy | Read Effect | Write Effect | Description |
+| Policy | Read Effect | Write Effect | Description & Common Use-Case |
 | :--- | :--- | :--- | :--- |
-| **`RW`** | Read current value | Write updates stored value | Standard Read/Write. |
-| **`RO`** | Read current value | Writes ignored | Read-Only status register. |
-| **`WO`** | Returns 0 / undefined | Write updates stored value | Write-Only command register. |
-| **`RC`** | Read current value; clears to 0 | Writes ignored | Read-to-Clear. |
-| **`RS`** | Read current value; sets to 1 | Writes ignored | Read-to-Set. |
+| **`RW`** | Read current value | Write updates stored value | Standard Read/Write control registers and configuration parameters. |
+| **`RO`** | Read current value | Writes ignored | Read-Only status register, revision IDs, live hardware telemetry. |
+| **`WO`** | Returns 0 / undefined | Write updates stored value | Write-Only command registers and software reset pulses. |
+| **`RC`** | Read current value; clears to 0 | Writes ignored | Read-to-Clear event registers. |
+| **`RS`** | Read current value; sets to 1 | Writes ignored | Read-to-Set status registers. |
 | **`WC`** | Read current value | All bits cleared to 0 | Write-Clear (clears on any write). |
 | **`WS`** | Read current value | All bits set to 1 | Write-Set (sets on any write). |
 | **`WRC`** | Read current value; clears to 0 | Write updates stored value | Write Read-Clear. |
 | **`WRS`** | Read current value; sets to 1 | Write updates stored value | Write Read-Set. |
-| **`W1C`** | Read current value | Write '1' clears bit; '0' no effect | Write-1-to-Clear interrupt status. |
-| **`W1S`** | Read current value | Write '1' sets bit; '0' no effect | Write-1-to-Set override flag. |
-| **`W1T`** | Read current value | Write '1' toggles bit; '0' no effect | Write-1-to-Toggle. |
-| **`W0C`** | Read current value | Write '0' clears bit; '1' no effect | Write-0-to-Clear. |
-| **`W0S`** | Read current value | Write '0' sets bit; '1' no effect | Write-0-to-Set. |
-| **`W0T`** | Read current value | Write '0' toggles bit; '1' no effect | Write-0-to-Toggle. |
+| **`W1C`** | Read current value | Write '1' clears bit; '0' no effect | Write-1-to-Clear interrupt status flags. |
+| **`W1S`** | Read current value | Write '1' sets bit; '0' no effect | Write-1-to-Set software override flags. |
+| **`W1T`** | Read current value | Write '1' toggles bit; '0' no effect | Write-1-to-Toggle diagnostic registers. |
+| **`W0C`** | Read current value | Write '0' clears bit; '1' no effect | Write-0-to-Clear active-low interrupt status. |
+| **`W0S`** | Read current value | Write '0' sets bit; '1' no effect | Write-0-to-Set active-low flags. |
+| **`W0T`** | Read current value | Write '0' toggles bit; '1' no effect | Write-0-to-Toggle diagnostic registers. |
 | **`W1SRC`** | Read clears to 0 | Write '1' sets bit; '0' no effect | Write-1-Set, Read-Clear. |
 | **`W1CRS`** | Read sets to 1 | Write '1' clears bit; '0' no effect | Write-1-Clear, Read-Set. |
 | **`W0SRC`** | Read clears to 0 | Write '0' sets bit; '1' no effect | Write-0-Set, Read-Clear. |
 | **`W0CRS`** | Read sets to 1 | Write '0' clears bit; '1' no effect | Write-0-Clear, Read-Set. |
-| **`W1`** | Read current value | First write after reset updates; subsequent ignored | Write-Once. |
-| **`WO1`** | Returns 0 / undefined | First write updates; subsequent ignored | Write-Only Once. |
-| **`WOC`** | Returns 0 / undefined | Clears all bits to 0 | Write-Only Clear. |
-| **`WOS`** | Returns 0 / undefined | Sets all bits to 1 | Write-Only Set. |
-| **`NOACCESS`** | Read prohibited | Writes prohibited | Unmapped / Reserved slice. |
+| **`W1`** | Read current value | First write updates; subsequent ignored | Write-Once security configuration keys. |
+| **`WO1`** | Returns 0 / undefined | First write updates; subsequent ignored | Write-Only Once tamper lockout keys. |
+| **`WOC`** | Returns 0 / undefined | Clears all bits to 0 | Write-Only Clear trigger. |
+| **`WOS`** | Returns 0 / undefined | Sets all bits to 1 | Write-Only Set trigger. |
+| **`NOACCESS`** | Read prohibited | Writes prohibited | Unmapped / Reserved register slice (`NA`). |
 
-#### Hardware Access Policies (HW)
-Defines how internal peripheral hardware logic interfaces with the register storage:
+### Hardware Access Policies (HW)
+
+Defines how internal peripheral logic interfaces with the register storage:
 - **`RO`**: Hardware only observes the field output (`hw_<reg>_<fld>_o`).
-- **`RW`**: Hardware observes and writes updates via `hw_<reg>_<fld>_i` when `hw_<reg>_<fld>_we_i` is high.
+- **`RW`**: Hardware observes and writes updates via `hw_<reg>_<fld>_i` when `hw_<reg>_<fld>_we_i` is asserted.
 - **`WO`**: Hardware drives updates directly into the register flip-flops.
 - **`W1C` / `W1S` / `W0C` / `RC` / `RS`**: Hardware drives event set/clear/toggle strobes.
 - **`NA`**: No hardware connection.
 
-#### Hardware vs. Software Arbitration
-- **Configurable Precedence**: Synthesis and simulation models support a parameterizable precedence rule (`PARAM_HW_PRECEDENCE`):
-  - `HW_PRECEDENCE = 1` (Default): When software and hardware attempt concurrent writes on the same cycle, hardware updates take priority to preserve safety and interrupt timing.
-  - `HW_PRECEDENCE = 0`: Software write takes priority over hardware write.
+### Hardware vs. Software Arbitration
 
-#### Software Access Strobes
-- **Signal Definition**: Synthesizable RTL emits both register-level strobes (`sw_<reg>_wr_strobe_o` / `sw_<reg>_rd_strobe_o`) and field-level strobes (`sw_<reg>_<fld>_wr_strobe_o` / `sw_<reg>_<fld>_rd_strobe_o`).
-- **Purpose**: A 1-cycle active-high pulse asserted when software successfully executes a write or read access to a specific register or field.
-- **Hardware Integration**: Enables internal peripheral logic to react immediately to software transactions without polling (e.g. triggering an SPI transaction start, acknowledging/clearing an interrupt pending flag, resetting a hardware timer, popping/pushing a hardware FIFO, or latching shadow register updates).
+When software and hardware attempt concurrent writes on the same clock cycle, synthesis and simulation models support configurable precedence rules:
+- **`HW_PRECEDENCE = 1` (Default)**: Hardware updates take priority over software writes to preserve safety timing and avoid missing critical hardware interrupts.
+- **`HW_PRECEDENCE = 0`**: Software writes take priority over hardware updates.
 
-### Multiple Address Maps (`uvm_reg_map`)
-- **Multi-Map Support**: In enterprise SoCs, peripherals are frequently accessed through multiple bus interfaces (e.g., AXI4-Lite fast path vs. APB4 debug interface) or across different address offsets and privilege regimes (Secure vs. Non-Secure worlds).
-- **Architecture**: `rmap` allows assigning registers to multiple distinct `uvm_reg_map` instances within a `uvm_reg_block` (e.g. `apb_map`, `axi_map`), configuring independent base addresses, offsets, and access privileges per map.
+### Software Access Strobes
 
-### Multi-Format Architecture & Compatibility Matrix (`src/format/`)
-- `FormatManager`: Central format registry and dispatcher supporting automatic format detection from file extension and content inspection. When extensions are ambiguous (such as `.xml` shared by ARM CMSIS-SVD and IP-XACT), missing, or unrecognized, `FormatManager` performs non-destructive content inspection to identify the correct handler (e.g., detecting `<device` for CMSIS-SVD, `<ipxact:` or `<spirit:` for IP-XACT, `addrmap` for SystemRDL, JSON schema tokens, and Protobuf binary wire headers).
-- `IFormatHandler`: Abstract base interface defining standard `read()` and `write()` operations for all register map formats.
-  - **`CmsisSvdHandler`**: Full reader and writer for **ARM CMSIS-SVD** (`.svd`, `.xml`) microcontroller specifications.
-  - **`SystemRdlHandler`**: Custom lexer and recursive-descent parser for **SystemRDL 1.0 & 2.0** (`.rdl`, `.systemrdl`).
-  - **`IpxactHandler`**: Streaming XML parser and serializer for **IP-XACT IEEE 1685-2009, 2014, and 2022** (`.xml`, `.ipxact`).
-  - **`JsonHandler`**: Structured JSON schema serialization via `nlohmann/json` (`.json`).
-  - **`CsvHandler`**: RFC 4180 compliant CSV / TSV spreadsheet format for Excel-based register authoring (`.csv`, `.tsv`).
-  - **`ProtobufHandler`**: Protobuf text format (`.rmt`) and high-performance binary serialization (`.rmb`).
+Synthesizable RTL templates emit dedicated 1-cycle active-high pulse strobes for software operations:
+- **Register-Level Strobes**: `sw_<reg>_wr_strobe_o` (write pulse) and `sw_<reg>_rd_strobe_o` (read pulse).
+- **Field-Level Strobes**: `sw_<reg>_<fld>_wr_strobe_o` and `sw_<reg>_<fld>_rd_strobe_o`.
+- **Purpose**: Enables peripheral logic to react immediately to software transactions without polling (e.g. triggering an SPI transfer, acknowledging an interrupt, resetting a hardware timer, or popping a FIFO).
 
-#### Format Capabilities, Limitations & Implications Matrix
+---
+
+## 4. Multiple Address Maps (`uvm_reg_map`)
+
+Modern SoCs frequently access the same peripheral through multiple bus interfaces or security privilege regimes:
+- **Multi-Bus Domains**: Dual interfaces such as an AXI4-Lite high-speed datapath and an APB4 low-power configuration/debug interface.
+- **Security & Privilege Domains**: Secure World vs. Non-Secure World address mappings with differing offsets and access permissions.
+- **Multi-Map Support in rmap**: Allows assigning registers to multiple distinct `uvm_reg_map` instances within a `uvm_reg_block` (e.g. `apb_map`, `axi_map`), configuring independent base addresses, offsets, and access privileges per map.
+
+---
+
+## 5. Multi-Format Interoperability Matrix
+
+**rmap** provides bidirectional roundtrip translation across industry-standard register specification formats:
+
+| Format | Standard / Ecosystem | File Extensions | Primary Use-Case |
+| :--- | :--- | :--- | :--- |
+| **ARM CMSIS-SVD** | ARM Cortex-M Ecosystem | `.svd`, `.xml` | Microcontroller peripheral descriptions, IDE debuggers, firmware drivers. |
+| **SystemRDL** | Accellera Standard (1.0 & 2.0) | `.rdl`, `.systemrdl` | Formal register description language for silicon IP and SoC integration. |
+| **IP-XACT** | IEEE 1685 (2009, 2014, 2022) | `.xml`, `.ipxact` | Multi-vendor SoC packaging, EDA toolchain integration, bus interfaces. |
+| **Google Protobuf** | rmap Native Architecture | `.rmt` (text), `.rmb` (binary) | High-speed native serialization, lossless attribute preservation, project files. |
+| **JSON** | Standard JSON Schema | `.json` | Web dashboards, custom Python scripting, CI/CD automated validation. |
+| **CSV / TSV** | RFC 4180 Tabular Data | `.csv`, `.tsv` | Spreadsheet authoring in Excel/LibreOffice, team register reviews. |
+
+### Format Capabilities, Limitations & Implications
 
 | Format | Native Capabilities | Known Limitations | Technical Implications |
 | :--- | :--- | :--- | :--- |
@@ -148,62 +146,26 @@ Defines how internal peripheral hardware logic interfaces with the register stor
 | **JSON Schema** | Machine-readable, extensible, easy web and CI script integration. | Non-standardized industry schema; differs between EDA vendor implementations. | Standardized within rmap ecosystem; custom JSON schemas require mapping to rmap's JSON schema. |
 | **CSV / TSV** | Universal spreadsheet tabular authoring in Excel/LibreOffice. | Flat table structure; cannot represent multi-level nested addrmaps or multi-map configurations natively. | Exporting deep hierarchies to CSV flattens names (e.g. `block_reg_field`); re-import requires hierarchical reconstruction. |
 
-### CodeGenerator
-- Wraps the Pantor Inja template engine.
-- Manages template file resolution, Inja environment scoping, and destination path creation.
-- Registers 12 domain helpers: `upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `msb`, `to_hex`, `to_dec`, `bitmask`, `pad_zero`, and `sv_hex`.
-- **Dynamic Path Variables**: Output destination paths support dynamic interpolation tokens:
-  - `{out_dir}` or `{out}`: Evaluates to the target base export directory.
-  - `{name}` or `{block_name}` / `{block}`: Evaluates to the register block name (or register map name).
-  - `{project_name}` or `{project}`: Evaluates to the project name.
-  - `{category}` or `{cat}`: Evaluates to the template sub-category.
-  - `{template_name}` or `{filename}`: Evaluates to the template name.
-  - `{file_extension}` or `{ext}`: Evaluates to the target output file extension.
+---
 
-### `PathUtils` & Environment Variables (`src/PathUtils.*`)
-- Centralized path resolution and normalization engine:
-  - Expands environment variables (`$VAR`, `${VAR}`, Windows `%VAR%`, and `~`).
-  - Resolves relative paths prioritizing active register map file directory over CWD.
-  - Converts absolute GUI selections and paths to clean, portable relative paths.
-- **Environment Variables**:
-  - `RMAP_CONFIG_FILE`: Overrides default path to the persistent user configuration file (`~/.config/rmap/rmap.conf`).
-  - `RMAP_THEMES_PATH` / `RMAP_THEME_DIR`: Defines filesystem search directories for custom color themes.
-  - `RMAP_TRANSLATIONS_PATH` / `RMAP_TRANSLATION_DIR`: Defines filesystem search directories for runtime JSON translation catalogs (`rmap_*.json`).
-  - `RMAP_TEMPLATES_DIR`: Overrides default search path for Inja templates.
-  - `RMAP_EXAMPLES_DIR`: Overrides default search path for bundled examples.
-  - `RMAP_DOCS_DIR`: Overrides default path for offline documentation.
-  - `RMAP_PYTHON` / `PYTHON`: Custom Python interpreter binary.
-  - `RMAP_PYTHON_TIMEOUT`: Configures execution timeout in milliseconds for Python scripts and generators (default: 60000 ms).
-  - `RMAP_TMPDIR`: Custom temporary directory for intermediate JSON context files.
+## 6. Configuration & Environment Variables
 
-### Protobuf Serialization (`rmap.proto`)
-- `protormap::Config`: Stores template paths, output destinations, global register width, project metadata, and custom template key-values.
-- `protormap::RegModel` & `protormap::RegItem`: Hierarchical node tree representation supporting both human-readable text (`.rmt`) and high-speed binary (`.rmb`) serialization.
+**rmap** behavior, template paths, and resource discovery can be configured through environment variables:
+
+| Variable | Description | Default Fallback |
+| :--- | :--- | :--- |
+| `RMAP_CONFIG_FILE` | Path to persistent user configuration file. | `~/.config/rmap/rmap.conf` |
+| `RMAP_THEMES_PATH` / `RMAP_THEME_DIR` | Directory containing custom color scheme files. | Bundled application themes |
+| `RMAP_TRANSLATIONS_PATH` / `RMAP_TRANSLATION_DIR` | Directory containing custom JSON translations (`rmap_*.json`). | Bundled compiled translations |
+| `RMAP_TEMPLATES_DIR` | Search directory for Inja code generation templates. | Bundled `templates/` directory |
+| `RMAP_EXAMPLES_DIR` | Directory containing reference register map examples. | Bundled `examples/` directory |
+| `RMAP_DOCS_DIR` | Directory containing offline documentation. | Bundled `_site/` directory |
+| `RMAP_PYTHON` / `PYTHON` | Custom Python interpreter binary for test and helper scripts. | `python3` from `PATH` |
+| `RMAP_PYTHON_TIMEOUT` | Execution timeout in milliseconds for Python scripts and generators. | `60000` (60 seconds) |
+| `RMAP_TMPDIR` | Custom temporary directory for intermediate files. | System temporary directory |
 
 ---
 
-## 3. C++ Class Reference Documentation
-
-Detailed C++ API reference documentation for each individual class, delegate, visualizer widget, and format handler is generated automatically by Doxygen from source headers:
-
-- [**C++ Subsystem Architecture Guide**](../dev/index.md)
-- [**Complete C++ Class List**](annotated.html) & [**Class Hierarchy**](hierarchy.html)
-- [**Source Code File Directory**](files.html)
-- [Application Entry Point (`main.cpp`)](main_8cpp.html)
-- [Main Window Controller (`RegMapWindow`)](classRegMapWindow.html)
-- [About Dialog (`AboutWindow`)](classAboutWindow.html)
-- [Bitfield Slice Visualizer (`RegBitfieldBarWidget`)](classRegBitfieldBarWidget.html)
-- [Stacked Memory Map (`BlockMemoryMapWidget`)](classBlockMemoryMapWidget.html)
-- [Tree Model (`RegMapTreeModel`)](classRegMapTreeModel.html) & [Node Items (`RegMapTreeItem`)](classRegMapTreeItem.html)
-- [Item Delegates (`RegMapDelegate`)](classRegMapDelegate.html) & [Navigation Tree (`RegMapTreeView`)](classRegMapTreeView.html)
-- [Project Configuration Dialog (`RegConfigWindow`)](classRegConfigWindow.html)
-- [Preferences Dialog (`PreferencesWindow`)](classPreferencesWindow.html)
-- [Code Generator (`CodeGenerator`)](classCodeGenerator.html)
-- [Format Registry (`FormatManager`)](classFormatManager.html) & [Format Base Interface (`IFormatHandler`)](classIFormatHandler.html)
-- [Format Handlers: ARM CMSIS-SVD (`CmsisSvdHandler`)](classCmsisSvdHandler.html), [SystemRDL (`SystemRdlHandler`)](classSystemRdlHandler.html), [IP-XACT (`IpxactHandler`)](classIpxactHandler.html), [JSON (`JsonHandler`)](classJsonHandler.html), [CSV (`CsvHandler`)](classCsvHandler.html), [Protobuf (`ProtobufHandler`)](classProtobufHandler.html)
-- [Theme Engine (`ThemeManager`)](classThemeManager.html) & [Settings (`AppSettings`)](classAppSettings.html)
-- [Internationalization Manager (`LanguageManager`)](classLanguageManager.html) & [JSON Translator (`JsonTranslator`)](classJsonTranslator.html)
-- [Path Utilities (`PathUtils`)](namespacePathUtils.html) & [Undo Commands (`UndoCommands`)](UndoCommands_8hpp.html)
-- [Object Graph Serialization (`SerializationContext`)](classSerializationContext.html), [Object Factory (`ObjectFactory`)](classObjectFactory.html), [Serializable Interface (`Serializable`)](classSerializable.html) & [Protobuf Log Collector (`ProtobufLogCollector`)](classProtobufLogCollector.html)
-
-
+> [!NOTE]
+> **Developer Documentation**:
+> For the internal Modern C++17 / Qt 6 subsystem design, model-view contracts, and complete C++ API reference, see the [rmap Developer Guide](@ref dev_guide) and [C++ Subsystem Architecture](@ref dev_architecture).
