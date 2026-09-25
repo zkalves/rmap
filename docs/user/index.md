@@ -7,6 +7,7 @@ Welcome to the documentation for **rmap**, an open-source tool for hardware regi
 ## Documentation Sections
 
 - [🚀 Getting Started](getting-started.md) — Installation, building, and basic workflow.
+- [🐧 Supported Operating Systems](supported-os.md) — Linux distribution compatibility matrix, glibc baselines, and packages.
 - [🖥️ GUI User Guide](gui-guide.md) — Visual design, bitfield packing, validation, and context menus.
 - [⚙️ CLI Reference & Automation](cli-reference.md) — Headless batch generation for CI/CD and Makefiles.
 - [📝 Templates & Code Generation](templates-and-codegen.md) — Writing Inja templates, using helper functions, and custom variables.

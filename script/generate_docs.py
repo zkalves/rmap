@@ -30,6 +30,7 @@ from pathlib import Path
 USER_MANUAL_DOCS = [
     ("docs/index.md", "Overview & Architecture", "Introduction"),
     ("docs/user/getting-started.md", "Getting Started & Installation", "User Guide"),
+    ("docs/user/supported-os.md", "Supported Operating Systems & Compatibility Matrix", "User Guide"),
     ("docs/user/gui-guide.md", "Interactive GUI User Guide", "User Guide"),
     ("docs/user/cli-reference.md", "Command-Line Interface & Automation", "User Guide"),
     ("docs/user/templates-and-codegen.md", "Code Generation & Templates", "User Guide"),

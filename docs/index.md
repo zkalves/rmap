@@ -13,7 +13,8 @@ docs/
 │   ├── templates-and-codegen.md# Inja template catalog (RTL SV/Verilog/VHDL, UVM, C, Rust), helpers
 │   ├── cli-reference.md        # Headless generation, CI/CD linting (SARIF/JUnit), semantic diff
 │   ├── gui-guide.md            # Interactive GUI walkthrough, bitfield visualizer, themes
-│   └── getting-started.md      # Installation, compilation, and quickstart
+│   ├── getting-started.md      # Installation, compilation, and quickstart
+│   └── supported-os.md         # Supported Linux distributions, glibc baselines, pre-built packages
 │
 └── dev/                        # Developer & C++ Architecture Guide (Doxygen Flow)
     └── index.md                # Subsystem architecture overview & Doxygen API portal
@@ -24,6 +25,7 @@ docs/
 ## 🚀 User Guides
 
 - [**Getting Started**](user/getting-started.md): Installation prerequisites, building from source with CMake / Make, and basic workflow.
+- [**Supported Operating Systems**](user/supported-os.md): Compatibility matrix across Linux distributions, glibc baselines, and pre-built packages (AppImage, DEB, RPM).
 - [**GUI User Guide**](user/gui-guide.md): Dual-pane tree navigation, bitfield visualizer widget, 1-click fast editing, and keyboard shortcuts (`F1`).
 - [**CLI Reference & Automation**](user/cli-reference.md): Headless batch generation (`--export`), format conversions (`--convert`), automated CI linter (`--lint`), and semantic diffing (`--diff`).
 - [**Templates & Code Generation**](user/templates-and-codegen.md): Inja templating engine, custom callbacks (`upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `bitmask`, `to_hex`), and exported JSON data schema.
