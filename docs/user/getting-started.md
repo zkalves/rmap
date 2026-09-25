@@ -1,22 +1,84 @@
-# Getting Started
+# Getting Started {#getting_started}
 
-This guide explains how to install prerequisites, build **rmap**, and run your first register map project.
+Welcome to **rmap**! This guide helps you get started quickly with **rmap**, whether you prefer pre-compiled distribution packages (zero build tools required) or compiling from source.
 
 ---
 
-## 1. Prerequisites
+## Choosing Your Installation Method
 
-**rmap** is built with **C++17** and modern CMake.
+| Installation Method | Best For | Prerequisites Required | Installation Effort |
+| :--- | :--- | :--- | :--- |
+| <b>Option 1: Standalone AppImage (Recommended)</b> | Quick evaluation, portable across all Linux distros | None (fully self-contained) | Download & run (`chmod +x`) |
+| <b>Option 2: Native Package (.deb / .rpm)</b> | Desktop users, standard workstation installations | System package manager (`apt` or `dnf`) | 1 command (`apt install` / `dnf install`) |
+| <b>Option 3: Compiling from Source</b> | Developers, contributors, custom deployments | C++17 compiler, CMake, Qt 6 & Protobuf dev headers | Build with `make` or `cmake` |
 
-### Dependencies
-- Modern C++ compiler (`g++` 9+ or `clang++` 10+)
-- CMake 3.15+
-- Qt 6 (`QtCore`, `QtWidgets`, `QtTest`) *(required for GUI, headless offscreen CLI operations, and test runner)*
-- Google Protocol Buffers (`protobuf-compiler`, `libprotobuf-dev`)
+---
 
-### Installation Commands
+## 1. Quick Start: Pre-built Packages (No Build Tools Required)
 
-#### Ubuntu / Debian (22.04 / 24.04 / Debian 12+)
+Pre-built distribution packages and standalone executables for 64-bit Linux (`x86_64`) are published on the GitHub [Releases](https://github.com/zkalves/rmap/releases) page.
+
+### Option A: Standalone AppImage (All Linux Distributions)
+
+The AppImage is a single self-contained executable that bundles all Qt6 platform plugins, runtime libraries, templates, themes, and translations. It requires no installation, no root privileges, and no external dependencies:
+
+```bash
+# Download and make executable
+chmod +x rmap-*-x86_64.AppImage
+
+# Launch interactive GUI
+./rmap-*-x86_64.AppImage
+
+# Or execute headlessly in CI or offscreen server
+QT_QPA_PLATFORM=offscreen ./rmap-*-x86_64.AppImage --version
+```
+
+### Option B: Debian / Ubuntu Package (`.deb`)
+
+Installs `rmap` system-wide and registers desktop shortcuts, icons, and MIME types. APT automatically resolves the necessary runtime libraries:
+
+```bash
+# Install with apt (automatically resolves runtime dependencies)
+sudo apt update
+sudo apt install ./rmap_*_amd64.deb
+
+# Verify installation
+rmap --version
+```
+
+### Option C: Fedora / RHEL 9 / Rocky Linux / openSUSE (`.rpm`)
+
+Installs `rmap` system-wide using your distribution's native package manager:
+
+```bash
+# Fedora / RHEL 9 / Rocky Linux 9 / AlmaLinux 9 / CentOS Stream 9
+sudo dnf install ./rmap-*.x86_64.rpm
+
+# openSUSE Leap 15.6 / SLES 15 SP6
+sudo zypper install ./rmap-*.x86_64.rpm
+
+# Verify installation
+rmap --version
+```
+
+> [!TIP]
+> For the complete distribution compatibility matrix, glibc baselines, and packaging details, see the [Supported Operating Systems & Compatibility Matrix Guide](@ref supported_os).
+
+---
+
+## 2. Compiling from Source
+
+Follow these steps **only** if you wish to build **rmap** from source code, customize functionality, or contribute to development.
+
+### Build Toolchain & Development Dependencies
+- **C++ Compiler**: Modern C++17 compiler (`g++` 9+ or `clang++` 10+)
+- **Build System**: CMake 3.15+ and `make`
+- **Qt 6 Development Packages**: `QtCore`, `QtWidgets`, `QtTest` (`qt6-base-dev` / `qt6-qtbase-devel`)
+- **Google Protocol Buffers**: `protobuf-compiler` and `libprotobuf-dev` / `protobuf-devel`
+
+### Installing Build Dependencies by Distribution
+
+#### Ubuntu / Debian (22.04 LTS / 24.04 LTS / Debian 12+)
 ```bash
 sudo apt-get update
 sudo apt-get install -y \
@@ -43,7 +105,7 @@ sudo dnf install -y \
 ```
 
 #### RHEL 8 / Rocky Linux 8 / AlmaLinux 8
-RHEL 8 requires **EPEL 8** for Qt 6 and **GCC Toolset 11** for Modern C++17:
+RHEL 8 features older baseline packages and requires **EPEL 8** for Qt 6 and **GCC Toolset 11** for Modern C++17:
 ```bash
 # Enable EPEL and PowerTools / CRB
 sudo dnf install -y epel-release dnf-plugins-core
@@ -65,7 +127,6 @@ source /opt/rh/gcc-toolset-11/enable
 
 #### openSUSE (Leap 15.5+ / Tumbleweed) & SLES 15 (SP4+)
 ```bash
-# On SLES 15, ensure SUSE Package Hub or Developer Module is active
 sudo zypper install -y \
   gcc-c++ \
   cmake \
@@ -83,13 +144,7 @@ brew link qt@6
 
 ---
 
-> [!TIP]
-> **Supported Platforms & Compatibility Matrix**:
-> For the complete Linux distribution compatibility matrix, glibc baselines, pre-built packages (AppImage, DEB, RPM), and macOS/Windows details, see the dedicated [Supported Operating Systems & Compatibility Matrix Guide](supported-os.md).
-
----
-
-## 2. Building rmap
+### Building rmap with Make
 
 **rmap** provides a top-level `Makefile` wrapper around standard CMake commands:
 
@@ -141,16 +196,11 @@ QT_QPA_PLATFORM=offscreen ./build/bin/rmap --version
 QT_QPA_PLATFORM=offscreen ./build/bin/rmap --help
 ```
 
-
 ---
 
 ## 3. Installing from Source
 
-You can install the `rmap` executable built from source to a system path or custom user directory.
-
-> [!TIP]
-> **Pre-built Packages**:
-> If you prefer pre-compiled binaries instead of compiling from source, standalone **AppImage**, **DEB**, and **RPM** packages are available. See the [Supported Operating Systems & Compatibility Matrix Guide](supported-os.md) for installation instructions and local packaging commands (`make package-deb`, `make package-rpm`, `make package-appimage`).
+After building from source, install the `rmap` binary and resource files to a system path or user directory.
 
 ### Using Make
 
@@ -173,8 +223,6 @@ make uninstall PREFIX=$HOME/.local
 ```
 
 ### Using CMake
-
-Choose the installation directory either during CMake configuration or at install time:
 
 ```bash
 # Option A: Set installation directory during configuration
@@ -201,7 +249,6 @@ rmap -f examples/rmt/peripherals/spi.rmt
 ```
 
 ### Batch Headless Code Generation
-
 ```bash
 rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
 ```
@@ -237,4 +284,4 @@ All environment Makefiles automatically discover the installed `rmap` executable
 
 ---
 
-[Next: Supported Operating Systems &rarr;](supported-os.md) | [GUI User Guide &rarr;](gui-guide.md)
+[Next: Supported Operating Systems &rarr;](@ref supported_os) | [GUI User Guide &rarr;](@ref gui_guide)

@@ -1,4 +1,4 @@
-# CLI Reference & Automation
+# CLI Reference & Automation {#cli_reference}
 
 **rmap** includes built-in headless CLI capabilities allowing hardware build environments, EDA scripts, and CI/CD pipelines to validate register maps, run lint checks, compute semantic diffs, convert formats, and generate code without launching a graphical window.
 
@@ -169,4 +169,4 @@ codegen:
 
 In headless Linux server environments (where `$DISPLAY` is unset), **rmap** automatically initializes Qt in offscreen mode (`QT_QPA_PLATFORM=offscreen`), eliminating `Cannot connect to X server` failures.
 
-[Next: Templates & Code Generation &rarr;](templates-and-codegen.md)
+[Next: Templates & Code Generation &rarr;](@ref templates_codegen)

@@ -141,6 +141,7 @@ GENERATE_QHP           = NO
 GENERATE_TREEVIEW      = YES
 FULL_SIDEBAR           = YES
 SEARCHENGINE           = YES
+LAYOUT_FILE            = docs/DoxygenLayout.xml
 
 # Solarized CSS theme
 HTML_EXTRA_STYLESHEET  = docs/theme/solarized.css

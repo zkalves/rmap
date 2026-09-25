@@ -1,4 +1,4 @@
-# Supported Operating Systems & Compatibility Matrix
+# Supported Operating Systems & Compatibility Matrix {#supported_os}
 
 This document defines the supported operating systems, Linux distribution compatibility baselines, glibc requirements, and pre-built package deliverables for **rmap**.
 
@@ -20,10 +20,10 @@ This document defines the supported operating systems, Linux distribution compat
 | **Debian** | **12 (Bookworm)** / **13 (Trixie)** | 2.36 / 2.38 | **Tier-1 Native**: Standard APT repositories. | Pre-built `.deb`, `.AppImage`, source build |
 | **Fedora** | **38+** | &ge; 2.37 | **Tier-1 Native**: Standard dnf repositories. | Pre-built `.rpm`, `.AppImage`, source build |
 
-#### macOS Support
+### macOS Support
 - **macOS 12+ (Monterey, Ventura, Sonoma, Sequoia)**: Supported for source builds via Homebrew (`brew install cmake qt@6 protobuf`). Apple Silicon (M1/M2/M3/M4) and Intel x86_64 architectures are supported natively.
 
-#### Windows Support
+### Windows Support
 - **Windows 10 / 11 via WSL2 (Ubuntu 22.04 / 24.04)**: Supported natively with full GUI support via WSLg or headless offscreen CLI execution.
 
 ### Pre-built Distribution Packages
@@ -105,4 +105,4 @@ make package
 
 ---
 
-[Back to Getting Started](getting-started.md) | [Next: GUI User Guide &rarr;](gui-guide.md)
+[Back to Getting Started](@ref getting_started) | [Next: GUI User Guide &rarr;](@ref gui_guide)

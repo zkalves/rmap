@@ -1,4 +1,4 @@
-# GUI User Guide
+# GUI User Guide {#gui_guide}
 
 The **rmap** graphical interface is designed specifically for hardware designers, verification engineers, and embedded firmware developers to design, inspect, edit, and validate register maps with real-time feedback, visual packing bars, and multi-format export capabilities.
 

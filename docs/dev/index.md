@@ -1,23 +1,33 @@
-# rmap C++ Subsystem Architecture & API Reference
+# rmap Developer Guide {#dev_guide}
 
-Welcome to the **rmap** developer reference documentation. This portal provides an architectural overview of the core C++ subsystems and serves as the entry point for the automated **Doxygen C++ API reference**.
+Welcome to the **rmap** Developer Guide. This guide covers the internal architecture, C++ development environment, coding standards, test infrastructure, and automated Doxygen C++ API reference for developers contributing to or extending **rmap**.
 
 ---
 
-## Automated Doxygen API Documentation
+## Developer Guide Chapters
 
-All class interfaces, method signatures, signals, slots, inheritance hierarchies, and data structures are documented directly within the C++ source headers (`src/` and `src/format/`) using Doxygen docstrings. 
+- @subpage dev_architecture "C++ Subsystem Architecture"
+  Complete architectural walkthrough of the five core subsystems (Controllers, Models, Visualizers, Formats, and Utilities) with data flow diagrams.
 
-Rather than maintaining manual Markdown files for individual classes, documentation is automatically extracted and rendered by Doxygen.
+- @subpage dev_standards "Code & Documentation Standards"
+  Header documentation rules, Modern C++17/Qt 6 conventions, and the Bidirectional Documentation-Implementation Lockstep Invariant.
 
-### Browsing the API Documentation
+- @subpage dev_coverage "Code Coverage & Quality Metrics"
+  Compiler-level test coverage analysis (Line, Branch, Function, MC/DC Condition), local execution commands, and CI quality gates.
+
+---
+
+## Automated Doxygen C++ API Reference
+
+All class interfaces, method signatures, signals, slots, inheritance hierarchies, and data structures are documented directly within the C++ source headers (`src/` and `src/format/`) using Doxygen docstrings.
+
 - [**C++ Class List (API Reference)**](annotated.html): Complete annotated index of all classes, structs, interfaces, and methods.
 - [**Class Inheritance Hierarchy**](hierarchy.html): Inheritance tree and relationship graphs for all models and widgets.
 - [**Source Code File List**](files.html): Complete browsable directory of all C++ header and implementation files with syntax-highlighted source code.
 - [**Global Functions & Macros**](globals.html): Global functions, enums, type definitions, and preprocessor macros.
 
-### Generating Doxygen Documentation
-To generate or refresh the Doxygen C++ API documentation:
+### Generating Doxygen Documentation Locally
+
 ```bash
 # Via project Makefile
 make docs-doxygen
@@ -28,7 +38,6 @@ doxygen docs/Doxyfile
 
 The rendered HTML documentation is generated directly into the root documentation portal `_site/`.
 
-
 > [!IMPORTANT]
 > **Prerequisites**: Doxygen is required to build developer API documentation.
 > - **Ubuntu/Debian**: `sudo apt-get install -y doxygen graphviz`
@@ -38,167 +47,20 @@ The rendered HTML documentation is generated directly into the root documentatio
 
 ---
 
-## Subsystem Architecture Overview
-
-The `rmap` codebase is structured into five core subsystems:
-
-```mermaid
-flowchart TD
-    MAIN["Application Entry Point\n(src/main.cpp)"] --> WIN["RegMapWindow\n(Main UI Orchestrator)"]
-    WIN --> MODEL["RegMapTreeModel\n(QAbstractItemModel)"]
-    WIN --> VIZ1["RegBitfieldBarWidget\n(Continuous Bitfield Slice)"]
-    WIN --> VIZ2["BlockMemoryMapWidget\n(Stacked Memory Map)"]
-    WIN --> CFG["RegConfigWindow\n(Template & Export Config)"]
-    
-    MODEL --> ITEM["RegMapTreeItem\n(Tree Node Object Graph)"]
-    MODEL --> DELEGATE["RegMapDelegate\n(Pill Badges & Editors)"]
-    MODEL --> UNDO["UndoCommands\n(QUndoStack Commands)"]
-    
-    WIN --> FMT["FormatManager\n(Multi-Format Handlers)"]
-    FMT --> SER["SerializationContext\n(Protobuf / SVD / RDL / XML / JSON / CSV)"]
-    
-    WIN --> CODEGEN["CodeGenerator\n(Pantor Inja Engine + Custom Helpers + Built-ins)"]
-    
-    WIN --> THEME["ThemeManager\n(8 Themes & CVD Palettes)"]
-    WIN --> LANG["LanguageManager\n(Runtime Translations)"]
-```
-
-### 1. Application & UI Controllers
-- **`rmap` (`src/main.cpp`)**: Application startup sequence, headless CLI argument processing (`-e`, `-l`, `-c`, `-d`), dynamic theme and language option queries, and Qt GUI initialization.
-- **`RegMapWindow`**: Central main window orchestrating the dual-pane hierarchy view, bitfield visualizer, stacked memory map, undo/redo stack, and headless conversion/export pipelines.
-- **`RegConfigWindow`**: Non-modal configuration dialog managing Inja template output paths, register width definitions, and custom template context parameters.
-- **`PreferencesWindow`**: User preferences dialog managing 8 color schemes, high-contrast themes, and barrier-free color-vision deficiency (CVD) palettes.
-- **`AboutWindow`**: Diagnostic and version information dialog reporting semantic versioning, build parameters, and open-source licenses.
-
-### 2. Data Model & Model-View Contract
-- **`RegMapTreeModel`**: Hierarchical 11-column tree model implementing `QAbstractItemModel` with real-time architectural validation, invalid cell tracking, and JSON data extraction.
-- **`RegMapTreeItem`**: Core tree node class representing blocks, registers, fields, memories, and maps with Protocol Buffer serialization support.
-- **`RegMapTreeView`**: Specialized `QTreeView` managing the peripheral navigation tree with custom selection synchronization and focus handling.
-- **`RegMapDelegate`**: Fast item delegates providing regex validation, access policy pill badges, 1-click cycling, and boolean toggles.
-- **`UndoCommands`**: Modular `QUndoCommand` implementations for cell edits, row insertions, and deep recursive subtree deletions.
-
-### 3. Interactive Visualizers
-- **`RegBitfieldBarWidget`**: Continuous 32/64-bit register slice visualizer featuring unmapped reserved slot hatching, hover tooltips, and bidirectional table selection.
-- **`BlockMemoryMapWidget`**: Stacked vertical memory map diagram featuring automated gap detection, overlap highlighting, and click-to-navigate cross-probing.
-
-### 4. Serialization & Format Engine
-- **`FormatManager`**: Central multi-format registry and dispatcher supporting ARM CMSIS-SVD, Accellera SystemRDL 1.0/2.0, IP-XACT IEEE 1685, JSON, CSV/TSV, and Google Protobuf (`.rmt`, `.rmb`).
-- **`SerializationContext`**: Object graph serialization framework providing the abstract `Serializable` interface, template `ObjectFactory`, and `ProtobufLogCollector`.
-
-### 5. Code Generation, Localization & Utilities
-- **`CodeGenerator`**: Pantor Inja template rendering engine featuring custom naming and bitwise helper callbacks (including sv_hex) plus built-in Inja helpers (upper, lower) for multi-target code generation (SystemVerilog, Verilog, VHDL, UVM, C, Rust, Python).
-- **`ThemeManager`**: Multi-theme styling engine supporting 8 color schemes and Okabe-Ito / Wong CVD barrier-free palettes.
-- **`LanguageManager`**: Internationalization engine managing runtime JSON translation catalogs (`.json`) and dynamic locale switching via `JsonTranslator`.
-- **`AppSettings`**: Persistent application settings and window geometry persistence via `QSettings`.
-- **`PathUtils`**: Path utility library for environment variable expansion, path relativization, and multi-tiered fallback path resolution.
-
----
-
-## Code Documentation Standards for Developers
-
-To ensure Doxygen generates complete and accurate API documentation, developers must follow these formatting standards in all C++ headers:
-
-```cpp
-/**
- * @class ExampleManager
- * @brief Thread-safe singleton managing subsystem lifecycle and configuration.
- *
- * Details on the internal architecture, thread safety invariants, and Qt
- * model-view integration contracts.
- */
-class ExampleManager : public QObject {
-    Q_OBJECT
-
-public:
-    /**
-     * @brief Retrieve the global singleton instance.
-     * @return Reference to the singleton instance.
-     */
-    static ExampleManager &instance();
-
-    /**
-     * @brief Register a new format handler.
-     * @param format Extension or format identifier (e.g. "svd").
-     * @param handler Owning pointer to the format handler.
-     * @return True if registration succeeded without conflict.
-     */
-    bool registerHandler(const QString &format, std::unique_ptr<FormatHandler> handler);
-
-signals:
-    /**
-     * @brief Emitted whenever active configuration parameters change.
-     * @param key Modified configuration key.
-     */
-    void configChanged(const QString &key);
-};
-```
-
----
-
-## Documentation & Implementation Lockstep Invariant
-
-To ensure the canonical documentation and C++ implementation never diverge, **rmap** enforces strict bidirectional synchronization across all pull requests, commits, and autonomous agent tasks:
-
-1. **Documentation &rarr; Implementation**:
-   - Any modification or addition to `docs/` **must** be accompanied by matching implementation updates in `src/`, `templates/`, and `tests/`.
-   - Documentation must never run ahead of working, tested code. Pull requests modifying specifications without updating code are rejected unless explicitly tagged `[doc-only]` for non-functional typo or grammar corrections.
-
-2. **Implementation &rarr; Documentation**:
-   - Any modification in `src/` or `templates/` that alters CLI options, register access semantics, public APIs, format serializers, or template outputs **must** be flagged for documentation review.
-   - If code is updated without modifying `docs/` directly, the commit or pull request must include an explicit `DOC-FLAG: <reason/tracking issue>` tag.
-
-3. **Automated Verification**:
-   - **Static Parity Checks**: `python3 script/check_doc_sync.py --static` verifies 100% bidirectional parity for all CLI options (`src/main.cpp` &harr; `docs/user/cli-reference.md`), format handlers (`src/format/` &harr; `docs/user/architecture.md`), and template deliverables (`templates/` &harr; `docs/user/templates-and-codegen.md`).
-   - **CTest Integration**: Verified automatically as part of `ctest` via `test_ArchitecturalInvariants` and `test_DocImplementationSync`.
-   - **Git Hooks & CI**: Enforced by `.git/hooks/pre-commit`, `.git/hooks/commit-msg`, and the GitHub Actions CI pipeline.
-
----
-
-## Code Coverage & Quality Metrics
-
-**rmap** uses compiler-based `gcov` instrumentation and an automated multi-metric coverage analysis engine (`script/generate_coverage.py`) to verify test quality across the C++ codebase.
-
-### Coverage Metrics Evaluated
-
-The engine analyzes six compiler-level coverage metrics:
-- **Line Coverage**: Ratio of executed executable statements.
-- **Function Coverage**: Ratio of executed functions and methods.
-- **Branch Coverage**: Ratio of executed conditional branch paths (compiler-generated exception unwinding landing pads are excluded by default).
-- **Condition Coverage**: MC/DC condition coverage on boolean expressions.
-- **Call Coverage**: Ratio of executed function call sites.
-- **Block Coverage**: Basic block execution ratio from compiler control flow graphs (CFG).
-
-### Running Coverage Locally
-
-To build with coverage instrumentation, run the test suites, and generate local reports:
+## Development Environment & Build Targets
 
 ```bash
-# Run unit and template tests with coverage instrumentation and output a console summary
-make coverage
+# Build rmap with debug symbols
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j$(nproc)
 
-# Generate full HTML, Markdown, and JSON reports
-make coverage-report
+# Execute test suite
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+
+# Check architectural invariants and doc-implementation lockstep
+python3 script/check_doc_sync.py --static
+python3 tests/test_architectural_invariants.py
 ```
-
-Output reports are generated in `work/coverage/`:
-- `work/coverage/index.html`: Interactive, searchable HTML dashboard with line-by-line profiling and call graphs.
-- `work/coverage/coverage.md`: Formatted Markdown summary.
-- `work/coverage/coverage.json`: Machine-readable JSON metrics for CI dashboards.
-
-### Direct Script Execution & Quality Gates
-
-The coverage script can also be executed directly with custom pass/fail threshold gates:
-
-```bash
-python3 script/generate_coverage.py \
-    --build-dir build \
-    --summary \
-    --html work/coverage/index.html \
-    --fail-under-lines 90.0 \
-    --fail-under-branches 80.0
-```
-
-Continuous coverage reports and interactive call graphs are published live on the [rmap Coverage Dashboard](coverage/index.html).
 
 ---
 
