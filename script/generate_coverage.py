@@ -546,16 +546,17 @@ def get_color_for_percent(pct: float) -> str:
         return "red"
 
 
-def render_console_summary(metrics: Dict[str, Any]) -> str:
+def render_console_summary(metrics: Dict[str, Any], thresholds: Optional[Dict[str, float]] = None) -> str:
     """Render a clean ASCII/ANSI summary table for the terminal."""
     s = metrics["summary"]
+    table_width = 106
     lines = [
         "",
-        "==========================================================================================",
-        "                                 rmap CODE COVERAGE REPORT                                ",
-        "==========================================================================================",
-        f"  {'Metric':<26} | {'Covered':>9} | {'Total':>9} | {'Coverage Rate':>14} | {'Status':>8}",
-        "------------------------------------------------------------------------------------------",
+        "=" * table_width,
+        "rmap CODE COVERAGE REPORT".center(table_width),
+        "=" * table_width,
+        f"  {'Metric':<26} | {'Covered':>9} | {'Total':>9} | {'Coverage Rate':>14} | {'Threshold':>11} | {'Status':>8}",
+        "-" * table_width,
     ]
 
     metrics_order = [
@@ -571,21 +572,28 @@ def render_console_summary(metrics: Dict[str, Any]) -> str:
 
     for name, data in metrics_order:
         pct = data["percent"]
-        status = "PASSED" if pct >= 50.0 else "WARN"
-        lines.append(f"  {name:<26} | {data['covered']:>9d} | {data['total']:>9d} | {pct:>13.2f}% | {status:>8}")
+        clean_name = name.strip()
+        thresh = thresholds.get(clean_name, 0.0) if thresholds else 0.0
+        if thresh > 0.0:
+            status = "PASSED" if pct >= thresh else "FAILED"
+            thresh_str = f"{thresh:.2f}%"
+        else:
+            status = "PASSED" if pct >= 50.0 else "WARN"
+            thresh_str = "—"
+        lines.append(f"  {name:<26} | {data['covered']:>9d} | {data['total']:>9d} | {pct:>13.2f}% | {thresh_str:>11} | {status:>8}")
 
-    lines.append("==========================================================================================")
+    lines.append("=" * table_width)
     lines.append("  Subsystems Breakdown:")
-    lines.append("------------------------------------------------------------------------------------------")
+    lines.append("-" * table_width)
     lines.append(f"  {'Subsystem':<32} | {'Lines':>9} | {'Funcs':>9} | {'Branch':>9} | {'Cond':>9}")
-    lines.append("------------------------------------------------------------------------------------------")
+    lines.append("-" * table_width)
 
     for sub in metrics["subsystems"]:
         lines.append(
             f"  {sub['name']:<32} | {sub['lines']['percent']:>8.1f}% | {sub['functions']['percent']:>8.1f}% | "
             f"{sub['branches']['percent']:>8.1f}% | {sub['conditions']['percent']:>8.1f}%"
         )
-    lines.append("==========================================================================================")
+    lines.append("=" * table_width)
     lines.append("")
     return "\n".join(lines)
 
@@ -625,7 +633,7 @@ def generate_badge_endpoints(metrics: Dict[str, Any], output_dir: Path) -> List[
     return badge_files
 
 
-def render_markdown_report(metrics: Dict[str, Any]) -> str:
+def render_markdown_report(metrics: Dict[str, Any], thresholds: Optional[Dict[str, float]] = None) -> str:
     """Generate GitHub-Flavored Markdown report with tables and badges."""
     s = metrics["summary"]
     md = []
@@ -637,8 +645,8 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
     md.append("> [!TIP]")
     md.append("> **Live CI/CD Coverage Pipeline**: Interactive coverage reports, line-by-line profiling, and call graphs are updated continuously by the pipeline and hosted live on [GitHub Pages: rmap Coverage Dashboard](https://zkalves.github.io/rmap/coverage/).")
     md.append("")
-    md.append("| Metric | Covered | Total | Coverage Rate | Status |")
-    md.append("| :--- | :---: | :---: | :---: | :---: |")
+    md.append("| Metric | Covered | Total | Coverage Rate | Threshold | Status |")
+    md.append("| :--- | :---: | :---: | :---: | :---: | :---: |")
 
     metrics_rows = [
         ("**Lines**", s["lines"]),
@@ -651,12 +659,19 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
 
     for label, data in metrics_rows:
         pct = data["percent"]
-        icon = "✅" if pct >= 50.0 else "⚠️"
-        md.append(f"| {label} | {data['covered']:,} | {data['total']:,} | **{pct:.2f}%** | {icon} |")
+        clean_name = label.replace("*", "").strip()
+        thresh = thresholds.get(clean_name, 0.0) if thresholds else 0.0
+        if thresh > 0.0:
+            icon = "✅" if pct >= thresh else "❌"
+            thresh_str = f"{thresh:.2f}%"
+        else:
+            icon = "✅" if pct >= 50.0 else "⚠️"
+            thresh_str = "—"
+        md.append(f"| {label} | {data['covered']:,} | {data['total']:,} | **{pct:.2f}%** | {thresh_str} | {icon} |")
 
     if "branches_raw" in s and s["branches_raw"]["total"] != s["branches"]["total"]:
         raw = s["branches_raw"]
-        md.append(f"| *Branches (Raw w/ Unwind)* | {raw['covered']:,} | {raw['total']:,} | *{raw['percent']:.2f}%* | ℹ️ |")
+        md.append(f"| *Branches (Raw w/ Unwind)* | {raw['covered']:,} | {raw['total']:,} | *{raw['percent']:.2f}%* | — | ℹ️ |")
 
     md.append("")
     md.append("> [!NOTE]")
@@ -705,22 +720,24 @@ def render_markdown_report(metrics: Dict[str, Any]) -> str:
     return "\n".join(md)
 
 
-def render_html_report(metrics: Dict[str, Any]) -> str:
+def render_html_report(metrics: Dict[str, Any], thresholds: Optional[Dict[str, float]] = None) -> str:
     """Generate self-contained, responsive HTML coverage report."""
     s = metrics["summary"]
 
     html_cards = []
     card_configs = [
-        ("Line Coverage", s["lines"], "#2aa198"),
-        ("Function Coverage", s["functions"], "#268bd2"),
-        ("Branch Coverage", s["branches"], "#859900"),
-        ("Condition (MC/DC)", s["conditions"], "#b58900"),
-        ("Call Coverage", s["calls"], "#6c71c4"),
-        ("Block Coverage", s["blocks"], "#d33682"),
+        ("Line Coverage", "Lines", s["lines"], "#2aa198"),
+        ("Function Coverage", "Functions", s["functions"], "#268bd2"),
+        ("Branch Coverage", "Branches (Decision)", s["branches"], "#859900"),
+        ("Condition (MC/DC)", "Conditions (MC/DC)", s["conditions"], "#b58900"),
+        ("Call Coverage", "Calls", s["calls"], "#6c71c4"),
+        ("Block Coverage", "Basic Blocks", s["blocks"], "#d33682"),
     ]
 
-    for title, data, color in card_configs:
+    for title, metric_key, data, color in card_configs:
         pct = data["percent"]
+        thresh = thresholds.get(metric_key, 0.0) if thresholds else 0.0
+        thresh_info = f" (Min: {thresh:.1f}%)" if thresh > 0.0 else ""
         html_cards.append(f"""
         <div class="card">
             <div class="card-title">{title}</div>
@@ -728,7 +745,7 @@ def render_html_report(metrics: Dict[str, Any]) -> str:
             <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: {min(pct, 100):.1f}%; background-color: {color};"></div>
             </div>
-            <div class="card-meta">{data['covered']:,} of {data['total']:,} covered</div>
+            <div class="card-meta">{data['covered']:,} of {data['total']:,} covered{thresh_info}</div>
         </div>
         """)
 
@@ -1058,17 +1075,24 @@ def main():
 
     metrics = compute_metrics(raw_data, exclude_throw_branches=not args.include_throw_branches)
 
+    thresholds = {
+        "Lines": args.fail_under_lines,
+        "Functions": args.fail_under_functions,
+        "Branches (Decision)": args.fail_under_branches,
+        "Conditions (MC/DC)": args.fail_under_conditions,
+    }
+
     if args.summary or not any([args.markdown, args.html, args.json, args.github_step_summary, args.update_readme]):
-        print(render_console_summary(metrics))
+        print(render_console_summary(metrics, thresholds=thresholds))
 
     if args.markdown:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown.write_text(render_markdown_report(metrics), encoding="utf-8")
+        args.markdown.write_text(render_markdown_report(metrics, thresholds=thresholds), encoding="utf-8")
         print(f"Wrote Markdown report to {args.markdown}")
 
     if args.html:
         args.html.parent.mkdir(parents=True, exist_ok=True)
-        args.html.write_text(render_html_report(metrics), encoding="utf-8")
+        args.html.write_text(render_html_report(metrics, thresholds=thresholds), encoding="utf-8")
         print(f"Wrote HTML report to {args.html}")
 
     if args.json:
@@ -1086,7 +1110,7 @@ def main():
         step_summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
         if step_summary_file:
             with open(step_summary_file, "a", encoding="utf-8") as f:
-                f.write(render_markdown_report(metrics) + "\n")
+                f.write(render_markdown_report(metrics, thresholds=thresholds) + "\n")
             print(f"Appended coverage report to $GITHUB_STEP_SUMMARY ({step_summary_file})")
         else:
             print("Note: GITHUB_STEP_SUMMARY environment variable is not set.", file=sys.stderr)

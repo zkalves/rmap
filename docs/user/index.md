@@ -1,51 +1,44 @@
-# rmap Documentation
+# rmap User Guide {#user_guide}
 
-Welcome to the documentation for **rmap**, an open-source tool for hardware register map authoring, RTL register file synthesis (SystemVerilog, Verilog-2001, Synthesizable VHDL), verification model synthesis (UVM SystemVerilog, PyUVM/Cocotb, SVA), and firmware header generation (C/C++, Rust, Python).
-
----
-
-## Documentation Sections
-
-- [🚀 Getting Started](getting-started.md) — Installation, building, and basic workflow.
-- [🖥️ GUI User Guide](gui-guide.md) — Visual design, bitfield packing, validation, and context menus.
-- [⚙️ CLI Reference & Automation](cli-reference.md) — Headless batch generation for CI/CD and Makefiles.
-- [📝 Templates & Code Generation](templates-and-codegen.md) — Writing Inja templates, using helper functions, and custom variables.
-- [🏛️ Architecture & Internals](architecture.md) — Data models, Protobuf serialization, and validation engine.
+Welcome to the **rmap** User Guide. This guide provides comprehensive documentation for designing, validating, simulating, and generating hardware register maps across interactive GUI and headless CLI workflows.
 
 ---
 
-## Core Capabilities
+## Recommended Learning Roadmaps
 
-- **Dual-Pane Interface**: Hierarchy navigation for Blocks and Registers on the left, with bitfield editing on the right.
-- **Real-Time Validation**: Instant detection of register address collisions, bitfield overlaps, and bit-width boundary overflows.
-- **Headless CLI Generation**: Seamlessly generate C headers, RTL, and UVM models directly in Makefiles and CI/CD pipelines without launching a GUI.
-- **Flexible Code Generation**: Built with [Pantor Inja](https://github.com/pantor/inja) and [nlohmann/json](https://github.com/nlohmann/json). Easily customize or write templates.
-- **Multi-Format Storage**: Robust Google Protocol Buffers storage supporting human-readable text (`.rmt`) and high-performance binary (`.rmb`) formats, plus lossless conversion across ARM CMSIS-SVD, Accellera SystemRDL, and IP-XACT IEEE 1685.
-- **24 IEEE 1800.2 UVM Access Policies**: Native support for all 24 standard UVM register access policies (`RW`, `RO`, `WO`, `W1`, `WO1`, `W1C`, `W1S`, `W1T`, `W0C`, `W0S`, `W0T`, `RC`, `RS`, `WRC`, `WRS`, `WC`, `WS`, `W1SRC`, `W1CRS`, `W0SRC`, `W0CRS`, `WOC`, `WOS`, `NOACCESS` / `NA`).
-- **Dynamic Parameterizable Data Widths**: Supports arbitrary word widths (8, 16, 32, 64, 128, 256, 512+ bits) with automatic byte-strobe generation.
-- **Configurable HW/SW Arbitration Precedence**: Parameterizable hardware vs. software precedence (`PARAM_HW_PRECEDENCE`) for concurrent writes.
-- **Synthesizable Multi-Target RTL**: Generates standard IEEE 1800-2017 SystemVerilog, IEEE 1364-2001 Verilog, and IEEE 1076 VHDL with APB4/AXI4-Lite wrappers and formal SVA assertions.
-- **Flexible Number Formatting**: Input offsets, sizes, and reset values seamlessly using Hex (`0x`), Decimal, or Binary (`0b`).
+Depending on your role and operational workflow, we recommend following these reading paths:
 
----
+- **🖥️ Hardware Engineers (RTL & Verification)**:
+  1. [Getting Started](@ref getting_started) &mdash; Installation, building, and basic workflow.
+  2. [Supported Operating Systems](@ref supported_os) &mdash; OS compatibility matrix and packages.
+  3. [GUI User Guide](@ref gui_guide) &mdash; Interactive visual design, 32/64-bit continuous bitfield packing visualizer, and shortcuts.
+  4. [System Architecture](@ref architecture) &mdash; Core register map data model, 24 UVM access policies, HW arbitration, dynamic bus widths, and multi-bus address maps.
+  5. [Templates & Code Generation](@ref templates_codegen) &mdash; Inja templating engine, synthesizable RTL (Verilog, SystemVerilog, VHDL), UVM RAL models, firmware headers (C, Rust, Python), and verification testbenches.
 
-## Quick Example
-
-```bash
-# Build the application
-make
-
-# Run all automated test suites
-make test
-
-# Generate C header, RTL, and UVM models headlessly from an existing map
-./build/bin/rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
-```
+- **⚙️ EDA & CI/CD Automation Engineers**:
+  1. [Getting Started](@ref getting_started) &mdash; Offscreen execution setup.
+  2. [CLI Reference & Automation](@ref cli_reference) &mdash; Headless batch code generation (`--export`), multi-format conversions (`--convert`), automated CI linter (`--lint`), and semantic diffing (`--diff`).
+  3. [System Architecture](@ref architecture) &mdash; Multi-format interoperability matrix (SVD, SystemRDL, IP-XACT, JSON, CSV, Protobuf).
+  4. [Templates & Code Generation](@ref templates_codegen) &mdash; Template catalog, custom variables, and headless export integration.
 
 ---
 
-## 👤 Author & GitHub Repository
+## User Guide Chapters
 
-- **Author**: Ezequiel Alves ([@@zkalves](https://github.com/zkalves))
-- **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
-- **License**: Mozilla Public License 2.0 (MPL-2.0)
+- @subpage getting_started "Getting Started"
+  Prerequisites, toolchain dependencies, building from source with CMake/Make, and initial verification.
+
+- @subpage supported_os "Supported Operating Systems & Compatibility Matrix"
+  Linux distribution compatibility matrix, glibc baselines, and pre-built packages (AppImage, DEB, RPM, Containers, Homebrew, Modules).
+
+- @subpage gui_guide "GUI User Guide"
+  Dual-pane layout, 32/64-bit continuous bitfield visualizer, stacked memory map, inline validation, and shortcuts (`F1`).
+
+- @subpage cli_reference "CLI Reference & Automation"
+  Headless batch generation, automated CI linter (SARIF, JUnit XML), semantic register map diffing, and format conversion.
+
+- @subpage templates_codegen "Templates & Code Generation"
+  Inja template engine, built-in deliverables (SystemVerilog, Verilog 2001, VHDL, UVM, C, Rust, Python), custom helpers, and JSON context.
+
+- @subpage architecture "Architecture & Internals"
+  Core data model, 11-column hierarchy, 24 UVM access policies, HW arbitration, dynamic bus widths, and multi-format capabilities.

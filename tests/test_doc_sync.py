@@ -65,6 +65,9 @@ class TestDocImplementationSync(unittest.TestCase):
         files = ["docs/user/architecture.md"]
         self.assertTrue(check_changeset_sync(files, commit_msg="docs: fix typos in architecture [doc-only]"))
         self.assertTrue(check_changeset_sync(files, commit_msg="docs: update getting started guide"))
+        self.assertTrue(check_changeset_sync(files, commit_msg="doc: update getting started guide"))
+        self.assertTrue(check_changeset_sync(files, commit_msg="docs(user): update architecture guide"))
+        self.assertTrue(check_changeset_sync(files, commit_msg="doc(gui): clarify bitfield bar usage"))
 
     def test_docs_and_impl_changed_passes(self):
         """Docs and implementation changed together must pass."""

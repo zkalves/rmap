@@ -470,6 +470,33 @@ class TestCoverageEngine(unittest.TestCase):
         failures = check_thresholds(metrics_partial, fail_under_lines=100.0, fail_under_functions=100.0)
         self.assertEqual(len(failures), 2)
 
+    def test_render_with_thresholds(self):
+        mock_data = {
+            "src/Sample.cpp": {
+                "subsystem": "Core Architecture & Model",
+                "lines": {1: 1, 2: 0},  # 50.0%
+                "funcs": {"init()": 1}, # 100.0%
+                "branches": {(1, 0): 1},
+                "conds": [],
+                "calls": [],
+                "blocks_total": 1,
+                "blocks_exec": 1,
+            }
+        }
+        res = compute_metrics(mock_data)
+        thresholds = {"Lines": 100.0, "Functions": 100.0}
+
+        console_txt = render_console_summary(res, thresholds=thresholds)
+        self.assertIn("FAILED", console_txt)  # Lines at 50% must be marked FAILED
+        self.assertIn("Threshold", console_txt)
+        self.assertIn("100.00%", console_txt)
+
+        md_txt = render_markdown_report(res, thresholds=thresholds)
+        self.assertIn("❌", md_txt)  # Lines at 50% must show failure icon
+        self.assertIn("✅", md_txt)  # Functions at 100% must show success icon
+        self.assertIn("Threshold", md_txt)
+        self.assertIn("100.00%", md_txt)
+
     def test_gcov_binary_selection(self):
         # Override argument takes highest priority
         self.assertEqual(get_gcov_binary("my-custom-gcov"), "my-custom-gcov")

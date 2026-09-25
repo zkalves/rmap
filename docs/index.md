@@ -9,44 +9,37 @@ Welcome to the **rmap** documentation portal. **rmap** is a high-performance GUI
 ```text
 docs/
 ├── user/                       # User Guide & Operational Manuals (Primary Source of Truth)
-│   ├── architecture.md         # System architecture, access policies, format matrix, dynamic widths
-│   ├── templates-and-codegen.md# Inja template catalog (RTL SV/Verilog/VHDL, UVM, C, Rust), helpers
-│   ├── cli-reference.md        # Headless generation, CI/CD linting (SARIF/JUnit), semantic diff
+│   ├── index.md                # User Guide top-level hub & role-based roadmaps
+│   ├── getting-started.md      # Installation, compilation, and quickstart
+│   ├── supported-os.md         # Supported Linux distributions, glibc baselines, pre-built packages
 │   ├── gui-guide.md            # Interactive GUI walkthrough, bitfield visualizer, themes
-│   └── getting-started.md      # Installation, compilation, and quickstart
+│   ├── cli-reference.md        # Headless generation, CI/CD linting (SARIF/JUnit), semantic diff
+│   ├── templates-and-codegen.md# Inja template catalog (RTL SV/Verilog/VHDL, UVM, C, Rust), helpers
+│   └── architecture.md         # System architecture, access policies, format matrix, dynamic widths
 │
 └── dev/                        # Developer & C++ Architecture Guide (Doxygen Flow)
-    └── index.md                # Subsystem architecture overview & Doxygen API portal
+    ├── index.md                # Developer Guide top-level hub & build targets
+    ├── architecture.md         # C++ subsystem architecture, data model, and visualizers
+    ├── standards.md            # Coding standards & Bidirectional Lockstep Invariants
+    └── coverage.md             # Compiler test coverage metrics & quality gates
 ```
 
 ---
 
-## 🚀 User Guides
+## 🧭 Documentation Portals
 
-- [**Getting Started**](user/getting-started.md): Installation prerequisites, building from source with CMake / Make, and basic workflow.
-- [**GUI User Guide**](user/gui-guide.md): Dual-pane tree navigation, bitfield visualizer widget, 1-click fast editing, and keyboard shortcuts (`F1`).
-- [**CLI Reference & Automation**](user/cli-reference.md): Headless batch generation (`--export`), format conversions (`--convert`), automated CI linter (`--lint`), and semantic diffing (`--diff`).
-- [**Templates & Code Generation**](user/templates-and-codegen.md): Inja templating engine, custom callbacks (`upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `bitmask`, `to_hex`), and exported JSON data schema.
-- [**System Architecture**](user/architecture.md): Full data model, 11-column tree structure, access policy definitions, and format specifications.
+- @subpage user_guide "📘 rmap User Guide"
+  Comprehensive operational manual for hardware engineers (RTL & verification) and automation teams. Contains role-based learning roadmaps and complete guides for interactive GUI editing, continuous bitfield visualizers, headless CLI automation, Inja templates, RAL code generation, and register map access policies.
 
----
-
-## 🛠️ Developer & C++ API Reference
-
-- [**C++ Subsystem Architecture Guide**](dev/index.md): Architectural walkthrough of rmap's five core C++ subsystems (Controllers, Models, Visualizers, Formats, and Utilities).
-- [**C++ Class Reference (API Documentation)**](annotated.html): Complete annotated index of all C++ classes, structs, signals, slots, and methods.
-- [**C++ Class Inheritance Hierarchy**](hierarchy.html): Graphical tree of inheritance across all Qt models, widgets, and handlers.
-- [**Source Code File Directory**](files.html): Complete browsable directory of all C++ source files, headers, and syntax-highlighted code.
-- [**Global Functions & Constants**](globals.html): Global functions, enums, type definitions, and preprocessor definitions.
-
-
+- @subpage dev_guide "🛠️ rmap Developer Guide"
+  Comprehensive technical documentation for developers contributing to or extending **rmap**. Contains the Modern C++17 / Qt 6 subsystem architecture, model-view contracts, format engine, development environment, coding standards, test coverage infrastructure, and automated Doxygen C++ API reference.
 
 ---
 
 ## 📖 Offline Reference Manuals (PDF)
 
-- [**rmap User Manual (PDF)**](https://zkalves.github.io/rmap/pdf/rmap_user_manual.pdf): Complete 50-page user guide covering installation, interactive GUI operation, bitfield visualizer, CLI headless automation, Inja templating, and verification environments.
-- [**rmap Developer Guide (PDF)**](https://zkalves.github.io/rmap/pdf/rmap_developer_guide.pdf): In-depth 77-page C++ architecture and API reference detailing Qt 6 models, custom delegates, visualizer widgets, multi-format registry, undo/redo stack, and serialization.
+- [**rmap User Manual (PDF)**](pdf/rmap_user_manual.pdf): Complete 50-page user guide covering installation, interactive GUI operation, bitfield visualizer, CLI headless automation, Inja templating, and verification environments.
+- [**rmap Developer Guide (PDF)**](pdf/rmap_developer_guide.pdf): In-depth 77-page C++ architecture and API reference detailing Qt 6 models, custom delegates, visualizer widgets, multi-format registry, undo/redo stack, and serialization.
 
 ---
 

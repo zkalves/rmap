@@ -22,11 +22,17 @@
 - **Turnkey Code Generation**: One-click generation of synthesizable **SystemVerilog RTL**, complete **UVM** register models (IEEE 1800.2 & pyuvm), self-checking testbenches, **C/C++** headers, **Rust PAC** crates, **Python** drivers, and **HTML/Markdown** specs.
 - **Headless CLI & Validation**: Command-line validation (`--lint`, `--strict`) with SARIF, JUnit XML, JSON, and text reports; semantic structural diffing (`--diff`) across revisions.
 - **Python Scripting Hooks**: Automatically invoke custom Python scripts post-generation with the complete register model injected into the script context.
-- **Themes & Accessibility**: Curated dark/light themes (Solarized, Nord, Dracula), WCAG AAA color-blind modes (Okabe-Ito palettes), and 7-language UI localization.
+- **Themes & Accessibility**: Curated dark/light themes (Solarized, Nord, Dracula), WCAG AAA color-blind modes (Okabe-Ito palettes), and language UI localization.
 
 ---
 
 ## Quickstart & Installation
+
+### Supported Operating Systems & Packages
+
+**rmap** supports modern 64-bit Linux distributions (Ubuntu, Debian, Fedora, RHEL, Rocky, AlmaLinux, CentOS Stream, openSUSE, SLES), macOS (Homebrew), and Windows (WSL2). Pre-compiled standalone **AppImage** binaries and native **DEB** and **RPM** packages are published on GitHub [Releases](https://github.com/zkalves/rmap/releases).
+
+For the full distribution matrix, glibc baselines, and package instructions, see the [Supported Operating Systems & Compatibility Matrix Guide](docs/user/supported-os.md).
 
 ### Prerequisites
 
@@ -57,7 +63,7 @@ make test-all   # Run complete verification suite (templates, examples, simulati
 ### Installation
 
 ```bash
-sudo make install                  # Default prefix: /usr/local
+sudo make install                 # Default prefix: /usr/local
 make install PREFIX=$HOME/.local  # Custom user prefix
 ```
 
@@ -68,7 +74,7 @@ make install PREFIX=$HOME/.local  # Custom user prefix
 ### Interactive GUI
 
 ```bash
-./build/bin/rmap                                    # Launch GUI
+./build/bin/rmap                                      # Launch GUI
 ./build/bin/rmap -f examples/rmt/peripherals/spi.rmt  # Open existing register map
 ```
 
@@ -96,14 +102,7 @@ make install PREFIX=$HOME/.local  # Custom user prefix
 
 ## Documentation
 
-Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap/):
-
-- [Getting Started Guide](https://zkalves.github.io/rmap/user/getting-started.html)
-- [GUI & Register Design](https://zkalves.github.io/rmap/user/gui-guide.html)
-- [CLI Reference & Automation](https://zkalves.github.io/rmap/user/cli-reference.html)
-- [Templates & Code Generation](https://zkalves.github.io/rmap/user/templates-and-codegen.html)
-- [Architecture & Internal Data Flow](https://zkalves.github.io/rmap/user/architecture.html)
-- [User Manual (PDF)](https://zkalves.github.io/rmap/pdf/rmap_user_manual.pdf) | [Developer Guide (PDF)](https://zkalves.github.io/rmap/pdf/rmap_developer_guide.pdf)
+Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap/)
 
 ---
 

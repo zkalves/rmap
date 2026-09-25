@@ -1,4 +1,4 @@
-# CLI Reference & Automation
+# CLI Reference & Automation {#cli_reference}
 
 **rmap** includes built-in headless CLI capabilities allowing hardware build environments, EDA scripts, and CI/CD pipelines to validate register maps, run lint checks, compute semantic diffs, convert formats, and generate code without launching a graphical window.
 
@@ -31,16 +31,20 @@ rmap [OPTIONS] [file]
 | | `--help-all` | Display command-line help including generic Qt options. |
 | `-v` | `--version` | Display application version. |
 
-### Headless Action Precedence & Execution
+### Mutual Exclusivity & Argument Compatibility
 
-When invoked in headless mode, multiple actions are evaluated sequentially in the following priority order, executing the first matching action and terminating execution with its respective exit status code:
+Headless actions and command-line options in **rmap** enforce strict mutual exclusivity and compatibility rules. Conflicting arguments or invalid combinations abort execution with an error message to `stderr` and exit status code `1`:
 
-1. **Semantic Diff** (`-d` / `--diff`): Compares loaded register map against another file. Exits `0` if models are structurally identical, `1` if differences are found or an error occurs.
-2. **Linter Validation** (`-l` / `--lint`): Audits the register map against structural and alignment rules. Exits `0` on clean pass, `1` on lint failure.
-3. **Format Conversion** (`-c` / `--convert`): Converts the loaded register map into the target format specified in `<file>`. Exits `0` on success, `1` on failure.
-4. **Template Export** (`-e` / `--export`): Generates code across all enabled templates into the specified output directory (`-o`). Exits `0` on success, `1` on failure.
-
-Because each headless action exits immediately upon completion, specifying multiple action flags in a single command invocation (for instance, `rmap -f spi.rmt --lint --export`) executes only the highest-priority action (`--lint`). To execute multiple operations, invoke them as separate steps in your build system or CI pipeline.
+1. **Mutually Exclusive Headless Actions**:
+   The primary headless action options (`--export` / `-e`, `--convert` / `-c`, `--lint` / `-l`, and `--diff` / `-d`) are mutually exclusive. Specifying more than one action in a single command invocation (for instance, `rmap -f spi.rmt --lint --export`) results in an argument error. To perform multiple operations, invoke each as a distinct command in your build system or CI pipeline.
+2. **Input File Exclusivity**:
+   A register map input file can be supplied either via `-f` / `--file <file>` or as a positional argument `[file]`, but not both simultaneously. Specifying more than one positional argument is also rejected.
+3. **Option Compatibility**:
+   - `--strict` is only valid in conjunction with `--lint` (`-l`).
+   - `--report-format` is only valid with `--lint` (supported formats: `text`, `json`, `sarif`, `junit`) or `--diff` (supported formats: `text`, `markdown`).
+   - `--out` / `-o` is valid with `--export` (specifying the output destination directory) and with `--lint` or `--diff` (specifying the output report destination file). It is incompatible with `--convert` (which defines the destination file directly as its option argument) and is not valid in interactive GUI mode.
+4. **GUI Mode Constraints**:
+   When launched in interactive GUI mode (no headless action specified), headless-only modifier flags (`--strict`, `--report-format`, `--out`) are rejected as incompatible with an error exit code of `1`.
 
 ---
 
@@ -165,4 +169,4 @@ codegen:
 
 In headless Linux server environments (where `$DISPLAY` is unset), **rmap** automatically initializes Qt in offscreen mode (`QT_QPA_PLATFORM=offscreen`), eliminating `Cannot connect to X server` failures.
 
-[Next: Templates & Code Generation &rarr;](templates-and-codegen.md)
+[Next: Templates & Code Generation &rarr;](@ref templates_codegen)

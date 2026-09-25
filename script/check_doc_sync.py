@@ -237,7 +237,11 @@ def check_changeset_sync(files, commit_msg=None):
     tests_changed = [f for f in files if f.startswith("tests/")]
 
     msg_text = commit_msg or ""
-    has_doc_only = "[doc-only]" in msg_text.lower() or "[doc]" in msg_text.lower() or msg_text.strip().startswith("docs:")
+    has_doc_only = (
+        "[doc-only]" in msg_text.lower()
+        or "[doc]" in msg_text.lower()
+        or bool(re.match(r"^(doc|docs)(\([a-zA-Z0-9_\-\./]+\))?(!)?:", msg_text.strip(), re.IGNORECASE))
+    )
     has_doc_flag = "doc-flag:" in msg_text.lower() or "[doc-flag]" in msg_text.lower() or "doc-flag" in msg_text.lower()
 
     violations = []

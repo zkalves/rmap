@@ -2747,6 +2747,139 @@ void TestCodeGenerator::testCommandLineInterface() {
     QCOMPARE(codeExpShortFail, 1);
   }
 
+  // 15b. CLI mutual exclusivity and argument compatibility tests
+  {
+    // Conflicting actions
+    auto [cExpLint, oExpLint] = runRmap(
+        {"-f", "examples/rmt/peripherals/spi.rmt", "--export", "--lint"});
+    QCOMPARE(cExpLint, 1);
+    QVERIFY(oExpLint.contains("mutually exclusive"));
+
+    auto [cConvExp, oConvExp] = runRmap(
+        {"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/out.svd", "-e"});
+    QCOMPARE(cConvExp, 1);
+    QVERIFY(oConvExp.contains("mutually exclusive"));
+
+    auto [cDiffLint, oDiffLint] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
+                 "examples/rmt/peripherals/spi.rmt", "-l"});
+    QCOMPARE(cDiffLint, 1);
+    QVERIFY(oDiffLint.contains("mutually exclusive"));
+
+    auto [cDiffConv, oDiffConv] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
+                 "examples/rmt/peripherals/spi.rmt", "-c", "work/out.svd"});
+    QCOMPARE(cDiffConv, 1);
+    QVERIFY(oDiffConv.contains("mutually exclusive"));
+
+    // Conflicting input file options (-f and positional)
+    auto [cFilePos, oFilePos] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt",
+                 "examples/rmt/peripherals/spi.rmt", "-l"});
+    QCOMPARE(cFilePos, 1);
+    QVERIFY(oFilePos.contains("Conflicting input files"));
+
+    // Multiple positional arguments
+    auto [cMultiPos, oMultiPos] =
+        runRmap({"examples/rmt/peripherals/spi.rmt",
+                 "examples/rmt/peripherals/uart.rmt", "-l"});
+    QCOMPARE(cMultiPos, 1);
+    QVERIFY(oMultiPos.contains("Too many positional arguments"));
+
+    // Empty --file argument
+    auto [cEmptyFile, oEmptyFile] = runRmap({"-f", "", "-l"});
+    QCOMPARE(cEmptyFile, 1);
+    QVERIFY(oEmptyFile.contains("--file argument cannot be empty"));
+
+    // Missing input file for actions
+    auto [cLintNoFile, oLintNoFile] = runRmap({"-l"});
+    QCOMPARE(cLintNoFile, 1);
+    QVERIFY(oLintNoFile.contains("--lint requires an input register map file"));
+
+    auto [cConvNoFile, oConvNoFile] = runRmap({"-c", "work/out.svd"});
+    QCOMPARE(cConvNoFile, 1);
+    QVERIFY(
+        oConvNoFile.contains("--convert requires an input register map file"));
+
+    auto [cDiffNoFile, oDiffNoFile] =
+        runRmap({"-d", "examples/rmt/peripherals/spi.rmt"});
+    QCOMPARE(cDiffNoFile, 1);
+    QVERIFY(oDiffNoFile.contains("--diff requires an input register map file"));
+
+    // Empty --diff target argument
+    auto [cEmptyDiff, oEmptyDiff] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff", ""});
+    QCOMPARE(cEmptyDiff, 1);
+    QVERIFY(
+        oEmptyDiff.contains("--diff requires a comparison target file argument"));
+
+    // Empty --convert destination argument
+    auto [cEmptyConv, oEmptyConv] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--convert", ""});
+    QCOMPARE(cEmptyConv, 1);
+    QVERIFY(
+        oEmptyConv.contains("--convert requires a destination file argument"));
+
+    // --strict compatibility
+    auto [cStrictNoLint, oStrictNoLint] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--strict"});
+    QCOMPARE(cStrictNoLint, 1);
+    QVERIFY(oStrictNoLint.contains("--strict is only compatible with --lint"));
+
+    auto [cStrictExp, oStrictExp] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-e", "--strict"});
+    QCOMPARE(cStrictExp, 1);
+    QVERIFY(oStrictExp.contains("--strict is only compatible with --lint"));
+
+    // --report-format compatibility
+    auto [cFmtNoLintDiff, oFmtNoLintDiff] = runRmap(
+        {"-f", "examples/rmt/peripherals/spi.rmt", "--report-format", "json"});
+    QCOMPARE(cFmtNoLintDiff, 1);
+    QVERIFY(oFmtNoLintDiff.contains(
+        "--report-format is only compatible with --lint or --diff"));
+
+    auto [cFmtLintBad, oFmtLintBad] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l",
+                 "--report-format", "markdown"});
+    QCOMPARE(cFmtLintBad, 1);
+    QVERIFY(
+        oFmtLintBad.contains("Invalid --report-format 'markdown' for --lint"));
+
+    auto [cFmtDiffBad, oFmtDiffBad] = runRmap(
+        {"-f", "examples/rmt/peripherals/spi.rmt", "-d",
+         "examples/rmt/peripherals/spi.rmt", "--report-format", "sarif"});
+    QCOMPARE(cFmtDiffBad, 1);
+    QVERIFY(oFmtDiffBad.contains("Invalid --report-format 'sarif' for --diff"));
+
+    // --out compatibility
+    auto [cOutConv, oOutConv] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/out.svd",
+                 "-o", "work/dir"});
+    QCOMPARE(cOutConv, 1);
+    QVERIFY(oOutConv.contains("--out is incompatible with --convert"));
+
+    auto [cOutGui, oOutGui] =
+        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-o", "work/dir"});
+    QCOMPARE(cOutGui, 1);
+    QVERIFY(oOutGui.contains("--out is only valid with headless operations"));
+
+    auto [cOutGuiBare, oOutGuiBare] = runRmap({"-o", "work/dir"});
+    QCOMPARE(cOutGuiBare, 1);
+    QVERIFY(
+        oOutGuiBare.contains("--out is only valid with headless operations"));
+
+    // GUI mode rejecting headless modifiers
+    auto [cGuiStrict, oGuiStrict] = runRmap({"--strict"});
+    QCOMPARE(cGuiStrict, 1);
+    QVERIFY(oGuiStrict.contains("--strict is only compatible with --lint"));
+
+    auto [cGuiFmt, oGuiFmt] = runRmap({"--report-format", "json"});
+    QCOMPARE(cGuiFmt, 1);
+    QVERIFY(cGuiFmt == 1 &&
+            oGuiFmt.contains(
+                "--report-format is only compatible with --lint or --diff"));
+  }
+
   // 16. sv_hex helper with string width argument
   {
     CodeGenerator cg;

@@ -12,6 +12,7 @@
 #include "rmap.hpp"
 #include <atomic>
 #include <csignal>
+#include <iostream>
 
 static void signalHandler(int sig) {
   Q_UNUSED(sig);
@@ -40,7 +41,10 @@ int main(int argc, char *argv[]) {
         arg.rfind("--convert=", 0) == 0 || arg.rfind("-c=", 0) == 0 ||
         arg == "--lint" || arg == "-l" || arg == "--diff" || arg == "-d" ||
         arg.rfind("--diff=", 0) == 0 || arg.rfind("-d=", 0) == 0 ||
-        arg == "--strict" || arg == "--help" || arg == "-h" ||
+        arg == "--strict" || arg == "--report-format" ||
+        arg.rfind("--report-format=", 0) == 0 || arg == "--out" ||
+        arg == "-o" || arg.rfind("--out=", 0) == 0 ||
+        arg.rfind("-o=", 0) == 0 || arg == "--help" || arg == "-h" ||
         arg == "--help-all" || arg == "--version" || arg == "-v") {
       headless_mode = true;
       break;
@@ -121,16 +125,154 @@ int main(int argc, char *argv[]) {
   parser.addOption(lang_opt);
   parser.process(app);
 
-  QString regmap_file = PathUtils::expandEnvVars(parser.value("file"));
-  if (regmap_file.isEmpty() && !parser.positionalArguments().isEmpty()) {
+  // 1. Validate mutual exclusivity of headless action modes
+  int actionCount = 0;
+  if (parser.isSet(e_opt)) {
+    actionCount++;
+  }
+  if (parser.isSet(c_opt)) {
+    actionCount++;
+  }
+  if (parser.isSet(l_opt)) {
+    actionCount++;
+  }
+  if (parser.isSet(diff_opt)) {
+    actionCount++;
+  }
+
+  if (actionCount > 1) {
+    std::cerr << "Error: The action arguments --export, --convert, --lint, and "
+                 "--diff are mutually exclusive."
+              << std::endl;
+    return 1;
+  }
+
+  // 2. Validate input file arguments and positional arguments
+  if (parser.isSet(f_opt) && !parser.positionalArguments().isEmpty()) {
+    std::cerr << "Error: Conflicting input files specified via --file and "
+                 "positional argument."
+              << std::endl;
+    return 1;
+  }
+  if (parser.positionalArguments().size() > 1) {
+    std::cerr << "Error: Too many positional arguments specified." << std::endl;
+    return 1;
+  }
+
+  QString regmap_file;
+  if (parser.isSet(f_opt)) {
+    regmap_file = PathUtils::expandEnvVars(parser.value(f_opt));
+    if (regmap_file.trimmed().isEmpty()) {
+      std::cerr << "Error: --file argument cannot be empty." << std::endl;
+      return 1;
+    }
+  } else if (!parser.positionalArguments().isEmpty()) {
     regmap_file =
         PathUtils::expandEnvVars(parser.positionalArguments().first());
   }
 
+  // 3. Validate action-specific requirements on input files
   if (parser.isSet(diff_opt)) {
-    QString file2 = PathUtils::expandEnvVars(parser.value("diff"));
-    QString out_path = PathUtils::expandEnvVars(parser.value("out"));
-    QString format = parser.value("report-format");
+    if (regmap_file.isEmpty()) {
+      std::cerr
+          << "Error: --diff requires an input register map file to compare."
+          << std::endl;
+      return 1;
+    }
+    QString file2 = PathUtils::expandEnvVars(parser.value(diff_opt));
+    if (file2.trimmed().isEmpty()) {
+      std::cerr << "Error: --diff requires a comparison target file argument."
+                << std::endl;
+      return 1;
+    }
+  }
+
+  if (parser.isSet(l_opt)) {
+    if (regmap_file.isEmpty()) {
+      std::cerr << "Error: --lint requires an input register map file."
+                << std::endl;
+      return 1;
+    }
+  }
+
+  if (parser.isSet(c_opt)) {
+    if (regmap_file.isEmpty()) {
+      std::cerr << "Error: --convert requires an input register map file."
+                << std::endl;
+      return 1;
+    }
+    QString out_file = PathUtils::expandEnvVars(parser.value(c_opt));
+    if (out_file.trimmed().isEmpty()) {
+      std::cerr << "Error: --convert requires a destination file argument."
+                << std::endl;
+      return 1;
+    }
+  }
+
+  if (parser.isSet(e_opt)) {
+    if (regmap_file.isEmpty()) {
+      std::cerr << "Error: --export requires an input register map file."
+                << std::endl;
+      return 1;
+    }
+  }
+
+  // 4. Validate modifier option compatibility
+  if (parser.isSet(strict_opt) && !parser.isSet(l_opt)) {
+    std::cerr << "Error: --strict is only compatible with --lint." << std::endl;
+    return 1;
+  }
+
+  if (parser.isSet(fmt_opt)) {
+    if (!parser.isSet(l_opt) && !parser.isSet(diff_opt)) {
+      std::cerr << "Error: --report-format is only compatible with --lint or "
+                   "--diff."
+                << std::endl;
+      return 1;
+    }
+    QString format = parser.value(fmt_opt).toLower();
+    if (parser.isSet(l_opt)) {
+      if (format != "text" && format != "json" && format != "sarif" &&
+          format != "junit") {
+        std::cerr
+            << "Error: Invalid --report-format '"
+            << parser.value(fmt_opt).toStdString()
+            << "' for --lint. Supported formats: text, json, sarif, junit."
+            << std::endl;
+        return 1;
+      }
+    } else if (parser.isSet(diff_opt)) {
+      if (format != "text" && format != "markdown") {
+        std::cerr << "Error: Invalid --report-format '"
+                  << parser.value(fmt_opt).toStdString()
+                  << "' for --diff. Supported formats: text, markdown."
+                  << std::endl;
+        return 1;
+      }
+    }
+  }
+
+  bool isHeadlessAction = (actionCount > 0);
+  if (parser.isSet(o_opt)) {
+    if (!isHeadlessAction) {
+      std::cerr << "Error: --out is only valid with headless operations "
+                   "(--export, --lint, --diff)."
+                << std::endl;
+      return 1;
+    }
+    if (parser.isSet(c_opt)) {
+      std::cerr << "Error: --out is incompatible with --convert (target file "
+                   "is specified as argument to --convert)."
+                << std::endl;
+      return 1;
+    }
+  }
+
+  // 5. Execute actions
+  if (parser.isSet(diff_opt)) {
+    QString file2 = PathUtils::expandEnvVars(parser.value(diff_opt));
+    QString out_path = PathUtils::expandEnvVars(parser.value(o_opt));
+    QString format = parser.value(fmt_opt);
     bool ok = RegMapWindow::semanticDiff(regmap_file, file2, format, out_path);
     return ok ? 0 : 1;
   }
@@ -145,22 +287,22 @@ int main(int argc, char *argv[]) {
 
   if (parser.isSet(l_opt)) {
     bool strict = parser.isSet(strict_opt);
-    QString format = parser.value("report-format");
-    QString out_path = PathUtils::expandEnvVars(parser.value("out"));
+    QString format = parser.value(fmt_opt);
+    QString out_path = PathUtils::expandEnvVars(parser.value(o_opt));
     bool passed = mainWin->headlessLint(strict, format, out_path);
     delete mainWin;
     return passed ? 0 : 1;
   }
 
   if (parser.isSet(c_opt)) {
-    QString out_file = PathUtils::expandEnvVars(parser.value("convert"));
+    QString out_file = PathUtils::expandEnvVars(parser.value(c_opt));
     bool success = mainWin->fileSave(out_file);
     delete mainWin;
     return success ? 0 : 1;
   }
 
   if (parser.isSet(e_opt)) {
-    QString out_dir = PathUtils::expandEnvVars(parser.value("out"));
+    QString out_dir = PathUtils::expandEnvVars(parser.value(o_opt));
     bool success = mainWin->headlessExport(out_dir);
     delete mainWin;
     return success ? 0 : 1;

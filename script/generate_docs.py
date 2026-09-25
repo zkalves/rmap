@@ -30,6 +30,7 @@ from pathlib import Path
 USER_MANUAL_DOCS = [
     ("docs/index.md", "Overview & Architecture", "Introduction"),
     ("docs/user/getting-started.md", "Getting Started & Installation", "User Guide"),
+    ("docs/user/supported-os.md", "Supported Operating Systems & Compatibility Matrix", "User Guide"),
     ("docs/user/gui-guide.md", "Interactive GUI User Guide", "User Guide"),
     ("docs/user/cli-reference.md", "Command-Line Interface & Automation", "User Guide"),
     ("docs/user/templates-and-codegen.md", "Code Generation & Templates", "User Guide"),
@@ -40,8 +41,11 @@ USER_MANUAL_DOCS = [
 
 # Documentation chapters for Developer Guide
 DEVELOPER_GUIDE_DOCS = [
-    ("docs/dev/index.md", "C++ Subsystem Architecture & Doxygen Portal", "Architecture Overview"),
+    ("docs/dev/index.md", "Developer Guide Overview", "Introduction"),
+    ("docs/dev/architecture.md", "C++ Subsystem Architecture", "Architecture Overview"),
     ("docs/user/architecture.md", "System Architecture & Data Model", "Architecture & Data Model"),
+    ("docs/dev/standards.md", "Code & Documentation Standards", "Development Standards"),
+    ("docs/dev/coverage.md", "Code Coverage & Quality Metrics", "Quality Assurance"),
     ("docs/user/templates-and-codegen.md", "Code Generation Engine & Templates", "Code Generation Architecture"),
     ("templates/README.md", "Code Generation Templates Specification", "Reference & Specifications"),
     ("examples/README.md", "Reference Examples & Verification Environments", "Reference & Specifications"),
@@ -99,9 +103,13 @@ def format_inline(text: str) -> str:
             safe_code = escape_latex(token[1:-1])
             parts.append(r'\texttt{' + safe_code + r'}')
         else:
-            sub_tokens = re.split(r'(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))', token)
+            sub_tokens = re.split(r'(<b>[^<]+</b>|<i>[^<]+</i>|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))', token)
             for st in sub_tokens:
-                if st.startswith('**') and st.endswith('**') and len(st) >= 4:
+                if st.startswith('<b>') and st.endswith('</b>') and len(st) >= 7:
+                    parts.append(r'\textbf{' + escape_latex(st[3:-4]) + r'}')
+                elif st.startswith('<i>') and st.endswith('</i>') and len(st) >= 7:
+                    parts.append(r'\textit{' + escape_latex(st[3:-4]) + r'}')
+                elif st.startswith('**') and st.endswith('**') and len(st) >= 4:
                     parts.append(r'\textbf{' + escape_latex(st[2:-2]) + r'}')
                 elif st.startswith('*') and st.endswith('*') and len(st) >= 2:
                     parts.append(r'\textit{' + escape_latex(st[1:-1]) + r'}')
@@ -110,7 +118,14 @@ def format_inline(text: str) -> str:
                     if m:
                         link_text = escape_latex(m.group(1))
                         link_url = m.group(2)
-                        parts.append(r'\href{' + link_url + r'}{' + link_text + r'}')
+                        if link_url.startswith('@ref ') or link_url.startswith('#'):
+                            parts.append(r'\textbf{' + link_text + r'}')
+                        elif link_url.startswith('http://') or link_url.startswith('https://') or link_url.startswith('mailto:'):
+                            parts.append(r'\href{' + link_url + r'}{' + link_text + r'}')
+                        elif link_url.endswith('.html') or link_url.endswith('.md'):
+                            parts.append(r'\textit{' + link_text + r'}')
+                        else:
+                            parts.append(r'\href{' + link_url + r'}{' + link_text + r'}')
                     else:
                         parts.append(escape_latex(st))
                 else:
@@ -213,7 +228,9 @@ def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "") ->
             m = re.match(r'^(#+)\s+(.+)$', line)
             if m:
                 level = len(m.group(1))
-                htext = format_inline(m.group(2).strip())
+                heading_raw = m.group(2).strip()
+                heading_raw = re.sub(r'\s*\{#[^}]+\}\s*$', '', heading_raw)
+                htext = format_inline(heading_raw)
                 if level == 1:
                     if not chapter_set:
                         out.append(f'\\chapter{{{htext}}}\n')
@@ -490,7 +507,133 @@ def run_doxygen(project_root: str, html_dir: str = "", verbose: bool = False, re
         return False
 
     print(f"✓ Successfully rendered HTML documentation with Doxygen into: {target_out}")
+    postprocess_html(target_out)
     return True
+
+
+def postprocess_html(html_dir: str):
+    """
+    Post-process generated HTML documentation:
+    1. Rewrites relative Markdown or file reference stub links (*_8md.html) to their canonical documentation pages.
+    2. Overwrites empty Doxygen file stub pages (*_8md.html) with instant meta-refresh redirects to their canonical pages.
+    3. Provides a stub dashboard if coverage/index.html is not yet generated.
+    """
+    if not os.path.isdir(html_dir):
+        return
+
+    redirect_map = {
+        "getting-started_8md.html": "getting_started.html",
+        "supported-os_8md.html": "supported_os.html",
+        "gui-guide_8md.html": "gui_guide.html",
+        "cli-reference_8md.html": "cli_reference.html",
+        "templates-and-codegen_8md.html": "templates_codegen.html",
+        "user_2architecture_8md.html": "architecture.html",
+        "architecture_8md.html": "architecture.html",
+        "dev_2architecture_8md.html": "dev_architecture.html",
+        "dev_2standards_8md.html": "dev_standards.html",
+        "standards_8md.html": "dev_standards.html",
+        "dev_2coverage_8md.html": "dev_coverage.html",
+        "coverage_8md.html": "dev_coverage.html",
+        "dev_2index_8md.html": "dev_guide.html",
+        "user_2index_8md.html": "user_guide.html",
+        "index_8md.html": "index.html",
+    }
+
+    file_map = {
+        "getting-started.md": "getting_started.html",
+        "supported-os.md": "supported_os.html",
+        "gui-guide.md": "gui_guide.html",
+        "cli-reference.md": "cli_reference.html",
+        "templates-and-codegen.md": "templates_codegen.html",
+        "architecture.md": "architecture.html",
+        "user/architecture.md": "architecture.html",
+        "dev/architecture.md": "dev_architecture.html",
+        "dev/standards.md": "dev_standards.html",
+        "dev/coverage.md": "dev_coverage.html",
+        "dev/index.md": "dev_guide.html",
+        "user/index.md": "user_guide.html",
+        "index.md": "index.html",
+    }
+
+    full_rewrite = {}
+    full_rewrite.update(redirect_map)
+    full_rewrite.update(file_map)
+
+    # 1. Scan and rewrite links in all HTML files
+    for root, _, files in os.walk(html_dir):
+        for f in files:
+            if not f.endswith(".html"):
+                continue
+            fpath = os.path.join(root, f)
+            with open(fpath, "r", encoding="utf-8", errors="ignore") as fp:
+                content = fp.read()
+
+            modified = False
+            for src_ref, tgt_page in full_rewrite.items():
+                pattern = f'href="{src_ref}"'
+                if pattern in content:
+                    content = content.replace(pattern, f'href="{tgt_page}"')
+                    modified = True
+                pattern_q = f"href='{src_ref}'"
+                if pattern_q in content:
+                    content = content.replace(pattern_q, f"href='{tgt_page}'")
+                    modified = True
+
+            if modified:
+                with open(fpath, "w", encoding="utf-8") as fp:
+                    fp.write(content)
+
+    # 2. Overwrite stub files with meta-refresh redirects
+    for stub_file, canonical_page in redirect_map.items():
+        stub_path = os.path.join(html_dir, stub_file)
+        redirect_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url={canonical_page}">
+<link rel="canonical" href="{canonical_page}">
+<title>Redirecting to {canonical_page}...</title>
+<script>window.location.replace("{canonical_page}");</script>
+</head>
+<body>
+<p>This page has moved. Redirecting to <a href="{canonical_page}">{canonical_page}</a>...</p>
+</body>
+</html>
+"""
+        with open(stub_path, "w", encoding="utf-8") as fp:
+            fp.write(redirect_content)
+
+    # 3. Create placeholder for coverage/index.html if missing
+    cov_dir = os.path.join(html_dir, "coverage")
+    cov_index = os.path.join(cov_dir, "index.html")
+    if not os.path.exists(cov_index):
+        os.makedirs(cov_dir, exist_ok=True)
+        placeholder = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>rmap Code Coverage Report</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #002b36; color: #839496; padding: 40px; text-align: center; }
+.card { background: #073642; border-radius: 8px; max-width: 600px; margin: 40px auto; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+h1 { color: #268bd2; margin-top: 0; }
+code { background: #002b36; color: #2aa198; padding: 3px 8px; border-radius: 4px; font-size: 0.95em; }
+a { color: #2aa198; text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="card">
+<h1>rmap Code Coverage Dashboard</h1>
+<p>Live interactive coverage reports are generated during CI pipeline execution or locally via:</p>
+<p><code>make coverage-report</code></p>
+<p><a href="../index.html">&larr; Return to Documentation Portal</a></p>
+</div>
+</body>
+</html>
+"""
+        with open(cov_index, "w", encoding="utf-8") as fp:
+            fp.write(placeholder)
 
 
 def generate_html(html_dir: str, project_root: str, verbose: bool = False) -> bool:
@@ -637,17 +780,13 @@ def main():
 
     success = True
 
-    # Generate Doxygen documentation if requested or available
-    if args.dev_only:
-        ok_dox = run_doxygen(project_root, verbose=args.verbose, required=True)
-        if not ok_dox:
-            success = False
-    elif not args.user_only and not args.html_only:
-        run_doxygen(project_root, verbose=args.verbose, required=False)
-
     if build_html:
         ok_html = generate_html(html_dir, project_root, verbose=args.verbose)
         if not ok_html:
+            success = False
+    elif args.dev_only:
+        ok_dox = run_doxygen(project_root, verbose=args.verbose, required=True)
+        if not ok_dox:
             success = False
 
     if build_user_pdf:

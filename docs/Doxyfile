@@ -15,7 +15,10 @@ REPEAT_BRIEF           = YES
 ALWAYS_DETAILED_SEC    = NO
 INLINE_INHERITED_MEMB  = YES
 FULL_PATH_NAMES        = NO
-STRIP_FROM_PATH        = src/
+STRIP_FROM_PATH        = . \
+                         docs \
+                         src \
+                         src/format
 STRIP_FROM_INC_PATH    = src/
 SHORT_NAMES            = NO
 JAVADOC_AUTOBRIEF      = YES
@@ -87,8 +90,7 @@ INPUT                  = docs/index.md \
                          docs/user \
                          docs/dev \
                          src \
-                         src/format \
-                         README.md
+                         src/format
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.c \
                          *.cc \
@@ -139,6 +141,7 @@ GENERATE_QHP           = NO
 GENERATE_TREEVIEW      = YES
 FULL_SIDEBAR           = YES
 SEARCHENGINE           = YES
+LAYOUT_FILE            = docs/DoxygenLayout.xml
 
 # Solarized CSS theme
 HTML_EXTRA_STYLESHEET  = docs/theme/solarized.css
