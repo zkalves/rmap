@@ -361,7 +361,7 @@ def compile_latex_book(
 \textbf{Version """ + version_str + r"""}\\[0.4cm]
 \textbf{Author: Ezequiel Alves}\\[0.4cm]
 \textbf{GitHub: \url{https://github.com/zkalves/rmap}}\\[0.6cm]
-\textsl{Mozilla Public License 2.0 (MPL-2.0)}\\[1cm]
+\textsl{Mozilla Public License 2.0 (MPL-2.0) with Output Exception}\\[1cm]
 \today
 \vfill
 \end{titlepage}

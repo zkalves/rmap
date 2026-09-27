@@ -109,3 +109,9 @@ Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap
 ## License
 
 This project is licensed under the Mozilla Public License 2.0 (MPL 2.0) — see the [LICENSE](LICENSE) file for details.
+
+### Output Exception
+
+The code and artifacts generated as output by `rmap` (such as synthesizable RTL, UVM register models, C/C++ firmware headers, Rust crates, Python testbenches, and documentation) are covered by the **Output Exception** — see the [LICENSE.EXCEPTION](LICENSE.EXCEPTION) file for details:
+
+> The code and artifacts generated as output by this tool are not subject to the license of this software. You may use, modify, redistribute, and sublicense the generated output for any purpose, commercial or non-commercial, without limitation or attribution requirement.

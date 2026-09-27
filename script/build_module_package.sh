@@ -79,6 +79,9 @@ cp -rp "${PROJECT_ROOT}/examples/"* "${STAGE_DIR}/share/rmap/examples/"
 
 # 3. Copy documentation & licenses
 cp -p "${PROJECT_ROOT}/LICENSE" "${STAGE_DIR}/share/rmap/doc/"
+if [[ -f "${PROJECT_ROOT}/LICENSE.EXCEPTION" ]]; then
+    cp -p "${PROJECT_ROOT}/LICENSE.EXCEPTION" "${STAGE_DIR}/share/rmap/doc/"
+fi
 cp -p "${PROJECT_ROOT}/README.md" "${STAGE_DIR}/share/rmap/doc/"
 if [[ -d "${PROJECT_ROOT}/_site" ]]; then
     cp -rp "${PROJECT_ROOT}/_site" "${STAGE_DIR}/share/rmap/doc/html"
