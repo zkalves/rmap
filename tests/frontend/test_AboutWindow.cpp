@@ -135,6 +135,7 @@ void TestAboutWindow::testTabsAndContent()
     QString licText = licenseBrowser->toPlainText();
     QVERIFY(licText.contains("GNU General Public License"));
     QVERIFY(licText.contains("Ezequiel Alves"));
+    QVERIFY(licText.contains("Output Exception"));
 }
 
 void TestAboutWindow::testApplicationMethods()

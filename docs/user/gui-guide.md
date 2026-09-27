@@ -338,5 +338,5 @@ Access application assistance and information from the **Help** pull-down menu:
     - **About**: Architectural vision, target engineering disciplines, and core workflow.
     - **Features**: Overview of supported serialization formats and the full code generation template catalog (SystemVerilog RTL, Verilog 2001, Synthesizable VHDL, APB/AXI4-Lite wrappers, SVA assertions, UVM, PyUVM, C/C++, Rust, Python, HTML, Markdown, SystemRDL, IP-XACT, CMSIS-SVD, CSV, JSON).
     - **Libraries & Credits**: Runtime and build dependencies including Qt 6, Pantor Inja, nlohmann/json, and Google Protocol Buffers.
-    - **License**: GNU General Public License Version 3 (GPL-3.0-or-later) terms and repository copyright notices.
+    - **License**: GNU General Public License Version 3 (GPL-3.0-or-later) terms, Output Exception for generated artifacts (`LICENSE.EXCEPTION`), and repository copyright notices.
   - Remembers user dialog dimensions and screen positions across sessions in `~/.config/rmap/rmap.conf`.

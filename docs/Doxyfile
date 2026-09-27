@@ -102,13 +102,12 @@ FILE_PATTERNS          = *.c \
                          *.hpp \
                          *.md
 RECURSIVE              = YES
-EXCLUDE                =
+EXCLUDE                = build \
+                         work \
+                         .pelican-cache
 EXCLUDE_SYMLINKS       = NO
-EXCLUDE_PATTERNS       = */build/* \
-                         */work/* \
-                         */ui_* \
-                         */mocs_compilation* \
-                         */.pelican-cache/*
+EXCLUDE_PATTERNS       = */ui_* \
+                         */mocs_compilation*
 EXCLUDE_SYMBOLS        = Ui::*
 
 USE_MDFILE_AS_MAINPAGE = docs/index.md

@@ -109,3 +109,9 @@ Full documentation is available on [GitHub Pages](https://zkalves.github.io/rmap
 ## License
 
 This project is licensed under the GNU General Public License Version 3 (GPL-3.0-or-later) with Output Exception — see the [LICENSE](LICENSE) and [LICENSE.EXCEPTION](LICENSE.EXCEPTION) files for details.
+
+### Output Exception
+
+The code and artifacts generated as output by `rmap` (such as synthesizable RTL, UVM register models, C/C++ firmware headers, Rust crates, Python testbenches, and documentation) are covered by the **Output Exception** — see the [LICENSE.EXCEPTION](LICENSE.EXCEPTION) file for details:
+
+> The code and artifacts generated as output by this tool are not subject to the license of this software. You may use, modify, redistribute, and sublicense the generated output for any purpose, commercial or non-commercial, without limitation or attribution requirement.

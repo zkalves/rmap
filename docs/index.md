@@ -67,4 +67,11 @@ make test
 - **Email**: [alvesel@gmail.com](mailto:alvesel@gmail.com)
 - **GitHub Page**: [https://github.com/zkalves/rmap](https://github.com/zkalves/rmap)
 - **Documentation Portal**: [https://zkalves.github.io/rmap/](https://zkalves.github.io/rmap/)
-- **License**: GNU General Public License Version 3 (GPL-3.0-or-later)
+- **License**: GNU General Public License Version 3 (GPL-3.0-or-later) with [Output Exception](https://github.com/zkalves/rmap/blob/main/LICENSE.EXCEPTION) (see [LICENSE](https://github.com/zkalves/rmap/blob/main/LICENSE) and [LICENSE.EXCEPTION](https://github.com/zkalves/rmap/blob/main/LICENSE.EXCEPTION))
+
+---
+
+## 📄 License & Output Exception
+
+- **Application & Source Code**: The `rmap` application, source code, and templates are licensed under the **GNU General Public License Version 3 (GPL-3.0-or-later)**. See the [`LICENSE`](https://github.com/zkalves/rmap/blob/main/LICENSE) file for complete terms.
+- **Generated Code & Output Artifacts**: All code and artifacts generated as output by **rmap** (including synthesizable RTL, UVM register models, C/C++ firmware headers, Rust crates, Python testbenches, and documentation) are covered by the **Output Exception** ([`LICENSE.EXCEPTION`](https://github.com/zkalves/rmap/blob/main/LICENSE.EXCEPTION)). Generated outputs are **not** subject to the GPL-3.0-or-later license and may be used, modified, redistributed, and sublicensed for any commercial or non-commercial purpose without limitation or attribution requirement.
