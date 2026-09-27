@@ -296,6 +296,12 @@ install(FILES
     OPTIONAL
 )
 
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.EXCEPTION"
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
+
 # Relative symlink from html/pdf to ../pdf so HTML portal links resolve without duplicating files
 if(UNIX)
     install(CODE "

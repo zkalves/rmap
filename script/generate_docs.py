@@ -361,7 +361,7 @@ def compile_latex_book(
 \textbf{Version """ + version_str + r"""}\\[0.4cm]
 \textbf{Author: Ezequiel Alves}\\[0.4cm]
 \textbf{GitHub: \url{https://github.com/zkalves/rmap}}\\[0.6cm]
-\textsl{Mozilla Public License 2.0 (MPL-2.0)}\\[1cm]
+\textsl{Mozilla Public License 2.0 (MPL-2.0) with Output Exception}\\[1cm]
 \today
 \vfill
 \end{titlepage}
@@ -505,6 +505,8 @@ def run_doxygen(project_root: str, html_dir: str = "", verbose: bool = False, re
         if res.stderr:
             print(res.stderr, file=sys.stderr)
         return False
+    elif not verbose and res.stderr and "warning:" in res.stderr.lower():
+        print(f"[WARNING] Doxygen reported warnings during documentation generation:\n{res.stderr}", file=sys.stderr)
 
     print(f"✓ Successfully rendered HTML documentation with Doxygen into: {target_out}")
     postprocess_html(target_out)
@@ -634,6 +636,12 @@ a:hover { text-decoration: underline; }
 """
         with open(cov_index, "w", encoding="utf-8") as fp:
             fp.write(placeholder)
+
+    # 4. Create .nojekyll to ensure GitHub Pages serves static files directly
+    nojekyll_path = os.path.join(html_dir, ".nojekyll")
+    if not os.path.exists(nojekyll_path):
+        with open(nojekyll_path, "w", encoding="utf-8") as fp:
+            pass
 
 
 def generate_html(html_dir: str, project_root: str, verbose: bool = False) -> bool:

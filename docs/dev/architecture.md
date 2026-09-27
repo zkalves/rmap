@@ -36,7 +36,7 @@ flowchart TD
 - **`RegMapWindow` (`src/RegMapWindow.*`)**: Central main window orchestrating the dual-pane hierarchy view, bitfield visualizer, stacked memory map, undo/redo stack, search bar (`QLineEdit` with live substring/regex filtering via `TreeFilterProxyModel`), and headless batch conversion/export pipelines.
 - **`RegConfigWindow` (`src/RegConfigWindow.*`)**: Configuration dialog managing Inja template output paths, register width definitions, and custom template context parameters.
 - **`PreferencesWindow` (`src/PreferencesWindow.*`)**: User preferences dialog managing 8 color schemes, high-contrast themes, and barrier-free color-vision deficiency (CVD) palettes.
-- **`AboutWindow` (`src/AboutWindow.*`)**: Tabbed diagnostic dialog reporting semantic versioning, build parameters, architectural credits, and MPL-2.0 license terms.
+- **`AboutWindow` (`src/AboutWindow.*`)**: Tabbed diagnostic dialog reporting semantic versioning, build parameters, architectural credits, and MPL-2.0 license / Output Exception terms.
 
 ### Subsystem 2: Data Model & Model-View Architecture
 - **`RegMapTreeModel` (`src/RegMapTreeModel.*`)**: Hierarchical tree model implementing `QAbstractItemModel`. Provides Qt views with observable data, row insertion/deletion, property updates, and real-time non-blocking validation tracking via `m_invalidCells`.
