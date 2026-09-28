@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | `DATA_WIDTH` | `integer` | `32` | Register data width in bits |
 | `ADDR_WIDTH` | `integer` | `32` | Address width in bits |
-| `PARAM_HW_PRECEDENCE` | `integer` | `1` | 1 = Hardware update priority; 0 = Software priority |
+| `PARAM_HW_PRECEDENCE` | `integer` | `1` | 1 = Hardware update priority; 0 = Software priority. Configurable via Inja custom parameter 'param_hw_precedence' |
 
 #### Interface Signals & Ports
 

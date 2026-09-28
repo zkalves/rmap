@@ -45,7 +45,7 @@ TEMPLATE_METADATA = {
         "params": [
             ("DATA_WIDTH", "int", "32", "Register bus data width (8, 16, 32, 64, 128, 256, 512, 1024)"),
             ("ADDR_WIDTH", "int", "32", "Address bus width matching block address range"),
-            ("PARAM_HW_PRECEDENCE", "bit", "1'b1", "Arbitration priority: 1 = HW update over SW write; 0 = SW over HW")
+            ("PARAM_HW_PRECEDENCE", "bit", "1'b1", "Arbitration priority: 1 = HW update over SW write; 0 = SW over HW. Configurable via Inja custom parameter 'param_hw_precedence'")
         ],
         "ports": [
             ("clk_i", "input", "logic", "System clock"),
@@ -81,7 +81,7 @@ TEMPLATE_METADATA = {
         "params": [
             ("DATA_WIDTH", "integer", "32", "Register data width in bits"),
             ("ADDR_WIDTH", "integer", "32", "Address width in bits"),
-            ("PARAM_HW_PRECEDENCE", "integer", "1", "1 = Hardware update priority; 0 = Software priority")
+            ("PARAM_HW_PRECEDENCE", "integer", "1", "1 = Hardware update priority; 0 = Software priority. Configurable via Inja custom parameter 'param_hw_precedence'")
         ],
         "ports": [
             ("clk_i", "input", "wire", "System clock"),
@@ -112,7 +112,7 @@ TEMPLATE_METADATA = {
         "params": [
             ("DATA_WIDTH", "natural", "32", "Data bus width in bits"),
             ("ADDR_WIDTH", "natural", "32", "Address bus width in bits"),
-            ("PARAM_HW_PRECEDENCE", "integer", "1", "Arbitration priority")
+            ("PARAM_HW_PRECEDENCE", "integer", "1", "Arbitration priority (1 = HW over SW; 0 = SW over HW). Configurable via Inja custom parameter 'param_hw_precedence'")
         ],
         "ports": [
             ("clk_i", "in", "std_logic", "Clock signal"),
