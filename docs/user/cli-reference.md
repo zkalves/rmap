@@ -5,8 +5,6 @@
 > [!NOTE]
 > Qt 6 is a required dependency for all builds of **rmap**. Headless CLI operations run automatically offscreen without requiring an X11/Wayland display server by initializing the offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`).
 
----
-
 ## Command Line Syntax
 
 ```bash

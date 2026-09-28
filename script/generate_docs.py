@@ -643,6 +643,26 @@ a:hover { text-decoration: underline; }
         with open(nojekyll_path, "w", encoding="utf-8") as fp:
             pass
 
+    # 5. Sanitize any spurious </blockquote> heading artifacts produced by Doxygen
+    for root, _, files in os.walk(html_dir):
+        for f in files:
+            fpath = os.path.join(root, f)
+            if f.endswith(".html"):
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as fp:
+                    content = fp.read()
+                cleaned = re.sub(r'<h[1-6]><a class="anchor"[^>]*></a>\s*&lt;/blockquote&gt;\s*</h[1-6]>\n?', '', content)
+                if cleaned != content:
+                    with open(fpath, "w", encoding="utf-8") as fp:
+                        fp.write(cleaned)
+            elif f.endswith(".js"):
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as fp:
+                    content = fp.read()
+                cleaned = re.sub(r'\s*\[\s*"</blockquote>"[^]]*\],?\n?', '', content)
+                cleaned = re.sub(r',\s*(\])', r'\1', cleaned)
+                if cleaned != content:
+                    with open(fpath, "w", encoding="utf-8") as fp:
+                        fp.write(cleaned)
+
 
 def generate_html(html_dir: str, project_root: str, verbose: bool = False) -> bool:
     os.makedirs(html_dir, exist_ok=True)
