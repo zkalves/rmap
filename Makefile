@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage check-coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package-docker docker-build package-homebrew package-module package packages
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-screenshots docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage check-coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package-docker docker-build package-homebrew package-module package packages
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -137,8 +137,17 @@ clean:
 
 rebuild: clean all
 
+# Generate documentation GUI screenshots
+docs-screenshots:
+	@mkdir -p build
+	@cmake --build build --target capture_screenshots
+	@QT_QPA_PLATFORM=offscreen ./build/bin/capture_screenshots docs/images
+
 # Render documentation (HTML portal, User Manual PDF, and Developer Guide PDF)
 docs:
+	@if [ -x build/bin/capture_screenshots ]; then \
+		QT_QPA_PLATFORM=offscreen ./build/bin/capture_screenshots docs/images; \
+	fi
 	@./script/render_docs
 
 # Generate both User Manual and Developer Guide PDFs

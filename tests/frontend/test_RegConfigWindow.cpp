@@ -36,8 +36,10 @@ class TestRegConfigWindow : public QObject
 private slots:
     void initTestCase() {
         s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
+        qputenv("RMAP_CONFIG_FILE", "work/rmap_test_cfg.conf");
         QDir("work").removeRecursively();
         QDir().mkpath("work");
+        AppSettings::instance().setConfigFilePath("work/rmap_test_cfg.conf");
     }
     void cleanupTestCase() {
         QDir("work").removeRecursively();

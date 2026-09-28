@@ -234,6 +234,22 @@ include(FetchContent)
     target_compile_definitions(rmap PRIVATE HAVE_QT_GUI)
     target_link_libraries(rmap PRIVATE rmap_core Qt6::Widgets)
 
+    # Documentation Screenshots Generator Target
+    qt_add_executable(capture_screenshots
+        tools/capture_screenshots.cpp
+    )
+    target_compile_options(capture_screenshots PRIVATE -Wfatal-errors)
+    target_compile_definitions(capture_screenshots PRIVATE HAVE_QT_GUI)
+    target_link_libraries(capture_screenshots PRIVATE rmap_core Qt6::Widgets)
+    set_property(TARGET capture_screenshots PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+    add_custom_target(docs-screenshots
+        COMMAND ${CMAKE_BINARY_DIR}/bin/capture_screenshots ${CMAKE_CURRENT_SOURCE_DIR}/docs/images
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS capture_screenshots
+        COMMENT "Capturing GUI documentation screenshots"
+    )
+
 # Installation Targets & Assets
 install(TARGETS rmap
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -252,12 +268,14 @@ install(DIRECTORY examples/
 
 # Documentation Generation Target
 add_custom_target(docs
+    COMMAND ${CMAKE_BINARY_DIR}/bin/capture_screenshots ${CMAKE_CURRENT_SOURCE_DIR}/docs/images
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/script/generate_docs.py
         --project-root ${CMAKE_CURRENT_SOURCE_DIR}
         --html-dir ${CMAKE_CURRENT_BINARY_DIR}/docs/html
         --user-pdf ${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_user_manual.pdf
         --dev-pdf ${CMAKE_CURRENT_BINARY_DIR}/docs/rmap_developer_guide.pdf
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS capture_screenshots
     COMMENT "Generating HTML documentation, User Manual PDF, and Developer Guide PDF"
 )
 

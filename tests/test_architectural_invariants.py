@@ -253,6 +253,53 @@ def test_no_spurious_blockquote_headings():
     return True
 
 
+def test_no_unparsed_markdown_bold():
+    """Invariant 11: Zero unparsed Markdown bold markers (**...**) in generated HTML and LaTeX documentation."""
+    print("Checking Invariant 11: Zero unparsed Markdown bold artifacts (**...**) in documentation...")
+    violations = []
+
+    # Check generated HTML files in _site
+    site_dir = os.path.join(PROJECT_ROOT, "_site")
+    if os.path.isdir(site_dir):
+        for root, _, files in os.walk(site_dir):
+            for f in files:
+                if f.endswith(".html"):
+                    p = os.path.join(root, f)
+                    rel = os.path.relpath(p, PROJECT_ROOT)
+                    with open(p, "r", encoding="utf-8", errors="ignore") as fp:
+                        content = fp.read()
+                    clean = re.sub(r'<pre\b[^>]*>[\s\S]*?</pre>', '', content, flags=re.IGNORECASE)
+                    clean = re.sub(r'<div class="fragment"[\s\S]*?</div>\s*</div>', '', clean, flags=re.IGNORECASE)
+                    matches = re.findall(r'\*\*(.+?)\*\*', clean)
+                    if matches:
+                        violations.append(f"{rel}: {len(matches)} unrendered bold spans found")
+
+    # Check LaTeX conversion for all markdown docs
+    sys.path.insert(0, os.path.join(PROJECT_ROOT, "script"))
+    from generate_docs import parse_markdown_to_latex
+    docs_dir = os.path.join(PROJECT_ROOT, "docs")
+    for root, _, files in os.walk(docs_dir):
+        for f in files:
+            if f.endswith(".md"):
+                md_path = os.path.join(root, f)
+                rel = os.path.relpath(md_path, PROJECT_ROOT)
+                with open(md_path, "r", encoding="utf-8") as fp:
+                    md_text = fp.read()
+                tex = parse_markdown_to_latex(md_text)
+                matches = re.findall(r'\*\*(.+?)\*\*', tex)
+                if matches:
+                    violations.append(f"LaTeX ({rel}): {len(matches)} unrendered bold spans found")
+
+    if violations:
+        print("FAIL: Found unrendered Markdown bold artifacts in documentation:", file=sys.stderr)
+        for v in violations:
+            print(f"  {v}", file=sys.stderr)
+        return False
+
+    print("  ✓ Verified documentation contains zero unparsed Markdown bold artifacts.")
+    return True
+
+
 def main():
     print("=== Running Architectural Invariants Test Suite ===\n")
     sources = collect_source_files()
@@ -272,6 +319,7 @@ def main():
     passed &= check_formats_parity()
     passed &= test_no_blockquote_trailing_dividers()
     passed &= test_no_spurious_blockquote_headings()
+    passed &= test_no_unparsed_markdown_bold()
 
     if passed:
         print("\n=======================================================")
