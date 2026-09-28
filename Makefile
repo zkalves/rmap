@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2026 Ezequiel Alves. All rights reserved.
 
-.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-screenshots docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage check-coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package-docker docker-build package-homebrew package-module package packages
+.PHONY: all run test check clean clean-gcda clean-coverage rebuild docs docs-screenshots docs-wavedrom docs-templates docs-pdf docs-user docs-dev docs-classes docs-doxygen docs-serve test-templates test-unit test-backend test-frontend test-examples test-all coverage check-coverage coverage-report install uninstall version bump-patch bump-minor bump-major bump-auto release setup-hooks sim-uvm package-deb package-rpm package-appimage package-docker docker-build package-homebrew package-module package packages
 
 # Parallel build jobs (defaults to number of processor cores)
 JOBS ?= $(shell nproc 2>/dev/null || echo 4)
@@ -141,7 +141,13 @@ rebuild: clean all
 docs-screenshots:
 	@mkdir -p build
 	@cmake --build build --target capture_screenshots
-	@QT_QPA_PLATFORM=offscreen ./build/bin/capture_screenshots docs/images
+# Generate WaveDrom waveform timing diagrams
+docs-wavedrom:
+	@python3 ./script/generate_template_docs.py --wavedrom
+
+# Generate individual template documentation
+docs-templates: docs-wavedrom
+	@python3 ./script/generate_template_docs.py --all
 
 # Render documentation (HTML portal, User Manual PDF, and Developer Guide PDF)
 docs:

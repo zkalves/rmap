@@ -156,7 +156,7 @@ def format_inline(text: str) -> str:
     return ''.join(out)
 
 
-def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "", project_root: str = "") -> str:
+def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "", project_root: str = "", doc_path: str = "") -> str:
     lines = md_content.splitlines()
     out = []
     in_code = False
@@ -304,8 +304,14 @@ def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "", pr
             alt_text = format_inline(m_img.group(1).strip())
             img_target = m_img.group(2).strip()
             img_basename = os.path.basename(img_target)
-            resolved_img = os.path.join(project_root, "docs", "images", img_basename) if project_root else os.path.join("docs", "images", img_basename)
-            if os.path.exists(resolved_img):
+            doc_dir = os.path.dirname(os.path.abspath(doc_path)) if doc_path else (os.path.join(project_root, "docs") if project_root else "docs")
+            candidate_paths = [
+                os.path.normpath(os.path.join(doc_dir, img_target)),
+                os.path.join(project_root, "docs", "images", img_basename) if project_root else os.path.join("docs", "images", img_basename),
+                os.path.join(project_root, "docs", "images", "wavedrom", img_basename) if project_root else os.path.join("docs", "images", "wavedrom", img_basename),
+            ]
+            resolved_img = next((p for p in candidate_paths if os.path.isfile(p)), None)
+            if resolved_img:
                 clean_path = os.path.abspath(resolved_img).replace("\\", "/")
                 out.append(r'\begin{figure}[htbp]')
                 out.append(r'\centering')
@@ -431,7 +437,7 @@ def compile_latex_book(
         if os.path.exists(full_path):
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            tex_out.append(parse_markdown_to_latex(content, default_chapter_title=title, project_root=project_root))
+            tex_out.append(parse_markdown_to_latex(content, default_chapter_title=title, project_root=project_root, doc_path=full_path))
         else:
             if verbose:
                 print(f"Warning: Chapter file not found: {rel_path}")
@@ -520,6 +526,31 @@ def ensure_screenshots(project_root: str, verbose: bool = False) -> bool:
             return True
         elif verbose and res.stderr:
             print(f"[WARNING] capture_screenshots returned error: {res.stderr}", file=sys.stderr)
+    return True
+
+
+def ensure_wavedrom_diagrams(project_root: str, verbose: bool = False) -> bool:
+    """
+    Ensures WaveDrom timing diagrams exist in docs/images/wavedrom.
+    Renders SVG and PNG waveforms using script/wavedrom_renderer.py.
+    """
+    wd_dir = os.path.join(project_root, "docs", "images", "wavedrom")
+    os.makedirs(wd_dir, exist_ok=True)
+    renderer_script = os.path.join(project_root, "script", "wavedrom_renderer.py")
+    if os.path.isfile(renderer_script):
+        if verbose:
+            print(f"--> Generating WaveDrom timing diagrams into: {os.path.relpath(wd_dir, project_root)}")
+        try:
+            sys.path.insert(0, os.path.join(project_root, "script"))
+            from wavedrom_renderer import render_all_standard_wavedroms
+            render_all_standard_wavedroms(wd_dir)
+            if verbose:
+                print("✓ Successfully generated WaveDrom timing diagrams into docs/images/wavedrom")
+            return True
+        except Exception as e:
+            if verbose:
+                print(f"[WARNING] WaveDrom renderer error: {e}", file=sys.stderr)
+            return False
     return True
 
 
@@ -745,11 +776,15 @@ a:hover { text-decoration: underline; }
         if os.path.isdir(docs_img_dir):
             out_img_dir = os.path.join(html_dir, "images")
             os.makedirs(out_img_dir, exist_ok=True)
-            for f in os.listdir(docs_img_dir):
-                if f.lower().endswith((".png", ".jpg", ".jpeg", ".svg")):
-                    src_f = os.path.join(docs_img_dir, f)
-                    shutil.copy2(src_f, os.path.join(out_img_dir, f))
-                    shutil.copy2(src_f, os.path.join(html_dir, f))
+            for root, _, files in os.walk(docs_img_dir):
+                rel_dir = os.path.relpath(root, docs_img_dir)
+                target_sub = os.path.join(out_img_dir, rel_dir) if rel_dir != "." else out_img_dir
+                os.makedirs(target_sub, exist_ok=True)
+                for f in files:
+                    if f.lower().endswith((".png", ".jpg", ".jpeg", ".svg")):
+                        src_f = os.path.join(root, f)
+                        shutil.copy2(src_f, os.path.join(target_sub, f))
+                        shutil.copy2(src_f, os.path.join(html_dir, f))
 
     # 7. Rewrite relative image paths (../images/ -> images/) for direct HTML viewing
     for root, _, files in os.walk(html_dir):
@@ -865,6 +900,11 @@ def main():
         help="Capture fresh GUI screenshots using capture_screenshots binary before generating documentation"
     )
     parser.add_argument(
+        "--wavedrom",
+        action="store_true",
+        help="Generate WaveDrom timing diagrams into docs/images/wavedrom"
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Clean target output directories before generation"
@@ -880,6 +920,11 @@ def main():
 
     # Ensure documentation GUI screenshots are present and refreshed if binary is available
     ensure_screenshots(project_root, verbose=args.verbose)
+    # Ensure WaveDrom timing diagrams are generated
+    ensure_wavedrom_diagrams(project_root, verbose=args.verbose)
+
+    if args.wavedrom:
+        sys.exit(0)
 
     if args.doxygen:
         ok = run_doxygen(project_root, verbose=args.verbose, required=True)
