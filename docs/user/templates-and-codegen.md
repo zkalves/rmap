@@ -197,6 +197,18 @@ The context passed to Inja templates provides rich hardware architecture and ver
    - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
 
+   **WaveDrom Protocol Timing Diagrams**:
+   - *Software Write Cycle with Byte Strobes & Pulse Strobe*:
+     ![Software Write Cycle Timing](../images/wavedrom/rtl_sw_write_strobe.png)
+   - *Software Read Cycle & Read Pulse Strobe*:
+     ![Software Read Cycle Timing](../images/wavedrom/rtl_sw_read_strobe.png)
+   - *Hardware Logic Update with Write-Enable Condition*:
+     ![Hardware Logic Update Timing](../images/wavedrom/rtl_hw_update.png)
+   - *Hardware vs. Software Arbitration Precedence*:
+     ![Hardware vs Software Arbitration Precedence](../images/wavedrom/rtl_hw_arbitration.png)
+   - *Write-1-to-Clear (W1C) Status Flag Latching & Clear*:
+     ![W1C Event Latching & Clear Timing](../images/wavedrom/rtl_w1c_cycle.png)
+
 2. **Synthesizable Verilog-2001 Register File** (`rtl/reg_map.v.inja`):
    - IEEE 1364-2001 synthesizable Verilog implementation for legacy ASIC synthesis and FPGA toolchains.
    - Matches bus-agnostic interface, byte write strobes, configurable `DATA_WIDTH`, and `HW_PRECEDENCE` parameterization.
@@ -206,13 +218,19 @@ The context passed to Inja templates provides rich hardware architecture and ver
 
 4. **Synthesizable APB4 Register Slave Wrapper** (`rtl/apb_reg_file.sv.inja`):
    - AMBA 4 APB (APB4) compliant synthesizable bridge wrapping the generic register file with `paddr`, `psel`, `penable`, `pwrite`, `pwdata`, `pstrb`, `pready`, `prdata`, and `pslverr` signals.
+   - *APB4 Write and Read Handshake Protocol*:
+     ![APB4 Protocol Handshake](../images/wavedrom/apb_write_read_protocol.png)
 
 5. **Synthesizable AXI4-Lite Register Slave Wrapper** (`rtl/axil_reg_file.sv.inja`):
    - AMBA 4 AXI4-Lite compliant synthesizable bridge wrapping the generic register file with standard 5-channel handshakes (AW, W, B, AR, R channels) and parameterized data widths.
+   - *AXI4-Lite Five-Channel Handshake Transactions*:
+     ![AXI4-Lite Five-Channel Handshake](../images/wavedrom/axil_write_read_protocol.png)
 
 6. **Formal & Dynamic SystemVerilog Assertions** (`rtl/reg_map_sva.sv.inja`):
    - IEEE 1800-2017 SystemVerilog Assertions (SVA) checker bindable directly to `reg_map`.
    - Formally verifies reset states, bus write/read protocol properties, write-1-to-clear invariants, and hardware precedence arbitration.
+   - *Exactly-One-Cycle Software Strobe Pulse Assertion*:
+     ![SVA Exactly-One-Cycle Strobe Assertion](../images/wavedrom/sva_strobe_pulse.png)
 
 7. **UVM SystemVerilog Register Model** (`uvm/reg_model.sv.inja`):
    - Complete `uvm_reg_block`, `uvm_reg`, and `uvm_reg_field` hierarchy.
@@ -274,6 +292,57 @@ The context passed to Inja templates provides rich hardware architecture and ver
 21. **Multi-Tool Simulation Makefile** (`sim/Makefile.inja`):
     - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and commercial EDA simulators (`sim-uvm SIM=vcs|xrun|mti`).
     - Configurable UVM version selection via `UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d` or custom path via `UVM_HOME=/path/to/uvm`, with automatic local repository discovery.
+
+### Software Strobes & Hardware Sideband Delivery Model
+
+In **rmap**, software access strobes (`sw_<reg>_wr_strobe_o`, `sw_<reg>_rd_strobe_o`, `sw_<reg>_<fld>_wr_strobe_o`, `sw_<reg>_<fld>_rd_strobe_o`), byte write enables (`wstrb_i`), and hardware sideband signals (`hw_*_i`, `hw_*_we_i`, `hw_*_o`) are **template-level deliverables** implemented by HDL templates (SystemVerilog, Verilog 2001, VHDL) and checked by protocol assertions (SVA).
+
+#### Core Data Model vs. HDL Template Deliverables
+
+The **rmap** architectural model maintains a strict boundary between target-agnostic register representations and target-specific hardware signals:
+
+| Subsystem Responsibility | Architectural Role | Scope & Concrete Artifacts |
+| :--- | :--- | :--- |
+| **Core Architecture & Data Model** | Abstract Semantic Model | Register hierarchies, bitfield layout, 24 standard UVM access modes (RW, RO, WO, W1C, RC, etc.), semantic arbitration rules, memory windows, and lossless format translation (SystemRDL, IP-XACT, SVD, JSON). Completely free of HDL port names and cycle-level signaling. |
+| **HDL Templates (RTL & Wrappers)** | Concrete Cycle-Accurate Hardware | Synthesizable module declarations, clocking (`clk_i`), active-low reset (`rst_ni`), bus handshakes, byte strobes (`wstrb_i`), hardware sideband buses (`hw_*`), and 1-cycle software pulse strobes for triggering external IP state machines. |
+| **Verification Templates (SVA & UVM)** | Behavioral & Protocol Invariants | Temporal assertions verifying single-cycle strobe duration (`sw_wr_strobe_o ##1 !sw_wr_strobe_o`), address decode uniqueness, reset state integrity, and UVM RAL backdoor/frontdoor access. |
+| **Software Headers (C, Rust, Python)** | Firmware Memory-Mapped Drivers | Header files, volatile struct definitions, bitfield macros (`RMAP_REG_GET`, `RMAP_REG_SET`), PAC crates, and bring-up scripts without hardware pulse strobe dependencies. |
+
+#### Software Pulse Strobe Operational Semantics
+
+Software strobes provide single-cycle active-high pulses to synchronize peripheral logic with CPU register access:
+- **Write Strobes (`sw_<reg>_wr_strobe_o`, `sw_<reg>_<fld>_wr_strobe_o`)**: Pulsed high for exactly one clock cycle when the host CPU executes a valid bus write transaction targeting the register. External hardware uses this strobe to latch configuration changes, trigger FIFOs, or initiate hardware actions.
+- **Read Strobes (`sw_<reg>_rd_strobe_o`, `sw_<reg>_<fld>_rd_strobe_o`)**: Pulsed high for exactly one clock cycle when the host CPU reads from the register. Useful for clearing event flags on read (RC fields), advancing read pointers in hardware queues, or logging CPU access.
+
+### Standalone Per-Template Documentation Generator (`script/generate_template_docs.py`)
+
+**rmap** includes a dedicated documentation generator (`script/generate_template_docs.py`) capable of generating isolated, self-contained documentation for every template in `templates/`:
+
+```bash
+# Generate documentation for all 26 templates into docs/user/templates/
+make docs-templates
+# or directly:
+python3 script/generate_template_docs.py --all
+
+# Generate documentation for an individual template with WaveDrom waveforms
+python3 script/generate_template_docs.py --template rtl/reg_map.sv.inja
+
+# Generate documentation for all templates in a specific category (e.g. rtl, uvm, c)
+python3 script/generate_template_docs.py --category rtl
+
+# Render standalone WaveDrom SVG and PNG timing diagrams into docs/images/wavedrom/
+make docs-wavedrom
+# or directly:
+python3 script/generate_template_docs.py --wavedrom
+```
+
+Each generated template document includes:
+1. **Header Metadata**: Full standard compliance (e.g. IEEE 1800-2017, Accellera UVM 1.2 / 1800.2, ISO C99), deliverable path, and architectural description.
+2. **Parameters & Generics**: Complete table of parameterized widths (`DATA_WIDTH`, `ADDR_WIDTH`) and precedence settings (`PARAM_HW_PRECEDENCE`).
+3. **Interface Port Specification**: Comprehensive table of every port, direction, bitwidth, and signal description.
+4. **WaveDrom Protocol Timing Diagrams**: Rendered visual waveform diagrams and collapsible `<details>` blocks containing the complete WaveDrom JSON timing specification.
+
+For the full catalog of standalone template specifications, see the [Individual Template Deliverables Catalog](@ref template_catalog) (`docs/user/templates/index.md`).
 
 ---
 

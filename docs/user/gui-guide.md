@@ -130,12 +130,12 @@ When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the
 | **0** | **Type** | Node element kind (`blk`, `reg`, `fld`, `mem`, `map`). | Fixed selection | Select node |
 | **1** | **Offset** | Register byte offset or Field bit position (LSB). | Hex zero-padded (`0x0000`), Dec (`0`), Bin (`0b0`) | Edit text |
 | **2** | **Size** | Bit width for Fields (Register width is global in Config). | Integer (1 to 64) | Edit text |
-| **3** | **Name** | Identifier name for structs, macros, and RTL signals. | String | Edit text |
+| **3** | **Name** | Semantic identifier for registers, fields, memories, and blocks. | String | Edit text |
 | **4** | **Access Policy (SW)** | Software / Bus register access policy (24 IEEE 1800.2 policies). | `RW`, `RO`, `WO`, `W1`, `WO1`, `W1C`, `W1S`, `W1T`, `W0C`, `W0S`, `W0T`, `RC`, `RS`, `WRC`, `WRS`, `WC`, `WS`, `W1SRC`, `W1CRS`, `W0SRC`, `W0CRS`, `WOC`, `WOS`, `NOACCESS` (`NA`) | Cycles `RW` &rarr; `RO` &rarr; `WO` &rarr; `W1C` |
 | **5** | **HW Access** | Hardware internal core logic access mode. | `RO`, `RW`, `WO`, `NA`, `W1C`, `W1S`, `W0C`, `RS`, `RC` | Cycles `RO` &rarr; `RW` &rarr; `WO` &rarr; `NA` |
 | **6** | **Reset Value** | Reset value for register bitfield. | Hex (`0x0`), Dec (`0`), Bin (`0b0`) | Edit text |
-| **7** | **Is Rand** | UVM verification randomization flag (`rand`). | `true` / `false` | Toggles `true` &harr; `false` |
-| **8** | **Volatile** | Hardware volatile property for C/C++ & Rust. | `true` / `false` | Toggles `true` &harr; `false` |
+| **7** | **Is Rand** | Constrained-random verification stimulus flag. | `true` / `false` | Toggles `true` &harr; `false` |
+| **8** | **Volatile** | Indicates hardware state can change asynchronously outside software control. | `true` / `false` | Toggles `true` &harr; `false` |
 | **9** | **Has Reset** | Whether the bitfield has an explicit reset state. | `true` / `false` | Toggles `true` &harr; `false` |
 | **10**| **Description** | Human-readable documentation string for registers, fields, and blocks. | String | Edit text |
 
@@ -143,7 +143,7 @@ When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the
 
 ## 5. Comprehensive Access Policy Reference
 
-### Software (SW / Bus-Side) Access Policies (IEEE 1800.2 UVM Standard)
+### Software (SW / Bus-Side) Access Policies (IEEE 1800.2 Standard)
 
 Software access policies define how the CPU or bus master (AXI/AHB/APB/Wishbone) interacts with the register:
 
@@ -191,10 +191,10 @@ Hardware access policies define how internal synthesizable RTL core logic intera
 | **`NA`** | No Hardware Access | Core logic does not interface with field. | Core logic does not interface with field. | Software-only scratchpad registers, reserved debug words. |
 
 ### Hardware vs. Software Arbitration Precedence
-- **Configurable Precedence**: When software and hardware attempt concurrent writes on the same cycle, priority is determined by the **Hardware Precedence** configuration setting (`PARAM_HW_PRECEDENCE`):
-  - **Hardware Precedence Enabled (`1`, Default)**: Hardware internal updates take precedence over software writes, ensuring safety and real-time responsiveness.
-  - **Software Precedence (`0`)**: Software writes take precedence over hardware updates.
-- This setting is configurable per-project in the **Configuration Dialog (`Ctrl+P`)** and exported to all synthesizable RTL modules.
+- **Configurable Precedence**: When software and hardware attempt concurrent writes on the same clock cycle, priority is determined by the **Hardware Precedence** configuration setting:
+  - **Hardware Precedence Enabled (Default)**: Hardware internal updates take precedence over software writes, ensuring safety and real-time responsiveness.
+  - **Software Precedence**: Software writes take priority over hardware updates.
+- This setting is configurable per-project in the **Configuration Dialog (`Ctrl+P`)** and exported to target models and templates.
 
 ---
 
@@ -259,7 +259,7 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 ![Project Configuration Dialog](../images/gui_project_configuration.png)
 
 - **Project Metadata**: Set **Project Name**, **Project Version**, and global **Register Bus Width** (supporting 8, 16, 32, 64, 128, 256, 512+ bits).
-- **Hardware Precedence (`hwPrecedence`)**: Checkbox setting whether hardware updates take precedence over software writes during simultaneous access (`PARAM_HW_PRECEDENCE`). Enabled by default; serialized to project `.rmt`/`.rmb`/`.json` metadata.
+- **Hardware Precedence (`hwPrecedence`)**: Checkbox setting whether hardware updates take precedence over software writes during simultaneous access. Enabled by default; serialized to project `.rmt`/`.rmb`/`.json` metadata and mapped to target template parameters.
 - **Default Output Folder**: Destination directory for generated artifacts with dynamic path variable expansion.
 - **Python Script (Optional)**: Path to a custom Python post-generation script (browse with **Browse...**). The script runs automatically upon export whenever this field contains a non-empty path, receiving the full Inja JSON data model and context. Leaving this field empty disables Python script execution.
 - **Template Search Folders**: Configure multiple directories searched for Inja templates.

@@ -26,12 +26,12 @@ Every node in the register map is defined through an 11-column attribute specifi
 | **0** | **Type** | Node element kind in the address map. | `blk` (Block), `reg` (Register), `fld` (Field), `mem` (Memory), `map` (Address Map) |
 | **1** | **Offset** | Register byte offset or Field bit position (LSB). | Hex zero-padded (`0x0000`), Decimal (`0`), Binary (`0b0`) |
 | **2** | **Size** | Bit width for Fields or byte size for Memories. | Integer (1 to 1024 bits for fields; bytes for memory) |
-| **3** | **Name** | Semantic identifier for RTL signals, macros, and structs. | Valid identifier (`[a-zA-Z_][a-zA-Z0-9_]*`) |
+| **3** | **Name** | Semantic identifier for registers, fields, memories, and blocks. | Valid identifier (`[a-zA-Z_][a-zA-Z0-9_]*`) |
 | **4** | **Access Policy (SW)** | Software / Bus register access policy (24 IEEE 1800.2 policies). | `RW`, `RO`, `WO`, `W1`, `WO1`, `W1C`, `W1S`, `W1T`, `W0C`, `W0S`, `W0T`, `RC`, `RS`, `WRC`, `WRS`, `WC`, `WS`, `W1SRC`, `W1CRS`, `W0SRC`, `W0CRS`, `WOC`, `WOS`, `NOACCESS` |
 | **5** | **HW Access** | Hardware internal core logic access mode. | `RO`, `RW`, `WO`, `NA`, `W1C`, `W1S`, `W0C`, `RS`, `RC` |
 | **6** | **Reset Value** | Hardware reset value for the register or field. | Hexadecimal (`0x0`), Decimal (`0`), Binary (`0b0`) |
-| **7** | **Is Rand** | UVM verification randomization flag (`rand`). | `true` / `false` |
-| **8** | **Volatile** | Hardware volatile qualifier for C/C++ and Rust headers. | `true` / `false` |
+| **7** | **Is Rand** | Constrained-random verification stimulus flag. | `true` / `false` |
+| **8** | **Volatile** | Indicates hardware state can change asynchronously outside software control. | `true` / `false` |
 | **9** | **Has Reset** | Whether the bitfield has an explicit reset state. | `true` / `false` |
 | **10**| **Description** | Human-readable documentation string for registers, fields, and blocks. | String |
 
@@ -51,16 +51,16 @@ During interactive editing and headless CLI verification (`--lint`), the validat
 **rmap** supports flexible, parameterizable register widths:
 
 - **Arbitrary Data Width Support**: Registers and buses are not constrained to fixed 32-bit or 64-bit boundaries. Register widths are dynamically configurable per project, block, or register (supporting **8, 16, 32, 64, 128, 256, 512, and 1024-bit** widths).
-- **HDL Parameterization**: RTL code generators emit configurable generic parameters (e.g. `DATA_WIDTH`) with automatically computed byte-strobe widths (`[DATA_WIDTH/8-1:0]`) and address decode logic scaled to native word alignments.
+- **Word Alignment & Address Scaling**: Register offsets naturally align to native word sizes, with automatic address gap detection and memory layout verification.
 - **Continuous Bitfield Slicing**: Bitfields can span arbitrary bit positions up to the register width, with unmapped bits automatically allocated as reserved slices (`RSVD`).
 
 ---
 
 ## 3. Access Policy Matrix & Behavioral Semantics
 
-### Comprehensive Software Access Policies (IEEE 1800.2 UVM Standard)
+### Comprehensive Software Access Policies (IEEE 1800.2 Standard)
 
-**rmap** supports the full set of 24 UVM access modes defined in IEEE 1800.2 (`uvm_reg_field`):
+**rmap** supports the full set of 24 standard register field access modes defined in IEEE 1800.2:
 
 | Policy | Read Effect | Write Effect | Description & Common Use-Case |
 | :--- | :--- | :--- | :--- |
@@ -91,34 +91,34 @@ During interactive editing and headless CLI verification (`--lint`), the validat
 
 ### Hardware Access Policies (HW)
 
-Defines how internal peripheral logic interfaces with the register storage:
-- **`RO`**: Hardware only observes the field output (`hw_<reg>_<fld>_o`).
-- **`RW`**: Hardware observes and writes updates via `hw_<reg>_<fld>_i` when `hw_<reg>_<fld>_we_i` is asserted.
-- **`WO`**: Hardware drives updates directly into the register flip-flops.
-- **`W1C` / `W1S` / `W0C` / `RC` / `RS`**: Hardware drives event set/clear/toggle strobes.
-- **`NA`**: No hardware connection.
+Defines the abstract behavioral contract between internal core hardware logic and the register storage:
+- **`RO`**: Hardware logic continuously monitors/samples the current register field state.
+- **`RW`**: Hardware logic monitors the field and applies synchronous updates with a write-enable condition.
+- **`WO`**: Hardware logic drives updates directly into internal register storage.
+- **`W1C` / `W1S` / `W0C` / `RC` / `RS`**: Hardware logic drives event pulse triggers (set, clear, or toggle).
+- **`NA`**: Hardware core logic has no interface to the field (software-only register).
 
-### Hardware vs. Software Arbitration
+### Hardware vs. Software Arbitration Precedence
 
-When software and hardware attempt concurrent writes on the same clock cycle, synthesis and simulation models support configurable precedence rules:
-- **`HW_PRECEDENCE = 1` (Default)**: Hardware updates take priority over software writes to preserve safety timing and avoid missing critical hardware interrupts.
-- **`HW_PRECEDENCE = 0`**: Software writes take priority over hardware updates.
+When software bus transactions and internal hardware logic attempt concurrent writes to the same bitfield on the same cycle, the data model supports configurable arbitration precedence:
+- **Hardware Precedence (Default)**: Internal hardware updates take priority over concurrent software writes, preserving real-time safety guarantees and preventing dropped hardware status events.
+- **Software Precedence**: Software writes take priority over internal hardware updates during concurrent access.
 
-### Software Access Strobes
+### Core Data Model vs. Template-Specific Implementations
 
-Synthesizable RTL templates emit dedicated 1-cycle active-high pulse strobes for software operations:
-- **Register-Level Strobes**: `sw_<reg>_wr_strobe_o` (write pulse) and `sw_<reg>_rd_strobe_o` (read pulse).
-- **Field-Level Strobes**: `sw_<reg>_<fld>_wr_strobe_o` and `sw_<reg>_<fld>_rd_strobe_o`.
-- **Purpose**: Enables peripheral logic to react immediately to software transactions without polling (e.g. triggering an SPI transfer, acknowledging an interrupt, resetting a hardware timer, or popping a FIFO).
+**rmap** strictly decouples its core architectural data model from target-specific code generation artifacts:
+- **Tool Architecture & Data Model**: Defines address offsets, bitfield layouts, standard access policies (IEEE 1800.2), hardware access semantics, reset values, and arbitration rules in a target-agnostic manner.
+- **Template-Specific Implementations**: Concrete HDL signal naming conventions (e.g. `clk_i`, `rst_ni`, `hw_*_i`, `hw_*_o`), byte write strobes (`wstrb_i`), software read/write access pulse strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`), bus protocol slave wrappers (APB4, AXI4-Lite), SVA assertions, C struct layouts, and UVM adapter classes are defined by and customized within individual code generation templates.
+- For detailed signal specifications, protocol handshakes, and timing waveforms of individual deliverables, see the [Template Deliverable Catalog & Specifications](@ref templates_codegen).
 
 ---
 
-## 4. Multiple Address Maps (`uvm_reg_map`)
+## 4. Multiple Address Maps & Bus Domains
 
 Modern SoCs frequently access the same peripheral through multiple bus interfaces or security privilege regimes:
-- **Multi-Bus Domains**: Dual interfaces such as an AXI4-Lite high-speed datapath and an APB4 low-power configuration/debug interface.
+- **Multi-Bus Domains**: Dual interfaces such as a high-speed datapath and a low-power configuration/debug interface.
 - **Security & Privilege Domains**: Secure World vs. Non-Secure World address mappings with differing offsets and access permissions.
-- **Multi-Map Support in rmap**: Allows assigning registers to multiple distinct `uvm_reg_map` instances within a `uvm_reg_block` (e.g. `apb_map`, `axi_map`), configuring independent base addresses, offsets, and access privileges per map.
+- **Multiple Address Maps in rmap**: The data model allows assigning registers to multiple distinct address map (`map`) contexts, configuring independent base addresses, offsets, and access privileges per map. Target-specific template deliverables map these nodes to their native structures (such as `uvm_reg_map` in UVM, `ipxact:memoryMap` / `ipxact:memoryRemap` in IP-XACT, and `addrmap` in SystemRDL).
 
 ---
 

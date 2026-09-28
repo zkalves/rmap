@@ -109,7 +109,8 @@ EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */ui_* \
                          */mocs_compilation*
 EXCLUDE_SYMBOLS        = Ui::*
-IMAGE_PATH             = docs/images
+IMAGE_PATH             = docs/images \
+                         docs/images/wavedrom
 
 USE_MDFILE_AS_MAINPAGE = docs/index.md
 

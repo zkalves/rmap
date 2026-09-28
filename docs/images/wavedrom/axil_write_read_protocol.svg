@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="616" height="510" viewBox="0 0 616 510">
+<rect width="616" height="510" fill="#002b36" rx="6" ry="6"/>
+<text x="24" y="32" fill="#fdf6e3" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="15" font-weight="bold">AXI4-Lite Bridge Template: Write Address, Data &amp; Response Channels</text>
+<line x1="180" y1="44" x2="180" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="202" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">0</text>
+<line x1="224" y1="44" x2="224" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="246" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">1</text>
+<line x1="268" y1="44" x2="268" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="290" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">2</text>
+<line x1="312" y1="44" x2="312" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="334" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">3</text>
+<line x1="356" y1="44" x2="356" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="378" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">4</text>
+<line x1="400" y1="44" x2="400" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="422" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">5</text>
+<line x1="444" y1="44" x2="444" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="466" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">6</text>
+<line x1="488" y1="44" x2="488" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="510" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">7</text>
+<line x1="532" y1="44" x2="532" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="554" y="38" fill="#657b83" font-family="monospace" font-size="11" text-anchor="middle">8</text>
+<line x1="576" y1="44" x2="576" y2="495" stroke="#073642" stroke-dasharray="2,2" stroke-width="1"/>
+<text x="24" y="76" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">ACLK</text>
+<line x1="180" y1="84" x2="180" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="180" y1="60" x2="202" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="202" y1="60" x2="202" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="202" y1="84" x2="224" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="177" y1="74" x2="180" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="180" y1="69" x2="183" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="224" y1="84" x2="224" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="224" y1="60" x2="246" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="246" y1="60" x2="246" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="246" y1="84" x2="268" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="221" y1="74" x2="224" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="224" y1="69" x2="227" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="268" y1="84" x2="268" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="60" x2="290" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="290" y1="60" x2="290" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="290" y1="84" x2="312" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="265" y1="74" x2="268" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="268" y1="69" x2="271" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="312" y1="84" x2="312" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="312" y1="60" x2="334" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="334" y1="60" x2="334" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="334" y1="84" x2="356" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="309" y1="74" x2="312" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="312" y1="69" x2="315" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="356" y1="84" x2="356" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="60" x2="378" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="378" y1="60" x2="378" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="378" y1="84" x2="400" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="353" y1="74" x2="356" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="356" y1="69" x2="359" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="400" y1="84" x2="400" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="400" y1="60" x2="422" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="422" y1="60" x2="422" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="422" y1="84" x2="444" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="397" y1="74" x2="400" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="400" y1="69" x2="403" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="444" y1="84" x2="444" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="444" y1="60" x2="466" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="466" y1="60" x2="466" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="466" y1="84" x2="488" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="441" y1="74" x2="444" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="444" y1="69" x2="447" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="488" y1="84" x2="488" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="488" y1="60" x2="510" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="510" y1="60" x2="510" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="510" y1="84" x2="532" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="485" y1="74" x2="488" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="488" y1="69" x2="491" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="532" y1="84" x2="532" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="532" y1="60" x2="554" y2="60" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="554" y1="60" x2="554" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="554" y1="84" x2="576" y2="84" stroke="#f39c12" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="529" y1="74" x2="532" y2="69" stroke="#f39c12" stroke-width="1.8"/>
+<line x1="532" y1="69" x2="535" y2="74" stroke="#f39c12" stroke-width="1.8"/>
+<text x="24" y="120" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">AWVALID</text>
+<line x1="180" y1="128" x2="268" y2="128" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="128" x2="268" y2="104" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="104" x2="356" y2="104" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="104" x2="356" y2="128" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="128" x2="576" y2="128" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<text x="24" y="164" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">AWREADY</text>
+<line x1="180" y1="172" x2="268" y2="172" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="172" x2="268" y2="148" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="148" x2="356" y2="148" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="148" x2="356" y2="172" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="172" x2="576" y2="172" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<text x="24" y="208" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">AWADDR</text>
+<rect x="180" y="193" width="88" height="22" fill="#586e75" fill-opacity="0.25"/>
+<line x1="180" y1="193" x2="268" y2="193" stroke="#586e75" stroke-width="1.5"/>
+<line x1="180" y1="215" x2="268" y2="215" stroke="#586e75" stroke-width="1.5"/>
+<line x1="180" y1="204" x2="268" y2="204" stroke="#586e75" stroke-dasharray="2,2"/>
+<polygon points="273,192 351,192 356,204 351,216 273,216 268,204" fill="#073642" stroke="#2aa198" stroke-width="2"/>
+<text x="312" y="208" fill="#fdf6e3" font-family="monospace, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">0x00</text>
+<rect x="356" y="193" width="220" height="22" fill="#586e75" fill-opacity="0.25"/>
+<line x1="356" y1="193" x2="576" y2="193" stroke="#586e75" stroke-width="1.5"/>
+<line x1="356" y1="215" x2="576" y2="215" stroke="#586e75" stroke-width="1.5"/>
+<line x1="356" y1="204" x2="576" y2="204" stroke="#586e75" stroke-dasharray="2,2"/>
+<text x="24" y="252" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">WVALID</text>
+<line x1="180" y1="260" x2="268" y2="260" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="260" x2="268" y2="236" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="236" x2="356" y2="236" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="236" x2="356" y2="260" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="260" x2="576" y2="260" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<text x="24" y="296" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">WREADY</text>
+<line x1="180" y1="304" x2="268" y2="304" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="304" x2="268" y2="280" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="268" y1="280" x2="356" y2="280" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="280" x2="356" y2="304" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="356" y1="304" x2="576" y2="304" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<text x="24" y="340" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">WDATA</text>
+<rect x="180" y="325" width="88" height="22" fill="#586e75" fill-opacity="0.25"/>
+<line x1="180" y1="325" x2="268" y2="325" stroke="#586e75" stroke-width="1.5"/>
+<line x1="180" y1="347" x2="268" y2="347" stroke="#586e75" stroke-width="1.5"/>
+<line x1="180" y1="336" x2="268" y2="336" stroke="#586e75" stroke-dasharray="2,2"/>
+<polygon points="273,324 351,324 356,336 351,348 273,348 268,336" fill="#073642" stroke="#2aa198" stroke-width="2"/>
+<text x="312" y="340" fill="#fdf6e3" font-family="monospace, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">0xCAFE</text>
+<rect x="356" y="325" width="220" height="22" fill="#586e75" fill-opacity="0.25"/>
+<line x1="356" y1="325" x2="576" y2="325" stroke="#586e75" stroke-width="1.5"/>
+<line x1="356" y1="347" x2="576" y2="347" stroke="#586e75" stroke-width="1.5"/>
+<line x1="356" y1="336" x2="576" y2="336" stroke="#586e75" stroke-dasharray="2,2"/>
+<text x="24" y="384" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">BVALID</text>
+<line x1="180" y1="392" x2="312" y2="392" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="312" y1="392" x2="312" y2="368" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="312" y1="368" x2="400" y2="368" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="400" y1="368" x2="400" y2="392" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="400" y1="392" x2="576" y2="392" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<text x="24" y="428" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">BREADY</text>
+<line x1="180" y1="412" x2="576" y2="412" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+<text x="24" y="472" fill="#2aa198" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, monospace, sans-serif" font-size="13" font-weight="bold">BRESP</text>
+<rect x="180" y="457" width="132" height="22" fill="#586e75" fill-opacity="0.25"/>
+<line x1="180" y1="457" x2="312" y2="457" stroke="#586e75" stroke-width="1.5"/>
+<line x1="180" y1="479" x2="312" y2="479" stroke="#586e75" stroke-width="1.5"/>
+<line x1="180" y1="468" x2="312" y2="468" stroke="#586e75" stroke-dasharray="2,2"/>
+<polygon points="317,456 395,456 400,468 395,480 317,480 312,468" fill="#073642" stroke="#2aa198" stroke-width="2"/>
+<text x="356" y="472" fill="#fdf6e3" font-family="monospace, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">OKAY</text>
+<rect x="400" y="457" width="176" height="22" fill="#586e75" fill-opacity="0.25"/>
+<line x1="400" y1="457" x2="576" y2="457" stroke="#586e75" stroke-width="1.5"/>
+<line x1="400" y1="479" x2="576" y2="479" stroke="#586e75" stroke-width="1.5"/>
+<line x1="400" y1="468" x2="576" y2="468" stroke="#586e75" stroke-dasharray="2,2"/>
+</svg>
