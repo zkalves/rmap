@@ -236,8 +236,6 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 > [!TIP]
 > **Secondary Shortcuts**: In addition to standard combinations, `rmap` supports ergonomic secondary shortcuts: `Ctrl+Return` for **Add Register**, `Ctrl+Shift+Return` for **Add Bitfield**, and `Backspace` for **Delete Selected Item**.
 
----
-
 ## 9. Project Configuration & Generation Settings (`Ctrl+P`)
 
 Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctrl+P`:

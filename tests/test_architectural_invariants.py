@@ -18,6 +18,8 @@ Verifies:
 6. CLI Flags parity between src/main.cpp and docs/user/cli-reference.md.
 7. Template catalog parity between templates/ and docs/user/templates-and-codegen.md.
 8. Format handlers parity between src/format/ and docs/user/architecture.md.
+9. No markdown blockquotes immediately followed by Setext hr dividers ('---').
+10. Zero spurious </blockquote> headings in generated HTML documentation.
 """
 
 import os
@@ -191,6 +193,66 @@ def test_all_templates_registered():
     return True
 
 
+def test_no_blockquote_trailing_dividers():
+    print("Checking Invariant 9: No markdown blockquotes immediately followed by Setext hr dividers ('---')...")
+    md_files = glob.glob(os.path.join(PROJECT_ROOT, "docs", "**", "*.md"), recursive=True)
+    violations = []
+    for md in md_files:
+        rel = os.path.relpath(md, PROJECT_ROOT)
+        with open(md, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped in ("---", "===", "***", "___"):
+                j = i - 1
+                while j >= 0 and lines[j].strip() == "":
+                    j -= 1
+                if j >= 0 and lines[j].strip().startswith(">"):
+                    violations.append((rel, i + 1, j + 1, lines[j].strip()))
+
+    if violations:
+        print("FAIL: Found blockquote followed by hr divider (causes Doxygen spurious </blockquote> heading):", file=sys.stderr)
+        for v in violations:
+            print(f"  {v[0]}:{v[1]} - hr follows blockquote at line {v[2]}: {v[3]}", file=sys.stderr)
+        return False
+
+    print(f"  ✓ Verified {len(md_files)} markdown files: zero trailing hr dividers after blockquotes.")
+    return True
+
+
+def test_no_spurious_blockquote_headings():
+    print("Checking Invariant 10: Zero spurious </blockquote> headings in generated HTML documentation...")
+    site_dir = os.path.join(PROJECT_ROOT, "_site")
+    if not os.path.isdir(site_dir):
+        print("  - _site directory not present, skipping HTML portal check.")
+        return True
+
+    violations = []
+    for root, _, files in os.walk(site_dir):
+        for f in files:
+            p = os.path.join(root, f)
+            rel = os.path.relpath(p, PROJECT_ROOT)
+            if f.endswith(".html"):
+                with open(p, "r", encoding="utf-8", errors="ignore") as fp:
+                    content = fp.read()
+                if "&lt;/blockquote&gt;" in content:
+                    violations.append(rel)
+            elif f.endswith(".js"):
+                with open(p, "r", encoding="utf-8", errors="ignore") as fp:
+                    content = fp.read()
+                if '"</blockquote>"' in content:
+                    violations.append(rel)
+
+    if violations:
+        print("FAIL: Found spurious </blockquote> headings in generated HTML portal:", file=sys.stderr)
+        for v in violations:
+            print(f"  {v}", file=sys.stderr)
+        return False
+
+    print("  ✓ Verified generated HTML portal contains zero spurious </blockquote> headings.")
+    return True
+
+
 def main():
     print("=== Running Architectural Invariants Test Suite ===\n")
     sources = collect_source_files()
@@ -208,6 +270,8 @@ def main():
     passed &= check_templates_parity()
     print("Checking Invariant 8: Documentation-Implementation format handler parity...")
     passed &= check_formats_parity()
+    passed &= test_no_blockquote_trailing_dividers()
+    passed &= test_no_spurious_blockquote_headings()
 
     if passed:
         print("\n=======================================================")

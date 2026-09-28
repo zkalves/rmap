@@ -45,8 +45,6 @@ The rendered HTML documentation is generated directly into the root documentatio
 > - **Fedora / RHEL / Rocky / AlmaLinux / CentOS**: `sudo dnf install -y doxygen graphviz`
 > - **Arch Linux**: `sudo pacman -S doxygen graphviz`
 
----
-
 ## Development Environment & Build Targets
 
 ```bash

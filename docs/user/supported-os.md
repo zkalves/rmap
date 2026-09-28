@@ -124,8 +124,6 @@ Provides both Lmod Lua (`modulefiles/rmap/0.2.0.lua`) and classical Tcl (`module
 > **RHEL 8 / Rocky 8 / AlmaLinux 8 Compatibility**:
 > RHEL 8 features `glibc 2.28` and ships Qt 5 by default. To run `rmap` on RHEL 8, build directly from source using the EPEL 8 and `gcc-toolset-11` instructions, or run `make package-rpm` on your RHEL 8 host to create an `el8`-native RPM package.
 
----
-
 ## 2. Generating Packages Locally
 
 You can generate distribution packages locally using CMake/CPack, Docker, or top-level `Makefile` targets:
