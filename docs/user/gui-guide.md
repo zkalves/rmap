@@ -191,10 +191,10 @@ Hardware access policies define how internal synthesizable RTL core logic intera
 | **`NA`** | No Hardware Access | Core logic does not interface with field. | Core logic does not interface with field. | Software-only scratchpad registers, reserved debug words. |
 
 ### Hardware vs. Software Arbitration Precedence
-- **Configurable Precedence**: When software and hardware attempt concurrent writes on the same clock cycle, priority is determined by the **Hardware Precedence** configuration setting:
-  - **Hardware Precedence Enabled (Default)**: Hardware internal updates take precedence over software writes, ensuring safety and real-time responsiveness.
+- **Arbitration Semantics**: When software bus transactions and internal hardware logic attempt concurrent writes to the same bitfield on the same clock cycle, synthesizable RTL templates arbitrate priority between hardware and software:
+  - **Hardware Precedence (Default)**: Hardware internal updates take precedence over software writes, ensuring safety and real-time responsiveness.
   - **Software Precedence**: Software writes take priority over hardware updates.
-- This setting is configurable per-project in the **Configuration Dialog (`Ctrl+P`)** and exported to target models and templates.
+- **Configuring Precedence**: In synthesizable RTL templates, precedence is controlled via the `param_hw_precedence` template variable. To override the default hardware precedence (`1`), add a row in the **Custom Parameters** table in the **Configuration Dialog** (`Ctrl+P`) with Key: `param_hw_precedence` and Value: `0`.
 
 ---
 
@@ -259,12 +259,11 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 ![Project Configuration Dialog](../images/gui_project_configuration.png)
 
 - **Project Metadata**: Set **Project Name**, **Project Version**, and global **Register Bus Width** (supporting 8, 16, 32, 64, 128, 256, 512+ bits).
-- **Hardware Precedence (`hwPrecedence`)**: Checkbox setting whether hardware updates take precedence over software writes during simultaneous access. Enabled by default; serialized to project `.rmt`/`.rmb`/`.json` metadata and mapped to target template parameters.
 - **Default Output Folder**: Destination directory for generated artifacts with dynamic path variable expansion.
 - **Python Script (Optional)**: Path to a custom Python post-generation script (browse with **Browse...**). The script runs automatically upon export whenever this field contains a non-empty path, receiving the full Inja JSON data model and context. Leaving this field empty disables Python script execution.
 - **Template Search Folders**: Configure multiple directories searched for Inja templates.
 - **Template Mappings Table**: Granular control to enable/disable specific templates, scan folders, override destination paths, and synchronize output folders.
-- **Custom Parameters**: Key-value pairs exposed directly to Inja templates and Python post-generation scripts.
+- **Custom Parameters (Inja Template Variables)**: Editable key-value table (`customParametersTable`) exposing arbitrary variables directly to Inja templates and Python post-generation scripts. Use this table to configure template-specific settings (such as `param_hw_precedence = 0` for software priority in synthesizable RTL, bus signal prefixes, or custom macros).
 
 ---
 

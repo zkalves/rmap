@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | `DATA_WIDTH` | `int` | `32` | Register bus data width (8, 16, 32, 64, 128, 256, 512, 1024) |
 | `ADDR_WIDTH` | `int` | `32` | Address bus width matching block address range |
-| `PARAM_HW_PRECEDENCE` | `bit` | `1'b1` | Arbitration priority: 1 = HW update over SW write; 0 = SW over HW |
+| `PARAM_HW_PRECEDENCE` | `bit` | `1'b1` | Arbitration priority: 1 = HW update over SW write; 0 = SW over HW. Configurable via Inja custom parameter 'param_hw_precedence' |
 
 #### Interface Signals & Ports
 
