@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | `DATA_WIDTH` | `natural` | `32` | Data bus width in bits |
 | `ADDR_WIDTH` | `natural` | `32` | Address bus width in bits |
-| `PARAM_HW_PRECEDENCE` | `integer` | `1` | Arbitration priority |
+| `PARAM_HW_PRECEDENCE` | `integer` | `1` | Arbitration priority (1 = HW over SW; 0 = SW over HW). Configurable via Inja custom parameter 'param_hw_precedence' |
 
 #### Interface Signals & Ports
 

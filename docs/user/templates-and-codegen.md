@@ -194,7 +194,7 @@ The context passed to Inja templates provides rich hardware architecture and ver
    - Byte-level write enable strobing (`wstrb_i` with width `DATA_WIDTH / 8`).
    - Hardware sideband interface signals (`hw_*_i`, `hw_*_we_i`, `hw_*_o`).
    - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`) pulsing for 1 cycle upon transaction completion to trigger peripheral operations.
-   - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware).
+   - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware; configurable via Inja custom parameter `param_hw_precedence`).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
 
    **WaveDrom Protocol Timing Diagrams**:
@@ -340,7 +340,7 @@ Each generated template document includes:
 1. **Header Metadata**: Full standard compliance (e.g. IEEE 1800-2017, Accellera UVM 1.2 / 1800.2, ISO C99), deliverable path, and architectural description.
 2. **Parameters & Generics**: Complete table of parameterized widths (`DATA_WIDTH`, `ADDR_WIDTH`) and precedence settings (`PARAM_HW_PRECEDENCE`).
 3. **Interface Port Specification**: Comprehensive table of every port, direction, bitwidth, and signal description.
-4. **WaveDrom Protocol Timing Diagrams**: Rendered visual waveform diagrams and collapsible `<details>` blocks containing the complete WaveDrom JSON timing specification.
+4. **WaveDrom Protocol Timing Diagrams**: Rendered visual waveform diagrams and collapsible JSON disclosure blocks containing the complete WaveDrom timing specification.
 
 For the full catalog of standalone template specifications, see the [Individual Template Deliverables Catalog](@ref template_catalog) (`docs/user/templates/index.md`).
 
@@ -369,6 +369,9 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
 - **Direct File Output & Per-Template Overrides**: Users can override any template to target an explicit file path (e.g. `../../hw/rtl/spi_reg_file.sv` or `../../sw/include/spi_regs.h`). Missing parent directories are created automatically.
 - **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
+- <b>Custom Parameters (Inja Template Variables)</b>: In the Configuration Dialog (`Ctrl+P`), the Custom Parameters table (`customParametersTable`) allows users to define arbitrary key-value pairs that are directly injected into the Inja root context and accessible across all templates and Python post-generation scripts. For example:
+  - `param_hw_precedence`: Controls hardware vs. software arbitration priority in synthesizable RTL templates (`1` = hardware priority, default; `0` = software priority).
+  - Custom bus naming prefixes (e.g. `bus_prefix`), header guards, or company copyright headers.
 
 ---
 

@@ -54,7 +54,6 @@ RegConfigWindow::RegConfigWindow(QWidget *parent) :
     m_regWidth(32)
 {
     setupUi(this);
-    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
 
     setWindowTitle(tr("Configuration"));
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
@@ -579,8 +578,6 @@ void RegConfigWindow::saveStateFromUi()
     m_projectName = this->Ui_config::projectName->text().trimmed();
     m_projectVersion = this->Ui_config::projectVersion->text().trimmed();
     m_strictValidation = this->strictValidation->isChecked();
-    m_hwPrecedence = this->Ui_config::hwPrecedence->isChecked();
-    AppSettings::instance().setHwPrecedence(m_hwPrecedence);
 
     m_templateFolders = templateFolders();
 
@@ -614,7 +611,6 @@ void RegConfigWindow::updateUiFromState()
     this->Ui_config::projectName->setText(m_projectName);
     this->Ui_config::projectVersion->setText(m_projectVersion);
     this->strictValidation->setChecked(m_strictValidation);
-    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
 
     this->templateFoldersList->clear();
     for (const QString &f : m_templateFolders) {
@@ -684,7 +680,6 @@ void RegConfigWindow::deserialize(const protormap::Config &config)
     m_projectVersion = QString::fromStdString(config.project_version());
     m_strictValidation = config.strict_validation();
     m_hwPrecedence = config.has_hw_precedence() ? config.hw_precedence() : AppSettings::instance().hwPrecedence();
-    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
 
     m_templateFolders.clear();
     for (const auto &f : config.template_folders()) {
@@ -824,7 +819,6 @@ QString RegConfigWindow::projectVersion() const
 void RegConfigWindow::setHwPrecedence(bool precedence)
 {
     m_hwPrecedence = precedence;
-    this->Ui_config::hwPrecedence->setChecked(m_hwPrecedence);
     AppSettings::instance().setHwPrecedence(m_hwPrecedence);
 }
 
