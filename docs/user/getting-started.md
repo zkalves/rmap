@@ -120,8 +120,6 @@ rmap --version
 > [!TIP]
 > For the complete distribution compatibility matrix, glibc baselines, and packaging details, see the [Supported Operating Systems & Compatibility Matrix Guide](@ref supported_os).
 
----
-
 ## 2. Compiling from Source
 
 Follow these steps **only** if you wish to build **rmap** from source code, customize functionality, or contribute to development.
