@@ -6,6 +6,11 @@ The **rmap** graphical interface is designed specifically for hardware designers
 
 ## 1. Dual-Pane Layout & Visualizer
 
+![rmap Dual-Pane GUI Layout & Bitfield Visualizer](../images/gui_dual_pane_overview.png)
+
+<details>
+<summary>ASCII Layout Schematic (Text Fallback)</summary>
+
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │ Toolbar: [New] [Open] [Save] [Undo] [Redo] [Add Blk] [Add Reg] [Export]│
@@ -23,6 +28,8 @@ The **rmap** graphical interface is designed specifically for hardware designers
 └──────────────────────────────┴─────────────────────────────────────────┘
 ```
 
+</details>
+
 ### Key Components
 
 - **Left Panel (Hierarchy Tree & Search)**:
@@ -38,6 +45,8 @@ The **rmap** graphical interface is designed specifically for hardware designers
 ---
 
 ## 2. Interactive Bitfield Bar Visualizer
+
+![Interactive Bitfield Bar Visualizer](../images/gui_bitfield_bar_visualizer.png)
 
 Positioned at the top of the right panel, the bitfield bar provides instant graphical insight into register packing and bit allocation:
 
@@ -71,6 +80,11 @@ Positioned at the top of the right panel, the bitfield bar provides instant grap
 
 When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the right pane automatically adapts to display the block's header and vertical address space memory map diagram:
 
+![Address Space Memory Map Diagram](../images/gui_address_space_memory_map.png)
+
+<details>
+<summary>ASCII Layout Schematic (Text Fallback)</summary>
+
 ```text
 ┌───────────────────────────────────────────────────────────────────────────┐
 │ Block: Sparse_Device   Offset: 0x0000   Description: [ Sparse Device Map ]│
@@ -93,6 +107,8 @@ When selecting a **Register Block** (`blk` or `map`) in the navigation tree, the
 │        │ IRQ_ENABLE               [RW] [4B] Interrupt Enable Mask       │ │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
+
+</details>
 
 1. **Consistent Editable Block Header**:
    - Matches the exact dimensions, spacing, typography, and inline **Name**, **Offset**, and **Description** editors as the register view, with full Undo/Redo integration.
@@ -240,6 +256,8 @@ Access all key bindings at any time by pressing **`F1`** or selecting **Help &ra
 
 Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctrl+P`:
 
+![Project Configuration Dialog](../images/gui_project_configuration.png)
+
 - **Project Metadata**: Set **Project Name**, **Project Version**, and global **Register Bus Width** (supporting 8, 16, 32, 64, 128, 256, 512+ bits).
 - **Hardware Precedence (`hwPrecedence`)**: Checkbox setting whether hardware updates take precedence over software writes during simultaneous access (`PARAM_HW_PRECEDENCE`). Enabled by default; serialized to project `.rmt`/`.rmb`/`.json` metadata.
 - **Default Output Folder**: Destination directory for generated artifacts with dynamic path variable expansion.
@@ -267,6 +285,8 @@ Open the non-modal Configuration dialog via **Project &rarr; Configure** or `Ctr
 ---
 
 ## 11. Colour Schemes, Preferences & User Home Configuration
+
+![Preferences & Appearance Settings Dialog](../images/gui_preferences_window.png)
 
 **rmap** includes a built-in multi-theme appearance engine with **Solarized 8 (Dark)** active by default:
 
