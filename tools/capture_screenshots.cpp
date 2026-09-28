@@ -7,9 +7,12 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QFile>
 #include <QHeaderView>
+#include <QImage>
 #include <QItemSelectionModel>
 #include <QTreeView>
+#include <cstring>
 #include <iostream>
 
 #include "AppSettings.hpp"
@@ -17,6 +20,37 @@
 #include "RegBitfieldBarWidget.hpp"
 #include "RegConfigWindow.hpp"
 #include "RegMapWindow.hpp"
+
+static bool imagesEqual(const QImage &img1, const QImage &img2) {
+  if (img1.isNull() || img2.isNull() || img1.size() != img2.size()) {
+    return false;
+  }
+  QImage c1 = img1.convertToFormat(QImage::Format_ARGB32);
+  QImage c2 = img2.convertToFormat(QImage::Format_ARGB32);
+  if (c1.sizeInBytes() != c2.sizeInBytes()) {
+    return false;
+  }
+  return std::memcmp(c1.constBits(), c2.constBits(), c1.sizeInBytes()) == 0;
+}
+
+static bool saveScreenshot(const QPixmap &pixmap, const QString &path) {
+  QImage newImg = pixmap.toImage();
+  if (QFile::exists(path)) {
+    QImage existingImg(path);
+    if (imagesEqual(existingImg, newImg)) {
+      std::cout << "  - Unchanged (kept): " << path.toStdString() << " ("
+                << newImg.width() << "x" << newImg.height() << ")" << std::endl;
+      return true;
+    }
+  }
+  if (newImg.save(path, "PNG")) {
+    std::cout << "  ✓ Captured: " << path.toStdString() << " ("
+              << newImg.width() << "x" << newImg.height() << ")" << std::endl;
+    return true;
+  }
+  std::cerr << "  ✗ Failed to save: " << path.toStdString() << std::endl;
+  return false;
+}
 
 int main(int argc, char *argv[]) {
   qputenv("QT_QPA_PLATFORM", "offscreen");
@@ -62,21 +96,13 @@ int main(int argc, char *argv[]) {
     // 1a. Full dual-pane window
     QPixmap fullWin = win.grab();
     QString path1 = outDir + "/gui_dual_pane_overview.png";
-    if (fullWin.save(path1)) {
-      std::cout << "  ✓ Captured: " << path1.toStdString() << " ("
-                << fullWin.width() << "x" << fullWin.height() << ")"
-                << std::endl;
-    }
+    saveScreenshot(fullWin, path1);
 
     // 1b. Close-up of the bitfield bar visualizer
     if (win.bitfieldWidget()) {
       QPixmap barPix = win.bitfieldWidget()->grab();
       QString path1b = outDir + "/gui_bitfield_bar_visualizer.png";
-      if (barPix.save(path1b)) {
-        std::cout << "  ✓ Captured: " << path1b.toStdString() << " ("
-                  << barPix.width() << "x" << barPix.height() << ")"
-                  << std::endl;
-      }
+      saveScreenshot(barPix, path1b);
     }
   }
 
@@ -102,10 +128,7 @@ int main(int argc, char *argv[]) {
 
     QPixmap mapWin = win.grab();
     QString path2 = outDir + "/gui_address_space_memory_map.png";
-    if (mapWin.save(path2)) {
-      std::cout << "  ✓ Captured: " << path2.toStdString() << " ("
-                << mapWin.width() << "x" << mapWin.height() << ")" << std::endl;
-    }
+    saveScreenshot(mapWin, path2);
   }
 
   // 3. Project Configuration Dialog
@@ -122,11 +145,7 @@ int main(int argc, char *argv[]) {
 
       QPixmap cfgPix = cfg->grab();
       QString path3 = outDir + "/gui_project_configuration.png";
-      if (cfgPix.save(path3)) {
-        std::cout << "  ✓ Captured: " << path3.toStdString() << " ("
-                  << cfgPix.width() << "x" << cfgPix.height() << ")"
-                  << std::endl;
-      }
+      saveScreenshot(cfgPix, path3);
       cfg->close();
     }
   }
@@ -145,11 +164,7 @@ int main(int argc, char *argv[]) {
 
       QPixmap prefPix = pref->grab();
       QString path4 = outDir + "/gui_preferences_window.png";
-      if (prefPix.save(path4)) {
-        std::cout << "  ✓ Captured: " << path4.toStdString() << " ("
-                  << prefPix.width() << "x" << prefPix.height() << ")"
-                  << std::endl;
-      }
+      saveScreenshot(prefPix, path4);
       pref->close();
     }
   }

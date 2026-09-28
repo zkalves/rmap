@@ -197,16 +197,30 @@ def wavedrom_to_svg(
 def export_wavedrom(wave_json: dict, out_svg_path: str, out_png_path: str = "") -> bool:
     svg_content = wavedrom_to_svg(wave_json)
     os.makedirs(os.path.dirname(os.path.abspath(out_svg_path)), exist_ok=True)
-    with open(out_svg_path, "w", encoding="utf-8") as f:
-        f.write(svg_content)
+
+    svg_changed = True
+    if os.path.isfile(out_svg_path):
+        try:
+            with open(out_svg_path, "r", encoding="utf-8") as f:
+                if f.read() == svg_content:
+                    svg_changed = False
+        except Exception:
+            pass
+
+    if svg_changed:
+        with open(out_svg_path, "w", encoding="utf-8") as f:
+            f.write(svg_content)
 
     if out_png_path:
         os.makedirs(os.path.dirname(os.path.abspath(out_png_path)), exist_ok=True)
+        if not svg_changed and os.path.isfile(out_png_path) and os.path.getsize(out_png_path) > 0:
+            return False
+
         convert_bin = shutil.which("convert")
         if convert_bin:
             res = subprocess.run([convert_bin, out_svg_path, out_png_path], capture_output=True)
             return res.returncode == 0
-    return True
+    return svg_changed
 
 
 STANDARD_WAVEDROMS = {
@@ -314,9 +328,12 @@ def render_all_standard_wavedroms(output_dir: str) -> list:
     for key, spec in STANDARD_WAVEDROMS.items():
         svg_file = os.path.join(output_dir, f"{key}.svg")
         png_file = os.path.join(output_dir, f"{key}.png")
-        export_wavedrom(spec, svg_file, png_file)
+        changed = export_wavedrom(spec, svg_file, png_file)
         generated.append((key, svg_file, png_file))
-        print(f"  ✓ Rendered WaveDrom: {key}.svg & {key}.png")
+        if changed:
+            print(f"  ✓ Rendered WaveDrom: {key}.svg & {key}.png")
+        else:
+            print(f"  - Kept WaveDrom (unchanged): {key}.svg & {key}.png")
     return generated
 
 
