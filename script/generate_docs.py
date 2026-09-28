@@ -96,44 +96,67 @@ def escape_latex(text: str) -> str:
 
 
 def format_inline(text: str) -> str:
-    parts = []
-    tokens = re.split(r'(`[^`]+`)', text)
-    for token in tokens:
-        if token.startswith('`') and token.endswith('`') and len(token) >= 2:
-            safe_code = escape_latex(token[1:-1])
-            parts.append(r'\texttt{' + safe_code + r'}')
-        else:
-            sub_tokens = re.split(r'(<b>[^<]+</b>|<i>[^<]+</i>|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))', token)
-            for st in sub_tokens:
-                if st.startswith('<b>') and st.endswith('</b>') and len(st) >= 7:
-                    parts.append(r'\textbf{' + escape_latex(st[3:-4]) + r'}')
-                elif st.startswith('<i>') and st.endswith('</i>') and len(st) >= 7:
-                    parts.append(r'\textit{' + escape_latex(st[3:-4]) + r'}')
-                elif st.startswith('**') and st.endswith('**') and len(st) >= 4:
-                    parts.append(r'\textbf{' + escape_latex(st[2:-2]) + r'}')
-                elif st.startswith('*') and st.endswith('*') and len(st) >= 2:
-                    parts.append(r'\textit{' + escape_latex(st[1:-1]) + r'}')
-                elif st.startswith('[') and '](' in st and st.endswith(')'):
-                    m = re.match(r'^\[([^\]]+)\]\(([^)]+)\)$', st)
-                    if m:
-                        link_text = escape_latex(m.group(1))
-                        link_url = m.group(2)
-                        if link_url.startswith('@ref ') or link_url.startswith('#'):
-                            parts.append(r'\textbf{' + link_text + r'}')
-                        elif link_url.startswith('http://') or link_url.startswith('https://') or link_url.startswith('mailto:'):
-                            parts.append(r'\href{' + link_url + r'}{' + link_text + r'}')
-                        elif link_url.endswith('.html') or link_url.endswith('.md'):
-                            parts.append(r'\textit{' + link_text + r'}')
-                        else:
-                            parts.append(r'\href{' + link_url + r'}{' + link_text + r'}')
-                    else:
-                        parts.append(escape_latex(st))
+    token_re = re.compile(
+        r'(?P<code>`[^`]+`|<code>[^<]+</code>)|'
+        r'(?P<link>\[(?:[^\]\\]|\\.)+\]\([^)]+\))|'
+        r'(?P<bold>\*\*(?:[^*]|\*[^*])+\*\*|<b>.+?</b>)|'
+        r'(?P<italic>(?<!\*)\*(?:[^*]|\*\*)+\*(?!\*)|<i>.+?</i>)'
+    )
+
+    pos = 0
+    out = []
+
+    for m in token_re.finditer(text):
+        start, end = m.span()
+        if start > pos:
+            out.append(escape_latex(text[pos:start]))
+        pos = end
+
+        if m.group('code'):
+            raw = m.group('code')
+            if raw.startswith('`') and raw.endswith('`'):
+                c = raw[1:-1]
+            else:
+                c = raw[6:-7]
+            out.append(r'\texttt{' + escape_latex(c) + r'}')
+        elif m.group('link'):
+            raw = m.group('link')
+            lm = re.match(r'^\[((?:[^\]\\]|\\.)+)\]\(([^)]+)\)$', raw)
+            if lm:
+                ltext = format_inline(lm.group(1))
+                lurl = lm.group(2)
+                if lurl.startswith('@ref ') or lurl.startswith('#'):
+                    out.append(r'\textbf{' + ltext + r'}')
+                elif lurl.startswith('http://') or lurl.startswith('https://') or lurl.startswith('mailto:'):
+                    out.append(r'\href{' + lurl + r'}{' + ltext + r'}')
+                elif lurl.endswith('.html') or lurl.endswith('.md'):
+                    out.append(r'\textit{' + ltext + r'}')
                 else:
-                    parts.append(escape_latex(st))
-    return ''.join(parts)
+                    out.append(r'\href{' + lurl + r'}{' + ltext + r'}')
+            else:
+                out.append(escape_latex(raw))
+        elif m.group('bold'):
+            raw = m.group('bold')
+            if raw.startswith('**') and raw.endswith('**'):
+                inner = raw[2:-2]
+            else:
+                inner = raw[3:-4]
+            out.append(r'\textbf{' + format_inline(inner) + r'}')
+        elif m.group('italic'):
+            raw = m.group('italic')
+            if raw.startswith('*') and raw.endswith('*'):
+                inner = raw[1:-1]
+            else:
+                inner = raw[3:-4]
+            out.append(r'\textit{' + format_inline(inner) + r'}')
+
+    if pos < len(text):
+        out.append(escape_latex(text[pos:]))
+
+    return ''.join(out)
 
 
-def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "") -> str:
+def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "", project_root: str = "") -> str:
     lines = md_content.splitlines()
     out = []
     in_code = False
@@ -273,6 +296,32 @@ def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "") ->
             out.append('')
             continue
 
+        # Check for image markdown: ![alt](path)
+        m_img = re.match(r'^\s*!\[(.*?)\]\((.*?)\)\s*$', line)
+        if m_img:
+            flush_table()
+            flush_list()
+            alt_text = format_inline(m_img.group(1).strip())
+            img_target = m_img.group(2).strip()
+            img_basename = os.path.basename(img_target)
+            resolved_img = os.path.join(project_root, "docs", "images", img_basename) if project_root else os.path.join("docs", "images", img_basename)
+            if os.path.exists(resolved_img):
+                clean_path = os.path.abspath(resolved_img).replace("\\", "/")
+                out.append(r'\begin{figure}[htbp]')
+                out.append(r'\centering')
+                out.append(r'\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{' + clean_path + r'}')
+                if alt_text:
+                    out.append(r'\caption{' + alt_text + r'}')
+                out.append(r'\end{figure}' + '\n')
+            continue
+
+        # Skip or format HTML <details> and <summary> tags
+        if stripped.startswith('<details>') or stripped.startswith('</details>') or stripped.startswith('<summary>') or stripped.startswith('</summary>'):
+            if '<summary>' in stripped:
+                summary_content = re.sub(r'</?summary>', '', stripped).strip()
+                out.append(r'\paragraph{\small\textit{' + format_inline(summary_content) + r'}}' + '\n')
+            continue
+
         out.append(format_inline(line))
 
     flush_table()
@@ -316,6 +365,7 @@ def compile_latex_book(
 \usepackage{fancyhdr}
 \usepackage{titlesec}
 \usepackage{parskip}
+\usepackage{graphicx}
 
 \definecolor{codebg}{rgb}{0.96,0.96,0.96}
 \definecolor{codeframe}{rgb}{0.85,0.85,0.85}
@@ -381,7 +431,7 @@ def compile_latex_book(
         if os.path.exists(full_path):
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            tex_out.append(parse_markdown_to_latex(content, default_chapter_title=title))
+            tex_out.append(parse_markdown_to_latex(content, default_chapter_title=title, project_root=project_root))
         else:
             if verbose:
                 print(f"Warning: Chapter file not found: {rel_path}")
@@ -447,6 +497,32 @@ def generate_developer_guide(pdf_path: str, project_root: str, verbose: bool = F
     )
 
 
+def ensure_screenshots(project_root: str, verbose: bool = False) -> bool:
+    """
+    Ensures GUI screenshots exist in docs/images.
+    If the capture_screenshots binary is built, runs it to capture fresh offscreen images.
+    """
+    img_dir = os.path.join(project_root, "docs", "images")
+    os.makedirs(img_dir, exist_ok=True)
+
+    candidates = [
+        os.path.join(project_root, "build", "bin", "capture_screenshots"),
+        os.path.join(project_root, "bin", "capture_screenshots"),
+    ]
+    capture_bin = next((c for c in candidates if os.path.isfile(c) and os.access(c, os.X_OK)), None)
+    if capture_bin:
+        print(f"--> Capturing fresh documentation GUI screenshots using: {os.path.relpath(capture_bin, project_root)}")
+        env = os.environ.copy()
+        env["QT_QPA_PLATFORM"] = "offscreen"
+        res = subprocess.run([capture_bin, img_dir], env=env, cwd=project_root, capture_output=not verbose, text=True)
+        if res.returncode == 0:
+            print("✓ Successfully generated GUI screenshots into docs/images")
+            return True
+        elif verbose and res.stderr:
+            print(f"[WARNING] capture_screenshots returned error: {res.stderr}", file=sys.stderr)
+    return True
+
+
 def run_doxygen(project_root: str, html_dir: str = "", verbose: bool = False, required: bool = False) -> bool:
     doxygen_bin = shutil.which("doxygen")
     if not doxygen_bin:
@@ -509,11 +585,11 @@ def run_doxygen(project_root: str, html_dir: str = "", verbose: bool = False, re
         print(f"[WARNING] Doxygen reported warnings during documentation generation:\n{res.stderr}", file=sys.stderr)
 
     print(f"✓ Successfully rendered HTML documentation with Doxygen into: {target_out}")
-    postprocess_html(target_out)
+    postprocess_html(target_out, project_root=project_root)
     return True
 
 
-def postprocess_html(html_dir: str):
+def postprocess_html(html_dir: str, project_root: str = ""):
     """
     Post-process generated HTML documentation:
     1. Rewrites relative Markdown or file reference stub links (*_8md.html) to their canonical documentation pages.
@@ -663,6 +739,60 @@ a:hover { text-decoration: underline; }
                     with open(fpath, "w", encoding="utf-8") as fp:
                         fp.write(cleaned)
 
+    # 6. Synchronize documentation images into output HTML directory
+    if project_root:
+        docs_img_dir = os.path.join(project_root, "docs", "images")
+        if os.path.isdir(docs_img_dir):
+            out_img_dir = os.path.join(html_dir, "images")
+            os.makedirs(out_img_dir, exist_ok=True)
+            for f in os.listdir(docs_img_dir):
+                if f.lower().endswith((".png", ".jpg", ".jpeg", ".svg")):
+                    src_f = os.path.join(docs_img_dir, f)
+                    shutil.copy2(src_f, os.path.join(out_img_dir, f))
+                    shutil.copy2(src_f, os.path.join(html_dir, f))
+
+    # 7. Rewrite relative image paths (../images/ -> images/) for direct HTML viewing
+    for root, _, files in os.walk(html_dir):
+        for f in files:
+            if not f.endswith(".html"):
+                continue
+            fpath = os.path.join(root, f)
+            with open(fpath, "r", encoding="utf-8", errors="ignore") as fp:
+                c = fp.read()
+            if 'src="../images/' in c:
+                c = c.replace('src="../images/', 'src="images/')
+                with open(fpath, "w", encoding="utf-8") as fp:
+                    fp.write(c)
+
+    # 8. Sanitize unparsed Markdown bold artifacts (**...**) that Doxygen left unrendered
+    def sanitize_bold_artifacts(html_text: str) -> str:
+        blocks = []
+        def save_block(m):
+            blocks.append(m.group(0))
+            return f"<!--__PROTECTED_DOC_BLOCK_{len(blocks)-1}__-->"
+
+        prot_pattern = re.compile(
+            r'(<pre\b[^>]*>[\s\S]*?</pre>|<div class="fragment"[\s\S]*?</div>\s*</div>|<script\b[^>]*>[\s\S]*?</script>|<style\b[^>]*>[\s\S]*?</style>)',
+            re.IGNORECASE
+        )
+        protected = prot_pattern.sub(save_block, html_text)
+        sanitized = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', protected)
+        for idx, block in enumerate(blocks):
+            sanitized = sanitized.replace(f"<!--__PROTECTED_DOC_BLOCK_{idx}__-->", block)
+        return sanitized
+
+    for root, _, files in os.walk(html_dir):
+        for f in files:
+            if not f.endswith(".html"):
+                continue
+            fpath = os.path.join(root, f)
+            with open(fpath, "r", encoding="utf-8", errors="ignore") as fp:
+                c = fp.read()
+            cleaned = sanitize_bold_artifacts(c)
+            if cleaned != c:
+                with open(fpath, "w", encoding="utf-8") as fp:
+                    fp.write(cleaned)
+
 
 def generate_html(html_dir: str, project_root: str, verbose: bool = False) -> bool:
     os.makedirs(html_dir, exist_ok=True)
@@ -730,6 +860,11 @@ def main():
         help="Generate C++ API documentation using Doxygen (strictly requires Doxygen on PATH)"
     )
     parser.add_argument(
+        "--screenshots",
+        action="store_true",
+        help="Capture fresh GUI screenshots using capture_screenshots binary before generating documentation"
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Clean target output directories before generation"
@@ -742,6 +877,9 @@ def main():
 
     args = parser.parse_args()
     project_root = os.path.abspath(args.project_root)
+
+    # Ensure documentation GUI screenshots are present and refreshed if binary is available
+    ensure_screenshots(project_root, verbose=args.verbose)
 
     if args.doxygen:
         ok = run_doxygen(project_root, verbose=args.verbose, required=True)

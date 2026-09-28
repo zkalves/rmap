@@ -109,6 +109,7 @@ EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */ui_* \
                          */mocs_compilation*
 EXCLUDE_SYMBOLS        = Ui::*
+IMAGE_PATH             = docs/images
 
 USE_MDFILE_AS_MAINPAGE = docs/index.md
 
