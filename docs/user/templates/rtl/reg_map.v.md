@@ -11,6 +11,10 @@
 | `DATA_WIDTH` | `integer` | `32` | Register data width in bits |
 | `ADDR_WIDTH` | `integer` | `32` | Address width in bits |
 | `PARAM_HW_PRECEDENCE` | `integer` | `1` | 1 = Hardware update priority; 0 = Software priority. Configurable via Inja custom parameter 'param_hw_precedence' |
+| `ERROR_ON_WRITE_TO_RO` | `integer` | `0` | Error response on write to Read-Only/write-ignored field (1 = assert bus error; 0 = silent drop). Configurable via Inja custom parameter 'param_error_on_write_to_ro' |
+| `ERROR_ON_READ_FROM_WO` | `integer` | `0` | Error response on read from Write-Only/read-prohibited field (1 = assert bus error; 0 = return zero). Configurable via Inja custom parameter 'param_error_on_read_from_wo' |
+| `ERROR_ON_WRITE_TO_LOCKED` | `integer` | `0` | Error response on write to write-locked register/field (1 = assert bus error; 0 = silent drop). Configurable via Inja custom parameter 'param_error_on_write_to_locked' |
+| `ERROR_ON_READ_FROM_LOCKED` | `integer` | `0` | Error response on read from read-locked register/field (1 = assert bus error; 0 = return zero). Configurable via Inja custom parameter 'param_error_on_read_from_locked' |
 
 #### Interface Signals & Ports
 

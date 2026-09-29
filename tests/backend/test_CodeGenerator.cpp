@@ -73,6 +73,7 @@ private slots:
   void testCommandLineInterface();
   void testDynamicDataWidths();
   void testHwPrecedencePrecedenceParam();
+  void testAccessErrorResponseParameters();
   void testAllAccessPoliciesCodegen();
   void testHwAccessPoliciesCodegen();
   void testLockParserAndSynthesis();
@@ -3226,6 +3227,201 @@ void TestCodeGenerator::testHwPrecedencePrecedenceParam() {
     QString sv = QString::fromUtf8(fSv.readAll());
     fSv.close();
     QVERIFY(sv.contains("parameter bit PARAM_HW_PRECEDENCE = 0"));
+  }
+}
+
+void TestCodeGenerator::testAccessErrorResponseParameters() {
+  CodeGenerator cg;
+
+  // Case 1: Default error response parameters (all 0 / disabled)
+  {
+    json root = json::object();
+    root["name"] = "ERR_PARAM_DEFAULT";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+
+    json blk = json::object();
+    blk["name"] = "B1";
+    json reg = json::object();
+    reg["name"] = "R1";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RO";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+
+    json fld = json::object();
+    fld["name"] = "F1";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 16;
+    fld["access"] = "RO";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+
+    json fld2 = json::object();
+    fld2["name"] = "F2";
+    fld2["offset_lsb"] = 16;
+    fld2["size_width"] = 16;
+    fld2["access"] = "WO";
+    fld2["reset_val"] = 0;
+    fld2["reset_hex"] = "0x0";
+
+    reg["fields"] = json::array({fld, fld2});
+    blk["registers"] = json::array({reg});
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/err_def/reg_map.sv"});
+    mappings.push_back({"templates/rtl/reg_map.v.inja", "work/err_def/reg_map.v"});
+    mappings.push_back({"templates/rtl/reg_map.vhd.inja", "work/err_def/reg_map.vhd"});
+    mappings.push_back({"templates/rtl/apb_reg_file.sv.inja", "work/err_def/apb.sv"});
+    mappings.push_back({"templates/rtl/axil_reg_file.sv.inja", "work/err_def/axil.sv"});
+
+    GenerationReport rep = cg.generate(root, "templates", "work/err_def", mappings);
+    QVERIFY(!rep.has_errors());
+
+    QFile fSv("work/err_def/reg_map.sv");
+    QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString sv = QString::fromUtf8(fSv.readAll());
+    fSv.close();
+    QVERIFY(sv.contains("parameter bit ERROR_ON_WRITE_TO_RO = 0"));
+    QVERIFY(sv.contains("parameter bit ERROR_ON_READ_FROM_WO = 0"));
+    QVERIFY(sv.contains("parameter bit ERROR_ON_WRITE_TO_LOCKED = 0"));
+    QVERIFY(sv.contains("parameter bit ERROR_ON_READ_FROM_LOCKED = 0"));
+
+    QFile fV("work/err_def/reg_map.v");
+    QVERIFY(fV.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString v = QString::fromUtf8(fV.readAll());
+    fV.close();
+    QVERIFY(v.contains("parameter ERROR_ON_WRITE_TO_RO = 0"));
+    QVERIFY(v.contains("parameter ERROR_ON_READ_FROM_WO = 0"));
+
+    QFile fVhd("work/err_def/reg_map.vhd");
+    QVERIFY(fVhd.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString vhd = QString::fromUtf8(fVhd.readAll());
+    fVhd.close();
+    QVERIFY(vhd.contains("ERROR_ON_WRITE_TO_RO      : std_logic := '0'"));
+    QVERIFY(vhd.contains("ERROR_ON_READ_FROM_WO     : std_logic := '0'"));
+  }
+
+  // Case 2: Configured error response parameters (all enabled via custom parameters)
+  {
+    json root = json::object();
+    root["name"] = "ERR_PARAM_ENABLED";
+    root["reg_width"] = 32;
+    root["reg_width_bytes"] = 4;
+    root["param_error_on_write_to_ro"] = "1";
+    root["param_error_on_read_from_wo"] = "1";
+    root["param_error_on_write_to_locked"] = "1";
+    root["param_error_on_read_from_locked"] = "1";
+
+    json blk = json::object();
+    blk["name"] = "B1";
+    blk["lock_wr"] = "sec_wr_lock";
+    blk["lock_rd"] = "sec_rd_lock";
+
+    json reg = json::object();
+    reg["name"] = "R1";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RO";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["lock_wr"] = "r1_wr_lock";
+    reg["lock_rd"] = "r1_rd_lock";
+
+    json fld = json::object();
+    fld["name"] = "F1";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 16;
+    fld["access"] = "RO";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["lock_wr"] = "fld_wr_lock";
+
+    json fld2 = json::object();
+    fld2["name"] = "F2";
+    fld2["offset_lsb"] = 16;
+    fld2["size_width"] = 16;
+    fld2["access"] = "WO";
+    fld2["reset_val"] = 0;
+    fld2["reset_hex"] = "0x0";
+    fld2["lock_rd"] = "fld_rd_lock";
+
+    reg["fields"] = json::array({fld, fld2});
+    blk["registers"] = json::array({reg});
+    root["blocks"] = json::array({blk});
+
+    std::vector<TemplateMapping> mappings;
+    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/err_en/reg_map.sv"});
+    mappings.push_back({"templates/rtl/reg_map.v.inja", "work/err_en/reg_map.v"});
+    mappings.push_back({"templates/rtl/reg_map.vhd.inja", "work/err_en/reg_map.vhd"});
+    mappings.push_back({"templates/rtl/apb_reg_file.sv.inja", "work/err_en/apb.sv"});
+    mappings.push_back({"templates/rtl/axil_reg_file.sv.inja", "work/err_en/axil.sv"});
+    mappings.push_back({"templates/rtl/reg_map_sva.sv.inja", "work/err_en/sva.sv"});
+
+    GenerationReport rep = cg.generate(root, "templates", "work/err_en", mappings);
+    QVERIFY(!rep.has_errors());
+
+    QFile fSv("work/err_en/reg_map.sv");
+    QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString sv = QString::fromUtf8(fSv.readAll());
+    fSv.close();
+    QVERIFY(sv.contains("parameter bit ERROR_ON_WRITE_TO_RO = 1"));
+    QVERIFY(sv.contains("parameter bit ERROR_ON_READ_FROM_WO = 1"));
+    QVERIFY(sv.contains("parameter bit ERROR_ON_WRITE_TO_LOCKED = 1"));
+    QVERIFY(sv.contains("parameter bit ERROR_ON_READ_FROM_LOCKED = 1"));
+    QVERIFY(sv.contains("reg_r1_wr_locked_err"));
+    QVERIFY(sv.contains("reg_r1_wr_ro_err"));
+    QVERIFY(sv.contains("reg_r1_wr_err"));
+    QVERIFY(sv.contains("reg_r1_rd_locked_err"));
+    QVERIFY(sv.contains("reg_r1_rd_wo_err"));
+    QVERIFY(sv.contains("reg_r1_rd_err"));
+    QVERIFY(sv.contains("!reg_r1_wr_err"));
+    QVERIFY(sv.contains("!reg_r1_rd_err"));
+    QVERIFY(sv.contains("bus_wr_en_i && reg_r1_wr_err"));
+    QVERIFY(sv.contains("bus_rd_en_i && reg_r1_rd_err"));
+
+    QFile fV("work/err_en/reg_map.v");
+    QVERIFY(fV.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString v = QString::fromUtf8(fV.readAll());
+    fV.close();
+    QVERIFY(v.contains("parameter ERROR_ON_WRITE_TO_RO = 1"));
+    QVERIFY(v.contains("parameter ERROR_ON_READ_FROM_WO = 1"));
+    QVERIFY(v.contains("reg_r1_wr_err"));
+    QVERIFY(v.contains("reg_r1_rd_err"));
+
+    QFile fVhd("work/err_en/reg_map.vhd");
+    QVERIFY(fVhd.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString vhd = QString::fromUtf8(fVhd.readAll());
+    fVhd.close();
+    QVERIFY(vhd.contains("ERROR_ON_WRITE_TO_RO      : std_logic := '1'"));
+    QVERIFY(vhd.contains("ERROR_ON_READ_FROM_WO     : std_logic := '1'"));
+    QVERIFY(vhd.contains("reg_r1_wr_err <= '1' when"));
+    QVERIFY(vhd.contains("reg_r1_rd_err <= '1' when"));
+
+    QFile fApb("work/err_en/apb.sv");
+    QVERIFY(fApb.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString apb = QString::fromUtf8(fApb.readAll());
+    fApb.close();
+    QVERIFY(apb.contains(".ERROR_ON_WRITE_TO_RO(ERROR_ON_WRITE_TO_RO)"));
+    QVERIFY(apb.contains(".ERROR_ON_READ_FROM_WO(ERROR_ON_READ_FROM_WO)"));
+
+    QFile fAxil("work/err_en/axil.sv");
+    QVERIFY(fAxil.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString axil = QString::fromUtf8(fAxil.readAll());
+    fAxil.close();
+    QVERIFY(axil.contains(".ERROR_ON_WRITE_TO_RO(ERROR_ON_WRITE_TO_RO)"));
+    QVERIFY(axil.contains(".ERROR_ON_READ_FROM_WO(ERROR_ON_READ_FROM_WO)"));
+
+    QFile fSva("work/err_en/sva.sv");
+    QVERIFY(fSva.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString sva = QString::fromUtf8(fSva.readAll());
+    fSva.close();
+    QVERIFY(sva.contains("p_err_wr_ro_r1_f1"));
+    QVERIFY(sva.contains("p_err_rd_wo_r1_f2"));
   }
 }
 
