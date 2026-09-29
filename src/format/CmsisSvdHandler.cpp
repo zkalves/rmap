@@ -307,6 +307,9 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
   QVector<QPair<RegMapTreeItem *, QString>> pendingDerived;
 
   QString deviceName = "MCU_Device";
+  QString deviceVendor = "";
+  QString deviceVersion = "1.0";
+  QString deviceDescription = "";
   uint32_t globalWidth = 32;
 
   while (!xml.atEnd() && !xml.hasError()) {
@@ -316,9 +319,18 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
 
       if (name == "device") {
         // Device root
+      } else if (name == "vendor" && !currentBlock && !currentReg &&
+                 !currentField) {
+        deviceVendor = xml.readElementText();
       } else if (name == "name" && !currentBlock && !currentReg &&
                  !currentField) {
         deviceName = xml.readElementText();
+      } else if (name == "version" && !currentBlock && !currentReg &&
+                 !currentField) {
+        deviceVersion = xml.readElementText();
+      } else if (name == "description" && !currentBlock && !currentReg &&
+                 !currentField) {
+        deviceDescription = xml.readElementText();
       } else if (name == "size" && !currentBlock && !currentReg &&
                  !currentField) {
         uint32_t w = xml.readElementText().toUInt();
@@ -628,6 +640,12 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
   if (config) {
     protormap::Config cfg;
     cfg.set_project_name(deviceName.toStdString());
+    if (!deviceVendor.isEmpty())
+      cfg.set_project_vendor(deviceVendor.toStdString());
+    if (!deviceVersion.isEmpty())
+      cfg.set_project_version(deviceVersion.toStdString());
+    if (!deviceDescription.isEmpty())
+      cfg.set_project_description(deviceDescription.toStdString());
     cfg.set_reg_width(globalWidth);
     config->deserialize(cfg);
   }
@@ -656,13 +674,24 @@ FormatResult CmsisSvdHandler::write(const QString &filepath,
 
   uint32_t regWidth = 32;
   QString projectName = "CMSIS_Device";
+  QString projectVersion = "1.0";
+  QString projectVendor = "";
+  QString projectDesc = "Auto-generated CMSIS-SVD from rmap";
   if (config) {
     protormap::Config *cfg = config->serialize();
-    if (cfg->reg_width() > 0)
-      regWidth = cfg->reg_width();
-    if (!cfg->project_name().empty())
-      projectName = QString::fromStdString(cfg->project_name());
-    delete cfg;
+    if (cfg) {
+      if (cfg->reg_width() > 0)
+        regWidth = cfg->reg_width();
+      if (!cfg->project_name().empty())
+        projectName = QString::fromStdString(cfg->project_name());
+      if (!cfg->project_version().empty())
+        projectVersion = QString::fromStdString(cfg->project_version());
+      if (!cfg->project_vendor().empty())
+        projectVendor = QString::fromStdString(cfg->project_vendor());
+      if (!cfg->project_description().empty())
+        projectDesc = QString::fromStdString(cfg->project_description());
+      delete cfg;
+    }
   }
 
   QXmlStreamWriter xml(&file);
@@ -674,9 +703,12 @@ FormatResult CmsisSvdHandler::write(const QString &filepath,
   xml.writeAttribute("schemaVersion", "1.3");
   xml.writeAttribute("xmlns:xs", "https://www.w3.org/2001/XMLSchema-instance");
 
+  if (!projectVendor.isEmpty()) {
+    xml.writeTextElement("vendor", projectVendor);
+  }
   xml.writeTextElement("name", projectName);
-  xml.writeTextElement("version", "1.0");
-  xml.writeTextElement("description", "Auto-generated CMSIS-SVD from rmap");
+  xml.writeTextElement("version", projectVersion);
+  xml.writeTextElement("description", projectDesc);
   xml.writeTextElement("addressUnitBits", "8");
   xml.writeTextElement("width", QString::number(regWidth));
   xml.writeTextElement("size", QString::number(regWidth));

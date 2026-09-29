@@ -81,6 +81,27 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
         QString::fromStdString(rootJson["project_version"].get<std::string>());
   }
 
+  QString projVendor = "";
+  if (rootJson.contains("project_vendor") &&
+      rootJson["project_vendor"].is_string()) {
+    projVendor =
+        QString::fromStdString(rootJson["project_vendor"].get<std::string>());
+  }
+
+  QString projLibrary = "";
+  if (rootJson.contains("project_library") &&
+      rootJson["project_library"].is_string()) {
+    projLibrary =
+        QString::fromStdString(rootJson["project_library"].get<std::string>());
+  }
+
+  QString projDescription = "";
+  if (rootJson.contains("project_description") &&
+      rootJson["project_description"].is_string()) {
+    projDescription =
+        QString::fromStdString(rootJson["project_description"].get<std::string>());
+  }
+
   QVector<QString> cols = {
       "Type",        "Offset/LSB",  "Size/Width", "Name",     "SW Access",
       "HW Access",   "Reset Value", "Is Rand",    "Volatile", "Has Reset",
@@ -384,6 +405,9 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
     config->setRegisterWidth(regWidth);
     config->setProjectName(projName);
     config->setProjectVersion(projVersion);
+    config->setProjectVendor(projVendor);
+    config->setProjectLibrary(projLibrary);
+    config->setProjectDescription(projDescription);
     if (rootJson.contains("hw_precedence") &&
         rootJson["hw_precedence"].is_boolean()) {
       config->setHwPrecedence(rootJson["hw_precedence"].get<bool>());
@@ -410,6 +434,9 @@ FormatResult JsonHandler::write(const QString &filepath, RegMapTreeModel *model,
   uint32_t regWidth = 32;
   QString projName = "chip_map";
   QString projVersion = "1.0";
+  QString projVendor = "";
+  QString projLibrary = "";
+  QString projDesc = "";
   bool hwPrec = true;
   if (config) {
     protormap::Config *cfg = config->serialize();
@@ -420,6 +447,12 @@ FormatResult JsonHandler::write(const QString &filepath, RegMapTreeModel *model,
         projName = QString::fromStdString(cfg->project_name());
       if (!cfg->project_version().empty())
         projVersion = QString::fromStdString(cfg->project_version());
+      if (!cfg->project_vendor().empty())
+        projVendor = QString::fromStdString(cfg->project_vendor());
+      if (!cfg->project_library().empty())
+        projLibrary = QString::fromStdString(cfg->project_library());
+      if (!cfg->project_description().empty())
+        projDesc = QString::fromStdString(cfg->project_description());
       if (cfg->has_hw_precedence())
         hwPrec = cfg->hw_precedence();
       delete cfg;
@@ -429,6 +462,9 @@ FormatResult JsonHandler::write(const QString &filepath, RegMapTreeModel *model,
   json rootJson = model->extractJsonData(regWidth, hwPrec);
   rootJson["project_name"] = projName.toStdString();
   rootJson["project_version"] = projVersion.toStdString();
+  rootJson["project_vendor"] = projVendor.toStdString();
+  rootJson["project_library"] = projLibrary.toStdString();
+  rootJson["project_description"] = projDesc.toStdString();
 
   QFile file(filepath);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {

@@ -44,9 +44,15 @@ class RegConfigWindow : public QDialog, private Ui::config
         void setRegisterWidth(uint32_t width);
         void setProjectName(const QString &name);
         void setProjectVersion(const QString &version);
+        void setProjectVendor(const QString &vendor);
+        void setProjectLibrary(const QString &library);
+        void setProjectDescription(const QString &description);
         uint32_t registerWidth() const;
         QString projectName() const;
         QString projectVersion() const;
+        QString projectVendor() const;
+        QString projectLibrary() const;
+        QString projectDescription() const;
         void setHwPrecedence(bool precedence);
         bool hwPrecedence() const;
 
@@ -106,6 +112,9 @@ class RegConfigWindow : public QDialog, private Ui::config
         QString m_outputFolder;
         QString m_projectName;
         QString m_projectVersion;
+        QString m_projectVendor;
+        QString m_projectLibrary;
+        QString m_projectDescription;
         bool m_strictValidation = true;
         bool m_hwPrecedence = true;
         bool m_firstShown = true;

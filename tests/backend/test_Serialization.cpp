@@ -34,6 +34,7 @@ private slots:
     void testRoundTripTextAndBinary();
     void testConfigTemplateFoldersAndEnabled();
     void testConfigPythonScriptEnabled();
+    void testConfigProjectMetadata();
     void testParseInvalidRmt();
     void testSerializationContextEdgeCases();
 };
@@ -307,6 +308,38 @@ void TestSerialization::testConfigPythonScriptEnabled()
     QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg2));
     QVERIFY(restoredCfg2.has_python_script_enabled());
     QCOMPARE(restoredCfg2.python_script_enabled(), false);
+}
+
+void TestSerialization::testConfigProjectMetadata()
+{
+    protormap::Config cfg;
+    cfg.set_project_name("SoC_Chip");
+    cfg.set_project_version("1.2.3");
+    cfg.set_project_vendor("SemiconductorCorp");
+    cfg.set_project_library("DigitalIP");
+    cfg.set_project_description("High performance digital IP register map");
+
+    std::string textOutput;
+    google::protobuf::TextFormat::PrintToString(cfg, &textOutput);
+    QVERIFY(!textOutput.empty());
+
+    protormap::Config restoredCfg;
+    QVERIFY(google::protobuf::TextFormat::ParseFromString(textOutput, &restoredCfg));
+    QCOMPARE(restoredCfg.project_name(), std::string("SoC_Chip"));
+    QCOMPARE(restoredCfg.project_version(), std::string("1.2.3"));
+    QCOMPARE(restoredCfg.project_vendor(), std::string("SemiconductorCorp"));
+    QCOMPARE(restoredCfg.project_library(), std::string("DigitalIP"));
+    QCOMPARE(restoredCfg.project_description(), std::string("High performance digital IP register map"));
+
+    std::string binaryOutput;
+    QVERIFY(cfg.SerializeToString(&binaryOutput));
+    protormap::Config restoredBinCfg;
+    QVERIFY(restoredBinCfg.ParseFromString(binaryOutput));
+    QCOMPARE(restoredBinCfg.project_name(), std::string("SoC_Chip"));
+    QCOMPARE(restoredBinCfg.project_version(), std::string("1.2.3"));
+    QCOMPARE(restoredBinCfg.project_vendor(), std::string("SemiconductorCorp"));
+    QCOMPARE(restoredBinCfg.project_library(), std::string("DigitalIP"));
+    QCOMPARE(restoredBinCfg.project_description(), std::string("High performance digital IP register map"));
 }
 
 void TestSerialization::testParseInvalidRmt()

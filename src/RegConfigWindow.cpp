@@ -577,6 +577,9 @@ void RegConfigWindow::saveStateFromUi()
 
     m_projectName = this->Ui_config::projectName->text().trimmed();
     m_projectVersion = this->Ui_config::projectVersion->text().trimmed();
+    m_projectVendor = this->Ui_config::projectVendor->text().trimmed();
+    m_projectLibrary = this->Ui_config::projectLibrary->text().trimmed();
+    m_projectDescription = this->Ui_config::projectDescription->text().trimmed();
     m_strictValidation = this->strictValidation->isChecked();
 
     m_templateFolders = templateFolders();
@@ -610,6 +613,9 @@ void RegConfigWindow::updateUiFromState()
 
     this->Ui_config::projectName->setText(m_projectName);
     this->Ui_config::projectVersion->setText(m_projectVersion);
+    this->Ui_config::projectVendor->setText(m_projectVendor);
+    this->Ui_config::projectLibrary->setText(m_projectLibrary);
+    this->Ui_config::projectDescription->setText(m_projectDescription);
     this->strictValidation->setChecked(m_strictValidation);
 
     this->templateFoldersList->clear();
@@ -644,6 +650,9 @@ protormap::Config* RegConfigWindow::serialize(void)
 
     config->set_project_name(m_projectName.toStdString());
     config->set_project_version(m_projectVersion.toStdString());
+    config->set_project_vendor(m_projectVendor.toStdString());
+    config->set_project_library(m_projectLibrary.toStdString());
+    config->set_project_description(m_projectDescription.toStdString());
     config->set_strict_validation(m_strictValidation);
     config->set_hw_precedence(m_hwPrecedence);
 
@@ -678,6 +687,9 @@ void RegConfigWindow::deserialize(const protormap::Config &config)
 
     m_projectName = QString::fromStdString(config.project_name());
     m_projectVersion = QString::fromStdString(config.project_version());
+    m_projectVendor = QString::fromStdString(config.project_vendor());
+    m_projectLibrary = QString::fromStdString(config.project_library());
+    m_projectDescription = QString::fromStdString(config.project_description());
     m_strictValidation = config.strict_validation();
     m_hwPrecedence = config.has_hw_precedence() ? config.hw_precedence() : AppSettings::instance().hwPrecedence();
 
@@ -801,6 +813,24 @@ void RegConfigWindow::setProjectVersion(const QString &version)
     this->Ui_config::projectVersion->setText(m_projectVersion);
 }
 
+void RegConfigWindow::setProjectVendor(const QString &vendor)
+{
+    m_projectVendor = vendor;
+    this->Ui_config::projectVendor->setText(m_projectVendor);
+}
+
+void RegConfigWindow::setProjectLibrary(const QString &library)
+{
+    m_projectLibrary = library;
+    this->Ui_config::projectLibrary->setText(m_projectLibrary);
+}
+
+void RegConfigWindow::setProjectDescription(const QString &description)
+{
+    m_projectDescription = description;
+    this->Ui_config::projectDescription->setText(m_projectDescription);
+}
+
 uint32_t RegConfigWindow::registerWidth() const
 {
     return m_regWidth;
@@ -814,6 +844,21 @@ QString RegConfigWindow::projectName() const
 QString RegConfigWindow::projectVersion() const
 {
     return m_projectVersion;
+}
+
+QString RegConfigWindow::projectVendor() const
+{
+    return m_projectVendor;
+}
+
+QString RegConfigWindow::projectLibrary() const
+{
+    return m_projectLibrary;
+}
+
+QString RegConfigWindow::projectDescription() const
+{
+    return m_projectDescription;
 }
 
 void RegConfigWindow::setHwPrecedence(bool precedence)

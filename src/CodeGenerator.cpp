@@ -401,6 +401,27 @@ std::string CodeGenerator::resolveOutputPath(
     expOut.replace("{project_name}", projName, Qt::CaseInsensitive);
     expOut.replace("{project}", projName, Qt::CaseInsensitive);
 
+    std::string rawProjVer = context.value("project_version", "");
+    if (!rawProjVer.empty()) {
+      QString projVer = QString::fromStdString(rawProjVer).toLower();
+      expOut.replace("{project_version}", projVer, Qt::CaseInsensitive);
+      expOut.replace("{version}", projVer, Qt::CaseInsensitive);
+    }
+
+    std::string rawProjVendor = context.value("project_vendor", "");
+    if (!rawProjVendor.empty()) {
+      QString projVendor = QString::fromStdString(rawProjVendor).toLower();
+      expOut.replace("{project_vendor}", projVendor, Qt::CaseInsensitive);
+      expOut.replace("{vendor}", projVendor, Qt::CaseInsensitive);
+    }
+
+    std::string rawProjLib = context.value("project_library", "");
+    if (!rawProjLib.empty()) {
+      QString projLib = QString::fromStdString(rawProjLib).toLower();
+      expOut.replace("{project_library}", projLib, Qt::CaseInsensitive);
+      expOut.replace("{library}", projLib, Qt::CaseInsensitive);
+    }
+
     expOut.replace("{file_extension}", fileExt, Qt::CaseInsensitive);
     expOut.replace("{ext}", fileExt, Qt::CaseInsensitive);
 

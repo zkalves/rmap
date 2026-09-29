@@ -134,7 +134,12 @@ FormatResult IpxactHandler::read(const QString &filepath,
   RegMapTreeItem *currentReg = nullptr;
 
   QString projectName = "IPXACT_Component";
+  QString projectVendor = "";
+  QString projectLibrary = "";
+  QString projectVersion = "1.0";
+  QString projectDescription = "";
   uint32_t globalWidth = 32;
+  bool insideMemoryMaps = false;
 
   while (!xml.atEnd() && !xml.hasError()) {
     QXmlStreamReader::TokenType token = xml.readNext();
@@ -143,8 +148,20 @@ FormatResult IpxactHandler::read(const QString &filepath,
 
       if (name == "component") {
         // Outer component
-      } else if (name == "name" && !currentBlock && !currentReg) {
-        projectName = xml.readElementText();
+      } else if (name == "memoryMaps" || name == "memoryMap") {
+        insideMemoryMaps = true;
+      } else if (!insideMemoryMaps && !currentBlock && !currentReg) {
+        if (name == "vendor") {
+          projectVendor = xml.readElementText();
+        } else if (name == "library") {
+          projectLibrary = xml.readElementText();
+        } else if (name == "name") {
+          projectName = xml.readElementText();
+        } else if (name == "version") {
+          projectVersion = xml.readElementText();
+        } else if (name == "description") {
+          projectDescription = xml.readElementText();
+        }
       } else if (name == "addressBlock") {
         // Block container
         QVariantMap blkData;
@@ -297,6 +314,8 @@ FormatResult IpxactHandler::read(const QString &filepath,
         currentReg = nullptr;
       } else if (name == "addressBlock") {
         currentBlock = nullptr;
+      } else if (name == "memoryMaps" || name == "memoryMap") {
+        insideMemoryMaps = false;
       }
     }
   }
@@ -324,6 +343,10 @@ FormatResult IpxactHandler::read(const QString &filepath,
 
   if (config) {
     config->setProjectName(projectName);
+    config->setProjectVendor(projectVendor);
+    config->setProjectLibrary(projectLibrary);
+    config->setProjectVersion(projectVersion);
+    config->setProjectDescription(projectDescription);
     config->setRegisterWidth(globalWidth);
   }
 
@@ -356,6 +379,9 @@ FormatResult IpxactHandler::write(const QString &filepath,
   uint32_t regWidth = 32;
   QString projName = "chip_map";
   QString projVer = "1.0";
+  QString projVendor = "";
+  QString projLibrary = "";
+  QString projDesc = "";
   if (config) {
     protormap::Config *cfg = config->serialize();
     if (cfg) {
@@ -365,6 +391,12 @@ FormatResult IpxactHandler::write(const QString &filepath,
         projName = QString::fromStdString(cfg->project_name());
       if (!cfg->project_version().empty())
         projVer = QString::fromStdString(cfg->project_version());
+      if (!cfg->project_vendor().empty())
+        projVendor = QString::fromStdString(cfg->project_vendor());
+      if (!cfg->project_library().empty())
+        projLibrary = QString::fromStdString(cfg->project_library());
+      if (!cfg->project_description().empty())
+        projDesc = QString::fromStdString(cfg->project_description());
       delete cfg;
     }
   }
@@ -379,10 +411,13 @@ FormatResult IpxactHandler::write(const QString &filepath,
   xml.writeAttribute("xmlns:xsi", "https://www.w3.org/2001/XMLSchema-instance");
   xml.writeAttribute("xmlns:rmap", "https://github.com/zkalves/rmap");
 
-  xml.writeTextElement("ipxact:vendor", "rmap");
-  xml.writeTextElement("ipxact:library", "components");
+  xml.writeTextElement("ipxact:vendor", projVendor);
+  xml.writeTextElement("ipxact:library", projLibrary);
   xml.writeTextElement("ipxact:name", projName);
   xml.writeTextElement("ipxact:version", projVer);
+  if (!projDesc.isEmpty()) {
+    xml.writeTextElement("ipxact:description", projDesc);
+  }
 
   xml.writeStartElement("ipxact:memoryMaps");
   xml.writeStartElement("ipxact:memoryMap");
