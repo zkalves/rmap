@@ -47,9 +47,9 @@ private slots:
         s_originalHandler = qInstallMessageHandler(testOffscreenMessageHandler);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
-        QDir("examples/rmt/peripherals/work").removeRecursively();
-        QDir("examples/rmt/features/work").removeRecursively();
-        QDir("examples/rmt/validation/work").removeRecursively();
+        QDir("examples/peripherals/spi/work").removeRecursively();
+        QDir("examples/features/wide_bus_64bit/work").removeRecursively();
+        QDir("examples/features/strict_validation/work").removeRecursively();
         QDir().mkpath("work");
         qputenv("RMAP_CONFIG_FILE", "work/rmap_test.conf");
         AppSettings::instance().setConfigFilePath("work/rmap_test.conf");
@@ -60,9 +60,9 @@ private slots:
         AppSettings::instance().setColorBlindMode(false);
         QDir("work").removeRecursively();
         QDir("examples/work").removeRecursively();
-        QDir("examples/rmt/peripherals/work").removeRecursively();
-        QDir("examples/rmt/features/work").removeRecursively();
-        QDir("examples/rmt/validation/work").removeRecursively();
+        QDir("examples/peripherals/spi/work").removeRecursively();
+        QDir("examples/features/wide_bus_64bit/work").removeRecursively();
+        QDir("examples/features/strict_validation/work").removeRecursively();
         qInstallMessageHandler(s_originalHandler);
     }
     void testWindowInitAndFileOpen();
@@ -108,7 +108,7 @@ private slots:
 
 void TestRegMapWindow::testWindowInitAndFileOpen()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -147,7 +147,7 @@ void TestRegMapWindow::testFileNewReset()
     QVERIFY(!freshWindow.isModelLoaded());
 
     // 2. Open file and then trigger File -> New
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
@@ -191,7 +191,7 @@ void TestRegMapWindow::testFileNewReset()
 
 void TestRegMapWindow::testFileClose()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
@@ -291,7 +291,7 @@ void TestRegMapWindow::testLeftPaneEmptyStateWhenNoModel()
     QCOMPARE(rightStacked->currentWidget(), rightEmpty);
 
     // Open an existing file -> left pane shows tree view
-    window.fileOpen("examples/rmt/peripherals/spi.rmt");
+    window.fileOpen("examples/peripherals/spi/spi.rmt");
     QVERIFY(window.isModelLoaded());
     QCOMPARE(leftStacked->currentWidget(), leftView);
 
@@ -306,7 +306,7 @@ void TestRegMapWindow::testLeftPaneEmptyStateWhenNoModel()
 
 void TestRegMapWindow::testProxyFilteringAndSelectionSync()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -380,7 +380,7 @@ void TestRegMapWindow::testProxyFilteringAndSelectionSync()
 
 void TestRegMapWindow::testRegisterSortingByOffset()
 {
-    QString file = "examples/rmt/features/address_gap_example.rmt";
+    QString file = "examples/features/address_gap_example/address_gap_example.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -411,7 +411,7 @@ void TestRegMapWindow::testRegisterSortingByOffset()
 
 void TestRegMapWindow::testBlockMemoryMapView()
 {
-    QString file = "examples/rmt/features/address_gap_example.rmt";
+    QString file = "examples/features/address_gap_example/address_gap_example.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -609,7 +609,7 @@ void TestRegMapWindow::testItemDeletionAction()
 void TestRegMapWindow::testRegisterDuplicationAction()
 {
     qDebug() << "--- START testRegisterDuplicationAction ---";
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     auto *treeView = window.findChild<QTreeView*>("treeView");
@@ -669,7 +669,7 @@ void TestRegMapWindow::testRegisterDuplicationAction()
 
 void TestRegMapWindow::testExportAction()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     // Re-anchor config output to work/
@@ -710,7 +710,7 @@ void TestRegMapWindow::testExportAction()
 
 void TestRegMapWindow::testExportSkipsDisabledTemplates()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     window.configWindow()->setBaseDir(QDir::currentPath());
@@ -752,7 +752,7 @@ void TestRegMapWindow::testExportSkipsDisabledTemplates()
 
 void TestRegMapWindow::testExportLaunchesPythonScriptWhenEnabled()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     QDir().mkpath("work/test_fe_py");
@@ -815,7 +815,7 @@ void TestRegMapWindow::testExportLaunchesPythonScriptWhenEnabled()
 
 void TestRegMapWindow::testExportSkipsPythonScriptWhenDisabled()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     QDir().mkpath("work/test_fe_py_dis");
@@ -874,7 +874,7 @@ void TestRegMapWindow::testExportSkipsPythonScriptWhenDisabled()
 
 void TestRegMapWindow::testBitfieldBarWidgetSync()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -933,7 +933,7 @@ void TestRegMapWindow::testBitfieldBarWidgetSync()
 
 void TestRegMapWindow::testSearchBarFiltering()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -953,7 +953,7 @@ void TestRegMapWindow::testSearchBarFiltering()
 
 void TestRegMapWindow::testUndoRedoStack()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     QUndoStack *undoStack = window.getUndoStack();
@@ -1023,7 +1023,7 @@ void TestRegMapWindow::testUndoRedoStack()
 
 void TestRegMapWindow::testHeadlessCliMethods()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
 
     // 1. Headless lint
@@ -1035,7 +1035,7 @@ void TestRegMapWindow::testHeadlessCliMethods()
     QVERIFY(QFile::exists("work/test_lint_out.json"));
 
     // 2. Semantic diff against itself (0 changes)
-    bool diffPass = RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "examples/rmt/peripherals/spi.rmt", "text", "");
+    bool diffPass = RegMapWindow::semanticDiff("examples/peripherals/spi/spi.rmt", "examples/peripherals/spi/spi.rmt", "text", "");
     QVERIFY(diffPass);
 
     // 3. Headless export
@@ -1045,7 +1045,7 @@ void TestRegMapWindow::testHeadlessCliMethods()
     QVERIFY(QFile::exists("work/test_headless_export/uvm/reg_model.sv"));
 
     // 4. Headless methods with environment variables
-    qputenv("RMAP_TEST_SPI", "examples/rmt/peripherals/spi.rmt");
+    qputenv("RMAP_TEST_SPI", "examples/peripherals/spi/spi.rmt");
     qputenv("RMAP_TEST_OUT_DIR", "work/test_env_export");
 
     RegMapWindow envWindow("$RMAP_TEST_SPI");
@@ -1064,7 +1064,7 @@ void TestRegMapWindow::testHeadlessCliMethods()
 void TestRegMapWindow::testSarifAndJunitLintReports()
 {
     // 1. Test clean file in SARIF format
-    RegMapWindow cleanWindow("examples/rmt/peripherals/spi.rmt");
+    RegMapWindow cleanWindow("examples/peripherals/spi/spi.rmt");
     QString sarifOut = "work/test_spi.sarif";
     bool cleanSarifPass = cleanWindow.headlessLint(false, "sarif", sarifOut);
     QVERIFY(cleanSarifPass);
@@ -1101,7 +1101,7 @@ void TestRegMapWindow::testSarifAndJunitLintReports()
     QVERIFY(!junitContent.contains("<failure"));
 
     // 3. Test invalid file with strict rules
-    RegMapWindow invalidWindow("examples/rmt/validation/invalid_overlap.rmt");
+    RegMapWindow invalidWindow("examples/features/strict_validation/invalid_overlap.rmt");
     QString strictSarifOut = "work/test_invalid_strict.sarif";
     bool invalidStrictPass = invalidWindow.headlessLint(true, "sarif", strictSarifOut);
     QVERIFY(!invalidStrictPass); // Expected to fail validation
@@ -1122,7 +1122,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
     // Create a modified copy of spi.rmt
     RegMapTreeModel model;
     RegConfigWindow config;
-    QVERIFY(FormatManager::instance().loadFile("examples/rmt/peripherals/spi.rmt", &model, &config).success);
+    QVERIFY(FormatManager::instance().loadFile("examples/peripherals/spi/spi.rmt", &model, &config).success);
 
     // Add a new register TX_BUFFER to Block 0
     QModelIndex blkIndex = model.index(0, 0, QModelIndex());
@@ -1137,7 +1137,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
 
     // 1. Run semantic diff in Markdown format
     QString mdOut = "work/test_diff_report.md";
-    bool mdDiffPass = RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", modFile, "markdown", mdOut);
+    bool mdDiffPass = RegMapWindow::semanticDiff("examples/peripherals/spi/spi.rmt", modFile, "markdown", mdOut);
     QVERIFY(mdDiffPass);
     QVERIFY(QFile::exists(mdOut));
 
@@ -1152,7 +1152,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
 
     // 2. Run semantic diff in Text format
     QString txtOut = "work/test_diff_report.txt";
-    bool txtDiffPass = RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", modFile, "text", txtOut);
+    bool txtDiffPass = RegMapWindow::semanticDiff("examples/peripherals/spi/spi.rmt", modFile, "text", txtOut);
     QVERIFY(txtDiffPass);
     QVERIFY(QFile::exists(txtOut));
 
@@ -1168,7 +1168,7 @@ void TestRegMapWindow::testSemanticDiffWithModifications()
 
 void TestRegMapWindow::testColorBlindModeToggle()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1206,7 +1206,7 @@ void TestRegMapWindow::testColorBlindModeToggle()
 
 void TestRegMapWindow::testKeyBindingsDialog()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1229,7 +1229,7 @@ void TestRegMapWindow::testKeyBindingsDialog()
 
 void TestRegMapWindow::testConfigWindowAction()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1249,7 +1249,7 @@ void TestRegMapWindow::testConfigWindowAction()
 
 void TestRegMapWindow::testPreferencesWindowAction()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1268,7 +1268,7 @@ void TestRegMapWindow::testPreferencesWindowAction()
 
 void TestRegMapWindow::testAboutWindowAction()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1288,7 +1288,7 @@ void TestRegMapWindow::testAboutWindowAction()
 
 void TestRegMapWindow::testMenuStructure()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1322,7 +1322,7 @@ void TestRegMapWindow::testMenuStructure()
 
 void TestRegMapWindow::testColorSchemeSwitching()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1371,7 +1371,7 @@ void TestRegMapWindow::testMainWindowSizePersistence()
     QString origPath = AppSettings::instance().configFilePath();
     AppSettings::instance().setConfigFilePath(tempDir.path() + "/test_rmap.conf");
 
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     {
         RegMapWindow window(file);
         window.resize(720, 520);
@@ -1390,7 +1390,7 @@ void TestRegMapWindow::testMainWindowSizePersistence()
 
 void TestRegMapWindow::testLanguageMenuStructure()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1414,7 +1414,7 @@ void TestRegMapWindow::testLanguageMenuStructure()
 
 void TestRegMapWindow::testLanguageSwitching()
 {
-    QString file = "examples/rmt/peripherals/spi.rmt";
+    QString file = "examples/peripherals/spi/spi.rmt";
     RegMapWindow window(file);
     window.show();
 
@@ -1502,7 +1502,7 @@ void TestRegMapWindow::testFileSaveAndSaveAsVariations()
     // 2. Save with loaded window -> saves directly
     {
         QFile::remove("work/test_save_act.rmt");
-        QVERIFY(QFile::copy("examples/rmt/peripherals/spi.rmt", "work/test_save_act.rmt"));
+        QVERIFY(QFile::copy("examples/peripherals/spi/spi.rmt", "work/test_save_act.rmt"));
         RegMapWindow window("work/test_save_act.rmt");
         window.show();
         auto *actSave = window.findChild<QAction*>("actionFileSave");
@@ -1512,7 +1512,7 @@ void TestRegMapWindow::testFileSaveAndSaveAsVariations()
 
     // 3. fileSave(fname) with custom path
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         QVERIFY(window.fileSave("work/test_save_direct.rmt"));
         QVERIFY(QFile::exists("work/test_save_direct.rmt"));
 
@@ -1528,7 +1528,7 @@ void TestRegMapWindow::testFileSaveAndSaveAsVariations()
 
     // 4. SaveAs action with auto-dismiss
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         auto *actSaveAs = window.findChild<QAction*>("actionFileSaveAs");
         QVERIFY(actSaveAs != nullptr);
         QTimer::singleShot(50, []() {
@@ -1539,7 +1539,7 @@ void TestRegMapWindow::testFileSaveAndSaveAsVariations()
 
     // 5. regmap_modified and notModified via cell edit
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         auto *model = window.getModel();
         QVERIFY(model != nullptr);
         QModelIndex blkIdx = model->index(0, 0, QModelIndex());
@@ -1557,7 +1557,7 @@ void TestRegMapWindow::testFileOpenAndReloadVariations()
 {
     // 1. File reload on modified model with Cancel vs Ok
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         auto *model = window.getModel();
         QModelIndex blkIdx = model->index(0, 0, QModelIndex());
         QModelIndex regIdx = model->index(0, 0, blkIdx);
@@ -1587,7 +1587,7 @@ void TestRegMapWindow::testFileOpenAndReloadVariations()
 
     // 2. File Open on modified model with Cancel vs Ok
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         auto *model = window.getModel();
         QModelIndex blkIdx = model->index(0, 0, QModelIndex());
         model->setData(model->index(0, 3, blkIdx), "MOD_BLK", Qt::EditRole);
@@ -1637,7 +1637,7 @@ void TestRegMapWindow::testFileOpenAndReloadVariations()
     // 5. File New and Close with Save option when modified
     {
         QFile::remove("work/temp_save_new.rmt");
-        QVERIFY(QFile::copy("examples/rmt/peripherals/spi.rmt", "work/temp_save_new.rmt"));
+        QVERIFY(QFile::copy("examples/peripherals/spi/spi.rmt", "work/temp_save_new.rmt"));
         RegMapWindow window("work/temp_save_new.rmt");
         auto *model = window.getModel();
         model->setData(model->index(0, 3, model->index(0, 0, QModelIndex())), "MOD_NAME", Qt::EditRole);
@@ -1674,7 +1674,7 @@ void TestRegMapWindow::testFileOpenAndReloadVariations()
 
 void TestRegMapWindow::testWindowLifecycleAndEvents()
 {
-    RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+    RegMapWindow window("examples/peripherals/spi/spi.rmt");
     window.show();
     QCoreApplication::processEvents();
 
@@ -1713,7 +1713,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
 {
     // 1. Check on valid model (spi.rmt)
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         auto *actCheck = window.findChild<QAction*>("actionCheck");
         QVERIFY(actCheck != nullptr);
 
@@ -1725,7 +1725,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
 
     // 2. Check on invalid model (invalid_overlap.rmt)
     {
-        RegMapWindow window("examples/rmt/validation/invalid_overlap.rmt");
+        RegMapWindow window("examples/features/strict_validation/invalid_overlap.rmt");
         auto *actCheck = window.findChild<QAction*>("actionCheck");
         QVERIFY(actCheck != nullptr);
 
@@ -1737,7 +1737,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
 
     // 3. Export on invalid model - reply No
     {
-        RegMapWindow window("examples/rmt/validation/invalid_overlap.rmt");
+        RegMapWindow window("examples/features/strict_validation/invalid_overlap.rmt");
         auto *actExport = window.findChild<QAction*>("actionExport");
         QVERIFY(actExport != nullptr);
 
@@ -1752,7 +1752,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
 
     // 4. Export on invalid model - reply Yes
     {
-        RegMapWindow window("examples/rmt/validation/invalid_overlap.rmt");
+        RegMapWindow window("examples/features/strict_validation/invalid_overlap.rmt");
         auto *actExport = window.findChild<QAction*>("actionExport");
         QVERIFY(actExport != nullptr);
 
@@ -1766,12 +1766,12 @@ void TestRegMapWindow::testValidationAndExportDialogs()
             });
         });
         actExport->trigger();
-        QDir("examples/rmt/validation/work").removeRecursively();
+        QDir("examples/features/strict_validation/work").removeRecursively();
     }
 
     // 5. Export with empty template table
     {
-        RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow window("examples/peripherals/spi/spi.rmt");
         auto *cfgWin = window.configWindow();
         QVERIFY(cfgWin != nullptr);
         auto *tbl = cfgWin->findChild<QTableWidget*>("templateTable");
@@ -1789,7 +1789,7 @@ void TestRegMapWindow::testValidationAndExportDialogs()
 
 void TestRegMapWindow::testContextMenuAndDuplicationVariations()
 {
-    RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+    RegMapWindow window("examples/peripherals/spi/spi.rmt");
     window.show();
     QCoreApplication::processEvents();
 
@@ -1926,7 +1926,7 @@ void TestRegMapWindow::testContextMenuAndDuplicationVariations()
 
 void TestRegMapWindow::testSortingAndProxyEdgeCases()
 {
-    RegMapWindow window("examples/rmt/peripherals/spi.rmt");
+    RegMapWindow window("examples/peripherals/spi/spi.rmt");
     auto *model = window.getModel();
     QVERIFY(model != nullptr);
 
@@ -1966,50 +1966,50 @@ void TestRegMapWindow::testHeadlessCliExtended()
 
     // 2. headlessExport with output directory override
     {
-        RegMapWindow spiWin("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow spiWin("examples/peripherals/spi/spi.rmt");
         QVERIFY(spiWin.headlessExport("work/spi_custom_out"));
         QVERIFY(QDir("work/spi_custom_out").exists());
     }
 
     // 3. headlessLint with strict mode on wide bus (checks alignment and warns on missing descriptions)
     {
-        RegMapWindow wideWin("examples/rmt/features/wide_bus_64bit.rmt");
+        RegMapWindow wideWin("examples/features/wide_bus_64bit/wide_bus_64bit.rmt");
         QVERIFY(!wideWin.headlessLint(true, "text", ""));
         QVERIFY(wideWin.headlessLint(false, "text", ""));
     }
 
     // 4. headlessLint with invalid overlap and JUnit format
     {
-        RegMapWindow invWin("examples/rmt/validation/invalid_overlap.rmt");
+        RegMapWindow invWin("examples/features/strict_validation/invalid_overlap.rmt");
         QVERIFY(!invWin.headlessLint(false, "junit", "work/lint_fail.xml"));
         QVERIFY(QFile::exists("work/lint_fail.xml"));
     }
 
     // 5. headlessLint with invalid overlap and text format
     {
-        RegMapWindow invWin("examples/rmt/validation/invalid_overlap.rmt");
+        RegMapWindow invWin("examples/features/strict_validation/invalid_overlap.rmt");
         QVERIFY(!invWin.headlessLint(false, "text", "work/lint_fail.txt"));
         QVERIFY(QFile::exists("work/lint_fail.txt"));
     }
 
     // 6. headlessLint with unwritable destination
     {
-        RegMapWindow spiWin("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow spiWin("examples/peripherals/spi/spi.rmt");
         QVERIFY(!spiWin.headlessLint(false, "text", "/proc/cannot_write/report.txt"));
     }
 
     // 7. semanticDiff with missing file1
-    QVERIFY(!RegMapWindow::semanticDiff("nonexistent_1.rmt", "examples/rmt/peripherals/spi.rmt", "text", ""));
+    QVERIFY(!RegMapWindow::semanticDiff("nonexistent_1.rmt", "examples/peripherals/spi/spi.rmt", "text", ""));
 
     // 8. semanticDiff with missing file2
-    QVERIFY(!RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "nonexistent_2.rmt", "text", ""));
+    QVERIFY(!RegMapWindow::semanticDiff("examples/peripherals/spi/spi.rmt", "nonexistent_2.rmt", "text", ""));
 
     // 9. semanticDiff with markdown format (same files)
-    QVERIFY(RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "examples/rmt/peripherals/spi.rmt", "markdown", "work/diff_same.md"));
+    QVERIFY(RegMapWindow::semanticDiff("examples/peripherals/spi/spi.rmt", "examples/peripherals/spi/spi.rmt", "markdown", "work/diff_same.md"));
     QVERIFY(QFile::exists("work/diff_same.md"));
 
     // 10. semanticDiff with markdown format (different files)
-    QVERIFY(RegMapWindow::semanticDiff("examples/rmt/peripherals/spi.rmt", "examples/rmt/features/wide_bus_64bit.rmt", "markdown", "work/diff_diff.md"));
+    QVERIFY(RegMapWindow::semanticDiff("examples/peripherals/spi/spi.rmt", "examples/features/wide_bus_64bit/wide_bus_64bit.rmt", "markdown", "work/diff_diff.md"));
     QVERIFY(QFile::exists("work/diff_diff.md"));
 }
 
@@ -2028,7 +2028,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 2. parseNumericValue binary ("0b...") and decimal ("...") in duplicateItem (lines 44-45, 47, 2115-2117)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *model = win.getModel();
         QVERIFY(model != nullptr);
         QModelIndex blkIdx = model->index(0, 0, QModelIndex());
@@ -2141,7 +2141,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 5. btnFileNew Save branch (line 1256)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.m_rmap_filename = "work/spi_test_save.rmt";
         auto *model = win.getModel();
         model->setData(model->index(0, 3, model->index(0, 0, QModelIndex())), "MODIFIED_NAME", Qt::EditRole);
@@ -2153,7 +2153,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 6. btnFileSaveAs and btnFileOpen modal dialog file selection (lines 1291-1296, 1315-1318, 1751)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.m_rmap_filename = "work/spi_test_save.rmt";
         win.m_active_folder = QDir::current().absoluteFilePath("work");
 
@@ -2174,7 +2174,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 7. btnExport branches (lines 1411, 1418, 1429, 1448-1463)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *cfgWin = win.configWindow();
         QVERIFY(cfgWin != nullptr);
 
@@ -2210,7 +2210,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 8. updateBitfieldBar selection edge cases (lines 1570-1571, 1578-1579)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
         auto *model = win.getModel();
@@ -2268,7 +2268,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 10. insertChild tree traversal and fallback branches (lines 1831-1832, 1845-1853, 1857)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *proxy = qobject_cast<QAbstractProxyModel*>(treeView->model());
         auto *model = win.getModel();
@@ -2296,7 +2296,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 11. onTreeSelectionChanged reconnection of fields table model (lines 1943-1944)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         if (fieldsTable) {
@@ -2311,7 +2311,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     // 12. duplicateCurrentItem when treeView index is invalid but m_currentRegItem is set (lines 2070-2076)
     // and duplicateItem when new_proxy is not valid in treeProxy (lines 2133-2140)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *model = win.getModel();
         QModelIndex blk0 = model->index(0, 0, QModelIndex());
@@ -2334,7 +2334,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     // 13. headlessExport output path prefix branches (lines 2169, 2176, 2187, 2203, 2206-2209, 2217, 2231-2236)
     {
         QFile::remove("work/headless_spi.rmt");
-        QFile::copy("examples/rmt/peripherals/spi.rmt", "work/headless_spi.rmt");
+        QFile::copy("examples/peripherals/spi/spi.rmt", "work/headless_spi.rmt");
         RegMapWindow win("work/headless_spi.rmt");
         auto *cfgWin = win.configWindow();
         auto *cfg = cfgWin->serialize();
@@ -2378,7 +2378,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 14. headlessLint strict mode unaligned offset warning and JUnit format (lines 2275, 2332, 2345-2349)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *model = win.getModel();
         QModelIndex blk0 = model->index(0, 0, QModelIndex());
         model->setData(model->index(1, 1, blk0), "0x21", Qt::EditRole);
@@ -2453,7 +2453,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     // 17. btnFileClose with unsaved changes and Save reply (line 1256)
     {
         QFile::remove("work/temp_close.rmt");
-        QFile::copy("examples/rmt/peripherals/spi.rmt", "work/temp_close.rmt");
+        QFile::copy("examples/peripherals/spi/spi.rmt", "work/temp_close.rmt");
         RegMapWindow win("work/temp_close.rmt");
         auto *model = win.getModel();
         QModelIndex blk0 = model->index(0, 0, QModelIndex());
@@ -2465,7 +2465,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 18. btnExport with partial success and errors (lines 1447-1449)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *cfgWin = win.configWindow();
         auto *cfg = cfgWin->serialize();
         cfg->clear_template_outputs();
@@ -2487,7 +2487,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     // 19. btnExport with zero templates found (lines 1524-1525)
     {
         QDir().mkpath("work/empty_tmpl");
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *cfgWin = win.configWindow();
         cfgWin->setTemplateFolders({"work/empty_tmpl"});
         auto *cfg = cfgWin->serialize();
@@ -2501,7 +2501,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 20. insertChild climbs up hierarchy from blk to root (lines 1889-1890)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         QVERIFY(treeView);
         auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
@@ -2514,7 +2514,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 21. duplicateSelectedRegister with cleared current index but m_currentRegItem cached (lines 2119-2125)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
         QModelIndex blk0 = proxy->index(0, 0);
@@ -2560,14 +2560,14 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     // 22. headlessExport with model validation warnings (lines 2149-2152)
     {
         QFile::remove("work/temp_invalid.rmt");
-        QFile::copy("examples/rmt/validation/invalid_overlap.rmt", "work/temp_invalid.rmt");
+        QFile::copy("examples/features/strict_validation/invalid_overlap.rmt", "work/temp_invalid.rmt");
         RegMapWindow win("work/temp_invalid.rmt");
         win.headlessExport("work/invalid_export");
     }
 
     // 23. parseNumericValue binary and decimal in field duplicate (lines 44, 45, 47)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *proxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
         QModelIndex blk0 = proxy->index(0, 0);
@@ -2592,7 +2592,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 24. UndoCommands: EditCellCommand invalid index, InsertItemCommand kinds, and null DeleteItemCommand
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *model = win.model();
 
         EditCellCommand invalidCell(model, QModelIndex(), "old", "new");
@@ -2624,7 +2624,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 25. btnKeyBindings dialog dismissal
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         QTimer::singleShot(50, []() {
             for (QWidget *w : QApplication::topLevelWidgets()) {
                 if (auto *dlg = qobject_cast<QDialog*>(w)) {
@@ -2637,7 +2637,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 26. btnPreferences, btnAbout, btnConfig, and btnQuitButton
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.btnPreferences();
         win.btnAbout();
         win.btnConfig();
@@ -2646,7 +2646,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 27. btnFileReload, btnFileNew, btnFileClose with unsaved changes permutations
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         // Reload when not modified
         win.btnFileReload();
 
@@ -2687,7 +2687,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     // 28. btnExport with validation issues: user selects No, user selects Yes
     {
         QFile::remove("work/temp_invalid.rmt");
-        QFile::copy("examples/rmt/validation/invalid_overlap.rmt", "work/temp_invalid.rmt");
+        QFile::copy("examples/features/strict_validation/invalid_overlap.rmt", "work/temp_invalid.rmt");
         RegMapWindow win("work/temp_invalid.rmt");
 
         // User clicks No -> export aborted early (line 1468)
@@ -2702,7 +2702,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 29. showTreeContextMenu on treeView and fieldsTableView
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
 
@@ -2747,7 +2747,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 30. duplicateItem variations: source model index, invalid index, blk item, regBytes == 0
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *model = win.model();
 
         // Passing source model index directly (line 2141-2142)
@@ -2772,8 +2772,8 @@ void TestRegMapWindow::testUncoveredEdgeCases()
     {
         // Diff between spi.rmt and uart.rmt (added and removed registers)
         QVERIFY(RegMapWindow::semanticDiff(
-            "examples/rmt/peripherals/spi.rmt",
-            "examples/rmt/peripherals/uart.rmt",
+            "examples/peripherals/spi/spi.rmt",
+            "examples/peripherals/uart/uart.rmt",
             "text",
             "work/diff_spi_uart.txt"
         ));
@@ -2781,8 +2781,8 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         // Markdown format diff between spi.rmt and uart.rmt
         QVERIFY(RegMapWindow::semanticDiff(
-            "examples/rmt/peripherals/spi.rmt",
-            "examples/rmt/peripherals/uart.rmt",
+            "examples/peripherals/spi/spi.rmt",
+            "examples/peripherals/uart/uart.rmt",
             "markdown",
             "work/diff_spi_uart.md"
         ));
@@ -2790,7 +2790,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         // Diff where file1 is valid, but file2 does not exist (line 2416-2419 returns false)
         QVERIFY(!RegMapWindow::semanticDiff(
-            "examples/rmt/peripherals/spi.rmt",
+            "examples/peripherals/spi/spi.rmt",
             "nonexistent_file_diff_123.rmt",
             "text",
             ""
@@ -2798,15 +2798,15 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         // Diff write failure on invalid path (line 2505-2506)
         QVERIFY(!RegMapWindow::semanticDiff(
-            "examples/rmt/peripherals/spi.rmt",
-            "examples/rmt/peripherals/uart.rmt",
+            "examples/peripherals/spi/spi.rmt",
+            "examples/peripherals/uart/uart.rmt",
             "text",
             "/non_existent_directory_xyz/diff.txt"
         ));
 
         // Create modified SPI map with offset, access, reset, and field modifications
         QFile::remove("work/spi_modified.rmt");
-        QFile::copy("examples/rmt/peripherals/spi.rmt", "work/spi_modified.rmt");
+        QFile::copy("examples/peripherals/spi/spi.rmt", "work/spi_modified.rmt");
         {
             RegMapWindow modWin("work/spi_modified.rmt");
             auto *modModel = modWin.model();
@@ -2829,13 +2829,13 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
         // Diff spi.rmt vs spi_modified.rmt in both text and markdown formats
         QVERIFY(RegMapWindow::semanticDiff(
-            "examples/rmt/peripherals/spi.rmt",
+            "examples/peripherals/spi/spi.rmt",
             "work/spi_modified.rmt",
             "text",
             "work/diff_mod.txt"
         ));
         QVERIFY(RegMapWindow::semanticDiff(
-            "examples/rmt/peripherals/spi.rmt",
+            "examples/peripherals/spi/spi.rmt",
             "work/spi_modified.rmt",
             "markdown",
             "work/diff_mod.md"
@@ -2844,7 +2844,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 32. setColourBlindType permutations and window state restoration
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
 
         // Set colour blind type to None
         win.setColourBlindType(ColorBlindMode::None);
@@ -2882,7 +2882,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 33. insertChild fallback to first child when root cannot accept (lines 1907-1915)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         // Clear selection so nothing is selected
         if (treeView && treeView->selectionModel()) {
@@ -2914,7 +2914,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 35. Export helper methods permutations
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         protormap::Config cfg;
 
         // resolveExportOutputFolder
@@ -2978,7 +2978,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 36. TreeFilterProxyModel and FieldSortProxyModel comprehensive sort, filter, headerData
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *searchEdit = win.findChild<QLineEdit*>("searchEdit");
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
@@ -3080,14 +3080,14 @@ void TestRegMapWindow::testUncoveredEdgeCases()
         QVERIFY(RegMapWindow::semanticDiff("work/test_gather_a.rmt", "work/test_gather_b.rmt", "markdown", "work/diff_gather.md"));
 
         // Batch export with custom out_dir prefixes
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.headlessExport("work/custom_export_1");
         win.headlessExport("./work/custom_export_2");
     }
 
     // 38. Comprehensive branch & condition boost: proxy models, editor focus, strict linter, duplication, undo text
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
         auto *treeProxy = qobject_cast<QSortFilterProxyModel*>(treeView->model());
@@ -3290,7 +3290,7 @@ void TestRegMapWindow::testUncoveredEdgeCases()
 
     // 9. Line edits with same name, empty name, same offset, empty offset, search filter variations
     {
-        RegMapWindow editWin("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow editWin("examples/peripherals/spi/spi.rmt");
         editWin.show();
         auto *treeView = editWin.findChild<QTreeView*>("treeView");
         QVERIFY(treeView != nullptr);
@@ -3433,7 +3433,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 1. padHexOffsetString with 8-digit hex (> 0x10000) and invalid hex
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *regOffsetEdit = win.findChild<QLineEdit*>("regOffsetEdit");
         auto *blkOffsetEdit = win.findChild<QLineEdit*>("blkOffsetEdit");
@@ -3491,7 +3491,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 3. btnFileReset and btnFileClose when modified with Cancel and Ok buttons
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.regmap_modified();
 
         // btnFileNew with Cancel
@@ -3503,7 +3503,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
         win.btnFileNew();
 
         // btnFileClose with Cancel
-        win.fileOpen("examples/rmt/peripherals/spi.rmt");
+        win.fileOpen("examples/peripherals/spi/spi.rmt");
         win.regmap_modified();
         dismissModal(QString(), QMessageBox::Cancel);
         win.btnFileClose();
@@ -3515,7 +3515,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 4. btnExport and headlessExport with enabled/disabled template outputs and python script
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *cfgWin = win.configWindow();
         auto *cfg = cfgWin->serialize();
         cfg->clear_template_outputs();
@@ -3554,12 +3554,12 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
         // Run btnExport
         dismissModal(QString(), QMessageBox::Ok);
         win.btnExport();
-        QDir("examples/rmt/peripherals/work").removeRecursively();
+        QDir("examples/peripherals/spi/work").removeRecursively();
     }
 
     // 5. Bitfield bar fieldClicked with out-of-range index and cleared selection
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *bar = win.findChild<RegBitfieldBarWidget*>("bitfieldBar");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         QModelIndex blkProxy = treeView->model()->index(0, 0);
@@ -3582,7 +3582,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 6. Navigation and block view corner cases
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         // updateBlockView with nullptr
         win.updateBlockView(nullptr);
 
@@ -3604,7 +3604,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 7. Duplicate item variations: duplicate on fields table with focus, duplicate on block, duplicate on root
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *fieldsTable = win.findChild<QTableView*>("fieldsTableView");
 
@@ -3632,7 +3632,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 8. regmap_modified and regmap_notModified title asterisk branches
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.regmap_modified();
         win.setWindowTitle("CustomNoAsterisk");
         win.regmap_notModified(); // m_is_regmap_modified true, but title doesn't end with '*'
@@ -3644,7 +3644,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 9. restoreWindowStateFromSettings with empty geometry, custom size, and saved splitter
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         AppSettings::instance().setMainWindowGeometry(QByteArray());
         AppSettings::instance().setMainWindowSize(QSize(950, 650));
         AppSettings::instance().setMainWindowPos(QPoint(120, 120));
@@ -3691,7 +3691,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 11. fileSave with unwritable path
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         bool res = win.fileSave("/proc/nonexistent_unwritable_dir/test.rmt");
         QVERIFY(!res);
     }
@@ -3729,7 +3729,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 13. Block & Reg header editing with invalid currentIndex
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         auto *regNameEdit = win.findChild<QLineEdit*>("regNameEdit");
         auto *regOffsetEdit = win.findChild<QLineEdit*>("regOffsetEdit");
@@ -3769,7 +3769,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 15. headlessLint with errors in json and sarif formats
     {
-        RegMapWindow win("examples/rmt/validation/invalid_overlap.rmt");
+        RegMapWindow win("examples/features/strict_validation/invalid_overlap.rmt");
         bool ok = win.headlessLint(true, "json", "work/lint_err.json");
         QVERIFY(!ok);
         QVERIFY(QFile::exists("work/lint_err.json"));
@@ -3781,7 +3781,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 16. headlessExport mapping edge cases
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         protormap::Config cfg;
         cfg.set_outputfolder("work");
         auto *entry1 = cfg.add_template_outputs();
@@ -3818,7 +3818,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 18. duplicateSelectedRegister with active reg item but deselected treeView
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *treeView = win.findChild<QTreeView*>("treeView");
         QModelIndex blkProxy = treeView->model()->index(0, 0);
         treeView->expand(blkProxy);
@@ -3832,7 +3832,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 19. Find shortcut activation (lines 784-789)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.show();
         QApplication::processEvents();
         const auto shortcuts = win.findChildren<QShortcut*>();
@@ -3845,7 +3845,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 20. navigateToRegister with deselected treeView (line 2316)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         win.show();
         auto *treeView = win.findChild<QTreeView*>("treeView");
         QModelIndex blkProxy = treeView->model()->index(0, 0);
@@ -3859,7 +3859,7 @@ void TestRegMapWindow::testAdditionalBranchCoverage()
 
     // 21. exportTemplates fallback without hw_precedence and empty template entry (lines 1608, 2485, 2503)
     {
-        RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+        RegMapWindow win("examples/peripherals/spi/spi.rmt");
         auto *cfgWin = win.configWindow();
         protormap::Config *cfg = cfgWin->serialize();
         cfg->clear_hw_precedence();

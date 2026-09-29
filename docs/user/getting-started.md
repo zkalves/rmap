@@ -77,7 +77,7 @@ docker run --rm ghcr.io/zkalves/rmap:latest rmap --version
 
 # Run headless code generation mounting the current directory
 docker run --rm -v "$(pwd):/work" -w /work ghcr.io/zkalves/rmap:latest \
-  rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
+  rmap -f examples/peripherals/spi/spi.rmt --export --out ./work
 
 # Podman (rootless container runtime)
 podman run --rm -v "$(pwd):/work:Z" -w /work ghcr.io/zkalves/rmap:latest \
@@ -299,12 +299,12 @@ rmap
 # or: ./build/bin/rmap
 
 # Open sample SPI register map
-rmap -f examples/rmt/peripherals/spi.rmt
+rmap -f examples/peripherals/spi/spi.rmt
 ```
 
 ### Batch Headless Code Generation
 ```bash
-rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
+rmap -f examples/peripherals/spi/spi.rmt --export --out ./work
 ```
 
 ---

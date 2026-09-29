@@ -1,0 +1,1280 @@
+
+Åpost_generate.py./templates"./work*4
+./templates/c/reg_map.h.inja./work/c/reg_map.h*:
+./templates/rtl/reg_map.sv.inja./work/rtl/reg_map.sv*>
+!./templates/uvm/reg_model.sv.inja./work/uvm/reg_model.sv*<
+ ./templates/rust/reg_map.rs.inja./work/rust/reg_map.rs*@
+"./templates/python/reg_map.py.inja./work/python/reg_map.py*@
+"./templates/html/reg_doc.html.inja./work/html/reg_doc.html*D
+$./templates/markdown/reg_doc.md.inja./work/markdown/reg_doc.md*H
+&./templates/systemrdl/reg_map.rdl.inja./work/systemrdl/reg_map.rdl*B
+#./templates/ipxact/reg_map.xml.inja./work/ipxact/reg_map.xml*<
+ ./templates/svd/reg_map.xml.inja./work/svd/reg_map.xml*@
+"./templates/json/reg_map.json.inja./work/json/reg_map.json*C
+%./templates/rtl_tb/tb_reg_map.sv.inja./work/sim/tb_reg_map.sv*A
+%./templates/pyuvm_tb/tb_pyuvm.py.inja./work/sim/tb_pyuvm.py*G
+%./templates/uvm_tb/reg_bus_if.sv.inja./work/sim/uvm/reg_bus_if.sv*I
+&./templates/uvm_tb/reg_bus_pkg.sv.inja./work/sim/uvm/reg_bus_pkg.sv*A
+"./templates/uvm_tb/reg_env.sv.inja./work/sim/uvm/reg_env.sv*E
+$./templates/uvm_tb/reg_tests.sv.inja./work/sim/uvm/reg_tests.sv*?
+!./templates/uvm_tb/tb_top.sv.inja./work/sim/uvm/tb_top.sv*6
+./templates/sim/Makefile.inja./work/sim/Makefile0 :SoC_Enterprise_PlatformB2.5.0HR
+bus_protocol	AXI4_FullR
+target_asic_node
+7nm_FinFETR
+company_name	Acme SemiR
+clock_freq_mhz1200Z./templatesZ./custom_templates`h"
+$A[tuvwxy„"
+ *
+
+Offset/LSB
+0x00000000*
+NameCPU_SUBSYSTEM*A
+Description2Core Processing Subsystem and Interrupt Controller£"*
+
+Offset/LSB0x00*
+Name	CORE_CTRL*
+Access PolicyRW*
+	SW AccessRW*6
+Description'CPU Core Global Control and Power State*
+
+Size/Width32Ù*
+Reset Value0x1*
+
+Offset/LSB0*
+Access PolicyRW*
+Volatilefalse*
+NameBOOT_EN*
+	SW AccessRW*-
+DescriptionCore Boot and Execution Enable*
+Is Randtrue*
+
+Size/Width1*
+	Has Resettrueà*
+
+Offset/LSB1*
+Access PolicyWO*
+Volatiletrue*
+
+Size/Width1*
+Is Randfalse*1
+Description"Self-Clearing Software Reset Pulse*
+	SW AccessWO*
+Reset Value0x0*
+	Has Resettrue*
+Name
+CORE_RESETã*
+	Has Resettrue*
+	SW AccessRW*
+Volatilefalse*
+
+Size/Width2*
+Reset Value0b00*
+
+Offset/LSB2*3
+Description$Power-Down Sleep and Retention Modes*
+Is Randtrue*
+Access PolicyRW*
+Name
+SLEEP_MODEà*
+	Has Resettrue*
+NameCACHE_EN*
+	SW AccessRW*
+Reset Value0x1*
+
+Offset/LSB4*
+Volatilefalse*3
+Description$L1 Instruction and Data Cache Enable*
+Access PolicyRW*
+Is Randtrue*
+
+Size/Width1¥"	
+*6
+Description'CPU Core Execution and Exception Status*
+Access PolicyRO*
+	SW AccessRO*
+
+Size/Width32*
+
+Offset/LSB0x04*
+NameCORE_STATUSÛ*
+
+Size/Width1*
+	Has Resettrue*
+Access PolicyRO*
+Reset Value0x1*
+
+Offset/LSB0*/
+Description Core Pipeline Actively Executing*
+	SW AccessRO*
+Is Randfalse*
+Volatiletrue*
+NameRUNNINGÜ	*
+
+Size/Width1*
+Reset Value0x0*
+Is Randfalse*
+	SW AccessRO*
+Volatiletrue*
+NameLOCKUP*1
+Description"Core Fault Lockup State Indication*
+Access PolicyRO*
+	Has Resettrue*
+
+Offset/LSB1è
+*
+	SW AccessRO*
+Is Randfalse*
+Access PolicyRO*8
+Description)Current Machine Execution Privilege Level*
+
+Size/Width2*
+
+Offset/LSB2*
+Volatiletrue*
+Name
+PRIV_LEVEL*
+Reset Value0b11*
+	Has ResettrueÔ*'
+DescriptionHardware Trap Cause Code*
+
+Offset/LSB8*
+Is Randfalse*
+NameERR_CODE*
+	SW AccessRO*
+Access PolicyRO*
+
+Size/Width8*
+Volatiletrue*
+Reset Value0x0*
+	Has Resettrue£"*
+
+Size/Width32*
+Access PolicyRW*
+Name
+IRQ_ENABLE*
+	SW AccessRW*5
+Description&Interrupt Request Source Mask Register*
+
+Offset/LSB0x08Þ*
+
+Offset/LSB0*
+
+Size/Width1*0
+Description!Local Timer Tick Interrupt Enable*
+Volatilefalse*
+Name	TIMER_INT*
+	Has Resettrue*
+Reset Value0x0*
+	SW AccessRW*
+Is Randtrue*
+Access PolicyRWÝ*
+Reset Value0x0*
+	SW AccessRW*
+Access PolicyRW*
+	Has Resettrue*
+NameUART_INT*0
+Description!UART Serial Line Interrupt Enable*
+Volatilefalse*
+
+Offset/LSB1*
+Is Randtrue*
+
+Size/Width1Ú*
+	Has Resettrue*
+Reset Value0x0*
+NameDMA_INT*
+Is Randtrue*
+
+Offset/LSB2*
+	SW AccessRW*
+Volatilefalse*
+Access PolicyRW*.
+DescriptionDMA Controller Interrupt Enable*
+
+Size/Width1ê*
+Volatilefalse*;
+Description,Security Crypto Accelerator Interrupt Enable*
+	Has Resettrue*
+Name
+CRYPTO_INT*
+	SW AccessRW*
+Reset Value0x0*
+Is Randtrue*
+
+Offset/LSB3*
+
+Size/Width1*
+Access PolicyRW¨"*9
+Description*Pending Interrupt Flags (Write 1 to Clear)*
+
+Size/Width32*
+
+Offset/LSB0x0C*
+Access PolicyRW*
+	SW AccessRW*
+NameIRQ_PENDINGê*
+
+Offset/LSB0*
+
+Size/Width1*
+	SW AccessW1C*9
+Description*Timer Interrupt Pending (Write 1 to Clear)*
+Access PolicyW1C*
+Name
+TIMER_FLAG*
+Is Randfalse*
+Volatiletrue*
+Reset Value0x0*
+	Has Resettrueè*8
+Description)UART Interrupt Pending (Write 1 to Clear)*
+Name	UART_FLAG*
+	Has Resettrue*
+Is Randfalse*
+
+Size/Width1*
+Access PolicyW1C*
+Reset Value0x0*
+
+Offset/LSB1*
+	SW AccessW1C*
+Volatiletrueæ*7
+Description(DMA Interrupt Pending (Write 1 to Clear)*
+	SW AccessW1C*
+	Has Resettrue*
+
+Offset/LSB2*
+
+Size/Width1*
+Access PolicyW1C*
+Volatiletrue*
+Reset Value0x0*
+NameDMA_FLAG*
+Is Randfalseì*
+Access PolicyW1C*
+Is Randfalse*:
+Description+Crypto Interrupt Pending (Write 1 to Clear)*
+
+Size/Width1*
+Reset Value0x0*
+NameCRYPTO_FLAG*
+	Has Resettrue*
+	SW AccessW1C*
+
+Offset/LSB3*
+Volatiletrue¢"*
+
+Size/Width32*:
+Description+Software Interrupt Trigger (Write 1 to Set)*
+NameIRQ_SET*
+
+Offset/LSB0x10*
+Access PolicyWO*
+	SW AccessWOñ*A
+Description2Force Trigger Selected Interrupts (Write 1 to Set)*
+Reset Value0x0*
+Volatiletrue*
+	SW AccessW1S*
+
+Offset/LSB0*
+
+Size/Width4*
+Name	FORCE_INT*
+Is Randfalse*
+	Has Resettrue*
+Access PolicyW1S®"*
+	SW AccessRO*
+NamePERF_CYCLE_LO*@
+Description1Lower 32 Bits of 64-Bit Performance Cycle Counter*
+
+Size/Width32*
+Access PolicyRO*
+
+Offset/LSB0x18Ù*
+Access PolicyRO*-
+DescriptionElapsed CPU Cycles (Bits 31:0)*
+Volatiletrue*
+
+Size/Width32*
+
+Offset/LSB0*
+NameCYCLES*
+Is Randfalse*
+Reset Value0x0*
+	SW AccessRO*
+	Has Resettrue®"*
+
+Size/Width32*
+Access PolicyRO*
+	SW AccessRO*
+NamePERF_CYCLE_HI*@
+Description1Upper 32 Bits of 64-Bit Performance Cycle Counter*
+
+Offset/LSB0x1CÚ*.
+DescriptionElapsed CPU Cycles (Bits 63:32)*
+	Has Resettrue*
+Reset Value0x0*
+
+Size/Width32*
+Is Randfalse*
+Volatiletrue*
+
+Offset/LSB0*
+NameCYCLES*
+Access PolicyRO*
+	SW AccessRO¬"*=
+Description.Total Retired Instructions Performance Counter*
+
+Offset/LSB0x20*
+	SW AccessRO*
+Access PolicyRO*
+NamePERF_INSTR_CNT*
+
+Size/Width32Ú*
+	SW AccessRO*
+
+Size/Width32*
+Access PolicyRO*
+
+Offset/LSB0*
+Volatiletrue*.
+DescriptionCount of Instructions Committed*
+Is Randfalse*
+Reset Value0x0*
+NameINSTRS*
+	Has Resettrue®"*
+	SW AccessRW*
+NameSCRATCH_REG*
+
+Offset/LSB0x28*
+
+Size/Width32*B
+Description3Diagnostic Scratchpad Register for Software Testing*
+Access PolicyRWë*
+
+Offset/LSB0*
+Volatilefalse*3
+Description$Randomizable Read-Write Scratch Word*
+	Has Resettrue*
+	SW AccessRW*
+NameSCRATCH_VAL*
+
+Size/Width32*
+Is Randtrue*
+Access PolicyRW*
+Reset Value
+0xCAFEFEED¯ "!"#*
+
+Offset/LSB0x2C*
+	SW AccessRW*
+
+Size/Width32*
+NameHW_ACCESS_DEMO*
+Access PolicyRW*>
+Description/Hardware-Software Mixed Access Control Registerƒ! *
+Is Randfalse*
+
+Offset/LSB0*
+Access PolicyRO*
+Name	HW_STATUS*
+Reset Value0x0*
+Volatiletrue*7
+Description(Status Written Solely by Hardware Engine*
+	SW AccessRO*
+
+Size/Width8*
+Hardware Access PolicyWO*
+	Has Resettrue‰" *
+Hardware Access PolicyRO*
+	SW AccessWO*
+NameHW_CTRL*
+Volatilefalse*
+Access PolicyWO*
+Is Randtrue*
+
+Size/Width8*
+Reset Value0x0*
+
+Offset/LSB8*?
+Description0Control Written by Software and Read by Hardware*
+	Has ResettrueŽ# *
+Access PolicyW1S*
+Name	HW_STROBE*
+	Has Resettrue*
+	SW AccessW1S*
+Is Randfalse*
+
+Offset/LSB16*
+
+Size/Width1*
+Reset Value0x0*>
+Description/Software Sets and Hardware Automatically Clears*
+Volatiletrue*
+Hardware Access PolicyW1C€$"
+%(+-/135:=*<
+Description-Multi-Channel Direct Memory Access Controller*
+
+Offset/LSB
+0x00004000*
+NameDMA_CONTROLLER´%$"&'*
+Access PolicyRW*
+
+Size/Width32*
+
+Offset/LSB0x00*
+NameDMA_GLOBAL_CTRL*C
+Description4DMA Engine Master Configuration and Priority Control*
+	SW AccessRWß&%*
+	Has Resettrue*4
+Description%Master DMA Subsystem Operation Enable*
+NameDMA_EN*
+
+Offset/LSB0*
+
+Size/Width1*
+Is Randtrue*
+Reset Value0x0*
+Volatilefalse*
+Access PolicyRW*
+	SW AccessRWî'%*
+Is Randtrue*
+Reset Value0b01*
+	Has Resettrue*@
+Description1Inter-Channel Arbitration Algorithm Priority Mode*
+
+Size/Width2*
+	SW AccessRW*
+
+Offset/LSB1*
+NameARB_PRIO*
+Volatilefalse*
+Access PolicyRW¯($")**<
+Description-DMA Engine Global Channel Status and Activity*
+NameDMA_GLOBAL_STATUS*
+Access PolicyRO*
+	SW AccessRO*
+
+Size/Width32*
+
+Offset/LSB0x04Û)(*-
+DescriptionActive Channels Status Bitmask*
+
+Size/Width4*
+Is Randfalse*
+	SW AccessRO*
+
+Offset/LSB0*
+	Has Resettrue*
+Volatiletrue*
+Name	CH_ACTIVE*
+Access PolicyRO*
+Reset Value0x0è*(*
+
+Offset/LSB4*8
+Description)Internal Bus Master Transaction in Flight*
+Access PolicyRO*
+
+Size/Width1*
+Volatiletrue*
+	SW AccessRO*
+Reset Value0x0*
+	Has Resettrue*
+Is Randfalse*
+NameGLOBAL_BUSY©+$",*
+	SW AccessRW*
+
+Offset/LSB0x10*:
+Description+Channel 0 Source Memory Address Low 32 Bits*
+NameDMA_CH0_SRC_LO*
+Access PolicyRW*
+
+Size/Width32Û,+*
+
+Size/Width32*
+
+Offset/LSB0*
+Volatilefalse*1
+Description"Source Address Pointer (Bits 31:0)*
+	Has Resettrue*
+Reset Value0x0*
+Access PolicyRW*
+Is Randtrue*
+NameADDR*
+	SW AccessRWª-$".*;
+Description,Channel 0 Source Memory Address High 32 Bits*
+NameDMA_CH0_SRC_HI*
+
+Offset/LSB0x14*
+
+Size/Width32*
+	SW AccessRW*
+Access PolicyRWÜ.-*2
+Description#Source Address Pointer (Bits 63:32)*
+Is Randtrue*
+Volatilefalse*
+	Has Resettrue*
+Access PolicyRW*
+	SW AccessRW*
+
+Offset/LSB0*
+Reset Value0x0*
+
+Size/Width32*
+NameADDR®/$"0*
+
+Size/Width32*
+NameDMA_CH0_DST_LO*
+Access PolicyRW*
+
+Offset/LSB0x18*
+	SW AccessRW*?
+Description0Channel 0 Destination Memory Address Low 32 Bitsà0/*
+Volatilefalse*
+	Has Resettrue*
+NameADDR*
+Access PolicyRW*
+Is Randtrue*
+
+Size/Width32*
+
+Offset/LSB0*
+	SW AccessRW*6
+Description'Destination Address Pointer (Bits 31:0)*
+Reset Value0x0¯1$"2*
+
+Offset/LSB0x1C*@
+Description1Channel 0 Destination Memory Address High 32 Bits*
+	SW AccessRW*
+NameDMA_CH0_DST_HI*
+Access PolicyRW*
+
+Size/Width32á21*
+	Has Resettrue*
+
+Size/Width32*
+Reset Value0x0*
+Is Randtrue*
+
+Offset/LSB0*
+	SW AccessRW*7
+Description(Destination Address Pointer (Bits 63:32)*
+Volatilefalse*
+Access PolicyRW*
+NameADDR›3$"4*/
+Description Channel 0 Transfer Size in Bytes*
+	SW AccessRW*
+NameDMA_CH0_LEN*
+Access PolicyRW*
+
+Size/Width32*
+
+Offset/LSB0x20î43*
+Name
+BYTE_COUNT*
+Volatilefalse*
+Is Randtrue*
+
+Size/Width24*
+	Has Resettrue*
+
+Offset/LSB0*
+Reset Value1024*
+Access PolicyRW*
+	SW AccessRW*=
+Description.Payload Length in Bytes (Default Decimal 1024)¦5$"6789*
+	SW AccessRW*
+Access PolicyRW*
+NameDMA_CH0_CFG*7
+Description(Channel 0 Burst Size and Increment Flags*
+
+Offset/LSB0x24*
+
+Size/Width32Ù65*
+	Has Resettrue*
+
+Size/Width3*
+Is Randtrue*
+Name
+BURST_SIZE*(
+DescriptionBurst Beat Length Setting*
+Volatilefalse*
+Access PolicyRW*
+	SW AccessRW*
+
+Offset/LSB0*
+Reset Value0b100Ø75*
+
+Size/Width1*
+	SW AccessRW*,
+DescriptionSource Address Auto-Increment*
+Access PolicyRW*
+Reset Value0x1*
+NameSRC_INC*
+Volatilefalse*
+
+Offset/LSB3*
+Is Randtrue*
+	Has ResettrueÝ85*
+Access PolicyRW*
+	SW AccessRW*
+
+Offset/LSB4*
+	Has Resettrue*
+Is Randtrue*
+
+Size/Width1*1
+Description"Destination Address Auto-Increment*
+Reset Value0x1*
+NameDST_INC*
+VolatilefalseÞ95*
+Volatilefalse*
+
+Size/Width1*
+Reset Value0x1*
+	Has Resettrue*
+	SW AccessRW*
+Access PolicyRW*
+NameIRQ_ON_DONE*
+
+Offset/LSB5*
+Is Randtrue*.
+DescriptionRaise Interrupt Upon Completionž:$";<*
+
+Size/Width32*
+
+Offset/LSB0x28*
+	SW AccessWO*
+NameDMA_CH0_CMD*
+Access PolicyWO*1
+Description"Channel 0 Software Command TriggerÛ;:*
+	SW AccessWO*
+Access PolicyWO*
+Volatiletrue*
+	Has Resettrue*
+NameSTART*1
+Description"Start Channel Transfer Transaction*
+Is Randfalse*
+Reset Value0x0*
+
+Size/Width1*
+
+Offset/LSB0Ö<:*
+NameABORT*
+
+Offset/LSB1*
+Access PolicyWO*
+	Has Resettrue*
+
+Size/Width1*
+Reset Value0x0*
+Is Randfalse*
+Volatiletrue*,
+DescriptionAbort Active Channel Transfer*
+	SW AccessWO¢=$">?@*
+NameDMA_CH0_STAT*
+Access PolicyRW*
+
+Offset/LSB0x2C*
+	SW AccessRW*
+
+Size/Width32*3
+Description$Channel 0 Real-Time Execution Statusã>=*
+	SW AccessW1C*
+Volatiletrue*
+
+Offset/LSB0*
+Is Randfalse*
+Reset Value0x0*
+Access PolicyW1C*
+
+Size/Width1*8
+Description)Transfer Finished Flag (Write 1 to Clear)*
+	Has Resettrue*
+NameDONEå?=*9
+Description*Bus Protocol Error Flag (Write 1 to Clear)*
+	Has Resettrue*
+Volatiletrue*
+Access PolicyW1C*
+	SW AccessW1C*
+
+Offset/LSB1*
+
+Size/Width1*
+Is Randfalse*
+NameERROR*
+Reset Value0x0á@=*
+	SW AccessRO*
+
+Size/Width16*
+Access PolicyRO*
+	Has Resettrue*1
+Description"Remaining Bytes in Active Transfer*
+Is Randfalse*
+Volatiletrue*
+Reset Value0x0*
+Name	REMAINING*
+
+Offset/LSB16~A"
+BGKMOQSUWY*9
+Description*Hardware Cryptographic Acceleration Engine*
+
+Offset/LSB
+0x00008000*
+NameSECURITY_ENGINE«BA"CDEF*
+Access PolicyRW*?
+Description0Cryptographic Cipher Mode and Key Length Control*
+	SW AccessRW*
+
+Offset/LSB0x00*
+
+Size/Width32*
+NameSEC_CTRLàCB*
+
+Offset/LSB0*
+	Has Resettrue*5
+Description&Enable Hardware Cryptographic Pipeline*
+Access PolicyRW*
+Is Randtrue*
+	SW AccessRW*
+NameAES_EN*
+Reset Value0x0*
+Volatilefalse*
+
+Size/Width1ìDB*
+Is Randtrue*
+
+Size/Width2*
+
+Offset/LSB1*?
+Description0Key Size Select (00: 128, 01: 192, 10: 256 bits)*
+	Has Resettrue*
+NameKEY_LEN*
+	SW AccessRW*
+Reset Value0b01*
+Volatilefalse*
+Access PolicyRWÝEB*
+NameOP_MODE*
+
+Offset/LSB3*
+
+Size/Width3*
+	SW AccessRW*
+Access PolicyRW*
+Volatilefalse*/
+Description Cipher Mode (ECB, CBC, CTR, GCM)*
+	Has Resettrue*
+Reset Value0b000*
+Is RandtrueéFB*
+Reset Value0x0*
+Name	DIRECTION*
+
+Offset/LSB6*
+
+Size/Width1*
+	SW AccessRW*
+	Has Resettrue*;
+Description,Operation Direction (0: Encrypt, 1: Decrypt)*
+Volatilefalse*
+Access PolicyRW*
+Is Randtrue¨GA"HIJ*
+Access PolicyRW*;
+Description,Cryptographic Engine Pipeline and Key Status*
+
+Offset/LSB0x04*
+Name
+SEC_STATUS*
+	SW AccessRW*
+
+Size/Width32ëHG*
+Access PolicyRO*;
+Description,Cryptographic Round Logic Actively Computing*
+	SW AccessRO*
+Reset Value0x0*
+NameENGINE_BUSY*
+	Has Resettrue*
+Volatiletrue*
+
+Size/Width1*
+Is Randfalse*
+
+Offset/LSB0çIG*
+	SW AccessRO*9
+Description*Expanded Round Keys Valid in Hardware SRAM*
+Is Randfalse*
+
+Size/Width1*
+Volatiletrue*
+	Has Resettrue*
+
+Offset/LSB1*
+Name	KEY_VALID*
+Reset Value0x0*
+Access PolicyROãJG*
+
+Size/Width1*
+Volatiletrue*
+Access PolicyW1C*3
+Description$GCM Authentication Tag Mismatch Flag*
+
+Offset/LSB2*
+	SW AccessW1C*
+Name	AUTH_FAIL*
+	Has Resettrue*
+Is Randfalse*
+Reset Value0x0žKA"L*
+
+Size/Width32*
+
+Offset/LSB0x10*
+Name	SEC_KEY_0*
+	SW AccessWO*
+Access PolicyWO*4
+Description%Cryptographic Key Word 0 (Write Only)ÓLK*
+	SW AccessWO*
+Reset Value0x0*
+Is Randfalse*
+Access PolicyWO*
+NameKEY_WORD*%
+DescriptionAES Key Word Bits 31:0*
+Volatiletrue*
+	Has Resettrue*
+
+Offset/LSB0*
+
+Size/Width32žMA"N*4
+Description%Cryptographic Key Word 1 (Write Only)*
+
+Size/Width32*
+Name	SEC_KEY_1*
+
+Offset/LSB0x14*
+Access PolicyWO*
+	SW AccessWOÔNM*
+NameKEY_WORD*
+Volatiletrue*
+	Has Resettrue*
+Is Randfalse*
+Access PolicyWO*&
+DescriptionAES Key Word Bits 63:32*
+Reset Value0x0*
+	SW AccessWO*
+
+Offset/LSB0*
+
+Size/Width32žOA"P*4
+Description%Cryptographic Key Word 2 (Write Only)*
+Access PolicyWO*
+
+Size/Width32*
+
+Offset/LSB0x18*
+Name	SEC_KEY_2*
+	SW AccessWOÔPO*
+	Has Resettrue*
+
+Offset/LSB0*
+Volatiletrue*
+
+Size/Width32*
+Access PolicyWO*
+NameKEY_WORD*&
+DescriptionAES Key Word Bits 95:64*
+Reset Value0x0*
+Is Randfalse*
+	SW AccessWOžQA"R*
+
+Size/Width32*
+Access PolicyWO*
+
+Offset/LSB0x1C*4
+Description%Cryptographic Key Word 3 (Write Only)*
+Name	SEC_KEY_3*
+	SW AccessWOÕRQ*
+
+Size/Width32*
+
+Offset/LSB0*
+Volatiletrue*'
+DescriptionAES Key Word Bits 127:96*
+	SW AccessWO*
+Access PolicyWO*
+Reset Value0x0*
+Is Randfalse*
+	Has Resettrue*
+NameKEY_WORDšSA"T*
+
+Size/Width32*
+	SW AccessRW*
+NameSEC_IV_0*
+
+Offset/LSB0x20*1
+Description"Initialization Vector Lower Word 0*
+Access PolicyRWÏTS*
+
+Offset/LSB0*
+Volatilefalse*
+	SW AccessRW*
+Is Randtrue*"
+DescriptionCipher IV Bits 31:0*
+
+Size/Width32*
+Access PolicyRW*
+	Has Resettrue*
+Reset Value0x0*
+NameIV_WORDšUA"V*
+	SW AccessRW*
+Access PolicyRW*
+
+Offset/LSB0x24*
+
+Size/Width32*
+NameSEC_IV_1*1
+Description"Initialization Vector Upper Word 1ÐVU*
+Volatilefalse*
+	SW AccessRW*
+Reset Value0x0*
+Access PolicyRW*
+NameIV_WORD*
+Is Randtrue*
+
+Offset/LSB0*
+
+Size/Width32*#
+DescriptionCipher IV Bits 63:32*
+	Has Resettrue–WA"X*
+Access PolicyWO**
+DescriptionPlaintext Stream Input Port*
+
+Offset/LSB0x30*
+	SW AccessWO*
+
+Size/Width32*
+NameSEC_DATA_INÊXW*
+
+Offset/LSB0* 
+DescriptionStream Input Word*
+Volatiletrue*
+NameDATA*
+	Has Resettrue*
+Reset Value0x0*
+Is Randfalse*
+Access PolicyWO*
+	SW AccessWO*
+
+Size/Width32™YA"Z*
+
+Size/Width32*
+
+Offset/LSB0x34*
+NameSEC_DATA_OUT*
+Access PolicyRO*,
+DescriptionCiphertext Stream Output Port*
+	SW AccessROËZY*
+Access PolicyRO*!
+DescriptionStream Output Word*
+NameDATA*
+
+Offset/LSB0*
+Is Randfalse*
+	Has Resettrue*
+Volatiletrue*
+Reset Value0x0*
+	SW AccessRO*
+
+Size/Width32‰["
+\_bdfhjlnq*B
+Description3Low-Speed Peripheral Bus Bridge and Sub-Controllers*
+
+Offset/LSB
+0x0000C000*
+NamePERIPHERAL_BRIDGE§\["]^*
+NameBRIDGE_CONFIG*
+Access PolicyRW*
+
+Offset/LSB0x00*
+
+Size/Width32*8
+Description)Bus Bridge Interface Operating Parameters*
+	SW AccessRWä]\*
+
+Size/Width1*
+Reset Value0x1*
+
+Offset/LSB0*
+Volatilefalse*
+Name	BRIDGE_EN*6
+Description'Enable Peripheral Bus Bridge Forwarding*
+Is Randtrue*
+Access PolicyRW*
+	Has Resettrue*
+	SW AccessRWý^\*I
+Description:Peripheral Slave Timeout Threshold in Cycles (Decimal 256)*
+Access PolicyRW*
+
+Size/Width16*
+Is Randtrue*
+
+Offset/LSB8*
+NameTIMEOUT_CYCLES*
+	Has Resettrue*
+Reset Value256*
+	SW AccessRW*
+Volatilefalse¤_["`a*5
+Description&Bridge Error Status (Write 0 to Clear)*
+
+Size/Width32*
+	SW AccessRW*
+Access PolicyRW*
+NameBRIDGE_STATUS*
+
+Offset/LSB0x04÷`_*
+Volatiletrue*
+	SW AccessW0C*
+	Has Resettrue*
+Is Randfalse*
+
+Size/Width1*
+Access PolicyW0C*@
+Description1Bus Protocol Timeout Condition (Write 0 to Clear)*
+NameTIMEOUT_OCCURRED*
+
+Offset/LSB0*
+Reset Value0x1ña_*
+	SW AccessW0C*A
+Description2Peripheral Slave Error Response (Write 0 to Clear)*
+Reset Value0x1*
+
+Size/Width1*
+Is Randfalse*
+
+Offset/LSB1*
+	Has Resettrue*
+Volatiletrue*
+Name	SLAVE_ERR*
+Access PolicyW0C±b["c*
+
+Size/Width32*
+
+Offset/LSB0x08*
+NameCLEAR_ON_READ_STAT*
+	SW AccessRO*
+Access PolicyRO*>
+Description/Automatic Hardware Clear on Read Event Registerúcb*B
+Description3Hardware Event Bits Cleared Automatically When Read*
+
+Offset/LSB0*
+
+Size/Width16*
+Volatiletrue*
+	Has Resettrue*
+Reset Value0x00FF*
+	SW AccessRC*
+NameAUTO_CLR_EVENTS*
+Is Randfalse*
+Access PolicyRC¬d["e*
+Access PolicyRO*;
+Description,Automatic Hardware Set on Read Flag Register*
+
+Offset/LSB0x0C*
+
+Size/Width32*
+	SW AccessRO*
+NameSET_ON_READ_FLAGëed*
+	Has Resettrue*
+Reset Value0x00*
+NameLATCHED_NOTIFY*
+Access PolicyRS*
+Volatiletrue*7
+Description(Hardware Latched Flag Set to 1 When Read*
+
+Size/Width8*
+
+Offset/LSB0*
+	SW AccessRS*
+Is Randfalse©f["g*
+	SW AccessRO*
+
+Offset/LSB0x14*;
+Description,Unmapped Address Space with No-Access Policy*
+Access PolicyRO*
+
+Size/Width32*
+NameRESERVED_HOLEßgf*
+	SW AccessNA*0
+Description!Non-Accessible Architectural Hole*
+	Has Resettrue*
+Reset Value0x0*
+
+Size/Width32*
+
+Offset/LSB0*
+Volatilefalse*
+NameRESERVED*
+Access PolicyNA*
+Is Randfalse¤h["i*
+NameUART_BAUD_DIV*
+Access PolicyRW*6
+Description'UART Peripheral Clock Prescaler Divisor*
+	SW AccessRW*
+
+Size/Width32*
+
+Offset/LSB0x20æih*
+
+Offset/LSB0*
+NameDIVISOR*
+	SW AccessRW*
+Access PolicyRW*
+Volatilefalse*
+
+Size/Width16*6
+Description'Baud Rate Clock Divider for 115200 Baud*
+Reset Value0x01B2*
+Is Randtrue*
+	Has Resettrue©j["k*
+	SW AccessRW*<
+Description-I2C Serial Bus Standard-Speed Clock Prescaler*
+
+Size/Width32*
+NameI2C_PRESCALE*
+Access PolicyRW*
+
+Offset/LSB0x24äkj*
+Access PolicyRW*
+	Has Resettrue*
+Reset Value0x007C*
+
+Size/Width16*
+Volatilefalse*3
+Description$Clock Prescaler for 100kHz I2C Clock*
+
+Offset/LSB0*
+Is Randtrue*
+NamePRESCALE*
+	SW AccessRW£l["m*
+Access PolicyRW*
+
+Size/Width32*
+NameSPI_CLK_DIV*7
+Description(SPI Master Bus Serial Clock Rate Divider*
+
+Offset/LSB0x28*
+	SW AccessRWØml*
+Is Randtrue*
+Reset Value0x04*
+Volatilefalse*
+
+Offset/LSB0*
+	Has Resettrue*
+Access PolicyRW*
+
+Size/Width8*/
+Description SPI Master SCK Frequency Divider*
+	SW AccessRW*
+NameDIV¯n["op*
+NameFIFO_WATERMARK*?
+Description0Bridge FIFO Watermark Interrupt Threshold Levels*
+
+Offset/LSB0x30*
+Access PolicyRW*
+	SW AccessRW*
+
+Size/Width32ëon*
+Is Randtrue*
+
+Offset/LSB0*@
+Description1Transmit FIFO Low Watermark Threshold (Decimal 4)*
+Volatilefalse*
+Access PolicyRW*
+NameTX_LEVEL*
+Reset Value4*
+	SW AccessRW*
+	Has Resettrue*
+
+Size/Width8ípn*
+Reset Value12*
+
+Size/Width8*
+Is Randtrue*
+	SW AccessRW*
+NameRX_LEVEL*
+
+Offset/LSB8*
+Volatilefalse*
+Access PolicyRW*A
+Description2Receive FIFO High Watermark Threshold (Decimal 12)*
+	Has Resettrue¸q["rs*
+	SW AccessRW*
+
+Offset/LSB0x38*
+
+Size/Width32*
+NameBRIDGE_DIAGNOSTIC*E
+Description6Peripheral Subsystem Diagnostic Control and Silicon ID*
+Access PolicyRWárq*
+
+Size/Width1*
+	Has Resettrue*
+	SW AccessRW*
+
+Offset/LSB0*
+Reset Value0x0*
+Access PolicyRW*
+Volatilefalse*4
+Description%Internal Digital Loopback Mode Enable*
+Is Randtrue*
+NameLOOPBACKîsq*
+Name	SIGNATURE*
+Access PolicyRO*
+Is Randfalse*9
+Description*Hardware Bridge Silicon Identification Tag*
+	Has Resettrue*
+Volatilefalse*
+
+Size/Width24*
+
+Offset/LSB8*
+Reset Value0x504F43*
+	SW AccessROt*>
+Description/64 KB Executable Instruction SRAM Memory Region*
+NameINSTRUCTION_SRAM*
+
+Size/Width65536*
+
+Offset/LSB
+0x00010000ƒu*
+NameDATA_TCM*
+
+Offset/LSB
+0x00020000*
+
+Size/Width32768*<
+Description-32 KB Tightly-Coupled Low-Latency Data Memoryˆv*
+NamePACKET_BUFFER*
+
+Size/Width8192*=
+Description.8 KB High-Throughput Dual-Ported Packet Buffer*
+
+Offset/LSB
+0x00030000Šw*
+NameAXI_SYSTEM_MAP*
+
+Size/Width1048576*;
+Description,64-bit High-Speed System AXI Bus Address Map*
+
+Offset/LSB
+0x80000000ˆx*
+
+Size/Width65536*
+
+Offset/LSB
+0x40000000*7
+Description(32-bit Peripheral APB Bridge Address Map*
+NameAPB_PERIPHERAL_MAPŠy*
+
+Size/Width4096*>
+Description/Diagnostic and Debug JTAG Subsystem Address Map*
+
+Offset/LSB
+0xF0000000*
+NameDEBUG_JTAG_MAPîùîÕ

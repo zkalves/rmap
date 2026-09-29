@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
   // 1. Dual-pane layout and bitfield visualizer with spi.rmt
   {
-    RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+    RegMapWindow win("examples/peripherals/spi/spi.rmt");
     win.resize(1200, 750);
     win.show();
 
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 
   // 2. Address space memory map diagram with address_gap_example.rmt
   {
-    RegMapWindow win("examples/rmt/features/address_gap_example.rmt");
+    RegMapWindow win("examples/features/address_gap_example/address_gap_example.rmt");
     win.resize(1200, 750);
     win.show();
 
@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
 
   // 3. Project Configuration Dialog
   {
-    RegMapWindow win("examples/rmt/peripherals/spi.rmt");
+    RegMapWindow win("examples/peripherals/spi/spi.rmt");
     win.show();
     app.processEvents();
 
