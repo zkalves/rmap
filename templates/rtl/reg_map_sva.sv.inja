@@ -33,7 +33,7 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   input logic                      sw_{{ lower(reg.name) }}_rd_strobe_o,
   input logic [DATA_WIDTH-1:0]     reg_{{ lower(reg.name) }}_q,
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i,
@@ -41,15 +41,30 @@ module {{ lower(blk.name) }}_reg_map_sva #(
 {% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i,
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
-{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WIRE" and upper(fld.hw_access) != "WO")) %}
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
   input logic                      hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i,
-  input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i,
+  input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i,
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+  input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i,
+  input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+  input logic                      hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i,
+  input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+  input logic                      hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i,
+  input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% endif %}
 {% endfor %}
 {% endfor %}
+{% if existsIn(blk, "lock_signals") and length(blk.lock_signals) > 0 %}
+  // Hardware Write-Lock Control Input Ports
+{% for sig in blk.lock_signals %}
+  input logic                      {{ sig }},
+{% endfor %}
+{% endif %}
   input logic                      unused_dummy
 );
 
@@ -83,7 +98,7 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   // -------------------------------------------------------------------------
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) == "NA") %}
+{% if upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or upper(fld.hw_access) == "NA") %}
   property p_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable;
     sw_{{ lower(reg.name) }}_wr_strobe_o |=> (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}]));
   endproperty
@@ -117,12 +132,98 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   property p_arb_{{ lower(reg.name) }}_{{ lower(fld.name) }};
     (sw_{{ lower(reg.name) }}_wr_strobe_o && hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i) |=>
       (PARAM_HW_PRECEDENCE ?
-        (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i)) :
+        (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i)) :
         (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(bus_wdata_i[{{ fld.offset_lsb }} +: {{ fld.size_width }}]))
       );
   endproperty
   assert_arb_{{ lower(reg.name) }}_{{ lower(fld.name) }}: assert property (p_arb_{{ lower(reg.name) }}_{{ lower(fld.name) }})
     else $error("[SVA] Arbitration failure on colliding HW/SW write for {{ reg.name }}.{{ fld.name }}!");
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+  // -------------------------------------------------------------------------
+  // 6. Software Lock Invariant Assertions
+  // -------------------------------------------------------------------------
+{% for reg in blk.registers %}
+{% if existsIn(reg, "lock_wr") and reg.lock_wr != "" %}
+  property p_lock_{{ lower(reg.name) }}_immutable;
+    (({{ sv_lock_expr(reg.lock_wr) }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q == $past(reg_{{ lower(reg.name) }}_q));
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_immutable: assert property (p_lock_{{ lower(reg.name) }}_immutable)
+    else $error("[SVA] Software write modified register {{ reg.name }} while write-locked!");
+{% else if existsIn(reg, "lock_wr_expr_sv") and reg.lock_wr_expr_sv != "" %}
+  property p_lock_{{ lower(reg.name) }}_immutable;
+    (({{ reg.lock_wr_expr_sv }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q == $past(reg_{{ lower(reg.name) }}_q));
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_immutable: assert property (p_lock_{{ lower(reg.name) }}_immutable)
+    else $error("[SVA] Software write modified register {{ reg.name }} while write-locked!");
+{% else if existsIn(reg, "lock_expr_sv") and reg.lock_expr_sv != "" %}
+  property p_lock_{{ lower(reg.name) }}_immutable;
+    (({{ reg.lock_expr_sv }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q == $past(reg_{{ lower(reg.name) }}_q));
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_immutable: assert property (p_lock_{{ lower(reg.name) }}_immutable)
+    else $error("[SVA] Software write modified register {{ reg.name }} while write-locked!");
+{% endif %}
+{% if existsIn(reg, "lock_rd") and reg.lock_rd != "" %}
+  property p_lock_{{ lower(reg.name) }}_rd_zero;
+    (({{ sv_lock_expr(reg.lock_rd) }}) && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o == '0);
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_rd_zero: assert property (p_lock_{{ lower(reg.name) }}_rd_zero)
+    else $error("[SVA] Software read returned non-zero for register {{ reg.name }} while read-locked!");
+{% else if existsIn(reg, "lock_rd_expr_sv") and reg.lock_rd_expr_sv != "" %}
+  property p_lock_{{ lower(reg.name) }}_rd_zero;
+    (({{ reg.lock_rd_expr_sv }}) && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o == '0);
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_rd_zero: assert property (p_lock_{{ lower(reg.name) }}_rd_zero)
+    else $error("[SVA] Software read returned non-zero for register {{ reg.name }} while read-locked!");
+{% endif %}
+{% endfor %}
+{% if (existsIn(blk, "lock_wr") and blk.lock_wr != "") or (existsIn(blk, "lock_wr_expr_sv") and blk.lock_wr_expr_sv != "") %}
+{% for reg in blk.registers %}
+  property p_lock_blk_{{ lower(reg.name) }}_immutable;
+    (({% if existsIn(blk, "lock_wr") and blk.lock_wr != "" %}{{ sv_lock_expr(blk.lock_wr) }}{% else %}{{ blk.lock_wr_expr_sv }}{% endif %}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q == $past(reg_{{ lower(reg.name) }}_q));
+  endproperty
+  assert_lock_blk_{{ lower(reg.name) }}_immutable: assert property (p_lock_blk_{{ lower(reg.name) }}_immutable)
+    else $error("[SVA] Software write modified register {{ reg.name }} while block write-locked!");
+{% endfor %}
+{% endif %}
+{% if (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_sv") and blk.lock_rd_expr_sv != "") %}
+{% for reg in blk.registers %}
+  property p_lock_blk_{{ lower(reg.name) }}_rd_zero;
+    (({% if existsIn(blk, "lock_rd") and blk.lock_rd != "" %}{{ sv_lock_expr(blk.lock_rd) }}{% else %}{{ blk.lock_rd_expr_sv }}{% endif %}) && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o == '0);
+  endproperty
+  assert_lock_blk_{{ lower(reg.name) }}_rd_zero: assert property (p_lock_blk_{{ lower(reg.name) }}_rd_zero)
+    else $error("[SVA] Software read returned non-zero for register {{ reg.name }} while block read-locked!");
+{% endfor %}
+{% endif %}
+{% for reg in blk.registers %}
+{% for fld in reg.fields %}
+{% if existsIn(fld, "lock_wr") and fld.lock_wr != "" %}
+  property p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable;
+    (({{ sv_lock_expr(fld.lock_wr) }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}]));
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable: assert property (p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable)
+    else $error("[SVA] Software write modified field {{ reg.name }}.{{ fld.name }} while field write-locked!");
+{% else if existsIn(fld, "lock_wr_expr_sv") and fld.lock_wr_expr_sv != "" %}
+  property p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable;
+    (({{ fld.lock_wr_expr_sv }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}]));
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable: assert property (p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable)
+    else $error("[SVA] Software write modified field {{ reg.name }}.{{ fld.name }} while field write-locked!");
+{% endif %}
+{% if existsIn(fld, "lock_rd") and fld.lock_rd != "" %}
+  property p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero;
+    (({{ sv_lock_expr(fld.lock_rd) }}) && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == '0);
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero: assert property (p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero)
+    else $error("[SVA] Software read returned non-zero for field {{ reg.name }}.{{ fld.name }} while field read-locked!");
+{% else if existsIn(fld, "lock_rd_expr_sv") and fld.lock_rd_expr_sv != "" %}
+  property p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero;
+    (({{ fld.lock_rd_expr_sv }}) && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == '0);
+  endproperty
+  assert_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero: assert property (p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero)
+    else $error("[SVA] Software read returned non-zero for field {{ reg.name }}.{{ fld.name }} while field read-locked!");
 {% endif %}
 {% endfor %}
 {% endfor %}
@@ -154,7 +255,7 @@ bind {{ lower(blk.name) }}_reg_file {{ lower(blk.name) }}_reg_map_sva #(
   .sw_{{ lower(reg.name) }}_rd_strobe_o(sw_{{ lower(reg.name) }}_rd_strobe_o),
   .reg_{{ lower(reg.name) }}_q(reg_{{ lower(reg.name) }}_q),
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i),
@@ -162,15 +263,29 @@ bind {{ lower(blk.name) }}_reg_file {{ lower(blk.name) }}_reg_map_sva #(
 {% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i),
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
-{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WIRE" and upper(fld.hw_access) != "WO")) %}
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i),
-  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i),
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i),
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i),
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i),
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i),
+  .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% endif %}
 {% endfor %}
 {% endfor %}
+{% if existsIn(blk, "lock_signals") and length(blk.lock_signals) > 0 %}
+{% for sig in blk.lock_signals %}
+  .{{ sig }}({{ sig }}),
+{% endfor %}
+{% endif %}
   .unused_dummy(1'b0)
 );
 `endif

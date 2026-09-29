@@ -568,6 +568,10 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
       9, new RegBoolDelegate(this)); // Has Reset
   m_fieldsTableView->setItemDelegateForColumn(
       10, new RegMapDelegate(this)); // Description
+  m_fieldsTableView->setItemDelegateForColumn(
+      11, new RegLockDelegate(m_model, this)); // Write Lock
+  m_fieldsTableView->setItemDelegateForColumn(
+      12, new RegLockDelegate(m_model, this)); // Read Lock
   m_fieldsTableView->setColumnHidden(0, true);
   regViewLayout->addWidget(m_fieldsTableView);
 
@@ -849,6 +853,10 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   this->treeView->setItemDelegateForColumn(9, boolDelegate); // Has Reset
   this->treeView->setItemDelegateForColumn(
       10, new RegMapDelegate(this)); // Description
+  this->treeView->setItemDelegateForColumn(
+      11, new RegLockDelegate(m_model, this)); // Write Lock
+  this->treeView->setItemDelegateForColumn(
+      12, new RegLockDelegate(m_model, this)); // Read Lock
 }
 
 RegMapWindow::~RegMapWindow() {

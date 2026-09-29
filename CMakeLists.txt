@@ -84,6 +84,7 @@ set(core_sources
     src/ThemeManager.cpp
     src/LanguageManager.cpp
     src/AppSettings.cpp
+    src/LockParser.cpp
 )
 
 set(core_headers
@@ -99,6 +100,7 @@ set(core_headers
     src/ThemeManager.hpp
     src/LanguageManager.hpp
     src/AppSettings.hpp
+    src/LockParser.hpp
     src/format/IFormatHandler.hpp
     src/format/FormatManager.hpp
     src/format/ProtobufHandler.hpp
@@ -154,6 +156,7 @@ include(FetchContent)
         src/BlockMemoryMapWidget.cpp
         src/PreferencesWindow.cpp
         src/AboutWindow.cpp
+        src/RegLockDialog.cpp
     )
 
     set(gui_headers
@@ -165,6 +168,7 @@ include(FetchContent)
         src/AboutWindow.hpp
         src/RegBitfieldBarWidget.hpp
         src/BlockMemoryMapWidget.hpp
+        src/RegLockDialog.hpp
     )
 
     set(project_ui src/ui/config.ui src/ui/preferences.ui src/ui/about.ui src/ui/rmap.ui)

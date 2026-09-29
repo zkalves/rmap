@@ -26,6 +26,13 @@
 | `bus_rdata_o` | OUT | `std_logic_vector` | Read data bus output |
 | `sw_<reg>_wr_strobe_o` | OUT | `std_logic` | Write pulse strobe output |
 | `sw_<reg>_rd_strobe_o` | OUT | `std_logic` | Read pulse strobe output |
+| `hw_<reg>_<fld>_i` | IN | `std_logic_vector(WIDTH-1 downto 0)` | Hardware input data for RO or WIRE fields |
+| `hw_<reg>_<fld>_wd_i` | IN | `std_logic_vector(WIDTH-1 downto 0)` | Hardware write data for RW/WO fields |
+| `hw_<reg>_<fld>_we_i` | IN | `std_logic` | Hardware write-enable strobe for RW/WO fields |
+| `hw_<reg>_<fld>_tog_i` | IN | `std_logic_vector(WIDTH-1 downto 0)` | Hardware toggle pulse mask for W1T fields |
+| `hw_<reg>_<fld>_incr_i` | IN | `std_logic` | Hardware pulse increment strobe for INCR fields |
+| `hw_<reg>_<fld>_decr_i` | IN | `std_logic` | Hardware pulse decrement strobe for DECR fields |
+| `hw_<reg>_<fld>_o` | OUT | `std_logic_vector(WIDTH-1 downto 0)` | Live field output to hardware logic (omitted for WIRE, WO, NA) |
 
 #### Protocol Timing Diagrams (WaveDrom)
 
