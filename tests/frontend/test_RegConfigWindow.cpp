@@ -251,11 +251,45 @@ void TestRegConfigWindow::testProjectMetadataAndParameters()
     RegConfigWindow cfgWin;
     cfgWin.setProjectName("Custom_SoC");
     cfgWin.setProjectVersion("2.1.0");
+    cfgWin.setProjectVendor("AcmeCorp");
+    cfgWin.setProjectLibrary("Peripherals");
+    cfgWin.setProjectDescription("Custom SoC Subsystem Description");
     cfgWin.setRegisterWidth(64);
 
     QCOMPARE(cfgWin.projectName(), QString("Custom_SoC"));
     QCOMPARE(cfgWin.projectVersion(), QString("2.1.0"));
+    QCOMPARE(cfgWin.projectVendor(), QString("AcmeCorp"));
+    QCOMPARE(cfgWin.projectLibrary(), QString("Peripherals"));
+    QCOMPARE(cfgWin.projectDescription(), QString("Custom SoC Subsystem Description"));
     QCOMPARE(cfgWin.registerWidth(), (uint32_t)64);
+
+    auto *editVendor = cfgWin.findChild<QLineEdit*>("projectVendor");
+    auto *editLibrary = cfgWin.findChild<QLineEdit*>("projectLibrary");
+    auto *editDesc = cfgWin.findChild<QLineEdit*>("projectDescription");
+    QVERIFY(editVendor != nullptr);
+    QVERIFY(editLibrary != nullptr);
+    QVERIFY(editDesc != nullptr);
+    QCOMPARE(editVendor->text(), QString("AcmeCorp"));
+    QCOMPARE(editLibrary->text(), QString("Peripherals"));
+    QCOMPARE(editDesc->text(), QString("Custom SoC Subsystem Description"));
+
+    protormap::Config *cfg = cfgWin.serialize();
+    QVERIFY(cfg != nullptr);
+    QCOMPARE(cfg->project_name(), std::string("Custom_SoC"));
+    QCOMPARE(cfg->project_version(), std::string("2.1.0"));
+    QCOMPARE(cfg->project_vendor(), std::string("AcmeCorp"));
+    QCOMPARE(cfg->project_library(), std::string("Peripherals"));
+    QCOMPARE(cfg->project_description(), std::string("Custom SoC Subsystem Description"));
+
+    RegConfigWindow cfgWin2;
+    cfgWin2.deserialize(*cfg);
+    delete cfg;
+
+    QCOMPARE(cfgWin2.projectName(), QString("Custom_SoC"));
+    QCOMPARE(cfgWin2.projectVersion(), QString("2.1.0"));
+    QCOMPARE(cfgWin2.projectVendor(), QString("AcmeCorp"));
+    QCOMPARE(cfgWin2.projectLibrary(), QString("Peripherals"));
+    QCOMPARE(cfgWin2.projectDescription(), QString("Custom SoC Subsystem Description"));
 
     cfgWin.addParameterRow("BUS_TYPE", "AXI4_LITE");
     cfgWin.addParameterRow("CLOCK_FREQ_MHZ", "250");

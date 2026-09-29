@@ -1620,6 +1620,9 @@ void RegMapWindow::btnExport(void) {
   resolveExportProjectName(cfg, m_rmap_filename, jsonData);
   jsonData["project_name"] = cfg->project_name();
   jsonData["project_version"] = cfg->project_version();
+  jsonData["project_vendor"] = cfg->project_vendor();
+  jsonData["project_library"] = cfg->project_library();
+  jsonData["project_description"] = cfg->project_description();
   for (const auto &[key, value] : cfg->custom_parameters()) {
     jsonData[key] = value;
   }
@@ -2499,6 +2502,9 @@ bool RegMapWindow::headlessExport(const QString &out_dir) {
   resolveExportProjectName(cfg, m_rmap_filename, jsonData);
   jsonData["project_name"] = cfg->project_name();
   jsonData["project_version"] = cfg->project_version();
+  jsonData["project_vendor"] = cfg->project_vendor();
+  jsonData["project_library"] = cfg->project_library();
+  jsonData["project_description"] = cfg->project_description();
   for (const auto &[key, value] : cfg->custom_parameters()) {
     jsonData[key] = value;
   }

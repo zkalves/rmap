@@ -245,6 +245,18 @@ Modern SoCs frequently access the same peripheral through multiple bus interface
 | **JSON Schema** | Machine-readable, extensible, easy web and CI script integration. | Non-standardized industry schema; differs between EDA vendor implementations. | Standardized within rmap ecosystem; custom JSON schemas require mapping to rmap's JSON schema. |
 | **CSV / TSV** | Universal spreadsheet tabular authoring in Excel/LibreOffice. | Flat table structure; cannot represent multi-level nested addrmaps or multi-map configurations natively. | Exporting deep hierarchies to CSV flattens names (e.g. `block_reg_field`); re-import requires hierarchical reconstruction. |
 
+### Project Identification & Metadata Mapping
+
+rmap provides configurable project metadata attributes in the Project Configuration dialog (`groupMetadata`), serialized into native `.rmt` / `.rmb` Protobuf configurations and translated bidirectionally across external format targets:
+
+| Metadata Field | GUI Label / Proto Field | IP-XACT (IEEE 1685) | ARM CMSIS-SVD | SystemRDL 2.0 | JSON |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Vendor** | `Vendor` / `project_vendor` | `<ipxact:vendor>` | `<vendor>` | N/A | `"project_vendor"` |
+| **Library** | `Library` / `project_library` | `<ipxact:library>` | N/A | N/A | `"project_library"` |
+| **Name** | `Project Name` / `project_name` | `<ipxact:name>` | `<name>` | `addrmap <name>` / `name = "<name>";` | `"project_name"` |
+| **Version** | `Version` / `project_version` | `<ipxact:version>` | `<version>` | N/A | `"project_version"` |
+| **Description** | `Description` / `project_description` | `<ipxact:description>` | `<description>` | `desc = "<desc>";` | `"project_description"` |
+
 ---
 
 ## 6. Configuration & Environment Variables

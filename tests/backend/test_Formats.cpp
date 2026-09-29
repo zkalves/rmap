@@ -104,6 +104,8 @@ void TestFormats::test_SystemRdlWriteAndRoundtrip() {
       "examples/systemrdl/atxmega_spi.rdl", &model1, &config1);
   QVERIFY(res1.success);
 
+  config1.setProjectDescription("SystemRDL SPI description");
+
   // Save as new RDL
   QString outRdl = "work/test_formats/roundtrip.rdl";
   FormatResult resSave =
@@ -116,6 +118,8 @@ void TestFormats::test_SystemRdlWriteAndRoundtrip() {
   FormatResult res2 =
       FormatManager::instance().loadFile(outRdl, &model2, &config2);
   QVERIFY2(res2.success, qPrintable(res2.errorMessage));
+
+  QCOMPARE(config2.projectDescription(), QString("SystemRDL SPI description"));
 
   RegMapTreeItem *root2 = model2.getRootItem();
   QVERIFY(root2 != nullptr);
@@ -134,6 +138,12 @@ void TestFormats::test_IpxactWriteAndRoundtrip() {
       "examples/rmt/peripherals/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
+  config1.setProjectName("SPI_Core");
+  config1.setProjectVersion("3.0");
+  config1.setProjectVendor("Accellera");
+  config1.setProjectLibrary("Peripherals");
+  config1.setProjectDescription("SPI bus interface controller");
+
   // Save as IP-XACT XML
   QString outXml = "work/test_formats/spi.xml";
   FormatResult resSave =
@@ -146,6 +156,12 @@ void TestFormats::test_IpxactWriteAndRoundtrip() {
   FormatResult res2 =
       FormatManager::instance().loadFile(outXml, &model2, &config2);
   QVERIFY2(res2.success, qPrintable(res2.errorMessage));
+
+  QCOMPARE(config2.projectName(), QString("SPI_Core"));
+  QCOMPARE(config2.projectVersion(), QString("3.0"));
+  QCOMPARE(config2.projectVendor(), QString("Accellera"));
+  QCOMPARE(config2.projectLibrary(), QString("Peripherals"));
+  QCOMPARE(config2.projectDescription(), QString("SPI bus interface controller"));
 
   RegMapTreeItem *root2 = model2.getRootItem();
   QVERIFY(root2 != nullptr);
@@ -162,6 +178,12 @@ void TestFormats::test_JsonWriteAndRoundtrip() {
       "examples/rmt/peripherals/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
+  config1.setProjectName("SPI_Json");
+  config1.setProjectVersion("2.5");
+  config1.setProjectVendor("OpenSource");
+  config1.setProjectLibrary("BusIP");
+  config1.setProjectDescription("JSON SPI Description");
+
   // Save as JSON
   QString outJson = "work/test_formats/spi.json";
   FormatResult resSave =
@@ -174,6 +196,12 @@ void TestFormats::test_JsonWriteAndRoundtrip() {
   FormatResult res2 =
       FormatManager::instance().loadFile(outJson, &model2, &config2);
   QVERIFY2(res2.success, qPrintable(res2.errorMessage));
+
+  QCOMPARE(config2.projectName(), QString("SPI_Json"));
+  QCOMPARE(config2.projectVersion(), QString("2.5"));
+  QCOMPARE(config2.projectVendor(), QString("OpenSource"));
+  QCOMPARE(config2.projectLibrary(), QString("BusIP"));
+  QCOMPARE(config2.projectDescription(), QString("JSON SPI Description"));
 
   RegMapTreeItem *root2 = model2.getRootItem();
   QVERIFY(root2 != nullptr);
@@ -221,6 +249,11 @@ void TestFormats::test_CmsisSvdWriteAndRoundtrip() {
       "examples/rmt/peripherals/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
+  config1.setProjectName("SPI_Svd");
+  config1.setProjectVersion("4.0");
+  config1.setProjectVendor("ARM_Partner");
+  config1.setProjectDescription("SPI Controller SVD description");
+
   // Save as CMSIS-SVD (.svd)
   QString outSvd = "work/test_formats/spi.svd";
   FormatResult resSave =
@@ -233,6 +266,11 @@ void TestFormats::test_CmsisSvdWriteAndRoundtrip() {
   FormatResult res2 =
       FormatManager::instance().loadFile(outSvd, &model2, &config2);
   QVERIFY2(res2.success, qPrintable(res2.errorMessage));
+
+  QCOMPARE(config2.projectName(), QString("SPI_Svd"));
+  QCOMPARE(config2.projectVersion(), QString("4.0"));
+  QCOMPARE(config2.projectVendor(), QString("ARM_Partner"));
+  QCOMPARE(config2.projectDescription(), QString("SPI Controller SVD description"));
 
   RegMapTreeItem *root2 = model2.getRootItem();
   QVERIFY(root2 != nullptr);

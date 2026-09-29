@@ -38,6 +38,9 @@ message Config {
     repeated string         template_folders   = 11;
     optional bool           python_script_enabled = 12;
     optional bool           hw_precedence      = 13;
+    string                  project_vendor     = 14;
+    string                  project_library    = 15;
+    string                  project_description = 16;
 }
 
 message RegItem {
