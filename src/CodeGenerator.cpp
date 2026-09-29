@@ -183,6 +183,20 @@ void CodeGenerator::registerHelpers(Environment &env) {
     return std::to_string(m);
   });
 
+  // Helper: {{ byte_idx(bit) }} -> bit / 8
+  env.add_callback("byte_idx", 1, [](Arguments &args) {
+    uint64_t b = args.at(0)->is_number() ? args.at(0)->get<uint64_t>() : 0;
+    return std::to_string(b / 8);
+  });
+
+  // Helper: {{ byte_end(lsb, width) }} -> (lsb + width - 1) / 8
+  env.add_callback("byte_end", 2, [](Arguments &args) {
+    uint64_t lsb = args.at(0)->is_number() ? args.at(0)->get<uint64_t>() : 0;
+    uint64_t w = args.at(1)->is_number() ? args.at(1)->get<uint64_t>() : 1;
+    uint64_t end_b = (lsb + w > 0) ? ((lsb + w - 1) / 8) : 0;
+    return std::to_string(end_b);
+  });
+
   // Helper: {{ sv_hex(val, width) }} or {{ sv_hex(val) }} -> SystemVerilog hex
   // literal (e.g. 32'h0000, 32'h4D87A9DC, 1'h0)
   auto sv_hex_fn = [](Arguments &args) {

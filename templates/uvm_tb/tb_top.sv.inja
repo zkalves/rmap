@@ -90,7 +90,12 @@ module tb_top;
   // DUT Instantiation
   {{ lower(blk.name) }}_reg_file #(
     .ADDR_WIDTH(32),
-    .DATA_WIDTH({{ reg_width }})
+    .DATA_WIDTH({{ reg_width }}),
+    .PARAM_HW_PRECEDENCE({% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}),
+    .ERROR_ON_WRITE_TO_RO({% if exists("param_error_on_write_to_ro") %}{{ param_error_on_write_to_ro }}{% else if exists("error_on_write_to_ro") %}{{ error_on_write_to_ro }}{% else %}0{% endif %}),
+    .ERROR_ON_READ_FROM_WO({% if exists("param_error_on_read_from_wo") %}{{ param_error_on_read_from_wo }}{% else if exists("error_on_read_from_wo") %}{{ error_on_read_from_wo }}{% else %}0{% endif %}),
+    .ERROR_ON_WRITE_TO_LOCKED({% if exists("param_error_on_write_to_locked") %}{{ param_error_on_write_to_locked }}{% else if exists("error_on_write_to_locked") %}{{ error_on_write_to_locked }}{% else %}0{% endif %}),
+    .ERROR_ON_READ_FROM_LOCKED({% if exists("param_error_on_read_from_locked") %}{{ param_error_on_read_from_locked }}{% else if exists("error_on_read_from_locked") %}{{ error_on_read_from_locked }}{% else %}0{% endif %})
   ) dut (
     .clk_i                     (clk),
     .rst_ni                    (rst_n),

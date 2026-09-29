@@ -14,7 +14,11 @@ entity {{ lower(blk.name) }}_reg_file is
     ADDR_WIDTH : integer := 32;
     DATA_WIDTH : integer := {{ reg_width }};
     STRB_WIDTH : integer := {{ reg_width }} / 8;
-    PARAM_HW_PRECEDENCE : std_logic := {% if (exists("param_hw_precedence") and (param_hw_precedence == 0 or param_hw_precedence == "0")) or (exists("hw_precedence") and not hw_precedence) %}'0'{% else %}'1'{% endif %}
+    PARAM_HW_PRECEDENCE       : std_logic := {% if (exists("param_hw_precedence") and (param_hw_precedence == 0 or param_hw_precedence == "0")) or (exists("hw_precedence") and not hw_precedence) %}'0'{% else %}'1'{% endif %};
+    ERROR_ON_WRITE_TO_RO      : std_logic := {% if (exists("param_error_on_write_to_ro") and (param_error_on_write_to_ro == 1 or param_error_on_write_to_ro == "1")) or (exists("error_on_write_to_ro") and (error_on_write_to_ro == 1 or error_on_write_to_ro == "1")) %}'1'{% else %}'0'{% endif %};
+    ERROR_ON_READ_FROM_WO     : std_logic := {% if (exists("param_error_on_read_from_wo") and (param_error_on_read_from_wo == 1 or param_error_on_read_from_wo == "1")) or (exists("error_on_read_from_wo") and (error_on_read_from_wo == 1 or error_on_read_from_wo == "1")) %}'1'{% else %}'0'{% endif %};
+    ERROR_ON_WRITE_TO_LOCKED  : std_logic := {% if (exists("param_error_on_write_to_locked") and (param_error_on_write_to_locked == 1 or param_error_on_write_to_locked == "1")) or (exists("error_on_write_to_locked") and (error_on_write_to_locked == 1 or error_on_write_to_locked == "1")) %}'1'{% else %}'0'{% endif %};
+    ERROR_ON_READ_FROM_LOCKED : std_logic := {% if (exists("param_error_on_read_from_locked") and (param_error_on_read_from_locked == 1 or param_error_on_read_from_locked == "1")) or (exists("error_on_read_from_locked") and (error_on_read_from_locked == 1 or error_on_read_from_locked == "1")) %}'1'{% else %}'0'{% endif %}
   );
   port (
     clk_i                     : in  std_logic;
@@ -131,6 +135,8 @@ architecture rtl of {{ lower(blk.name) }}_reg_file is
   signal reg_{{ lower(reg.name) }}_wr_locked : std_logic;
   signal reg_{{ lower(reg.name) }}_locked : std_logic;
   signal reg_{{ lower(reg.name) }}_rd_locked : std_logic;
+  signal reg_{{ lower(reg.name) }}_wr_err : std_logic;
+  signal reg_{{ lower(reg.name) }}_rd_err : std_logic;
 {% for fld in reg.fields %}
   signal reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked : std_logic;
   signal reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked : std_logic;
@@ -190,15 +196,54 @@ begin
 {% endfor %}
 {% endfor %}
 
+{% for reg in blk.registers %}
+  -- Access error evaluation for {{ reg.name }}
+  reg_{{ lower(reg.name) }}_wr_err <= '1' when (
+    (ERROR_ON_WRITE_TO_LOCKED = '1' and (
+      (reg_{{ lower(reg.name) }}_wr_locked = '1' and strb_nonzero = '1')
+{% for fld in reg.fields %}
+      or (reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '1' and (or bus_wstrb_i({{ byte_end(fld.offset_lsb, fld.size_width) }} downto {{ byte_idx(fld.offset_lsb) }})) = '1')
+{% endfor %}
+    ))
+    or
+    (ERROR_ON_WRITE_TO_RO = '1' and (
+      false
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "NOACCESS" %}
+      or (or bus_wstrb_i({{ byte_end(fld.offset_lsb, fld.size_width) }} downto {{ byte_idx(fld.offset_lsb) }})) = '1'
+{% endif %}
+{% endfor %}
+    ))
+  ) else '0';
+
+  reg_{{ lower(reg.name) }}_rd_err <= '1' when (
+    (ERROR_ON_READ_FROM_LOCKED = '1' and (
+      reg_{{ lower(reg.name) }}_rd_locked = '1'
+{% for fld in reg.fields %}
+      or reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '1'
+{% endfor %}
+    ))
+    or
+    (ERROR_ON_READ_FROM_WO = '1' and (
+      false
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "WO" or upper(fld.access) == "WO1" or upper(fld.access) == "WOC" or upper(fld.access) == "WOS" or upper(fld.access) == "NOACCESS" %}
+      or true
+{% endif %}
+{% endfor %}
+    ))
+  ) else '0';
+{% endfor %}
+
   -- SW Strobe Assignments
 {% for reg in blk.registers %}
-  s_sw_{{ lower(reg.name) }}_wr_strobe <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1' and reg_{{ lower(reg.name) }}_wr_locked = '0') else '0';
-  s_sw_{{ lower(reg.name) }}_rd_strobe <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and reg_{{ lower(reg.name) }}_rd_locked = '0') else '0';
+  s_sw_{{ lower(reg.name) }}_wr_strobe <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1' and reg_{{ lower(reg.name) }}_wr_locked = '0' and reg_{{ lower(reg.name) }}_wr_err = '0') else '0';
+  s_sw_{{ lower(reg.name) }}_rd_strobe <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and reg_{{ lower(reg.name) }}_rd_locked = '0' and reg_{{ lower(reg.name) }}_rd_err = '0') else '0';
   sw_{{ lower(reg.name) }}_wr_strobe_o <= s_sw_{{ lower(reg.name) }}_wr_strobe;
   sw_{{ lower(reg.name) }}_rd_strobe_o <= s_sw_{{ lower(reg.name) }}_rd_strobe;
 {% for fld in reg.fields %}
-  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1' and reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0') else '0';
-  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0') else '0';
+  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1' and reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and reg_{{ lower(reg.name) }}_wr_err = '0') else '0';
+  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0' and reg_{{ lower(reg.name) }}_rd_err = '0') else '0';
 {% endfor %}
 {% endfor %}
 
@@ -541,7 +586,12 @@ begin
 {% for reg in blk.registers %}
         {% if loop.is_first %}if {% else %}elsif {% endif %}bus_addr_i = ADDR_{{ upper(reg.name) }} then
           bus_ready_o <= '1';
-          if bus_rd_en_i = '1' then
+          if bus_wr_en_i = '1' and reg_{{ lower(reg.name) }}_wr_err = '1' then
+            bus_error_o <= '1';
+          elsif bus_rd_en_i = '1' and reg_{{ lower(reg.name) }}_rd_err = '1' then
+            bus_error_o <= '1';
+            bus_rdata_o <= (others => '0');
+          elsif bus_rd_en_i = '1' then
 {% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
             if reg_{{ lower(reg.name) }}_rd_locked = '1' then
               bus_rdata_o <= (others => '0');
@@ -588,7 +638,12 @@ begin
 {% for reg in blk.registers %}
       {% if loop.is_first %}if {% else %}elsif {% endif %}bus_addr_i = ADDR_{{ upper(reg.name) }} then
         bus_ready_o <= '1';
-        if bus_rd_en_i = '1' then
+        if bus_wr_en_i = '1' and reg_{{ lower(reg.name) }}_wr_err = '1' then
+          bus_error_o <= '1';
+        elsif bus_rd_en_i = '1' and reg_{{ lower(reg.name) }}_rd_err = '1' then
+          bus_error_o <= '1';
+          bus_rdata_o <= (others => '0');
+        elsif bus_rd_en_i = '1' then
 {% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
           if reg_{{ lower(reg.name) }}_rd_locked = '1' then
             bus_rdata_o <= (others => '0');
