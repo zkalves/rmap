@@ -88,7 +88,7 @@ docker run --rm ghcr.io/zkalves/rmap:latest rmap --version
 
 # Run batch code generation
 docker run --rm -v "$(pwd):/work" -w /work ghcr.io/zkalves/rmap:latest \
-  rmap -f examples/rmt/peripherals/spi.rmt --export --out ./work
+  rmap -f examples/peripherals/spi/spi.rmt --export --out ./work
 ```
 
 #### Homebrew Formula (macOS & Linux)
