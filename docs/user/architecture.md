@@ -166,23 +166,23 @@ For backward compatibility with earlier project files, combined expressions with
 When multiple registers or fields reference the same external hardware lock input signal (for example, multiple control registers all governed by an external lock input), **rmap** automatically recognizes the re-use and declares **exactly one** top-level input port declaration on block boundaries in code generation templates. This guarantees zero redundant port declarations across SystemVerilog, Verilog 2001, and VHDL.
 
 #### Hardware Strobe & Access Gating Semantics
-When a register or field evaluates as locked:
+When a block, register, or field evaluates as locked:
 1. **Software Write Protection**: When write-locked, software write pulse strobes are suppressed low, and software write data is blocked from mutating internal storage.
 2. **Software Read Protection**: When read-locked, software read pulse strobes are suppressed low, and bus read multiplexers return all zeros for the locked bit positions.
 3. **Hardware Logic Independence**: Core hardware updates continue to function according to the configured hardware access policy (`RW`, `WO`, `INCR`, `DECR`, `W1T`), unaffected by software lock state.
-4. **Formal Verification (SVA)**: Invariant assertions mathematically verify in simulation and formal model checking that software writes cannot alter write-locked registers, and software reads return zero when read-locked.
+4. **Formal Verification (SVA)**: Invariant assertions mathematically verify in simulation and formal model checking that software writes cannot alter write-locked registers or fields, and software reads return zero when read-locked.
 
 #### Lossless Multi-Format Interoperability
 Independent write and read lock expressions are preserved with 100% roundtrip fidelity across all supported formats:
 
 | Format | Representation | Specification / Standard |
 | :--- | :--- | :--- |
-| **JSON** | `"lock_wr": "<expr>"`, `"lock_rd": "<expr>"` (with fallback `"lock"`) | Standard rmap JSON schema. |
-| **SystemRDL 2.0** | `rmap_lock_wr = "<expr>";`<br>`rmap_lock_rd = "<expr>";` | Accellera SystemRDL 2.0 user-defined properties (`rmap_lock_wr`, `rmap_lock_rd`). |
-| **IP-XACT** | `<rmap:lock_wr><expr></rmap:lock_wr>`<br>`<rmap:lock_rd><expr></rmap:lock_rd>` | IEEE 1685 qualified with `xmlns:rmap="https://github.com/zkalves/rmap"`. |
-| **ARM CMSIS-SVD** | `<rmap_lock_wr><expr></rmap_lock_wr>`<br>`<rmap_lock_rd><expr></rmap_lock_rd>` | ARM CMSIS-SVD vendor extension nodes. |
-| **CSV** | Columns 11 & 12: `Write Lock`, `Read Lock` | RFC 4180 spreadsheet columns. |
-| **Google Protobuf** | Item metadata string map (`"Write Lock"`, `"Read Lock"`) | Native `.rmt` / `.rmb` schema. |
+| **JSON** | `"lock_wr": "<expr>"`, `"lock_rd": "<expr>"` (with fallback `"lock"`) on blocks, registers, and fields | Standard rmap JSON schema. |
+| **SystemRDL 2.0** | `rmap_lock_wr = "<expr>";`<br>`rmap_lock_rd = "<expr>";` on `addrmap`, `reg`, and `field` | Accellera SystemRDL 2.0 user-defined properties (`rmap_lock_wr`, `rmap_lock_rd`). |
+| **IP-XACT** | `<rmap:lock_wr><expr></rmap:lock_wr>`<br>`<rmap:lock_rd><expr></rmap:lock_rd>` under `addressBlock`, `register`, and `field` | IEEE 1685 qualified with `xmlns:rmap="https://github.com/zkalves/rmap"`. |
+| **ARM CMSIS-SVD** | `<rmap_lock_wr><expr></rmap_lock_wr>`<br>`<rmap_lock_rd><expr></rmap_lock_rd>` under `peripheral`, `register`, and `field` | ARM CMSIS-SVD vendor extension nodes. |
+| **CSV** | `Write Lock` and `Read Lock` columns across `blk`, `reg`, and `fld` rows | RFC 4180 spreadsheet columns. |
+| **Google Protobuf** | Item metadata string map (`"Write Lock"`, `"Read Lock"`) on blocks, registers, and fields | Native `.rmt` / `.rmb` schema. |
 
 ### Core Data Model vs. Template-Specific Implementations
 

@@ -38,6 +38,7 @@ examples/
 │   ├── diff/                 # Semantic register map diff environment
 │   ├── advanced_ral/         # Advanced UVM RAL constructs (indirect regs, FIFOs, callbacks, test exclusions)
 │   ├── format_conversion/    # Headless cross-conversion across SVD, SystemRDL, IP-XACT, JSON, CSV, and Protobuf
+│   ├── software_locks/       # 3-level hierarchical software read & write locks environment
 │   └── soc_large_scale/      # Full SoC-scale multi-block subsystem environment
 │
 ├── rmt/                      # Native Protocol Buffer register maps (.rmt text & .rmb binary)
@@ -48,6 +49,7 @@ examples/
 │   │   └── sensor_hub.rmt    # Multi-sensor telemetry hub register map
 │   ├── features/             # Dedicated feature coverage & architectural patterns
 │   │   ├── soc_large_scale.rmt / .rmb # Large-scale SoC with multiple blocks, maps, memories & registers
+│   │   ├── software_locks.rmt# 3-level hierarchical software locks (block, reg, field)
 │   │   ├── comprehensive.rmt # Comprehensive feature coverage (all 24 access policies, memory, booleans, 20 deliverables)
 │   │   ├── hw_precedence.rmt # Configurable SW write arbitration precedence (hw_precedence: false)
 │   │   ├── narrow_bus_8bit.rmt# 8-bit narrow data bus architecture example
@@ -110,6 +112,11 @@ examples/
   - Number radix representations (Hexadecimal `0x`, Decimal, Binary `0b`).
   - Flags: `is_rand` (UVM randomization), `volatile` (firmware volatile qualifier), `has_reset`.
 - **`hw_precedence.rmt`**: Configurable write arbitration precedence configured with `hw_precedence: false`. Demonstrates software-precedence mode (`PARAM_HW_PRECEDENCE = 0` / `'0'`) across SystemVerilog, Verilog-2001, VHDL, APB4, AXI4-Lite, and formal SVA.
+- **`software_locks.rmt`**: Demonstrates the **3-level hierarchical software locking architecture** across blocks, registers, and individual bitfields:
+  - Block-level independent software write and read locks (`[w] hw_tamper_lock_i; [r] hw_debug_lock_i`).
+  - Register-level composite write locks (`hw_sec_lock_i || (SEC_CTRL.LOCK_BIT == 1)`) and read locks (`[r] hw_read_lock_i`).
+  - Dual software read and write locks (`[rw] hw_crypto_lock_i`).
+  - Field-level selective locking within a single register: public unlocked status field alongside write-locked, read-locked, and dual-locked bitfields with selective bit-slice masking and strobe suppression.
 - **`narrow_bus_8bit.rmt`**: 8-bit narrow data bus architecture configured with global `reg_width: 8`. Demonstrates byte-aligned registers (`uint8_t` in C firmware), 8-bit RTL bus interface (`DATA_WIDTH=8`, `STRB_WIDTH=1`), and byte-slicing bitfield operations.
 - **`wide_bus_64bit.rmt`**: High-performance 64-bit data bus architecture configured with global `reg_width: 64`. Demonstrates 64-bit register alignment, wide bitfield slicing, and `uint64_t` firmware header generation.
 - **`address_gap_example.rmt`**: Non-contiguous register offsets with deliberate address gaps (e.g. offset `0x0000` followed by `0x0010` and `0x0040`). Demonstrates automatic reserved word generation (`uint32_t _reserved_[...]`) and GUI gap detection visualization.
