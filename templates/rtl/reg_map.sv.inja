@@ -12,7 +12,11 @@ module {{ lower(blk.name) }}_reg_file #(
   parameter int ADDR_WIDTH = 32,
   parameter int DATA_WIDTH = {{ reg_width }},
   parameter int STRB_WIDTH = DATA_WIDTH / 8,
-  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}
+  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %},
+  parameter bit ERROR_ON_WRITE_TO_RO = {% if exists("param_error_on_write_to_ro") %}{{ param_error_on_write_to_ro }}{% else if exists("error_on_write_to_ro") %}{{ error_on_write_to_ro }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_READ_FROM_WO = {% if exists("param_error_on_read_from_wo") %}{{ param_error_on_read_from_wo }}{% else if exists("error_on_read_from_wo") %}{{ error_on_read_from_wo }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_WRITE_TO_LOCKED = {% if exists("param_error_on_write_to_locked") %}{{ param_error_on_write_to_locked }}{% else if exists("error_on_write_to_locked") %}{{ error_on_write_to_locked }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_READ_FROM_LOCKED = {% if exists("param_error_on_read_from_locked") %}{{ param_error_on_read_from_locked }}{% else if exists("error_on_read_from_locked") %}{{ error_on_read_from_locked }}{% else %}0{% endif %}
 )(
   input  logic                      clk_i,
   input  logic                      rst_ni,
@@ -196,15 +200,60 @@ module {{ lower(blk.name) }}_reg_file #(
 {% endfor %}
 {% endfor %}
 
+{% for reg in blk.registers %}
+  // --- Access Error Evaluation for {{ reg.name }} ---
+  logic reg_{{ lower(reg.name) }}_wr_locked_err;
+  assign reg_{{ lower(reg.name) }}_wr_locked_err = ERROR_ON_WRITE_TO_LOCKED && (
+    (reg_{{ lower(reg.name) }}_wr_locked && (|bus_wstrb_i))
+{% for fld in reg.fields %}
+    || (reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked && (|bus_wstrb_i[{{ byte_end(fld.offset_lsb, fld.size_width) }} : {{ byte_idx(fld.offset_lsb) }}]))
+{% endfor %}
+  );
+
+  logic reg_{{ lower(reg.name) }}_wr_ro_err;
+  assign reg_{{ lower(reg.name) }}_wr_ro_err = ERROR_ON_WRITE_TO_RO && (
+    1'b0
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "NOACCESS" %}
+    || (|bus_wstrb_i[{{ byte_end(fld.offset_lsb, fld.size_width) }} : {{ byte_idx(fld.offset_lsb) }}])
+{% endif %}
+{% endfor %}
+  );
+
+  logic reg_{{ lower(reg.name) }}_wr_err;
+  assign reg_{{ lower(reg.name) }}_wr_err = reg_{{ lower(reg.name) }}_wr_locked_err || reg_{{ lower(reg.name) }}_wr_ro_err;
+
+  logic reg_{{ lower(reg.name) }}_rd_locked_err;
+  assign reg_{{ lower(reg.name) }}_rd_locked_err = ERROR_ON_READ_FROM_LOCKED && (
+    reg_{{ lower(reg.name) }}_rd_locked
+{% for fld in reg.fields %}
+    || reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked
+{% endfor %}
+  );
+
+  logic reg_{{ lower(reg.name) }}_rd_wo_err;
+  assign reg_{{ lower(reg.name) }}_rd_wo_err = ERROR_ON_READ_FROM_WO && (
+    1'b0
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "WO" or upper(fld.access) == "WO1" or upper(fld.access) == "WOC" or upper(fld.access) == "WOS" or upper(fld.access) == "NOACCESS" %}
+    || 1'b1
+{% endif %}
+{% endfor %}
+  );
+
+  logic reg_{{ lower(reg.name) }}_rd_err;
+  assign reg_{{ lower(reg.name) }}_rd_err = reg_{{ lower(reg.name) }}_rd_locked_err || reg_{{ lower(reg.name) }}_rd_wo_err;
+{% endfor %}
+
   // =========================================================================
   // SW Read / Write Strobe Generation
   // =========================================================================
 {% for reg in blk.registers %}
-  assign sw_{{ lower(reg.name) }}_wr_strobe_o = bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && (|bus_wstrb_i) && !reg_{{ lower(reg.name) }}_wr_locked;
-  assign sw_{{ lower(reg.name) }}_rd_strobe_o = bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && !reg_{{ lower(reg.name) }}_rd_locked;
+  assign sw_{{ lower(reg.name) }}_wr_strobe_o = bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && (|bus_wstrb_i) && !reg_{{ lower(reg.name) }}_wr_locked && !reg_{{ lower(reg.name) }}_wr_err;
+  assign sw_{{ lower(reg.name) }}_rd_strobe_o = bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && !reg_{{ lower(reg.name) }}_rd_locked && !reg_{{ lower(reg.name) }}_rd_err;
 {% for fld in reg.fields %}
-  assign sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o = bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && (|bus_wstrb_i) && !reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked;
-  assign sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o = bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && !reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked;
+  assign sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o = bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && (|bus_wstrb_i) && !reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked && !reg_{{ lower(reg.name) }}_wr_err;
+  assign sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o = bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && !reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked && !reg_{{ lower(reg.name) }}_rd_err;
 {% endfor %}
 {% endfor %}
 
@@ -512,7 +561,12 @@ module {{ lower(blk.name) }}_reg_file #(
 {% for reg in blk.registers %}
             ADDR_{{ upper(reg.name) }}: begin
               bus_ready_o = 1'b1;
-              if (bus_rd_en_i) begin
+              if (bus_wr_en_i && reg_{{ lower(reg.name) }}_wr_err) begin
+                bus_error_o = 1'b1;
+              end else if (bus_rd_en_i && reg_{{ lower(reg.name) }}_rd_err) begin
+                bus_error_o = 1'b1;
+                bus_rdata_o = '0;
+              end else if (bus_rd_en_i) begin
 {% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_sv") and reg.lock_rd_expr_sv != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_sv") and blk.lock_rd_expr_sv != "") %}
                 if (reg_{{ lower(reg.name) }}_rd_locked) begin
                   bus_rdata_o = '0;
@@ -559,7 +613,12 @@ module {{ lower(blk.name) }}_reg_file #(
       case (bus_addr_i)
 {% for reg in blk.registers %}
         ADDR_{{ upper(reg.name) }}: begin
-          if (bus_rd_en_i) begin
+          if (bus_wr_en_i && reg_{{ lower(reg.name) }}_wr_err) begin
+            bus_error_o = 1'b1;
+          end else if (bus_rd_en_i && reg_{{ lower(reg.name) }}_rd_err) begin
+            bus_error_o = 1'b1;
+            bus_rdata_o = '0;
+          end else if (bus_rd_en_i) begin
 {% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_sv") and reg.lock_rd_expr_sv != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_sv") and blk.lock_rd_expr_sv != "") %}
             if (reg_{{ lower(reg.name) }}_rd_locked) begin
               bus_rdata_o = '0;

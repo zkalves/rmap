@@ -12,7 +12,11 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   parameter int ADDR_WIDTH = 32,
   parameter int DATA_WIDTH = {{ reg_width }},
   parameter int STRB_WIDTH = DATA_WIDTH / 8,
-  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}
+  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %},
+  parameter bit ERROR_ON_WRITE_TO_RO = {% if exists("param_error_on_write_to_ro") %}{{ param_error_on_write_to_ro }}{% else if exists("error_on_write_to_ro") %}{{ error_on_write_to_ro }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_READ_FROM_WO = {% if exists("param_error_on_read_from_wo") %}{{ param_error_on_read_from_wo }}{% else if exists("error_on_read_from_wo") %}{{ error_on_read_from_wo }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_WRITE_TO_LOCKED = {% if exists("param_error_on_write_to_locked") %}{{ param_error_on_write_to_locked }}{% else if exists("error_on_write_to_locked") %}{{ error_on_write_to_locked }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_READ_FROM_LOCKED = {% if exists("param_error_on_read_from_locked") %}{{ param_error_on_read_from_locked }}{% else if exists("error_on_read_from_locked") %}{{ error_on_read_from_locked }}{% else %}0{% endif %}
 )(
   input logic                      clk_i,
   input logic                      rst_ni,
@@ -228,6 +232,28 @@ module {{ lower(blk.name) }}_reg_map_sva #(
 {% endfor %}
 {% endfor %}
 
+  // =========================================================================
+  // Access Error Response Properties
+  // =========================================================================
+{% for reg in blk.registers %}
+{% for fld in reg.fields %}
+{% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "NOACCESS" %}
+  property p_err_wr_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }};
+    (ERROR_ON_WRITE_TO_RO && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && (|bus_wstrb_i[{{ byte_end(fld.offset_lsb, fld.size_width) }} : {{ byte_idx(fld.offset_lsb) }}])) |-> bus_error_o;
+  endproperty
+  assert_err_wr_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }}: assert property (p_err_wr_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }})
+    else $error("[SVA] Bus error not asserted on write to RO field {{ reg.name }}.{{ fld.name }}!");
+{% endif %}
+{% if upper(fld.access) == "WO" or upper(fld.access) == "WO1" or upper(fld.access) == "WOC" or upper(fld.access) == "WOS" or upper(fld.access) == "NOACCESS" %}
+  property p_err_rd_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }};
+    (ERROR_ON_READ_FROM_WO && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> bus_error_o;
+  endproperty
+  assert_err_rd_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }}: assert property (p_err_rd_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }})
+    else $error("[SVA] Bus error not asserted on read from WO field {{ reg.name }}.{{ fld.name }}!");
+{% endif %}
+{% endfor %}
+{% endfor %}
+
 endmodule
 
 // =============================================================================
@@ -238,7 +264,11 @@ bind {{ lower(blk.name) }}_reg_file {{ lower(blk.name) }}_reg_map_sva #(
   .ADDR_WIDTH(ADDR_WIDTH),
   .DATA_WIDTH(DATA_WIDTH),
   .STRB_WIDTH(STRB_WIDTH),
-  .PARAM_HW_PRECEDENCE(PARAM_HW_PRECEDENCE)
+  .PARAM_HW_PRECEDENCE(PARAM_HW_PRECEDENCE),
+  .ERROR_ON_WRITE_TO_RO(ERROR_ON_WRITE_TO_RO),
+  .ERROR_ON_READ_FROM_WO(ERROR_ON_READ_FROM_WO),
+  .ERROR_ON_WRITE_TO_LOCKED(ERROR_ON_WRITE_TO_LOCKED),
+  .ERROR_ON_READ_FROM_LOCKED(ERROR_ON_READ_FROM_LOCKED)
 ) u_reg_map_sva (
   .clk_i(clk_i),
   .rst_ni(rst_ni),

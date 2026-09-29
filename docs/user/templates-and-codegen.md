@@ -204,6 +204,8 @@ The context passed to Inja templates provides rich hardware architecture and ver
 | `sv_lock_expr` | `{{ sv_lock_expr(reg.lock_wr) }}` | `(hw_sec_lock_i \|\| reg_ctrl_q[0])` |
 | `v_lock_expr`  | `{{ v_lock_expr(reg.lock_wr) }}` | `(hw_sec_lock_i \|\| reg_ctrl_q[0])` |
 | `vhd_lock_expr`| `{{ vhd_lock_expr(reg.lock_wr) }}` | `((hw_sec_lock_i = '1') or (reg_ctrl_q(0) = '1'))` |
+| `byte_idx`     | `{{ byte_idx(fld.offset_lsb) }}` | `1` (for bit 8 &rarr; byte 1) |
+| `byte_end`     | `{{ byte_end(fld.offset_lsb, fld.size_width) }}` | `2` (for bit 8, width 16 &rarr; byte 2) |
 
 ---
 
@@ -220,6 +222,11 @@ The context passed to Inja templates provides rich hardware architecture and ver
    - Hardware sideband interface signals (data input `hw_*_i` for RO/WIRE, write data `hw_*_wd_i` and write enable `hw_*_we_i` for RW/WO, toggle pulse mask `hw_*_tog_i` for W1T, increment pulse `hw_*_incr_i` for INCR, decrement pulse `hw_*_decr_i` for DECR, and live output state `hw_*_o`).
    - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`) pulsing for 1 cycle upon transaction completion to trigger peripheral operations.
    - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware; configurable via Inja custom parameter `param_hw_precedence`).
+   - Configurable access error responses via parameters:
+     - `ERROR_ON_WRITE_TO_RO`: Asserts bus error on write targeting Read-Only/write-ignored fields (`RO`, `RC`, `RS`, `NOACCESS`) (default 0 / disabled; configurable via Inja custom parameter `param_error_on_write_to_ro`).
+     - `ERROR_ON_READ_FROM_WO`: Asserts bus error on read targeting Write-Only/read-prohibited fields (`WO`, `WO1`, `WOC`, `WOS`, `NOACCESS`) (default 0 / disabled; configurable via Inja custom parameter `param_error_on_read_from_wo`).
+     - `ERROR_ON_WRITE_TO_LOCKED`: Asserts bus error on write targeting write-locked registers or fields (default 0 / disabled; configurable via Inja custom parameter `param_error_on_write_to_locked`).
+     - `ERROR_ON_READ_FROM_LOCKED`: Asserts bus error on read targeting read-locked registers or fields (default 0 / disabled; configurable via Inja custom parameter `param_error_on_read_from_locked`).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
 
    **WaveDrom Protocol Timing Diagrams**:

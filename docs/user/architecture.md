@@ -172,6 +172,25 @@ When a block, register, or field evaluates as locked:
 3. **Hardware Logic Independence**: Core hardware updates continue to function according to the configured hardware access policy (`RW`, `WO`, `INCR`, `DECR`, `W1T`), unaffected by software lock state.
 4. **Formal Verification (SVA)**: Invariant assertions mathematically verify in simulation and formal model checking that software writes cannot alter write-locked registers or fields, and software reads return zero when read-locked.
 
+### Access Violation & Bus Error Response Policies
+
+In bus interface design, host software may attempt illegal access transactions, including:
+1. **Write to Read-Only (`RO`)**: Attempting a software write to registers or bitfields with non-writable access policies (`RO`, `RC`, `RS`, `NOACCESS`).
+2. **Read from Write-Only (`WO`)**: Attempting a software read from registers or bitfields with non-readable access policies (`WO`, `WO1`, `WOC`, `WOS`, `NOACCESS`).
+3. **Write to Write-Locked**: Attempting a software write to a block, register, or field while its write lock condition evaluates true.
+4. **Read from Read-Locked**: Attempting a software read from a block, register, or field while its read lock condition evaluates true.
+
+#### Configurable Response Models: Silent Drop vs. Protocol Error
+By default, standard register files silently ignore illegal writes (preserving storage) and return all zeros on illegal reads without halting bus transactions, maintaining broad compatibility with generic bus masters.
+
+To catch software driver bugs or enforce security access policies, hardware register templates provide four independent configuration parameters:
+- **`ERROR_ON_WRITE_TO_RO`**: When enabled, writing to any byte lane targeting a Read-Only or write-ignored field asserts a protocol bus error and suppresses software write event strobes.
+- **`ERROR_ON_READ_FROM_WO`**: When enabled, reading a register containing Write-Only or read-prohibited fields asserts a protocol bus error, returns all zeros, and suppresses software read event strobes.
+- **`ERROR_ON_WRITE_TO_LOCKED`**: When enabled, writing to any register or bitfield while write-locked asserts a protocol bus error and suppresses software write event strobes.
+- **`ERROR_ON_READ_FROM_LOCKED`**: When enabled, reading any register or bitfield while read-locked asserts a protocol bus error, returns all zeros, and suppresses software read event strobes.
+
+Protocol adapters (such as AMBA 4 APB and AMBA AXI4-Lite) automatically translate internal bus errors into native bus protocol responses (asserting APB `PSLVERR` or returning AXI `SLVERR` response codes).
+
 #### Lossless Multi-Format Interoperability
 Independent write and read lock expressions are preserved with 100% roundtrip fidelity across all supported formats:
 

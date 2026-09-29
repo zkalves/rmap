@@ -12,7 +12,11 @@ module {{ lower(blk.name) }}_axil_reg_file #(
   parameter int ADDR_WIDTH = 32,
   parameter int DATA_WIDTH = {{ reg_width }},
   parameter int STRB_WIDTH = DATA_WIDTH / 8,
-  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %}
+  parameter bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %},
+  parameter bit ERROR_ON_WRITE_TO_RO = {% if exists("param_error_on_write_to_ro") %}{{ param_error_on_write_to_ro }}{% else if exists("error_on_write_to_ro") %}{{ error_on_write_to_ro }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_READ_FROM_WO = {% if exists("param_error_on_read_from_wo") %}{{ param_error_on_read_from_wo }}{% else if exists("error_on_read_from_wo") %}{{ error_on_read_from_wo }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_WRITE_TO_LOCKED = {% if exists("param_error_on_write_to_locked") %}{{ param_error_on_write_to_locked }}{% else if exists("error_on_write_to_locked") %}{{ error_on_write_to_locked }}{% else %}0{% endif %},
+  parameter bit ERROR_ON_READ_FROM_LOCKED = {% if exists("param_error_on_read_from_locked") %}{{ param_error_on_read_from_locked }}{% else if exists("error_on_read_from_locked") %}{{ error_on_read_from_locked }}{% else %}0{% endif %}
 )(
   // Hardware Core Sideband Signals
 {% for reg in blk.registers %}
@@ -196,7 +200,11 @@ module {{ lower(blk.name) }}_axil_reg_file #(
     .ADDR_WIDTH(ADDR_WIDTH),
     .DATA_WIDTH(DATA_WIDTH),
     .STRB_WIDTH(STRB_WIDTH),
-    .PARAM_HW_PRECEDENCE(PARAM_HW_PRECEDENCE)
+    .PARAM_HW_PRECEDENCE(PARAM_HW_PRECEDENCE),
+    .ERROR_ON_WRITE_TO_RO(ERROR_ON_WRITE_TO_RO),
+    .ERROR_ON_READ_FROM_WO(ERROR_ON_READ_FROM_WO),
+    .ERROR_ON_WRITE_TO_LOCKED(ERROR_ON_WRITE_TO_LOCKED),
+    .ERROR_ON_READ_FROM_LOCKED(ERROR_ON_READ_FROM_LOCKED)
   ) u_reg_file (
     .clk_i                     (aclk_i),
     .rst_ni                    (aresetn_i),
