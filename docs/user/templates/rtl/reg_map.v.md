@@ -26,9 +26,13 @@
 | `bus_rdata_o` | OUTPUT | `wire [DATA_WIDTH-1:0]` | Bus read data |
 | `sw_<reg>_wr_strobe_o` | OUTPUT | `wire` | Single-cycle write pulse strobe |
 | `sw_<reg>_rd_strobe_o` | OUTPUT | `wire` | Single-cycle read pulse strobe |
-| `hw_<reg>_<fld>_i` | INPUT | `wire [WIDTH-1:0]` | Hardware data input |
-| `hw_<reg>_<fld>_we_i` | INPUT | `wire` | Hardware write enable |
-| `hw_<reg>_<fld>_o` | OUTPUT | `wire [WIDTH-1:0]` | Hardware data output |
+| `hw_<reg>_<fld>_i` | INPUT | `wire [WIDTH-1:0]` | Hardware input data for RO or WIRE fields |
+| `hw_<reg>_<fld>_wd_i` | INPUT | `wire [WIDTH-1:0]` | Hardware write data for RW/WO fields |
+| `hw_<reg>_<fld>_we_i` | INPUT | `wire` | Hardware write-enable strobe for RW/WO fields |
+| `hw_<reg>_<fld>_tog_i` | INPUT | `wire [WIDTH-1:0]` | Hardware toggle pulse mask for W1T fields |
+| `hw_<reg>_<fld>_incr_i` | INPUT | `wire` | Hardware pulse increment strobe for INCR fields |
+| `hw_<reg>_<fld>_decr_i` | INPUT | `wire` | Hardware pulse decrement strobe for DECR fields |
+| `hw_<reg>_<fld>_o` | OUTPUT | `wire [WIDTH-1:0]` | Hardware data output (omitted for WIRE, WO, NA) |
 
 #### Protocol Timing Diagrams (WaveDrom)
 

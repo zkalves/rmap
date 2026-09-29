@@ -50,6 +50,7 @@ private slots:
   void test_FormatManagerEdgeCases();
   void test_ProtobufExtendedSyntaxAndErrors();
   void test_FormatsBranchAndConditionCoverage();
+  void test_LockPropertyRoundtrip();
 };
 
 void TestFormats::initTestCase() { QDir().mkpath("work/test_formats"); }
@@ -2998,6 +2999,366 @@ void TestFormats::test_FormatsBranchAndConditionCoverage() {
       f2.close();
     }
     csvHandler.read(p2, &model, &config);
+  }
+}
+
+void TestFormats::test_LockPropertyRoundtrip() {
+  RegMapTreeModel model;
+  RegConfigWindow config;
+
+  QVector<QString> cols = {"Type",      "Offset/LSB", "Size/Width",  "Name",
+                           "SW Access", "HW Access",  "Reset Value", "Is Rand",
+                           "Volatile",  "Has Reset",  "Description", "Lock"};
+  QVariantMap rootData;
+  for (const QString &c : cols)
+    rootData[c] = c;
+  auto *rootItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+  model.setRootItem(rootItem);
+
+  QVariantMap blkData;
+  blkData["Type"] = "blk";
+  blkData["Offset/LSB"] = "0x0";
+  blkData["Size/Width"] = "0x1000";
+  blkData["Name"] = "SEC_BLOCK";
+  blkData["Description"] = "Security Block";
+  auto *blkItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem);
+  rootItem->appendChild(blkItem);
+
+  QVariantMap reg1Data;
+  reg1Data["Type"] = "reg";
+  reg1Data["Offset/LSB"] = "0x0";
+  reg1Data["Size/Width"] = "32";
+  reg1Data["Name"] = "SEC_CTRL";
+  reg1Data["SW Access"] = "RW";
+  reg1Data["HW Access"] = "RO";
+  reg1Data["Reset Value"] = "0x0";
+  reg1Data["Description"] = "Security Control";
+  reg1Data["Lock"] = "hw_sec_lock_i";
+  auto *reg1Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, reg1Data, blkItem);
+  blkItem->appendChild(reg1Item);
+
+  QVariantMap fld1Data;
+  fld1Data["Type"] = "fld";
+  fld1Data["Offset/LSB"] = "0";
+  fld1Data["Size/Width"] = "1";
+  fld1Data["Name"] = "EN";
+  fld1Data["SW Access"] = "RW";
+  fld1Data["HW Access"] = "RO";
+  fld1Data["Reset Value"] = "0x0";
+  fld1Data["Description"] = "Enable bit";
+  fld1Data["Lock"] = "hw_sec_lock_i";
+  auto *fld1Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fld1Data, reg1Item);
+  reg1Item->appendChild(fld1Item);
+
+  QVariantMap fld2Data;
+  fld2Data["Type"] = "fld";
+  fld2Data["Offset/LSB"] = "1";
+  fld2Data["Size/Width"] = "7";
+  fld2Data["Name"] = "CFG";
+  fld2Data["SW Access"] = "RW";
+  fld2Data["HW Access"] = "RO";
+  fld2Data["Reset Value"] = "0x0";
+  fld2Data["Description"] = "Config bits";
+  fld2Data["Lock"] = "hw_sec_lock_i || SEC_CTRL.LOCK";
+  auto *fld2Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fld2Data, reg1Item);
+  reg1Item->appendChild(fld2Item);
+
+  QVariantMap reg2Data;
+  reg2Data["Type"] = "reg";
+  reg2Data["Offset/LSB"] = "0x4";
+  reg2Data["Size/Width"] = "32";
+  reg2Data["Name"] = "SYS_STATUS";
+  reg2Data["SW Access"] = "RW";
+  reg2Data["HW Access"] = "RO";
+  reg2Data["Reset Value"] = "0x0";
+  reg2Data["Description"] = "Status register";
+  reg2Data["Lock"] = "!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)";
+  auto *reg2Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, reg2Data, blkItem);
+  blkItem->appendChild(reg2Item);
+
+  QVariantMap fld3Data;
+  fld3Data["Type"] = "fld";
+  fld3Data["Offset/LSB"] = "0";
+  fld3Data["Size/Width"] = "16";
+  fld3Data["Name"] = "STS";
+  fld3Data["SW Access"] = "RO";
+  fld3Data["HW Access"] = "WO";
+  fld3Data["Reset Value"] = "0x0";
+  fld3Data["Description"] = "Status bits";
+  fld3Data["Lock"] = "!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)";
+  auto *fld3Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fld3Data, reg2Item);
+  reg2Item->appendChild(fld3Item);
+
+  // Reg 3: Read-only lock [r]
+  QVariantMap reg3Data;
+  reg3Data["Type"] = "reg";
+  reg3Data["Offset/LSB"] = "0x8";
+  reg3Data["Size/Width"] = "32";
+  reg3Data["Name"] = "SEC_KEY";
+  reg3Data["SW Access"] = "RO";
+  reg3Data["HW Access"] = "RO";
+  reg3Data["Reset Value"] = "0x0";
+  reg3Data["Description"] = "Secret key register";
+  reg3Data["Lock"] = "[r] hw_read_lock_i";
+  auto *reg3Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, reg3Data, blkItem);
+  blkItem->appendChild(reg3Item);
+
+  QVariantMap fld4Data;
+  fld4Data["Type"] = "fld";
+  fld4Data["Offset/LSB"] = "0";
+  fld4Data["Size/Width"] = "32";
+  fld4Data["Name"] = "KEY";
+  fld4Data["SW Access"] = "RO";
+  fld4Data["HW Access"] = "RO";
+  fld4Data["Reset Value"] = "0x0";
+  fld4Data["Description"] = "Key payload";
+  fld4Data["Lock"] = "[r] hw_read_lock_i";
+  auto *fld4Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fld4Data, reg3Item);
+  reg3Item->appendChild(fld4Item);
+
+  // Reg 4: Dual read/write lock [rw]
+  QVariantMap reg4Data;
+  reg4Data["Type"] = "reg";
+  reg4Data["Offset/LSB"] = "0xC";
+  reg4Data["Size/Width"] = "32";
+  reg4Data["Name"] = "CRYPTO_CFG";
+  reg4Data["SW Access"] = "RW";
+  reg4Data["HW Access"] = "RO";
+  reg4Data["Reset Value"] = "0x0";
+  reg4Data["Description"] = "Crypto config register";
+  reg4Data["Lock"] = "[rw] hw_dual_lock_i";
+  auto *reg4Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, reg4Data, blkItem);
+  blkItem->appendChild(reg4Item);
+
+  QVariantMap fld5Data;
+  fld5Data["Type"] = "fld";
+  fld5Data["Offset/LSB"] = "0";
+  fld5Data["Size/Width"] = "16";
+  fld5Data["Name"] = "CFG";
+  fld5Data["SW Access"] = "RW";
+  fld5Data["HW Access"] = "RO";
+  fld5Data["Reset Value"] = "0x0";
+  fld5Data["Description"] = "Crypto config";
+  fld5Data["Lock"] = "[rw] hw_dual_lock_i";
+  auto *fld5Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fld5Data, reg4Item);
+  reg4Item->appendChild(fld5Item);
+
+  // Reg 5: Independent locks [w] <expr>; [r] <expr>
+  QVariantMap reg5Data;
+  reg5Data["Type"] = "reg";
+  reg5Data["Offset/LSB"] = "0x10";
+  reg5Data["Size/Width"] = "32";
+  reg5Data["Name"] = "SPLIT_LOCK_REG";
+  reg5Data["SW Access"] = "RW";
+  reg5Data["HW Access"] = "RO";
+  reg5Data["Reset Value"] = "0x0";
+  reg5Data["Description"] = "Split lock register";
+  reg5Data["Lock"] = "[w] hw_wr_cond_i; [r] hw_rd_cond_i";
+  auto *reg5Item =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, reg5Data, blkItem);
+  blkItem->appendChild(reg5Item);
+
+  // 1. JSON (.json)
+  {
+    RegMapTreeModel mLoad;
+    RegConfigWindow cLoad;
+    QVERIFY(FormatManager::instance()
+                .saveFile("work/test_formats/lock_test.json", &model, &config)
+                .success);
+    QVERIFY(FormatManager::instance()
+                .loadFile("work/test_formats/lock_test.json", &mLoad, &cLoad)
+                .success);
+    auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
+             QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(1)->data("Lock").toString(),
+             QString("hw_sec_lock_i || SEC_CTRL.LOCK"));
+    QCOMPARE(r->child(1)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(1)->child(0)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(2)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(2)->child(0)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(3)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(3)->child(0)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(4)->data("Lock").toString(),
+             QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
+  }
+
+  // 2. SystemRDL (.rdl)
+  {
+    RegMapTreeModel mLoad;
+    RegConfigWindow cLoad;
+    QVERIFY(FormatManager::instance()
+                .saveFile("work/test_formats/lock_test.rdl", &model, &config)
+                .success);
+    QVERIFY(FormatManager::instance()
+                .loadFile("work/test_formats/lock_test.rdl", &mLoad, &cLoad)
+                .success);
+    auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
+             QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(1)->data("Lock").toString(),
+             QString("hw_sec_lock_i || SEC_CTRL.LOCK"));
+    QCOMPARE(r->child(1)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(1)->child(0)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(2)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(2)->child(0)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(3)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(3)->child(0)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(4)->data("Lock").toString(),
+             QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
+  }
+
+  // 3. IP-XACT (.xml)
+  {
+    RegMapTreeModel mLoad;
+    RegConfigWindow cLoad;
+    QVERIFY(FormatManager::instance()
+                .saveFile("work/test_formats/lock_test.xml", &model, &config)
+                .success);
+    QVERIFY(FormatManager::instance()
+                .loadFile("work/test_formats/lock_test.xml", &mLoad, &cLoad)
+                .success);
+    auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
+             QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(1)->data("Lock").toString(),
+             QString("hw_sec_lock_i || SEC_CTRL.LOCK"));
+    QCOMPARE(r->child(1)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(1)->child(0)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(2)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(2)->child(0)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(3)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(3)->child(0)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(4)->data("Lock").toString(),
+             QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
+  }
+
+  // 4. CMSIS-SVD (.svd)
+  {
+    RegMapTreeModel mLoad;
+    RegConfigWindow cLoad;
+    QVERIFY(FormatManager::instance()
+                .saveFile("work/test_formats/lock_test.svd", &model, &config)
+                .success);
+    QVERIFY(FormatManager::instance()
+                .loadFile("work/test_formats/lock_test.svd", &mLoad, &cLoad)
+                .success);
+    auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
+             QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(1)->data("Lock").toString(),
+             QString("hw_sec_lock_i || SEC_CTRL.LOCK"));
+    QCOMPARE(r->child(1)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(1)->child(0)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(2)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(2)->child(0)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(3)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(3)->child(0)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(4)->data("Lock").toString(),
+             QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
+  }
+
+  // 5. CSV (.csv)
+  {
+    RegMapTreeModel mLoad;
+    RegConfigWindow cLoad;
+    QVERIFY(FormatManager::instance()
+                .saveFile("work/test_formats/lock_test.csv", &model, &config)
+                .success);
+    QVERIFY(FormatManager::instance()
+                .loadFile("work/test_formats/lock_test.csv", &mLoad, &cLoad)
+                .success);
+    auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
+             QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(1)->data("Lock").toString(),
+             QString("hw_sec_lock_i || SEC_CTRL.LOCK"));
+    QCOMPARE(r->child(1)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(1)->child(0)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(2)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(2)->child(0)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(3)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(3)->child(0)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(4)->data("Lock").toString(),
+             QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
+  }
+
+  // 6. Protobuf (.rmt)
+  {
+    RegMapTreeModel mLoad;
+    RegConfigWindow cLoad;
+    QVERIFY(FormatManager::instance()
+                .saveFile("work/test_formats/lock_test.rmt", &model, &config)
+                .success);
+    QVERIFY(FormatManager::instance()
+                .loadFile("work/test_formats/lock_test.rmt", &mLoad, &cLoad)
+                .success);
+    auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
+             QString("hw_sec_lock_i"));
+    QCOMPARE(r->child(0)->child(1)->data("Lock").toString(),
+             QString("hw_sec_lock_i || SEC_CTRL.LOCK"));
+    QCOMPARE(r->child(1)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(1)->child(0)->data("Lock").toString(),
+             QString("!hw_sec_lock_i && (SYS_CTRL.LOCK == 1'b0)"));
+    QCOMPARE(r->child(2)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(2)->child(0)->data("Lock").toString(),
+             QString("[r] hw_read_lock_i"));
+    QCOMPARE(r->child(3)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(3)->child(0)->data("Lock").toString(),
+             QString("[rw] hw_dual_lock_i"));
+    QCOMPARE(r->child(4)->data("Lock").toString(),
+             QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
   }
 }
 

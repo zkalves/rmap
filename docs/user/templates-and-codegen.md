@@ -121,7 +121,14 @@ The context passed to Inja templates provides rich hardware architecture and ver
     - `features.has_interrupts`: Boolean indicating presence of interrupt/sticky event flags (`W1C`, `W0C`, `RC`, etc.).
     - `features.has_byte_strobes`: Boolean indicating byte write strobe support (`reg_width > 8`).
     - `features.has_multiple_blocks`: Boolean indicating multiple register blocks.
-  - `blocks`: Array of peripheral block structures.
+  - `blocks`: Array of peripheral block structures:
+    - `lock_signals`: List of deduplicated external hardware lock input port signals (e.g. `["hw_sec_lock_i"]`).
+    - `lock_wr`: Independent block-level software write lock expression (e.g. `"hw_blk_lock_i"`).
+    - `lock_rd`: Independent block-level software read lock expression (e.g. `"hw_blk_rd_lock_i"`).
+    - `has_wr_lock`, `has_rd_lock`, `has_lock`: Block-level lock presence flags.
+    - `lock_wr_expr_sv` / `lock_wr_expr_v` / `lock_wr_expr_vhd`: Synthesizable block write lock expressions in SystemVerilog, Verilog 2001, and VHDL.
+    - `lock_rd_expr_sv` / `lock_rd_expr_v` / `lock_rd_expr_vhd`: Synthesizable block read lock expressions in SystemVerilog, Verilog 2001, and VHDL.
+    - `registers`: Array of register objects within the block.
 
 - **Address Maps (`maps[]`)**:
   - `name`: Address map identifier (`uvm_reg_map` instance name, e.g. `"default_map"`, `"apb_map"`).
@@ -133,6 +140,15 @@ The context passed to Inja templates provides rich hardware architecture and ver
 
 - **Registers (`registers[]`)**:
   - `name`, `offset_lsb`, `offset_hex`, `size_width`, `access`, `reset_val`, `reset_hex`, `description`: Core register properties.
+  - `lock_wr`: Independent software write lock expression in language-agnostic format (e.g. `"hw_sec_lock_i || (SYS_CTRL.LOCK == 1)"`).
+  - `lock_rd`: Independent software read lock expression in language-agnostic format (e.g. `"hw_read_lock_i"`).
+  - `has_wr_lock`: Boolean flag indicating whether software writes to this register are locked.
+  - `has_rd_lock`: Boolean flag indicating whether software reads from this register are locked.
+  - `has_lock`: Boolean flag indicating whether any lock (write or read) is active.
+  - `lock_wr_expr_sv` / `lock_wr_expr_v` / `lock_wr_expr_vhd`: Synthesizable write lock expression in SV, Verilog 2001, and VHDL.
+  - `lock_rd_expr_sv` / `lock_rd_expr_v` / `lock_rd_expr_vhd`: Synthesizable read lock expression in SV, Verilog 2001, and VHDL.
+  - `lock`: Backward-compatible combined or primary lock expression.
+  - `lock_expr_sv` / `lock_expr_v` / `lock_expr_vhd`: Backward-compatible lock expression (defaults to write lock expression).
   - `pad_bytes_before` / `pad_words_before`: Address gap bytes and words before this register (used for C struct padding `_reserved_`).
   - `hdl_path`: Backdoor HDL signal path relative to DUT (defaults to `"reg_<regname>_q"`).
   - `is_fifo`: Boolean indicating if register represents a FIFO port.
@@ -148,6 +164,12 @@ The context passed to Inja templates provides rich hardware architecture and ver
 
 - **Bitfields (`fields[]`)**:
   - `name`, `offset_lsb`, `size_width`, `access`, `reset_val`, `reset_hex`, `is_rand`, `volatile`, `has_reset`, `description`: Core field properties.
+  - `hw_access`: Hardware internal core logic access policy (`"RO"`, `"RW"`, `"WO"`, `"WIRE"`, `"W1T"`, `"INCR"`, `"DECR"`, `"NA"`, etc.).
+  - `lock_wr`, `lock_rd`: Independent field-level software write and read lock expressions.
+  - `has_wr_lock`, `has_rd_lock`, `has_lock`: Field-level lock presence flags.
+  - `lock_wr_expr_sv` / `lock_wr_expr_v` / `lock_wr_expr_vhd`: Field-level synthesizable write lock expressions in SystemVerilog, Verilog 2001, and VHDL.
+  - `lock_rd_expr_sv` / `lock_rd_expr_v` / `lock_rd_expr_vhd`: Field-level synthesizable read lock expressions in SystemVerilog, Verilog 2001, and VHDL.
+  - `lock`: Field-specific backward-compatible lock expression.
   - `individually_accessible`: Integer flag (`1` or `0`) indicating whether the bitfield can be individually accessed or byte-enabled without altering neighboring bits.
 
 - **Memories (`memories[]`)**:
@@ -163,7 +185,7 @@ The context passed to Inja templates provides rich hardware architecture and ver
 
 ## 2. Inja Template Helpers
 
-**rmap** provides built-in custom helper callbacks for hardware numbering, casing, type deduction, and bit manipulation:
+**rmap** provides built-in custom helper callbacks for hardware numbering, casing, type deduction, bit manipulation, and target HDL lock expression conversion:
 
 | Helper | Syntax Example | Output Example |
 | :--- | :--- | :--- |
@@ -179,6 +201,9 @@ The context passed to Inja templates provides rich hardware architecture and ver
 | `bitmask` | `{{ bitmask(fld.size_width, fld.offset_lsb) }}` | `0x00000001` |
 | `pad_zero`| `{{ pad_zero(fld.offset_lsb, 2) }}` | `"00"` |
 | `sv_hex`  | `{{ sv_hex(fld.reset_val, 32) }}` | `32'h0000` |
+| `sv_lock_expr` | `{{ sv_lock_expr(reg.lock_wr) }}` | `(hw_sec_lock_i \|\| reg_ctrl_q[0])` |
+| `v_lock_expr`  | `{{ v_lock_expr(reg.lock_wr) }}` | `(hw_sec_lock_i \|\| reg_ctrl_q[0])` |
+| `vhd_lock_expr`| `{{ vhd_lock_expr(reg.lock_wr) }}` | `((hw_sec_lock_i = '1') or (reg_ctrl_q(0) = '1'))` |
 
 ---
 
@@ -192,7 +217,7 @@ The context passed to Inja templates provides rich hardware architecture and ver
    - Bus-agnostic generic slave register file with address decode logic and 2-space indentation.
    - Dynamic parameterizable data width via `DATA_WIDTH` parameter (default 32, configurable to 8, 16, 32, 64, 128, 256, 512+ bits).
    - Byte-level write enable strobing (`wstrb_i` with width `DATA_WIDTH / 8`).
-   - Hardware sideband interface signals (`hw_*_i`, `hw_*_we_i`, `hw_*_o`).
+   - Hardware sideband interface signals (data input `hw_*_i` for RO/WIRE, write data `hw_*_wd_i` and write enable `hw_*_we_i` for RW/WO, toggle pulse mask `hw_*_tog_i` for W1T, increment pulse `hw_*_incr_i` for INCR, decrement pulse `hw_*_decr_i` for DECR, and live output state `hw_*_o`).
    - Software read/write access strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`) pulsing for 1 cycle upon transaction completion to trigger peripheral operations.
    - Configurable hardware vs. software write precedence via parameter (`PARAM_HW_PRECEDENCE` default 1 = hardware over software; 0 = software over hardware; configurable via Inja custom parameter `param_hw_precedence`).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
@@ -295,7 +320,7 @@ The context passed to Inja templates provides rich hardware architecture and ver
 
 ### Software Strobes & Hardware Sideband Delivery Model
 
-In **rmap**, software access strobes (`sw_<reg>_wr_strobe_o`, `sw_<reg>_rd_strobe_o`, `sw_<reg>_<fld>_wr_strobe_o`, `sw_<reg>_<fld>_rd_strobe_o`), byte write enables (`wstrb_i`), and hardware sideband signals (`hw_*_i`, `hw_*_we_i`, `hw_*_o`) are **template-level deliverables** implemented by HDL templates (SystemVerilog, Verilog 2001, VHDL) and checked by protocol assertions (SVA).
+In **rmap**, software access strobes (`sw_<reg>_wr_strobe_o`, `sw_<reg>_rd_strobe_o`, `sw_<reg>_<fld>_wr_strobe_o`, `sw_<reg>_<fld>_rd_strobe_o`), byte write enables (`wstrb_i`), and hardware sideband signals (`hw_*_i`, `hw_*_wd_i`, `hw_*_we_i`, `hw_*_tog_i`, `hw_*_incr_i`, `hw_*_decr_i`, `hw_*_o`) are **template-level deliverables** implemented by HDL templates (SystemVerilog, Verilog 2001, VHDL) and checked by protocol assertions (SVA).
 
 #### Core Data Model vs. HDL Template Deliverables
 

@@ -60,9 +60,13 @@ TEMPLATE_METADATA = {
             ("sw_<reg>_rd_strobe_o", "output", "logic", "1-cycle pulse strobe asserted when software reads from register"),
             ("sw_<reg>_<fld>_wr_strobe_o", "output", "logic", "1-cycle pulse strobe asserted when software writes to field"),
             ("sw_<reg>_<fld>_rd_strobe_o", "output", "logic", "1-cycle pulse strobe asserted when software reads from field"),
-            ("hw_<reg>_<fld>_i", "input", "logic [WIDTH-1:0]", "Hardware input data for RW/WO fields"),
-            ("hw_<reg>_<fld>_we_i", "input", "logic", "Hardware write-enable strobe for RW fields"),
-            ("hw_<reg>_<fld>_o", "output", "logic [WIDTH-1:0]", "Live register field state observed by hardware logic")
+            ("hw_<reg>_<fld>_i", "input", "logic [WIDTH-1:0]", "Hardware input data for RO or WIRE fields"),
+            ("hw_<reg>_<fld>_wd_i", "input", "logic [WIDTH-1:0]", "Hardware write data for RW/WO fields"),
+            ("hw_<reg>_<fld>_we_i", "input", "logic", "Hardware write-enable strobe for RW/WO fields"),
+            ("hw_<reg>_<fld>_tog_i", "input", "logic [WIDTH-1:0]", "Hardware toggle pulse mask for W1T fields"),
+            ("hw_<reg>_<fld>_incr_i", "input", "logic", "Hardware pulse increment strobe for INCR fields"),
+            ("hw_<reg>_<fld>_decr_i", "input", "logic", "Hardware pulse decrement strobe for DECR fields"),
+            ("hw_<reg>_<fld>_o", "output", "logic [WIDTH-1:0]", "Live register field state observed by hardware logic (omitted for WIRE, WO, NA)")
         ],
         "wavedroms": [
             ("rtl_sw_write_strobe", "Software Write Cycle & Pulse Strobe Timing"),
@@ -94,9 +98,13 @@ TEMPLATE_METADATA = {
             ("bus_rdata_o", "output", "wire [DATA_WIDTH-1:0]", "Bus read data"),
             ("sw_<reg>_wr_strobe_o", "output", "wire", "Single-cycle write pulse strobe"),
             ("sw_<reg>_rd_strobe_o", "output", "wire", "Single-cycle read pulse strobe"),
-            ("hw_<reg>_<fld>_i", "input", "wire [WIDTH-1:0]", "Hardware data input"),
-            ("hw_<reg>_<fld>_we_i", "input", "wire", "Hardware write enable"),
-            ("hw_<reg>_<fld>_o", "output", "wire [WIDTH-1:0]", "Hardware data output")
+            ("hw_<reg>_<fld>_i", "input", "wire [WIDTH-1:0]", "Hardware input data for RO or WIRE fields"),
+            ("hw_<reg>_<fld>_wd_i", "input", "wire [WIDTH-1:0]", "Hardware write data for RW/WO fields"),
+            ("hw_<reg>_<fld>_we_i", "input", "wire", "Hardware write-enable strobe for RW/WO fields"),
+            ("hw_<reg>_<fld>_tog_i", "input", "wire [WIDTH-1:0]", "Hardware toggle pulse mask for W1T fields"),
+            ("hw_<reg>_<fld>_incr_i", "input", "wire", "Hardware pulse increment strobe for INCR fields"),
+            ("hw_<reg>_<fld>_decr_i", "input", "wire", "Hardware pulse decrement strobe for DECR fields"),
+            ("hw_<reg>_<fld>_o", "output", "wire [WIDTH-1:0]", "Hardware data output (omitted for WIRE, WO, NA)")
         ],
         "wavedroms": [
             ("rtl_sw_write_strobe", "Verilog reg_map: Software Write Cycle with Byte Strobes"),
@@ -124,7 +132,14 @@ TEMPLATE_METADATA = {
             ("bus_rd_en_i", "in", "std_logic", "Read strobe enable"),
             ("bus_rdata_o", "out", "std_logic_vector", "Read data bus output"),
             ("sw_<reg>_wr_strobe_o", "out", "std_logic", "Write pulse strobe output"),
-            ("sw_<reg>_rd_strobe_o", "out", "std_logic", "Read pulse strobe output")
+            ("sw_<reg>_rd_strobe_o", "out", "std_logic", "Read pulse strobe output"),
+            ("hw_<reg>_<fld>_i", "in", "std_logic_vector(WIDTH-1 downto 0)", "Hardware input data for RO or WIRE fields"),
+            ("hw_<reg>_<fld>_wd_i", "in", "std_logic_vector(WIDTH-1 downto 0)", "Hardware write data for RW/WO fields"),
+            ("hw_<reg>_<fld>_we_i", "in", "std_logic", "Hardware write-enable strobe for RW/WO fields"),
+            ("hw_<reg>_<fld>_tog_i", "in", "std_logic_vector(WIDTH-1 downto 0)", "Hardware toggle pulse mask for W1T fields"),
+            ("hw_<reg>_<fld>_incr_i", "in", "std_logic", "Hardware pulse increment strobe for INCR fields"),
+            ("hw_<reg>_<fld>_decr_i", "in", "std_logic", "Hardware pulse decrement strobe for DECR fields"),
+            ("hw_<reg>_<fld>_o", "out", "std_logic_vector(WIDTH-1 downto 0)", "Live field output to hardware logic (omitted for WIRE, WO, NA)")
         ],
         "wavedroms": [
             ("rtl_sw_write_strobe", "VHDL reg_map: Software Write & Strobe Timing")

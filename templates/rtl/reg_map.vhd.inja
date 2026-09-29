@@ -28,7 +28,7 @@ entity {{ lower(blk.name) }}_reg_file is
 {% for fld in reg.fields %}
     sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o : out std_logic;
     sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o : out std_logic;
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     : in  std_logic_vector({{ fld.size_width }}-1 downto 0);
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i : in  std_logic_vector({{ fld.size_width }}-1 downto 0);
@@ -36,16 +36,31 @@ entity {{ lower(blk.name) }}_reg_file is
 {% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i : in  std_logic_vector({{ fld.size_width }}-1 downto 0);
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     : out std_logic_vector({{ fld.size_width }}-1 downto 0);
-{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
+{% else if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WIRE" and upper(fld.hw_access) != "WO")) %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     : out std_logic_vector({{ fld.size_width }}-1 downto 0);
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i  : in  std_logic;
-    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i : in std_logic_vector({{ fld.size_width }}-1 downto 0);
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i  : in  std_logic_vector({{ fld.size_width }}-1 downto 0);
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i : in  std_logic_vector({{ fld.size_width }}-1 downto 0);
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     : out std_logic_vector({{ fld.size_width }}-1 downto 0);
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i : in  std_logic;
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     : out std_logic_vector({{ fld.size_width }}-1 downto 0);
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i : in  std_logic;
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     : out std_logic_vector({{ fld.size_width }}-1 downto 0);
 {% endif %}
 {% endfor %}
 
 {% endfor %}
+{% if existsIn(blk, "lock_signals") and length(blk.lock_signals) > 0 %}
+    -- Hardware Write-Lock Control Input Ports (deduplicated)
+{% for sig in blk.lock_signals %}
+    {{ sig }} : in  std_logic;
+{% endfor %}
+{% endif %}
 {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
     -- External Memory Subsystem Passthrough Ports
 {% for mem in blk.memories %}
@@ -101,6 +116,27 @@ architecture rtl of {{ lower(blk.name) }}_reg_file is
   signal s_sw_{{ lower(reg.name) }}_rd_strobe : std_logic;
 {% endfor %}
 
+  -- SW Lock Signals
+{% if (existsIn(blk, "lock_wr") and blk.lock_wr != "") or (existsIn(blk, "lock_wr_expr_vhd") and blk.lock_wr_expr_vhd != "") %}
+  signal blk_wr_locked : std_logic;
+{% else %}
+  signal blk_wr_locked : std_logic := '0';
+{% endif %}
+{% if (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
+  signal blk_rd_locked : std_logic;
+{% else %}
+  signal blk_rd_locked : std_logic := '0';
+{% endif %}
+{% for reg in blk.registers %}
+  signal reg_{{ lower(reg.name) }}_wr_locked : std_logic;
+  signal reg_{{ lower(reg.name) }}_locked : std_logic;
+  signal reg_{{ lower(reg.name) }}_rd_locked : std_logic;
+{% for fld in reg.fields %}
+  signal reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked : std_logic;
+  signal reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked : std_logic;
+{% endfor %}
+{% endfor %}
+
   signal strb_nonzero : std_logic;
 
 begin
@@ -108,15 +144,61 @@ begin
   -- Byte strobe nonzero detector
   strb_nonzero <= or bus_wstrb_i;
 
+  -- SW Lock Evaluation
+{% if (existsIn(blk, "lock_wr") and blk.lock_wr != "") or (existsIn(blk, "lock_wr_expr_vhd") and blk.lock_wr_expr_vhd != "") %}
+  blk_wr_locked <= '1' when ({% if existsIn(blk, "lock_wr") and blk.lock_wr != "" %}{{ vhd_lock_expr(blk.lock_wr) }}{% else %}{{ blk.lock_wr_expr_vhd }}{% endif %}) else '0';
+{% endif %}
+{% if (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
+  blk_rd_locked <= '1' when ({% if existsIn(blk, "lock_rd") and blk.lock_rd != "" %}{{ vhd_lock_expr(blk.lock_rd) }}{% else %}{{ blk.lock_rd_expr_vhd }}{% endif %}) else '0';
+{% endif %}
+{% for reg in blk.registers %}
+{% if existsIn(reg, "lock_wr") and reg.lock_wr != "" %}
+  reg_{{ lower(reg.name) }}_wr_locked <= '1' when (({{ vhd_lock_expr(reg.lock_wr) }}) or blk_wr_locked = '1') else '0';
+  reg_{{ lower(reg.name) }}_locked <= reg_{{ lower(reg.name) }}_wr_locked;
+{% else if existsIn(reg, "lock_wr_expr_vhd") and reg.lock_wr_expr_vhd != "" %}
+  reg_{{ lower(reg.name) }}_wr_locked <= '1' when (({{ reg.lock_wr_expr_vhd }}) or blk_wr_locked = '1') else '0';
+  reg_{{ lower(reg.name) }}_locked <= reg_{{ lower(reg.name) }}_wr_locked;
+{% else if existsIn(reg, "lock_expr_vhd") and reg.lock_expr_vhd != "" %}
+  reg_{{ lower(reg.name) }}_wr_locked <= '1' when (({{ reg.lock_expr_vhd }}) or blk_wr_locked = '1') else '0';
+  reg_{{ lower(reg.name) }}_locked <= reg_{{ lower(reg.name) }}_wr_locked;
+{% else %}
+  reg_{{ lower(reg.name) }}_wr_locked <= blk_wr_locked;
+  reg_{{ lower(reg.name) }}_locked <= blk_wr_locked;
+{% endif %}
+{% if existsIn(reg, "lock_rd") and reg.lock_rd != "" %}
+  reg_{{ lower(reg.name) }}_rd_locked <= '1' when (({{ vhd_lock_expr(reg.lock_rd) }}) or blk_rd_locked = '1') else '0';
+{% else if existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "" %}
+  reg_{{ lower(reg.name) }}_rd_locked <= '1' when (({{ reg.lock_rd_expr_vhd }}) or blk_rd_locked = '1') else '0';
+{% else %}
+  reg_{{ lower(reg.name) }}_rd_locked <= blk_rd_locked;
+{% endif %}
+{% for fld in reg.fields %}
+{% if existsIn(fld, "lock_wr") and fld.lock_wr != "" %}
+  reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked <= '1' when (({{ vhd_lock_expr(fld.lock_wr) }}) or reg_{{ lower(reg.name) }}_wr_locked = '1') else '0';
+{% else if existsIn(fld, "lock_wr_expr_vhd") and fld.lock_wr_expr_vhd != "" %}
+  reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked <= '1' when (({{ fld.lock_wr_expr_vhd }}) or reg_{{ lower(reg.name) }}_wr_locked = '1') else '0';
+{% else %}
+  reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked <= reg_{{ lower(reg.name) }}_wr_locked;
+{% endif %}
+{% if existsIn(fld, "lock_rd") and fld.lock_rd != "" %}
+  reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked <= '1' when (({{ vhd_lock_expr(fld.lock_rd) }}) or reg_{{ lower(reg.name) }}_rd_locked = '1') else '0';
+{% else if existsIn(fld, "lock_rd_expr_vhd") and fld.lock_rd_expr_vhd != "" %}
+  reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked <= '1' when (({{ fld.lock_rd_expr_vhd }}) or reg_{{ lower(reg.name) }}_rd_locked = '1') else '0';
+{% else %}
+  reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked <= reg_{{ lower(reg.name) }}_rd_locked;
+{% endif %}
+{% endfor %}
+{% endfor %}
+
   -- SW Strobe Assignments
 {% for reg in blk.registers %}
-  s_sw_{{ lower(reg.name) }}_wr_strobe <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1') else '0';
-  s_sw_{{ lower(reg.name) }}_rd_strobe <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }}) else '0';
+  s_sw_{{ lower(reg.name) }}_wr_strobe <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1' and reg_{{ lower(reg.name) }}_wr_locked = '0') else '0';
+  s_sw_{{ lower(reg.name) }}_rd_strobe <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and reg_{{ lower(reg.name) }}_rd_locked = '0') else '0';
   sw_{{ lower(reg.name) }}_wr_strobe_o <= s_sw_{{ lower(reg.name) }}_wr_strobe;
   sw_{{ lower(reg.name) }}_rd_strobe_o <= s_sw_{{ lower(reg.name) }}_rd_strobe;
 {% for fld in reg.fields %}
-  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o <= s_sw_{{ lower(reg.name) }}_wr_strobe;
-  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o <= s_sw_{{ lower(reg.name) }}_rd_strobe;
+  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o <= '1' when (bus_wr_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and strb_nonzero = '1' and reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0') else '0';
+  sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o <= '1' when (bus_rd_en_i = '1' and bus_addr_i = ADDR_{{ upper(reg.name) }} and reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0') else '0';
 {% endfor %}
 {% endfor %}
 
@@ -146,7 +228,13 @@ begin
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i,
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
-    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i, hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i,
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i, hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i,
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i,
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i,
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i,
 {% endif %}
 {% endfor %}
     s_sw_{{ lower(reg.name) }}_wr_strobe, s_sw_{{ lower(reg.name) }}_rd_strobe,
@@ -167,62 +255,62 @@ begin
 
     if PARAM_HW_PRECEDENCE = '1' then
       -- HW Precedence: SW writes first, HW overrides
-      if s_sw_{{ lower(reg.name) }}_wr_strobe = '1' then
+      if s_sw_{{ lower(reg.name) }}_wr_strobe = '1'{% if (existsIn(reg, "lock_wr") and reg.lock_wr != "") or (existsIn(reg, "lock_wr_expr_vhd") and reg.lock_wr_expr_vhd != "") %} and reg_{{ lower(reg.name) }}_wr_locked = '0'{% else if existsIn(reg, "lock_expr_vhd") and reg.lock_expr_vhd != "" %} and reg_{{ lower(reg.name) }}_locked = '0'{% endif %} then
         for b in 0 to STRB_WIDTH-1 loop
           if bus_wstrb_i(b) = '1' then
             for bit_idx in b*8 to (b+1)*8-1 loop
               null;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RW" or upper(fld.access) == "WO" or upper(fld.access) == "WRC" or upper(fld.access) == "WRS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 v_d(bit_idx) := bus_wdata_i(bit_idx);
               end if;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W1CRS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '1' then
                   v_d(bit_idx) := '0';
                 end if;
               end if;
 {% else if upper(fld.access) == "W1S" or upper(fld.access) == "W1SRC" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '1' then
                   v_d(bit_idx) := '1';
                 end if;
               end if;
 {% else if upper(fld.access) == "W1T" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '1' then
                   v_d(bit_idx) := not reg_{{ lower(reg.name) }}_q(bit_idx);
                 end if;
               end if;
 {% else if upper(fld.access) == "W0C" or upper(fld.access) == "W0CRS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '0' then
                   v_d(bit_idx) := '0';
                 end if;
               end if;
 {% else if upper(fld.access) == "W0S" or upper(fld.access) == "W0SRC" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '0' then
                   v_d(bit_idx) := '1';
                 end if;
               end if;
 {% else if upper(fld.access) == "W0T" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '0' then
                   v_d(bit_idx) := not reg_{{ lower(reg.name) }}_q(bit_idx);
                 end if;
               end if;
 {% else if upper(fld.access) == "WC" or upper(fld.access) == "WOC" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 v_d(bit_idx) := '0';
               end if;
 {% else if upper(fld.access) == "WS" or upper(fld.access) == "WOS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 v_d(bit_idx) := '1';
               end if;
 {% else if upper(fld.access) == "W1" or upper(fld.access) == "WO1" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if v_{{ lower(fld.name) }}_written = '0' then
                   v_d(bit_idx) := bus_wdata_i(bit_idx);
                   v_{{ lower(fld.name) }}_written := '1';
@@ -240,9 +328,13 @@ begin
         null;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RC" or upper(fld.access) == "WRC" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
-        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '0');
+        if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0' then
+          v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '0');
+        end if;
 {% else if upper(fld.access) == "RS" or upper(fld.access) == "WRS" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
-        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '1');
+        if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0' then
+          v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '1');
+        end if;
 {% endif %}
 {% endfor %}
       end if;
@@ -257,7 +349,17 @@ begin
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
       if hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = '1' then
-        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i;
+        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i;
+      end if;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+      v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) xor hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+      if hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i = '1' then
+        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := std_logic_vector(unsigned(reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }})) + 1);
+      end if;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+      if hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i = '1' then
+        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := std_logic_vector(unsigned(reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }})) - 1);
       end if;
 {% endif %}
 {% endfor %}
@@ -273,67 +375,77 @@ begin
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
       if hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i = '1' then
-        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i;
+        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i;
+      end if;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+      v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) xor hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+      if hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i = '1' then
+        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := std_logic_vector(unsigned(reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }})) + 1);
+      end if;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+      if hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i = '1' then
+        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := std_logic_vector(unsigned(reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }})) - 1);
       end if;
 {% endif %}
 {% endfor %}
 
-      if s_sw_{{ lower(reg.name) }}_wr_strobe = '1' then
+      if s_sw_{{ lower(reg.name) }}_wr_strobe = '1'{% if (existsIn(reg, "lock_wr") and reg.lock_wr != "") or (existsIn(reg, "lock_wr_expr_vhd") and reg.lock_wr_expr_vhd != "") %} and reg_{{ lower(reg.name) }}_wr_locked = '0'{% else if existsIn(reg, "lock_expr_vhd") and reg.lock_expr_vhd != "" %} and reg_{{ lower(reg.name) }}_locked = '0'{% endif %} then
         for b in 0 to STRB_WIDTH-1 loop
           if bus_wstrb_i(b) = '1' then
             for bit_idx in b*8 to (b+1)*8-1 loop
               null;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RW" or upper(fld.access) == "WO" or upper(fld.access) == "WRC" or upper(fld.access) == "WRS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 v_d(bit_idx) := bus_wdata_i(bit_idx);
               end if;
 {% else if upper(fld.access) == "W1C" or upper(fld.access) == "W1CRS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '1' then
                   v_d(bit_idx) := '0';
                 end if;
               end if;
 {% else if upper(fld.access) == "W1S" or upper(fld.access) == "W1SRC" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '1' then
                   v_d(bit_idx) := '1';
                 end if;
               end if;
 {% else if upper(fld.access) == "W1T" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '1' then
                   v_d(bit_idx) := not reg_{{ lower(reg.name) }}_q(bit_idx);
                 end if;
               end if;
 {% else if upper(fld.access) == "W0C" or upper(fld.access) == "W0CRS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '0' then
                   v_d(bit_idx) := '0';
                 end if;
               end if;
 {% else if upper(fld.access) == "W0S" or upper(fld.access) == "W0SRC" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '0' then
                   v_d(bit_idx) := '1';
                 end if;
               end if;
 {% else if upper(fld.access) == "W0T" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if bus_wdata_i(bit_idx) = '0' then
                   v_d(bit_idx) := not reg_{{ lower(reg.name) }}_q(bit_idx);
                 end if;
               end if;
 {% else if upper(fld.access) == "WC" or upper(fld.access) == "WOC" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 v_d(bit_idx) := '0';
               end if;
 {% else if upper(fld.access) == "WS" or upper(fld.access) == "WOS" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 v_d(bit_idx) := '1';
               end if;
 {% else if upper(fld.access) == "W1" or upper(fld.access) == "WO1" %}
-              if bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
+              if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_locked = '0' and bit_idx >= {{ fld.offset_lsb }} and bit_idx < ({{ fld.offset_lsb }} + {{ fld.size_width }}) then
                 if v_{{ lower(fld.name) }}_written = '0' then
                   v_d(bit_idx) := bus_wdata_i(bit_idx);
                   v_{{ lower(fld.name) }}_written := '1';
@@ -350,9 +462,13 @@ begin
         null;
 {% for fld in reg.fields %}
 {% if upper(fld.access) == "RC" or upper(fld.access) == "WRC" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}
-        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '0');
+        if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0' then
+          v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '0');
+        end if;
 {% else if upper(fld.access) == "RS" or upper(fld.access) == "WRS" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
-        v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '1');
+        if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '0' then
+          v_d({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) := (others => '1');
+        end if;
 {% endif %}
 {% endfor %}
       end if;
@@ -402,7 +518,7 @@ begin
 {% for reg in blk.registers %}
     reg_{{ lower(reg.name) }}_q,
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
 {% endif %}
 {% endfor %}
@@ -426,10 +542,22 @@ begin
         {% if loop.is_first %}if {% else %}elsif {% endif %}bus_addr_i = ADDR_{{ upper(reg.name) }} then
           bus_ready_o <= '1';
           if bus_rd_en_i = '1' then
+{% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
+            if reg_{{ lower(reg.name) }}_rd_locked = '1' then
+              bus_rdata_o <= (others => '0');
+            else
+{% endif %}
             null;
 {% for fld in reg.fields %}
+{% if (existsIn(fld, "lock_rd") and fld.lock_rd != "") or (existsIn(fld, "lock_rd_expr_vhd") and fld.lock_rd_expr_vhd != "") %}
+            if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '1' then
+              bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= (others => '0');
+            else
+{% endif %}
 {% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
             bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= std_logic_vector(to_unsigned({{ fld.reset_val }}, {{ fld.size_width }}));
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE" %}
+            bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "RO" %}
             bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" or upper(fld.access) == "WO1" or upper(fld.access) == "WOC" or upper(fld.access) == "WOS" or upper(fld.access) == "NOACCESS" %}
@@ -437,7 +565,13 @@ begin
 {% else %}
             bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }});
 {% endif %}
+{% if (existsIn(fld, "lock_rd") and fld.lock_rd != "") or (existsIn(fld, "lock_rd_expr_vhd") and fld.lock_rd_expr_vhd != "") %}
+            end if;
+{% endif %}
 {% endfor %}
+{% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
+            end if;
+{% endif %}
           end if;
 {% endfor %}
         else
@@ -455,10 +589,22 @@ begin
       {% if loop.is_first %}if {% else %}elsif {% endif %}bus_addr_i = ADDR_{{ upper(reg.name) }} then
         bus_ready_o <= '1';
         if bus_rd_en_i = '1' then
+{% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
+          if reg_{{ lower(reg.name) }}_rd_locked = '1' then
+            bus_rdata_o <= (others => '0');
+          else
+{% endif %}
           null;
 {% for fld in reg.fields %}
+{% if (existsIn(fld, "lock_rd") and fld.lock_rd != "") or (existsIn(fld, "lock_rd_expr_vhd") and fld.lock_rd_expr_vhd != "") %}
+          if reg_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_locked = '1' then
+            bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= (others => '0');
+          else
+{% endif %}
 {% if upper(fld.access) == "RO" and existsIn(fld, "hw_access") and upper(fld.hw_access) == "NA" %}
           bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= std_logic_vector(to_unsigned({{ fld.reset_val }}, {{ fld.size_width }}));
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE" %}
+          bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "RO" %}
           bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i;
 {% else if upper(fld.access) == "WO" or upper(fld.access) == "WO1" or upper(fld.access) == "WOC" or upper(fld.access) == "WOS" or upper(fld.access) == "NOACCESS" %}
@@ -466,7 +612,13 @@ begin
 {% else %}
           bus_rdata_o({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }}) <= reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }});
 {% endif %}
+{% if (existsIn(fld, "lock_rd") and fld.lock_rd != "") or (existsIn(fld, "lock_rd_expr_vhd") and fld.lock_rd_expr_vhd != "") %}
+          end if;
+{% endif %}
 {% endfor %}
+{% if (existsIn(reg, "lock_rd") and reg.lock_rd != "") or (existsIn(reg, "lock_rd_expr_vhd") and reg.lock_rd_expr_vhd != "") or (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_vhd") and blk.lock_rd_expr_vhd != "") %}
+          end if;
+{% endif %}
         end if;
 {% endfor %}
       else
@@ -481,7 +633,9 @@ begin
   -- Output Signal Assignments
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
-{% if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" %}
+{% if upper(fld.access) != "RO" and upper(fld.access) != "NOACCESS" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WIRE" and upper(fld.hw_access) != "WO")) %}
+  hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o <= reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }});
+{% else if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "W1T" or upper(fld.hw_access) == "INCR" or upper(fld.hw_access) == "DECR") %}
   hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o <= reg_{{ lower(reg.name) }}_q({{ fld.offset_lsb }} + {{ fld.size_width }} - 1 downto {{ fld.offset_lsb }});
 {% endif %}
 {% endfor %}

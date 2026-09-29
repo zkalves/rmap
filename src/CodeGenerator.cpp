@@ -6,12 +6,13 @@
  */
 
 #include "CodeGenerator.hpp"
-#include <set>
+#include "LockParser.hpp"
 #include <QDirIterator>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QTemporaryFile>
+#include <set>
 
 void CodeGenerator::registerHelpers(Environment &env) {
   // Helper: {{ to_hex(val, width) }}
@@ -232,6 +233,25 @@ void CodeGenerator::registerHelpers(Environment &env) {
   };
   env.add_callback("sv_hex", 1, sv_hex_fn);
   env.add_callback("sv_hex", 2, sv_hex_fn);
+
+  env.add_callback("sv_lock_expr", 1, [](Arguments &args) {
+    if (args.empty() || !args.at(0)->is_string())
+      return std::string("");
+    std::string s = args.at(0)->get<std::string>();
+    return LockParser::toSystemVerilog(QString::fromStdString(s)).toStdString();
+  });
+  env.add_callback("v_lock_expr", 1, [](Arguments &args) {
+    if (args.empty() || !args.at(0)->is_string())
+      return std::string("");
+    std::string s = args.at(0)->get<std::string>();
+    return LockParser::toVerilog(QString::fromStdString(s)).toStdString();
+  });
+  env.add_callback("vhd_lock_expr", 1, [](Arguments &args) {
+    if (args.empty() || !args.at(0)->is_string())
+      return std::string("");
+    std::string s = args.at(0)->get<std::string>();
+    return LockParser::toVhdl(QString::fromStdString(s)).toStdString();
+  });
 }
 
 std::string
@@ -431,7 +451,96 @@ GenerationReport CodeGenerator::generate(
     uint64_t regBytes = preparedJson.value("reg_width_bytes", 4ULL);
     if (regBytes == 0)
       regBytes = 4;
+    bool topHasLocks = false;
     for (auto &blk : *blksIt) {
+      std::set<std::string> blkLockSignals;
+      bool blkHasLocks = false;
+
+      // Check Block-level Lock
+      std::string blkRawLockWr;
+      std::string blkRawLockRd;
+      if (blk.contains("lock_wr") && blk["lock_wr"].is_string())
+        blkRawLockWr = blk["lock_wr"].get<std::string>();
+      else if (blk.contains("Write Lock") && blk["Write Lock"].is_string())
+        blkRawLockWr = blk["Write Lock"].get<std::string>();
+
+      if (blk.contains("lock_rd") && blk["lock_rd"].is_string())
+        blkRawLockRd = blk["lock_rd"].get<std::string>();
+      else if (blk.contains("Read Lock") && blk["Read Lock"].is_string())
+        blkRawLockRd = blk["Read Lock"].get<std::string>();
+
+      if (blk.contains("lock") && blk["lock"].is_string()) {
+        std::string rawLk = blk["lock"].get<std::string>();
+        ParsedLockResult parsed =
+            LockParser::parse(QString::fromStdString(rawLk));
+        if (parsed.valid) {
+          if (blkRawLockWr.empty() && parsed.hasWriteLock) {
+            blkRawLockWr = parsed.writeExpr.toStdString();
+          }
+          if (blkRawLockRd.empty() && parsed.hasReadLock) {
+            blkRawLockRd = parsed.readExpr.toStdString();
+          }
+        }
+        if (blkRawLockWr.empty() && blkRawLockRd.empty()) {
+          blkRawLockWr = rawLk;
+        }
+      }
+
+      if (!blkRawLockWr.empty()) {
+        ParsedLockResult lockRes =
+            LockParser::parse(QString::fromStdString(blkRawLockWr));
+        if (lockRes.valid) {
+          blk["lock_wr"] = lockRes.expression.toStdString();
+          blk["has_wr_lock"] = true;
+          blk["lock_wr_expr_sv"] =
+              LockParser::toSystemVerilog(QString::fromStdString(blkRawLockWr))
+                  .toStdString();
+          blk["lock_wr_expr_v"] =
+              LockParser::toVerilog(QString::fromStdString(blkRawLockWr))
+                  .toStdString();
+          blk["lock_wr_expr_vhd"] =
+              LockParser::toVhdl(QString::fromStdString(blkRawLockWr))
+                  .toStdString();
+          blk["lock_expr_sv"] = blk["lock_wr_expr_sv"];
+          blk["lock_expr_v"] = blk["lock_wr_expr_v"];
+          blk["lock_expr_vhd"] = blk["lock_wr_expr_vhd"];
+          blk["has_lock"] = true;
+          blkHasLocks = true;
+          topHasLocks = true;
+          for (const QString &sig : lockRes.externalSignals) {
+            blkLockSignals.insert(sig.toStdString());
+          }
+        }
+      }
+      if (!blkRawLockRd.empty()) {
+        ParsedLockResult lockRes =
+            LockParser::parse(QString::fromStdString(blkRawLockRd));
+        if (lockRes.valid) {
+          blk["lock_rd"] = lockRes.expression.toStdString();
+          blk["has_rd_lock"] = true;
+          blk["lock_rd_expr_sv"] =
+              LockParser::toSystemVerilog(QString::fromStdString(blkRawLockRd))
+                  .toStdString();
+          blk["lock_rd_expr_v"] =
+              LockParser::toVerilog(QString::fromStdString(blkRawLockRd))
+                  .toStdString();
+          blk["lock_rd_expr_vhd"] =
+              LockParser::toVhdl(QString::fromStdString(blkRawLockRd))
+                  .toStdString();
+          if (!blk.contains("has_wr_lock") || !blk["has_wr_lock"].get<bool>()) {
+            blk["lock_expr_sv"] = blk["lock_rd_expr_sv"];
+            blk["lock_expr_v"] = blk["lock_rd_expr_v"];
+            blk["lock_expr_vhd"] = blk["lock_rd_expr_vhd"];
+          }
+          blk["has_lock"] = true;
+          blkHasLocks = true;
+          topHasLocks = true;
+          for (const QString &sig : lockRes.externalSignals) {
+            blkLockSignals.insert(sig.toStdString());
+          }
+        }
+      }
+
       auto regsIt = blk.find("registers");
       if (regsIt != blk.end() && regsIt->is_array()) {
         uint64_t currentOffset = 0;
@@ -445,9 +554,200 @@ GenerationReport CodeGenerator::generate(
             r["pad_words_before"] = padWords;
           }
           currentOffset = r.value("offset_lsb", 0ULL) + regBytes;
+
+          // Check Register-level Lock
+          std::string rawLockWr;
+          std::string rawLockRd;
+          if (r.contains("lock_wr") && r["lock_wr"].is_string())
+            rawLockWr = r["lock_wr"].get<std::string>();
+          else if (r.contains("Write Lock") && r["Write Lock"].is_string())
+            rawLockWr = r["Write Lock"].get<std::string>();
+
+          if (r.contains("lock_rd") && r["lock_rd"].is_string())
+            rawLockRd = r["lock_rd"].get<std::string>();
+          else if (r.contains("Read Lock") && r["Read Lock"].is_string())
+            rawLockRd = r["Read Lock"].get<std::string>();
+
+          if (r.contains("lock") && r["lock"].is_string()) {
+            std::string rawLk = r["lock"].get<std::string>();
+            ParsedLockResult parsed =
+                LockParser::parse(QString::fromStdString(rawLk));
+            if (parsed.valid) {
+              if (rawLockWr.empty() && parsed.hasWriteLock) {
+                rawLockWr = parsed.writeExpr.toStdString();
+              }
+              if (rawLockRd.empty() && parsed.hasReadLock) {
+                rawLockRd = parsed.readExpr.toStdString();
+              }
+            }
+            if (rawLockWr.empty() && rawLockRd.empty()) {
+              rawLockWr = rawLk;
+            }
+          }
+
+          if (!rawLockWr.empty()) {
+            ParsedLockResult lockRes =
+                LockParser::parse(QString::fromStdString(rawLockWr));
+            if (lockRes.valid) {
+              r["lock_wr"] = lockRes.expression.toStdString();
+              r["has_wr_lock"] = true;
+              r["lock_wr_expr_sv"] =
+                  LockParser::toSystemVerilog(QString::fromStdString(rawLockWr))
+                      .toStdString();
+              r["lock_wr_expr_v"] =
+                  LockParser::toVerilog(QString::fromStdString(rawLockWr))
+                      .toStdString();
+              r["lock_wr_expr_vhd"] =
+                  LockParser::toVhdl(QString::fromStdString(rawLockWr))
+                      .toStdString();
+              r["lock_expr_sv"] = r["lock_wr_expr_sv"];
+              r["lock_expr_v"] = r["lock_wr_expr_v"];
+              r["lock_expr_vhd"] = r["lock_wr_expr_vhd"];
+              r["has_lock"] = true;
+              blkHasLocks = true;
+              topHasLocks = true;
+              for (const QString &sig : lockRes.externalSignals) {
+                blkLockSignals.insert(sig.toStdString());
+              }
+            }
+          }
+          if (!rawLockRd.empty()) {
+            ParsedLockResult lockRes =
+                LockParser::parse(QString::fromStdString(rawLockRd));
+            if (lockRes.valid) {
+              r["lock_rd"] = lockRes.expression.toStdString();
+              r["has_rd_lock"] = true;
+              r["lock_rd_expr_sv"] =
+                  LockParser::toSystemVerilog(QString::fromStdString(rawLockRd))
+                      .toStdString();
+              r["lock_rd_expr_v"] =
+                  LockParser::toVerilog(QString::fromStdString(rawLockRd))
+                      .toStdString();
+              r["lock_rd_expr_vhd"] =
+                  LockParser::toVhdl(QString::fromStdString(rawLockRd))
+                      .toStdString();
+              if (!r.contains("has_wr_lock") || !r["has_wr_lock"].get<bool>()) {
+                r["lock_expr_sv"] = r["lock_rd_expr_sv"];
+                r["lock_expr_v"] = r["lock_rd_expr_v"];
+                r["lock_expr_vhd"] = r["lock_rd_expr_vhd"];
+              }
+              r["has_lock"] = true;
+              blkHasLocks = true;
+              topHasLocks = true;
+              for (const QString &sig : lockRes.externalSignals) {
+                blkLockSignals.insert(sig.toStdString());
+              }
+            }
+          }
+
+          auto fldsIt = r.find("fields");
+          if (fldsIt != r.end() && fldsIt->is_array()) {
+            for (auto &fld : *fldsIt) {
+              if (!fld.contains("hw_access") || !fld["hw_access"].is_string() ||
+                  fld["hw_access"].get<std::string>().empty()) {
+                fld["hw_access"] = "RO";
+              }
+
+              // Check Field-level Lock
+              std::string fldRawLockWr;
+              std::string fldRawLockRd;
+              if (fld.contains("lock_wr") && fld["lock_wr"].is_string())
+                fldRawLockWr = fld["lock_wr"].get<std::string>();
+              else if (fld.contains("Write Lock") &&
+                       fld["Write Lock"].is_string())
+                fldRawLockWr = fld["Write Lock"].get<std::string>();
+
+              if (fld.contains("lock_rd") && fld["lock_rd"].is_string())
+                fldRawLockRd = fld["lock_rd"].get<std::string>();
+              else if (fld.contains("Read Lock") &&
+                       fld["Read Lock"].is_string())
+                fldRawLockRd = fld["Read Lock"].get<std::string>();
+
+              if (fld.contains("lock") && fld["lock"].is_string()) {
+                std::string rawLk = fld["lock"].get<std::string>();
+                ParsedLockResult parsed =
+                    LockParser::parse(QString::fromStdString(rawLk));
+                if (parsed.valid) {
+                  if (fldRawLockWr.empty() && parsed.hasWriteLock) {
+                    fldRawLockWr = parsed.writeExpr.toStdString();
+                  }
+                  if (fldRawLockRd.empty() && parsed.hasReadLock) {
+                    fldRawLockRd = parsed.readExpr.toStdString();
+                  }
+                }
+                if (fldRawLockWr.empty() && fldRawLockRd.empty()) {
+                  fldRawLockWr = rawLk;
+                }
+              }
+
+              if (!fldRawLockWr.empty()) {
+                ParsedLockResult lockRes =
+                    LockParser::parse(QString::fromStdString(fldRawLockWr));
+                if (lockRes.valid) {
+                  fld["lock_wr"] = lockRes.expression.toStdString();
+                  fld["has_wr_lock"] = true;
+                  fld["lock_wr_expr_sv"] =
+                      LockParser::toSystemVerilog(
+                          QString::fromStdString(fldRawLockWr))
+                          .toStdString();
+                  fld["lock_wr_expr_v"] =
+                      LockParser::toVerilog(
+                          QString::fromStdString(fldRawLockWr))
+                          .toStdString();
+                  fld["lock_wr_expr_vhd"] =
+                      LockParser::toVhdl(QString::fromStdString(fldRawLockWr))
+                          .toStdString();
+                  fld["lock_expr_sv"] = fld["lock_wr_expr_sv"];
+                  fld["lock_expr_v"] = fld["lock_wr_expr_v"];
+                  fld["lock_expr_vhd"] = fld["lock_wr_expr_vhd"];
+                  fld["has_lock"] = true;
+                  blkHasLocks = true;
+                  topHasLocks = true;
+                  for (const QString &sig : lockRes.externalSignals) {
+                    blkLockSignals.insert(sig.toStdString());
+                  }
+                }
+              }
+              if (!fldRawLockRd.empty()) {
+                ParsedLockResult lockRes =
+                    LockParser::parse(QString::fromStdString(fldRawLockRd));
+                if (lockRes.valid) {
+                  fld["lock_rd"] = lockRes.expression.toStdString();
+                  fld["has_rd_lock"] = true;
+                  fld["lock_rd_expr_sv"] =
+                      LockParser::toSystemVerilog(
+                          QString::fromStdString(fldRawLockRd))
+                          .toStdString();
+                  fld["lock_rd_expr_v"] =
+                      LockParser::toVerilog(
+                          QString::fromStdString(fldRawLockRd))
+                          .toStdString();
+                  fld["lock_rd_expr_vhd"] =
+                      LockParser::toVhdl(QString::fromStdString(fldRawLockRd))
+                          .toStdString();
+                  if (!fld.contains("has_wr_lock") ||
+                      !fld["has_wr_lock"].get<bool>()) {
+                    fld["lock_expr_sv"] = fld["lock_rd_expr_sv"];
+                    fld["lock_expr_v"] = fld["lock_rd_expr_v"];
+                    fld["lock_expr_vhd"] = fld["lock_rd_expr_vhd"];
+                  }
+                  fld["has_lock"] = true;
+                  blkHasLocks = true;
+                  topHasLocks = true;
+                  for (const QString &sig : lockRes.externalSignals) {
+                    blkLockSignals.insert(sig.toStdString());
+                  }
+                }
+              }
+            }
+          }
         }
       }
+      blk["lock_signals"] = std::vector<std::string>(blkLockSignals.begin(),
+                                                     blkLockSignals.end());
+      blk["has_locks"] = blkHasLocks;
     }
+    preparedJson["has_locks"] = topHasLocks;
   }
 
   preparedJson["features"] = extractFeatures(preparedJson);
@@ -943,10 +1243,13 @@ json CodeGenerator::extractFeatures(const json &rootJson) {
 
               std::string hwAcc = fld.value("hw_access", "RO");
               std::string uHwAcc = hwAcc;
-              std::transform(uHwAcc.begin(), uHwAcc.end(), uHwAcc.begin(), ::toupper);
+              std::transform(uHwAcc.begin(), uHwAcc.end(), uHwAcc.begin(),
+                             ::toupper);
               if (uHwAcc != "NA" && !uHwAcc.empty()) {
                 hasHwReadable = true;
-                if (uHwAcc == "WO" || uHwAcc == "RW" || uHwAcc == "W" || uAcc == "RO") {
+                if (uHwAcc == "WO" || uHwAcc == "RW" || uHwAcc == "W" ||
+                    uAcc == "RO" || uHwAcc == "WIRE" || uHwAcc == "W1T" ||
+                    uHwAcc == "INCR" || uHwAcc == "DECR") {
                   hasHwWritable = true;
                 }
               }
@@ -956,14 +1259,17 @@ json CodeGenerator::extractFeatures(const json &rootJson) {
               }
 
               if (uAcc == "W1C" || uAcc == "W0C" || uAcc == "RC" ||
-                  uAcc == "W1SRC" || uAcc == "W1CRS" || uAcc == "W0SRC" || uAcc == "W0CRS") {
+                  uAcc == "W1SRC" || uAcc == "W1CRS" || uAcc == "W0SRC" ||
+                  uAcc == "W0CRS") {
                 hasInterrupts = true;
               }
               std::string fldName = fld.value("name", "");
               std::string uName = fldName;
-              std::transform(uName.begin(), uName.end(), uName.begin(), ::toupper);
-              if (uName.find("IRQ") != std::string::npos || uName.find("INT_") != std::string::npos ||
-                  uName == "INT" || uName.find("_INT") != std::string::npos) {
+              std::transform(uName.begin(), uName.end(), uName.begin(),
+                             ::toupper);
+              if (uName.find("IRQ") != std::string::npos ||
+                  uName.find("INT_") != std::string::npos || uName == "INT" ||
+                  uName.find("_INT") != std::string::npos) {
                 hasInterrupts = true;
               }
             }
@@ -984,7 +1290,8 @@ json CodeGenerator::extractFeatures(const json &rootJson) {
   }
 
   auto topMemIt = rootJson.find("memories");
-  if (topMemIt != rootJson.end() && topMemIt->is_array() && !topMemIt->empty()) {
+  if (topMemIt != rootJson.end() && topMemIt->is_array() &&
+      !topMemIt->empty()) {
     hasMemories = true;
   }
 
@@ -1006,10 +1313,9 @@ json CodeGenerator::extractFeatures(const json &rootJson) {
   feat["access_policies_str"] = policiesStr;
 
   static const std::vector<std::string> standardPolicies = {
-      "rw", "ro", "wo", "w1c", "w1s", "w1t", "w0c", "rc", "rs",
-      "wc", "ws", "w1src", "w1crs", "w0src", "w0crs", "woc", "wos",
-      "w1", "wo1", "noaccess"
-  };
+      "rw",    "ro",  "wo",  "w1c", "w1s",   "w1t",     "w0c",
+      "rc",    "rs",  "wc",  "ws",  "w1src", "w1crs",   "w0src",
+      "w0crs", "woc", "wos", "w1",  "wo1",   "noaccess"};
   for (const auto &sp : standardPolicies) {
     std::string key = "has_" + sp;
     if (!feat.contains(key)) {
