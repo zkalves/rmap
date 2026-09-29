@@ -6,6 +6,7 @@
  */
 
 #include "CsvHandler.hpp"
+#include "../LockParser.hpp"
 #include "../RegConfigWindow.hpp"
 #include "../RegMapTreeItem.hpp"
 #include "../RegMapTreeModel.hpp"
@@ -241,8 +242,24 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       blkItem = blockMap[blkName];
     }
 
-    if (type == "blk")
+    if (type == "blk") {
+      if (!wrLock.isEmpty()) {
+        blkItem->setData("Write Lock", wrLock);
+        blkItem->setData("Lock", wrLock);
+      }
+      if (!rdLock.isEmpty()) {
+        blkItem->setData("Read Lock", rdLock);
+        if (wrLock.isEmpty()) {
+          blkItem->setData("Lock", LockParser::formatLockString(LockScope::Read,
+                                                                "", rdLock));
+        }
+      }
+      if (!wrLock.isEmpty() && !rdLock.isEmpty()) {
+        blkItem->setData("Lock", LockParser::formatLockString(
+                                     LockScope::Independent, wrLock, rdLock));
+      }
       continue;
+    }
 
     // Ensure Register exists
     QString regKey = blkName + "::" + regName;
@@ -352,6 +369,23 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model,
       continue;
 
     QString blkName = blk->data("Name").toString().trimmed();
+    QString blkOffset = blk->data("Offset/LSB").toString().trimmed();
+    QString blkDesc = blk->data("Description").toString().trimmed();
+    QString blkWrLock = blk->data("Write Lock").toString().trimmed();
+    QString blkRdLock = blk->data("Read Lock").toString().trimmed();
+    QString blkLegacyLock = blk->data("Lock").toString().trimmed();
+    if (blkWrLock.isEmpty() && !blkLegacyLock.isEmpty())
+      blkWrLock = blkLegacyLock;
+
+    if (!blkWrLock.isEmpty() || !blkRdLock.isEmpty()) {
+      QStringList blkRow = {"blk",   blkName, "",        "",        blkOffset,
+                            "",      "",      "",        "false",   "false",
+                            "false", blkDesc, blkWrLock, blkRdLock, blkWrLock};
+      for (int i = 0; i < blkRow.size(); ++i) {
+        out << escapeCsv(blkRow[i], delimiter)
+            << (i + 1 < blkRow.size() ? QChar(delimiter) : QChar('\n'));
+      }
+    }
 
     for (RegMapTreeItem *reg : blk->getChildItems()) {
       if (!reg || reg->kind() != RegMapTreeItem::e_rmmKind::reg)

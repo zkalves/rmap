@@ -3022,6 +3022,7 @@ void TestFormats::test_LockPropertyRoundtrip() {
   blkData["Size/Width"] = "0x1000";
   blkData["Name"] = "SEC_BLOCK";
   blkData["Description"] = "Security Block";
+  blkData["Lock"] = "[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i";
   auto *blkItem =
       new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem);
   rootItem->appendChild(blkItem);
@@ -3180,6 +3181,8 @@ void TestFormats::test_LockPropertyRoundtrip() {
                 .loadFile("work/test_formats/lock_test.json", &mLoad, &cLoad)
                 .success);
     auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->data("Lock").toString(),
+             QString("[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i"));
     QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
     QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
              QString("hw_sec_lock_i"));
@@ -3212,6 +3215,8 @@ void TestFormats::test_LockPropertyRoundtrip() {
                 .loadFile("work/test_formats/lock_test.rdl", &mLoad, &cLoad)
                 .success);
     auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->data("Lock").toString(),
+             QString("[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i"));
     QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
     QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
              QString("hw_sec_lock_i"));
@@ -3244,6 +3249,8 @@ void TestFormats::test_LockPropertyRoundtrip() {
                 .loadFile("work/test_formats/lock_test.xml", &mLoad, &cLoad)
                 .success);
     auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->data("Lock").toString(),
+             QString("[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i"));
     QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
     QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
              QString("hw_sec_lock_i"));
@@ -3276,6 +3283,8 @@ void TestFormats::test_LockPropertyRoundtrip() {
                 .loadFile("work/test_formats/lock_test.svd", &mLoad, &cLoad)
                 .success);
     auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->data("Lock").toString(),
+             QString("[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i"));
     QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
     QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
              QString("hw_sec_lock_i"));
@@ -3308,6 +3317,8 @@ void TestFormats::test_LockPropertyRoundtrip() {
                 .loadFile("work/test_formats/lock_test.csv", &mLoad, &cLoad)
                 .success);
     auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->data("Lock").toString(),
+             QString("[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i"));
     QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
     QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
              QString("hw_sec_lock_i"));
@@ -3340,6 +3351,8 @@ void TestFormats::test_LockPropertyRoundtrip() {
                 .loadFile("work/test_formats/lock_test.rmt", &mLoad, &cLoad)
                 .success);
     auto *r = mLoad.getRootItem()->child(0);
+    QCOMPARE(r->data("Lock").toString(),
+             QString("[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i"));
     QCOMPARE(r->child(0)->data("Lock").toString(), QString("hw_sec_lock_i"));
     QCOMPARE(r->child(0)->child(0)->data("Lock").toString(),
              QString("hw_sec_lock_i"));
