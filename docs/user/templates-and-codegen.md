@@ -103,6 +103,7 @@ The context passed to Inja templates provides rich hardware architecture and ver
 - **Root Attributes**:
   - `name`: Root register map identifier (defaults to `"regmap"` if unassigned).
   - `project_name` / `project_version`: User-configured project identification metadata.
+  - `project_vendor` / `project_library` / `project_description`: User-configured project metadata (vendor, library, and description) configured in the Project Metadata dialog and propagated across formats.
   - `reg_width` / `reg_width_bytes`: Global register data width in bits (e.g. 32, 64) and bytes.
   - `hw_precedence`: Boolean flag indicating whether hardware updates take priority over concurrent software writes.
   - `param_hw_precedence`: Integer parameter value (`1` = hardware over software, `0` = software over hardware) for synthesizable HDL generics.
@@ -395,6 +396,9 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
   - `{category}` / `{cat}`: Template category subfolder (e.g. `rtl`, `c`, `uvm`, `html`).
   - `{block_name}` / `{block}` / `{name}`: Lowercase register block or peripheral name (e.g. `spi_core`).
   - `{project_name}` / `{project}`: Project name defined in configuration.
+  - `{project_version}` / `{version}`: Project version defined in configuration.
+  - `{project_vendor}` / `{vendor}`: Project vendor defined in configuration.
+  - `{project_library}` / `{library}`: Project library defined in configuration.
   - `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl`).
   - `{template_name}` / `{filename}`: Base template name (e.g. `reg_map`, `reg_doc`).
   *(e.g., `{out}/{category}/{block_name}_regs.{ext}`).*
@@ -422,6 +426,7 @@ The Python script has full access to the exact same data model and variables ava
    - `name`: Register map / peripheral block name (e.g. `"spi"`).
    - `project_name`: Project name string from configuration.
    - `project_version`: Project version string.
+   - `project_vendor` / `project_library` / `project_description`: Project metadata strings.
    - `reg_width`: Register bit width (e.g. `32` or `64`).
    - `reg_width_bytes`: Register width in bytes (`reg_width / 8`).
    - `blocks`: Full list of register blocks with all registers, fields, memories, and CRC32 checksums.
