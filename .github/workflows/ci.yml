@@ -572,7 +572,7 @@ jobs:
         run: |
           docker run --rm rmap:local --version
           docker run --rm rmap:local --help
-          docker run --rm -v "$PWD/examples:/work/examples" rmap:local -f examples/rmt/peripherals/spi.rmt --export --out /tmp/export
+          docker run --rm -v "$PWD/examples:/work/examples" rmap:local -f examples/peripherals/spi/spi.rmt --export --out /tmp/export
 
       - name: Login to GitHub Container Registry (Main branch only)
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

@@ -23,17 +23,17 @@ private slots:
   void initTestCase() {
     QDir("work").removeRecursively();
     QDir("examples/work").removeRecursively();
-    QDir("examples/rmt/peripherals/work").removeRecursively();
-    QDir("examples/rmt/features/work").removeRecursively();
-    QDir("examples/rmt/validation/work").removeRecursively();
+    QDir("examples/peripherals/spi/work").removeRecursively();
+    QDir("examples/features/wide_bus_64bit/work").removeRecursively();
+    QDir("examples/features/strict_validation/work").removeRecursively();
     QDir().mkpath("work");
   }
   void cleanupTestCase() {
     QDir("work").removeRecursively();
     QDir("examples/work").removeRecursively();
-    QDir("examples/rmt/peripherals/work").removeRecursively();
-    QDir("examples/rmt/features/work").removeRecursively();
-    QDir("examples/rmt/validation/work").removeRecursively();
+    QDir("examples/peripherals/spi/work").removeRecursively();
+    QDir("examples/features/wide_bus_64bit/work").removeRecursively();
+    QDir("examples/features/strict_validation/work").removeRecursively();
   }
   void testHelperUpperAndLower();
   void testHelperToHexAndToDec();
@@ -2497,7 +2497,7 @@ void TestCodeGenerator::testCommandLineInterface() {
   QVERIFY(outVer.contains("rmap"));
 
   // 2b. Positional argument for register map file
-  auto [codePos, outPos] = runRmap({"examples/rmt/peripherals/spi.rmt", "-l"});
+  auto [codePos, outPos] = runRmap({"examples/peripherals/spi/spi.rmt", "-l"});
   QCOMPARE(codePos, 0);
 
   // 3. Headless mode auto-detection when neither DISPLAY nor WAYLAND_DISPLAY is
@@ -2507,15 +2507,15 @@ void TestCodeGenerator::testCommandLineInterface() {
     noDispEnv.remove("DISPLAY");
     noDispEnv.remove("WAYLAND_DISPLAY");
     auto [codeNoDisp, outNoDisp] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &noDispEnv);
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-l"}, &noDispEnv);
     QCOMPARE(codeNoDisp, 0);
   }
 
   // 4. Semantic diff CLI mode (-d)
   {
     auto [codeDiff, outDiff] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-                 "examples/rmt/peripherals/spi.rmt", "--report-format",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-d",
+                 "examples/peripherals/spi/spi.rmt", "--report-format",
                  "markdown", "-o", "work/cli_diff.md"});
     QCOMPARE(codeDiff, 0);
     QVERIFY(QFile::exists("work/cli_diff.md"));
@@ -2524,7 +2524,7 @@ void TestCodeGenerator::testCommandLineInterface() {
   // 5. Theme and Language options with lint (-t, --lang, -l)
   {
     auto [codeThemeLang, outThemeLang] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-t", "dracula",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-t", "dracula",
                  "--lang", "es", "-l"});
     QCOMPARE(codeThemeLang, 0);
   }
@@ -2532,21 +2532,21 @@ void TestCodeGenerator::testCommandLineInterface() {
   // 6. Strict linting mode (--strict)
   {
     auto [codeStrictFail, outStrictFail] = runRmap(
-        {"-f", "examples/rmt/features/wide_bus_64bit.rmt", "-l", "--strict"});
+        {"-f", "examples/features/wide_bus_64bit/wide_bus_64bit.rmt", "-l", "--strict"});
     QCOMPARE(codeStrictFail, 1);
   }
 
   // 7. Conversion mode (-c)
   {
     auto [codeConv, outConv] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/cli_conv.svd"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "-c", "work/cli_conv.svd"});
     QCOMPARE(codeConv, 0);
     QVERIFY(QFile::exists("work/cli_conv.svd"));
   }
 
   // 8. Headless export mode (-e, -o)
   {
-    auto [codeExp, outExp] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt",
+    auto [codeExp, outExp] = runRmap({"-f", "examples/peripherals/spi/spi.rmt",
                                       "-e", "-o", "work/cli_exp_dir"});
     QCOMPARE(codeExp, 0);
     QVERIFY(QDir("work/cli_exp_dir").exists());
@@ -2564,38 +2564,38 @@ void TestCodeGenerator::testCommandLineInterface() {
     QVERIFY(outV.contains("rmap"));
 
     auto [codeExpLong, outExpLong] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--export", "--out",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--export", "--out",
                  "work/cli_exp_long"});
     QCOMPARE(codeExpLong, 0);
 
     auto [codeConvLong, outConvLong] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--convert",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--convert",
                  "work/cli_conv_long.svd"});
     QCOMPARE(codeConvLong, 0);
 
     auto [codeLintLong, outLintLong] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--lint"});
     QCOMPARE(codeLintLong, 0);
 
     auto [codeDiffLong, outDiffLong] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "--diff",
-         "examples/rmt/peripherals/spi.rmt", "--report-format", "text"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "--diff",
+         "examples/peripherals/spi/spi.rmt", "--report-format", "text"});
     QCOMPARE(codeDiffLong, 0);
   }
 
   // 10. Alternative theme and language option flags (--theme, --colour-scheme,
   // --color-scheme, --language)
   {
-    auto [c1, o1] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt",
+    auto [c1, o1] = runRmap({"-f", "examples/peripherals/spi/spi.rmt",
                              "--theme", "nord", "--lint"});
     QCOMPARE(c1, 0);
 
-    auto [c2, o2] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt",
+    auto [c2, o2] = runRmap({"-f", "examples/peripherals/spi/spi.rmt",
                              "--colour-scheme", "solarized8_light", "--lint"});
     QCOMPARE(c2, 0);
 
     auto [c3, o3] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--color-scheme",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--color-scheme",
                  "monokai", "--language", "pt_BR", "--lint"});
     QCOMPARE(c3, 0);
   }
@@ -2603,7 +2603,7 @@ void TestCodeGenerator::testCommandLineInterface() {
   // 11. CLI error branches (diff failure, export failure without file)
   {
     auto [codeDiffFail, outDiffFail] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--diff",
                  "nonexistent_diff_file.rmt"});
     QCOMPARE(codeDiffFail, 1);
 
@@ -2617,7 +2617,7 @@ void TestCodeGenerator::testCommandLineInterface() {
     waylandEnv.remove("DISPLAY");
     waylandEnv.insert("WAYLAND_DISPLAY", "wayland-0");
     auto [codeWayland, outWayland] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &waylandEnv);
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-l"}, &waylandEnv);
     QCOMPARE(codeWayland, 0);
   }
 
@@ -2631,56 +2631,56 @@ void TestCodeGenerator::testCommandLineInterface() {
     QCOMPARE(codeVerLong, 0);
 
     auto [codeConvShort, outConvShort] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-c",
                  "work/cli_conv_short.svd"});
     QCOMPARE(codeConvShort, 0);
 
     auto [codeDiffShort, outDiffShort] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-                 "examples/rmt/peripherals/spi.rmt"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-d",
+                 "examples/peripherals/spi/spi.rmt"});
     QCOMPARE(codeDiffShort, 0);
 
     auto [codeLintStrict, outLintStrict] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "--lint", "--strict"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "--lint", "--strict"});
     QCOMPARE(codeLintStrict, 0);
 
     auto [codeLintJson, outLintJson] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--lint",
                  "--report-format", "json", "-o", "work/cli_lint.json"});
     QCOMPARE(codeLintJson, 0);
     QVERIFY(QFile::exists("work/cli_lint.json"));
 
     auto [codeLintSarif, outLintSarif] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--lint",
                  "--report-format", "sarif", "-o", "work/cli_lint.sarif"});
     QCOMPARE(codeLintSarif, 0);
     QVERIFY(QFile::exists("work/cli_lint.sarif"));
 
     auto [codeLintJunit, outLintJunit] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--lint",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--lint",
                  "--report-format", "junit", "-o", "work/cli_lint.junit"});
     QCOMPARE(codeLintJunit, 0);
     QVERIFY(QFile::exists("work/cli_lint.junit"));
 
     auto [codeDiffMd, outDiffMd] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-                 "examples/rmt/peripherals/spi.rmt", "--report-format",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-d",
+                 "examples/peripherals/spi/spi.rmt", "--report-format",
                  "markdown", "-o", "work/cli_diff.md"});
     QCOMPARE(codeDiffMd, 0);
     QVERIFY(QFile::exists("work/cli_diff.md"));
 
     auto [codeExpDefault, outExpDefault] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--export"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--export"});
     QCOMPARE(codeExpDefault, 0);
-    QDir("examples/rmt/peripherals/work").removeRecursively();
+    QDir("examples/peripherals/spi/work").removeRecursively();
 
     auto [codeLintFail, outLintFail] = runRmap(
-        {"-f", "examples/rmt/validation/invalid_overlap.rmt", "--lint"});
+        {"-f", "examples/features/strict_validation/invalid_overlap.rmt", "--lint"});
     QCOMPARE(codeLintFail, 1);
 
     // Language-only CLI option without theme (line 109-111 in main.cpp)
     auto [codeLangOnly, outLangOnly] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "--lang", "es", "-l"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "--lang", "es", "-l"});
     QCOMPARE(codeLangOnly, 0);
 
     // DISPLAY set and WAYLAND_DISPLAY set
@@ -2688,7 +2688,7 @@ void TestCodeGenerator::testCommandLineInterface() {
         QProcessEnvironment::systemEnvironment();
     dispWaylandEnv.insert("DISPLAY", ":99");
     dispWaylandEnv.insert("WAYLAND_DISPLAY", "wayland-0");
-    auto [cDW, oDW] = runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"},
+    auto [cDW, oDW] = runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-l"},
                               &dispWaylandEnv);
     QCOMPARE(cDW, 0);
 
@@ -2697,13 +2697,13 @@ void TestCodeGenerator::testCommandLineInterface() {
     dispOnlyEnv.insert("DISPLAY", ":99");
     dispOnlyEnv.remove("WAYLAND_DISPLAY");
     auto [cDO, oDO] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l"}, &dispOnlyEnv);
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-l"}, &dispOnlyEnv);
     QCOMPARE(cDO, 0);
 
     // Diff with different files
     auto [codeDiffDiff, outDiffDiff] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-                 "examples/rmt/peripherals/uart.rmt"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-d",
+                 "examples/peripherals/uart/uart.rmt"});
     QCOMPARE(codeDiffDiff, 0);
   }
 
@@ -2745,7 +2745,7 @@ void TestCodeGenerator::testCommandLineInterface() {
   // 15. CLI convert failure and export failure
   {
     auto [codeConvFail, outConvFail] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-c",
                  "/dev/null/cannot_write/out.svd"});
     QCOMPARE(codeConvFail, 1);
 
@@ -2757,38 +2757,38 @@ void TestCodeGenerator::testCommandLineInterface() {
   {
     // Conflicting actions
     auto [cExpLint, oExpLint] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "--export", "--lint"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "--export", "--lint"});
     QCOMPARE(cExpLint, 1);
     QVERIFY(oExpLint.contains("mutually exclusive"));
 
     auto [cConvExp, oConvExp] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/out.svd", "-e"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "-c", "work/out.svd", "-e"});
     QCOMPARE(cConvExp, 1);
     QVERIFY(oConvExp.contains("mutually exclusive"));
 
     auto [cDiffLint, oDiffLint] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-                 "examples/rmt/peripherals/spi.rmt", "-l"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-d",
+                 "examples/peripherals/spi/spi.rmt", "-l"});
     QCOMPARE(cDiffLint, 1);
     QVERIFY(oDiffLint.contains("mutually exclusive"));
 
     auto [cDiffConv, oDiffConv] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-                 "examples/rmt/peripherals/spi.rmt", "-c", "work/out.svd"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-d",
+                 "examples/peripherals/spi/spi.rmt", "-c", "work/out.svd"});
     QCOMPARE(cDiffConv, 1);
     QVERIFY(oDiffConv.contains("mutually exclusive"));
 
     // Conflicting input file options (-f and positional)
     auto [cFilePos, oFilePos] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt",
-                 "examples/rmt/peripherals/spi.rmt", "-l"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt",
+                 "examples/peripherals/spi/spi.rmt", "-l"});
     QCOMPARE(cFilePos, 1);
     QVERIFY(oFilePos.contains("Conflicting input files"));
 
     // Multiple positional arguments
     auto [cMultiPos, oMultiPos] =
-        runRmap({"examples/rmt/peripherals/spi.rmt",
-                 "examples/rmt/peripherals/uart.rmt", "-l"});
+        runRmap({"examples/peripherals/spi/spi.rmt",
+                 "examples/peripherals/uart/uart.rmt", "-l"});
     QCOMPARE(cMultiPos, 1);
     QVERIFY(oMultiPos.contains("Too many positional arguments"));
 
@@ -2808,64 +2808,64 @@ void TestCodeGenerator::testCommandLineInterface() {
         oConvNoFile.contains("--convert requires an input register map file"));
 
     auto [cDiffNoFile, oDiffNoFile] =
-        runRmap({"-d", "examples/rmt/peripherals/spi.rmt"});
+        runRmap({"-d", "examples/peripherals/spi/spi.rmt"});
     QCOMPARE(cDiffNoFile, 1);
     QVERIFY(oDiffNoFile.contains("--diff requires an input register map file"));
 
     // Empty --diff target argument
     auto [cEmptyDiff, oEmptyDiff] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff", ""});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--diff", ""});
     QCOMPARE(cEmptyDiff, 1);
     QVERIFY(oEmptyDiff.contains(
         "--diff requires a comparison target file argument"));
 
     // Empty --convert destination argument
     auto [cEmptyConv, oEmptyConv] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--convert", ""});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--convert", ""});
     QCOMPARE(cEmptyConv, 1);
     QVERIFY(
         oEmptyConv.contains("--convert requires a destination file argument"));
 
     // --strict compatibility
     auto [cStrictNoLint, oStrictNoLint] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--strict"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "--strict"});
     QCOMPARE(cStrictNoLint, 1);
     QVERIFY(oStrictNoLint.contains("--strict is only compatible with --lint"));
 
     auto [cStrictExp, oStrictExp] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-e", "--strict"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-e", "--strict"});
     QCOMPARE(cStrictExp, 1);
     QVERIFY(oStrictExp.contains("--strict is only compatible with --lint"));
 
     // --report-format compatibility
     auto [cFmtNoLintDiff, oFmtNoLintDiff] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "--report-format", "json"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "--report-format", "json"});
     QCOMPARE(cFmtNoLintDiff, 1);
     QVERIFY(oFmtNoLintDiff.contains(
         "--report-format is only compatible with --lint or --diff"));
 
     auto [cFmtLintBad, oFmtLintBad] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-l",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-l",
                  "--report-format", "markdown"});
     QCOMPARE(cFmtLintBad, 1);
     QVERIFY(
         oFmtLintBad.contains("Invalid --report-format 'markdown' for --lint"));
 
     auto [cFmtDiffBad, oFmtDiffBad] = runRmap(
-        {"-f", "examples/rmt/peripherals/spi.rmt", "-d",
-         "examples/rmt/peripherals/spi.rmt", "--report-format", "sarif"});
+        {"-f", "examples/peripherals/spi/spi.rmt", "-d",
+         "examples/peripherals/spi/spi.rmt", "--report-format", "sarif"});
     QCOMPARE(cFmtDiffBad, 1);
     QVERIFY(oFmtDiffBad.contains("Invalid --report-format 'sarif' for --diff"));
 
     // --out compatibility
     auto [cOutConv, oOutConv] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-c", "work/out.svd",
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-c", "work/out.svd",
                  "-o", "work/dir"});
     QCOMPARE(cOutConv, 1);
     QVERIFY(oOutConv.contains("--out is incompatible with --convert"));
 
     auto [cOutGui, oOutGui] =
-        runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "-o", "work/dir"});
+        runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-o", "work/dir"});
     QCOMPARE(cOutGui, 1);
     QVERIFY(oOutGui.contains("--out is only valid with headless operations"));
 

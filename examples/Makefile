@@ -14,39 +14,39 @@ ifneq ($(REPO_TEMPLATES),)
   export RMAP_TEMPLATES_DIR ?= $(abspath $(REPO_TEMPLATES))
 endif
 
-ENVIRONMENTS := $(wildcard environments/*)
+EXAMPLES := $(sort $(wildcard peripherals/*) $(wildcard features/*))
 
-.PHONY: all clean sim-uvm $(ENVIRONMENTS)
+.PHONY: all clean sim-uvm $(EXAMPLES)
 
 all:
 	@echo "=== Running Autonomous Simulation & Compilation Across All Examples ==="
-	@for env in $(ENVIRONMENTS); do \
-		if [ -d "$$env" ]; then \
+	@for ex in $(EXAMPLES); do \
+		if [ -d "$$ex" ]; then \
 			echo ""; \
 			echo "----------------------------------------------------------------"; \
-			echo "==> Running Example Environment: $$env"; \
+			echo "==> Running Example: $$ex"; \
 			echo "----------------------------------------------------------------"; \
-			$(MAKE) -C "$$env" all || exit 1; \
-			$(MAKE) -C "$$env" clean || exit 1; \
+			$(MAKE) -C "$$ex" all || exit 1; \
+			$(MAKE) -C "$$ex" clean || exit 1; \
 		fi; \
 	done
 	@echo ""
 	@echo "================================================================"
-	@echo "✓ All $(words $(ENVIRONMENTS)) example environments PASSED successfully!"
+	@echo "✓ All $(words $(EXAMPLES)) examples PASSED successfully!"
 	@echo "================================================================"
 
 sim-uvm:
 	@echo "=== Running UVM Verification Across Examples ==="
-	@for env in $(ENVIRONMENTS); do \
-		if [ -d "$$env" ]; then \
-			$(MAKE) -C "$$env" sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) || exit 1; \
+	@for ex in $(EXAMPLES); do \
+		if [ -d "$$ex" ]; then \
+			$(MAKE) -C "$$ex" sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) || exit 1; \
 		fi; \
 	done
 
 clean:
-	@for env in $(ENVIRONMENTS); do \
-		if [ -d "$$env" ]; then \
-			$(MAKE) -C "$$env" clean; \
+	@for ex in $(EXAMPLES); do \
+		if [ -d "$$ex" ]; then \
+			$(MAKE) -C "$$ex" clean; \
 		fi; \
 	done
 

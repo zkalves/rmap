@@ -75,7 +75,7 @@ make install PREFIX=$HOME/.local  # Custom user prefix
 
 ```bash
 ./build/bin/rmap                                      # Launch GUI
-./build/bin/rmap -f examples/rmt/peripherals/spi.rmt  # Open existing register map
+./build/bin/rmap -f examples/peripherals/spi/spi.rmt  # Open existing register map
 ```
 
 ### Headless CLI

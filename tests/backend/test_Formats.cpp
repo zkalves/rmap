@@ -65,7 +65,7 @@ void TestFormats::test_SystemRdlRead() {
 
   // Test reading atxmega_spi.rdl
   FormatResult res = FormatManager::instance().loadFile(
-      "examples/systemrdl/atxmega_spi.rdl", &model, &config);
+      "examples/features/format_conversion/atxmega_spi.rdl", &model, &config);
   QVERIFY2(res.success, qPrintable(res.errorMessage));
 
   RegMapTreeItem *root = model.getRootItem();
@@ -101,7 +101,7 @@ void TestFormats::test_SystemRdlWriteAndRoundtrip() {
   RegConfigWindow config1;
 
   FormatResult res1 = FormatManager::instance().loadFile(
-      "examples/systemrdl/atxmega_spi.rdl", &model1, &config1);
+      "examples/features/format_conversion/atxmega_spi.rdl", &model1, &config1);
   QVERIFY(res1.success);
 
   config1.setProjectDescription("SystemRDL SPI description");
@@ -135,7 +135,7 @@ void TestFormats::test_IpxactWriteAndRoundtrip() {
 
   // Load standard SPI protobuf map
   FormatResult res1 = FormatManager::instance().loadFile(
-      "examples/rmt/peripherals/spi.rmt", &model1, &config1);
+      "examples/peripherals/spi/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
   config1.setProjectName("SPI_Core");
@@ -175,7 +175,7 @@ void TestFormats::test_JsonWriteAndRoundtrip() {
   RegConfigWindow config1;
 
   FormatResult res1 = FormatManager::instance().loadFile(
-      "examples/rmt/peripherals/spi.rmt", &model1, &config1);
+      "examples/peripherals/spi/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
   config1.setProjectName("SPI_Json");
@@ -216,7 +216,7 @@ void TestFormats::test_CsvWriteAndRoundtrip() {
   RegConfigWindow config1;
 
   FormatResult res1 = FormatManager::instance().loadFile(
-      "examples/rmt/peripherals/spi.rmt", &model1, &config1);
+      "examples/peripherals/spi/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
   // Save as CSV
@@ -246,7 +246,7 @@ void TestFormats::test_CmsisSvdWriteAndRoundtrip() {
   RegConfigWindow config1;
 
   FormatResult res1 = FormatManager::instance().loadFile(
-      "examples/rmt/peripherals/spi.rmt", &model1, &config1);
+      "examples/peripherals/spi/spi.rmt", &model1, &config1);
   QVERIFY(res1.success);
 
   config1.setProjectName("SPI_Svd");
@@ -286,7 +286,7 @@ void TestFormats::test_CrossFormatConversion() {
   RegMapTreeModel m1;
   RegConfigWindow c1;
   QVERIFY(FormatManager::instance()
-              .loadFile("examples/rmt/peripherals/spi.rmt", &m1, &c1)
+              .loadFile("examples/peripherals/spi/spi.rmt", &m1, &c1)
               .success);
   QVERIFY(FormatManager::instance()
               .saveFile("work/test_formats/hop1.rdl", &m1, &c1)
@@ -349,7 +349,7 @@ void TestFormats::test_CmsisSvdRealWorldFile() {
   RegMapTreeModel model;
   RegConfigWindow config;
   FormatResult res = FormatManager::instance().loadFile(
-      "examples/svd/stm32_uart.svd", &model, &config);
+      "examples/features/format_conversion/stm32_uart.svd", &model, &config);
   QVERIFY2(res.success, qPrintable(res.errorMessage));
 
   RegMapTreeItem *root = model.getRootItem();
@@ -369,7 +369,7 @@ void TestFormats::test_IpxactRealWorldFile() {
   RegMapTreeModel model;
   RegConfigWindow config;
   FormatResult res = FormatManager::instance().loadFile(
-      "examples/ipxact/spi_ipxact.xml", &model, &config);
+      "examples/features/format_conversion/spi_ipxact.xml", &model, &config);
   QVERIFY2(res.success, qPrintable(res.errorMessage));
 
   RegMapTreeItem *root = model.getRootItem();
@@ -384,7 +384,7 @@ void TestFormats::test_JsonRealWorldFile() {
   RegMapTreeModel model;
   RegConfigWindow config;
   FormatResult res = FormatManager::instance().loadFile(
-      "examples/json/sensor_hub.json", &model, &config);
+      "examples/features/format_conversion/sensor_hub.json", &model, &config);
   QVERIFY2(res.success, qPrintable(res.errorMessage));
 
   RegMapTreeItem *root = model.getRootItem();
@@ -400,7 +400,7 @@ void TestFormats::test_CsvRealWorldFile() {
   RegMapTreeModel model;
   RegConfigWindow config;
   FormatResult res = FormatManager::instance().loadFile(
-      "examples/csv/dma_controller.csv", &model, &config);
+      "examples/features/format_conversion/dma_controller.csv", &model, &config);
   QVERIFY2(res.success, qPrintable(res.errorMessage));
 
   RegMapTreeItem *root = model.getRootItem();
@@ -417,7 +417,7 @@ void TestFormats::test_ProtobufBinaryRoundtrip() {
   RegMapTreeModel model1;
   RegConfigWindow config1;
   QVERIFY(FormatManager::instance()
-              .loadFile("examples/rmt/peripherals/spi.rmt", &model1, &config1)
+              .loadFile("examples/peripherals/spi/spi.rmt", &model1, &config1)
               .success);
 
   // Save as .rmb binary
@@ -442,7 +442,7 @@ void TestFormats::test_ComprehensiveMapRoundtrip() {
   RegMapTreeModel model1;
   RegConfigWindow config1;
   FormatResult loadRes = FormatManager::instance().loadFile(
-      "examples/rmt/features/comprehensive.rmt", &model1, &config1);
+      "examples/features/comprehensive/comprehensive.rmt", &model1, &config1);
   QVERIFY2(loadRes.success, qPrintable(loadRes.errorMessage));
 
   RegMapTreeItem *root = model1.getRootItem();
@@ -481,7 +481,7 @@ void TestFormats::test_WideBus64BitMapRoundtrip() {
   RegMapTreeModel model1;
   RegConfigWindow config1;
   FormatResult loadRes = FormatManager::instance().loadFile(
-      "examples/rmt/features/wide_bus_64bit.rmt", &model1, &config1);
+      "examples/features/wide_bus_64bit/wide_bus_64bit.rmt", &model1, &config1);
   QVERIFY2(loadRes.success, qPrintable(loadRes.errorMessage));
 
   RegMapTreeItem *root = model1.getRootItem();
@@ -2541,11 +2541,11 @@ void TestFormats::test_ProtobufExtendedSyntaxAndErrors() {
   QVERIFY(parseFailRmb.errorMessage.contains("Failed to parse Protobuf file"));
 
   // Read with null config, null model, and both null
-  QVERIFY(handler.read("examples/rmt/peripherals/spi.rmt", &model, nullptr)
+  QVERIFY(handler.read("examples/peripherals/spi/spi.rmt", &model, nullptr)
               .success);
-  QVERIFY(handler.read("examples/rmt/peripherals/spi.rmt", nullptr, &config)
+  QVERIFY(handler.read("examples/peripherals/spi/spi.rmt", nullptr, &config)
               .success);
-  QVERIFY(handler.read("examples/rmt/peripherals/spi.rmt", nullptr, nullptr)
+  QVERIFY(handler.read("examples/peripherals/spi/spi.rmt", nullptr, nullptr)
               .success);
 
   // Valid text .rmt write -> covers lines 104-107
