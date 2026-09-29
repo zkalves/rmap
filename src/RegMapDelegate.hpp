@@ -8,100 +8,135 @@
 #ifndef REGMAPDELEGATE_HPP
 #define REGMAPDELEGATE_HPP
 
-#include <QStyledItemDelegate>
+#include "ThemeManager.hpp"
+#include <QComboBox>
+#include <QEvent>
+#include <QLineEdit>
+#include <QMouseEvent>
+#include <QPainter>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QPainter>
-#include <QEvent>
-#include <QMouseEvent>
-#include "ThemeManager.hpp"
+#include <QStyledItemDelegate>
 
-class RegMapDelegate : public QStyledItemDelegate
-{
-    Q_OBJECT
+class RegMapDelegate : public QStyledItemDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegMapDelegate(QObject *parent = nullptr);
-    explicit RegMapDelegate(const QRegularExpression &regex, QObject *parent = nullptr);
-    ~RegMapDelegate() override = default;
+  explicit RegMapDelegate(QObject *parent = nullptr);
+  explicit RegMapDelegate(const QRegularExpression &regex,
+                          QObject *parent = nullptr);
+  ~RegMapDelegate() override = default;
 
-    QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+  QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                        const QModelIndex &index) const override;
+  void paint(QPainter *painter, const QStyleOptionViewItem &option,
+             const QModelIndex &index) const override;
 
 protected:
-    QRegularExpression m_regex;
+  QRegularExpression m_regex;
 };
 
-class RegHexDecBinDelegate : public RegMapDelegate
-{
-    Q_OBJECT
+class RegHexDecBinDelegate : public RegMapDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegHexDecBinDelegate(QObject *parent = nullptr);
+  explicit RegHexDecBinDelegate(QObject *parent = nullptr);
 };
 
-class RegIntDelegate : public RegMapDelegate
-{
-    Q_OBJECT
+class RegIntDelegate : public RegMapDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegIntDelegate(QObject *parent = nullptr);
+  explicit RegIntDelegate(QObject *parent = nullptr);
 };
 
-class RegStrDelegate : public RegMapDelegate
-{
-    Q_OBJECT
+class RegStrDelegate : public RegMapDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegStrDelegate(QObject *parent = nullptr);
+  explicit RegStrDelegate(QObject *parent = nullptr);
 };
 
 AccessColors getAccessPolicyColors(const QString &access, bool colorBlind);
 AccessColors getAccessPolicyColors(const QString &access, ColorBlindMode mode);
 
 // Delegate for UVM / SW Access Policies (RW, RO, WO, W1C, etc.)
-class RegAccessPolicyDelegate : public QStyledItemDelegate
-{
-    Q_OBJECT
+class RegAccessPolicyDelegate : public QStyledItemDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegAccessPolicyDelegate(QObject *parent = nullptr);
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
-    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
-    bool editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index) override;
+  explicit RegAccessPolicyDelegate(QObject *parent = nullptr);
+  QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                        const QModelIndex &index) const override;
+  void paint(QPainter *painter, const QStyleOptionViewItem &option,
+             const QModelIndex &index) const override;
+  void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+  void setModelData(QWidget *editor, QAbstractItemModel *model,
+                    const QModelIndex &index) const override;
+  bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                   const QStyleOptionViewItem &option,
+                   const QModelIndex &index) override;
 };
 
 using RegSwAccessDelegate = RegAccessPolicyDelegate;
 
 // Delegate for Hardware Access Policies (RO, RW, WO, NA, W1C, etc.)
-class RegHwAccessDelegate : public QStyledItemDelegate
-{
-    Q_OBJECT
+class RegHwAccessDelegate : public QStyledItemDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegHwAccessDelegate(QObject *parent = nullptr);
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
-    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
-    bool editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index) override;
+  explicit RegHwAccessDelegate(QObject *parent = nullptr);
+  QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                        const QModelIndex &index) const override;
+  void paint(QPainter *painter, const QStyleOptionViewItem &option,
+             const QModelIndex &index) const override;
+  void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+  void setModelData(QWidget *editor, QAbstractItemModel *model,
+                    const QModelIndex &index) const override;
+  bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                   const QStyleOptionViewItem &option,
+                   const QModelIndex &index) override;
 };
 
 // Delegate for Boolean properties (Is Rand, Volatile, Has Reset)
-class RegBoolDelegate : public QStyledItemDelegate
-{
-    Q_OBJECT
+class RegBoolDelegate : public QStyledItemDelegate {
+  Q_OBJECT
 
 public:
-    explicit RegBoolDelegate(QObject *parent = nullptr);
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
-    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
-    bool editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index) override;
+  explicit RegBoolDelegate(QObject *parent = nullptr);
+  QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                        const QModelIndex &index) const override;
+  void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+  void setModelData(QWidget *editor, QAbstractItemModel *model,
+                    const QModelIndex &index) const override;
+  bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                   const QStyleOptionViewItem &option,
+                   const QModelIndex &index) override;
+};
+
+class RegMapTreeModel;
+
+// Delegate for Software Write Locks (badge display, dropdown re-use, and
+// builder dialog)
+class RegLockDelegate : public QStyledItemDelegate {
+  Q_OBJECT
+
+public:
+  explicit RegLockDelegate(const RegMapTreeModel *model = nullptr,
+                           QObject *parent = nullptr);
+  QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                        const QModelIndex &index) const override;
+  void paint(QPainter *painter, const QStyleOptionViewItem &option,
+             const QModelIndex &index) const override;
+  void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+  void setModelData(QWidget *editor, QAbstractItemModel *model,
+                    const QModelIndex &index) const override;
+  bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                   const QStyleOptionViewItem &option,
+                   const QModelIndex &index) override;
+
+private:
+  const RegMapTreeModel *m_model;
 };
 
 #endif // REGMAPDELEGATE_HPP

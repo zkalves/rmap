@@ -44,7 +44,7 @@ module tb_top;
   logic sw_{{ lower(reg.name) }}_wr_strobe;
   logic sw_{{ lower(reg.name) }}_rd_strobe;
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in = '0;
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set = '0;
@@ -55,12 +55,21 @@ module tb_top;
 {% else if upper(fld.access) == "W1S" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr = '0;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
-{% else if upper(fld.access) != "RO" %}
+{% else if upper(fld.access) != "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WIRE" and upper(fld.hw_access) != "WO")) %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
   logic                            hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_in = '0;
-  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_in = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_in = '0;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_in = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+  logic                            hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_in = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+  logic                            hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_in = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;
 {% endif %}
 {% endfor %}
 {% endfor %}
@@ -89,7 +98,7 @@ module tb_top;
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe),
 {% for fld in reg.fields %}
-{% if upper(fld.access) == "RO" and (!existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA") %}
+{% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in),
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set),
@@ -100,12 +109,21 @@ module tb_top;
 {% else if upper(fld.access) == "W1S" %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_clr),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
-{% else if upper(fld.access) != "RO" %}
+{% else if upper(fld.access) != "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WIRE" and upper(fld.hw_access) != "WO")) %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
 {% endif %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i  (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_in),
-    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_in),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_i  (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wd_in),
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "W1T" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_i (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_tog_in),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "INCR" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_incr_in),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
+{% else if existsIn(fld, "hw_access") and upper(fld.hw_access) == "DECR" %}
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_in),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out),
 {% endif %}
 {% endfor %}
 {% endfor %}

@@ -8,13 +8,16 @@
 #ifndef SERIALIZABLE_HPP
 #define SERIALIZABLE_HPP
 
+#include <QVariantMap>
+
 class SerializationContext;
-class Serializable
-{
+class Serializable {
 public:
-    virtual ~Serializable() = default;
-    virtual void serialize( QVariantMap& data, SerializationContext* context ) const = 0;
-    virtual void deserialize( const QVariantMap& data, SerializationContext* context ) = 0;
+  virtual ~Serializable() = default;
+  virtual void serialize(QVariantMap &data,
+                         SerializationContext *context) const = 0;
+  virtual void deserialize(const QVariantMap &data,
+                           SerializationContext *context) = 0;
 };
 
 #endif

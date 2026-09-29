@@ -203,7 +203,8 @@ RegMapTreeItem *cloneTreeItem(const RegMapTreeItem *src,
   static const QVector<QString> cols = {
       "Type",        "Offset/LSB",    "Size/Width", "Name",     "SW Access",
       "HW Access",   "Reset Value",   "Is Rand",    "Volatile", "Has Reset",
-      "Description", "Access Policy", "Offset",     "Size"};
+      "Description", "Access Policy", "Offset",     "Size",     "Write Lock",
+      "Read Lock",   "Lock"};
   QVariantMap data;
   for (const QString &col : cols) {
     QVariant val = src->data(col);
@@ -277,12 +278,14 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
 
   QXmlStreamReader xml(&file);
 
-  QVector<QString> cols = {"Type",      "Offset/LSB", "Size/Width",  "Name",
-                           "SW Access", "HW Access",  "Reset Value", "Is Rand",
-                           "Volatile",  "Has Reset",  "Description"};
+  QVector<QString> cols = {
+      "Type",        "Offset/LSB",  "Size/Width", "Name",     "SW Access",
+      "HW Access",   "Reset Value", "Is Rand",    "Volatile", "Has Reset",
+      "Description", "Write Lock",  "Read Lock"};
   QVariantMap rootData;
   for (const QString &c : cols)
     rootData[c] = c;
+  rootData["Lock"] = "Write Lock";
   RegMapTreeItem *rootItem =
       new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
 
@@ -350,6 +353,20 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
       } else if (name == "description" && currentBlock && !currentReg &&
                  !currentField) {
         currentBlock->setData("Description", xml.readElementText());
+      } else if ((name == "lock_wr" || name == "rmap_lock_wr") &&
+                 currentBlock && !currentReg && !currentField) {
+        currentBlock->setData("Write Lock", xml.readElementText());
+        currentBlock->setData("Lock", currentBlock->data("Write Lock"));
+      } else if ((name == "lock_rd" || name == "rmap_lock_rd") &&
+                 currentBlock && !currentReg && !currentField) {
+        currentBlock->setData("Read Lock", xml.readElementText());
+      } else if ((name == "lock" || name == "rmap_lock") && currentBlock &&
+                 !currentReg && !currentField) {
+        QString lk = xml.readElementText();
+        currentBlock->setData("Lock", lk);
+        if (currentBlock->data("Write Lock").toString().isEmpty()) {
+          currentBlock->setData("Write Lock", lk);
+        }
       } else if (name == "register") {
         // Register container
         currentRegDim = 1;
@@ -409,6 +426,20 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
                             QString("0x%1").arg(parseSvdNum(rv), 0, 16));
       } else if (name == "description" && currentReg && !currentField) {
         currentReg->setData("Description", xml.readElementText());
+      } else if ((name == "lock_wr" || name == "rmap_lock_wr") && currentReg &&
+                 !currentField) {
+        currentReg->setData("Write Lock", xml.readElementText());
+        currentReg->setData("Lock", currentReg->data("Write Lock"));
+      } else if ((name == "lock_rd" || name == "rmap_lock_rd") && currentReg &&
+                 !currentField) {
+        currentReg->setData("Read Lock", xml.readElementText());
+      } else if ((name == "lock" || name == "rmap_lock") && currentReg &&
+                 !currentField) {
+        QString lk = xml.readElementText();
+        currentReg->setData("Lock", lk);
+        if (currentReg->data("Write Lock").toString().isEmpty()) {
+          currentReg->setData("Write Lock", lk);
+        }
       } else if (name == "field") {
         // Field container
         currentFieldAccess = currentRegAccess;
@@ -468,6 +499,19 @@ FormatResult CmsisSvdHandler::read(const QString &filepath,
                                             currentFieldReadAction));
       } else if (name == "description" && currentField) {
         currentField->setData("Description", xml.readElementText());
+      } else if ((name == "lock_wr" || name == "rmap_lock_wr") &&
+                 currentField) {
+        currentField->setData("Write Lock", xml.readElementText());
+        currentField->setData("Lock", currentField->data("Write Lock"));
+      } else if ((name == "lock_rd" || name == "rmap_lock_rd") &&
+                 currentField) {
+        currentField->setData("Read Lock", xml.readElementText());
+      } else if ((name == "lock" || name == "rmap_lock") && currentField) {
+        QString lk = xml.readElementText();
+        currentField->setData("Lock", lk);
+        if (currentField->data("Write Lock").toString().isEmpty()) {
+          currentField->setData("Write Lock", lk);
+        }
       }
     } else if (token == QXmlStreamReader::EndElement) {
       QString name = xml.name().toString();
@@ -651,6 +695,21 @@ FormatResult CmsisSvdHandler::write(const QString &filepath,
     xml.writeTextElement("description", blk->data("Description").toString());
     xml.writeTextElement("baseAddress", blk->data("Offset/LSB").toString());
 
+    QString blkWrLock = blk->data("Write Lock").toString().trimmed();
+    QString blkRdLock = blk->data("Read Lock").toString().trimmed();
+    QString blkLegacyLock = blk->data("Lock").toString().trimmed();
+    if (blkWrLock.isEmpty() && !blkLegacyLock.isEmpty())
+      blkWrLock = blkLegacyLock;
+    if (!blkWrLock.isEmpty() || !blkRdLock.isEmpty()) {
+      if (!blkWrLock.isEmpty()) {
+        xml.writeTextElement("rmap_lock_wr", blkWrLock);
+        xml.writeTextElement("rmap_lock", blkWrLock);
+      }
+      if (!blkRdLock.isEmpty()) {
+        xml.writeTextElement("rmap_lock_rd", blkRdLock);
+      }
+    }
+
     xml.writeStartElement("addressBlock");
     xml.writeTextElement("offset", "0x0");
     xml.writeTextElement("size", "0x1000");
@@ -703,9 +762,42 @@ FormatResult CmsisSvdHandler::write(const QString &filepath,
             if (!ra.isEmpty())
               xml.writeTextElement("readAction", ra);
           }
+          QString fldWrLock = fld->data("Write Lock").toString().trimmed();
+          QString fldRdLock = fld->data("Read Lock").toString().trimmed();
+          QString fldLegacyLock = fld->data("Lock").toString().trimmed();
+          if (fldWrLock.isEmpty() && !fldLegacyLock.isEmpty())
+            fldWrLock = fldLegacyLock;
+          if (!fldWrLock.isEmpty() || !fldRdLock.isEmpty()) {
+            xml.writeStartElement("vendorExtensions");
+            if (!fldWrLock.isEmpty()) {
+              xml.writeTextElement("rmap_lock_wr", fldWrLock);
+              xml.writeTextElement("rmap_lock", fldWrLock);
+            }
+            if (!fldRdLock.isEmpty()) {
+              xml.writeTextElement("rmap_lock_rd", fldRdLock);
+            }
+            xml.writeEndElement();
+          }
           xml.writeEndElement(); // field
         }
         xml.writeEndElement(); // fields
+      }
+
+      QString regWrLock = reg->data("Write Lock").toString().trimmed();
+      QString regRdLock = reg->data("Read Lock").toString().trimmed();
+      QString regLegacyLock = reg->data("Lock").toString().trimmed();
+      if (regWrLock.isEmpty() && !regLegacyLock.isEmpty())
+        regWrLock = regLegacyLock;
+      if (!regWrLock.isEmpty() || !regRdLock.isEmpty()) {
+        xml.writeStartElement("vendorExtensions");
+        if (!regWrLock.isEmpty()) {
+          xml.writeTextElement("rmap_lock_wr", regWrLock);
+          xml.writeTextElement("rmap_lock", regWrLock);
+        }
+        if (!regRdLock.isEmpty()) {
+          xml.writeTextElement("rmap_lock_rd", regRdLock);
+        }
+        xml.writeEndElement();
       }
 
       xml.writeEndElement(); // register

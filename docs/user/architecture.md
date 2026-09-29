@@ -91,12 +91,19 @@ During interactive editing and headless CLI verification (`--lint`), the validat
 
 ### Hardware Access Policies (HW)
 
-Defines the abstract behavioral contract between internal core hardware logic and the register storage:
+Defines the abstract behavioral contract between internal core hardware logic and register storage:
 - **`RO`**: Hardware logic continuously monitors/samples the current register field state.
-- **`RW`**: Hardware logic monitors the field and applies synchronous updates with a write-enable condition.
-- **`WO`**: Hardware logic drives updates directly into internal register storage.
-- **`W1C` / `W1S` / `W0C` / `RC` / `RS`**: Hardware logic drives event pulse triggers (set, clear, or toggle).
+- **`RW`**: Hardware logic monitors the field state and synchronously updates field storage when a hardware write enable is asserted with valid write data.
+- **`WO`**: Hardware logic synchronously updates field storage when a hardware write enable is asserted; hardware logic does not observe read state.
+- **`WIRE`**: Passthrough / live signal bypass. Zero flip-flops or storage elements are synthesized. Software bus reads sample the live external hardware input directly via the read multiplexer.
+- **`W1T`**: Hardware toggle on pulse. Hardware drives an active-high toggle pulse mask, flipping the bit state of marked bits in storage.
+- **`INCR`**: Hardware counter increment. When an active-high increment strobe is asserted, field storage increments by 1.
+- **`DECR`**: Hardware counter decrement. When an active-high decrement strobe is asserted, field storage decrements by 1.
+- **`W1C` / `W1S` / `W0C` / `RC` / `RS`**: Hardware logic drives pulse triggers (set, clear, or toggle).
 - **`NA`**: Hardware core logic has no interface to the field (software-only register).
+
+> [!NOTE]
+> Concrete HDL port signatures, naming conventions, and bus protocol adapters (such as hardware write enables, write data, live sampling, pulse toggles, and counter increment/decrement strobes) are defined by and customized within individual code generation templates. See [templates-and-codegen.md](templates-and-codegen.md).
 
 ### Hardware vs. Software Arbitration Precedence
 
@@ -104,11 +111,84 @@ When software bus transactions and internal hardware logic attempt concurrent wr
 - **Hardware Precedence (Default)**: Internal hardware updates take priority over concurrent software writes, preserving real-time safety guarantees and preventing dropped hardware status events.
 - **Software Precedence**: Software writes take priority over internal hardware updates during concurrent access.
 
+### Dynamic Software Locks (`SW_LOCK`)
+
+In security-critical and safety-critical SoC designs, specific registers or fields must be protected from unauthorized software access unless hardware-controlled locking signals or runtime register conditions are satisfied.
+
+**rmap** provides an integrated **Dynamic Software Lock** mechanism supporting fully independent write locks and read locks:
+
+#### Independent Lock Dimensions (Write Lock & Read Lock)
+Locks are independently configured for software writes and software reads:
+- **Write Lock (`lock_wr`)**: When the write lock condition evaluates true, software bus writes to the register or field are blocked. Storage flip-flop state is preserved unchanged, and software write event strobes are suppressed. Software reads remain unaffected unless a read lock is also specified.
+- **Read Lock (`lock_rd`)**: When the read lock condition evaluates true, software bus reads from the register or field are blocked. Read data returns all zeros (preventing unauthorized observation of sensitive cryptographic keys, hardware seeds, or secure configuration), and software read event strobes are suppressed. Software writes remain unaffected unless a write lock is also specified.
+- **Simultaneous / Dual Protection**: Both write and read locks may be active simultaneously, governed either by identical conditions or by distinct, independently configured logic expressions.
+
+#### 3-Level Hierarchical Software Locking (Block, Register, Field)
+Software read and write locks can be defined hierarchically across all three tiers of the peripheral model:
+1. **Block Level**: A block-level lock gates all registers and bitfields contained within the peripheral block.
+2. **Register Level**: A register-level lock gates all bitfields within the target register.
+3. **Field Level**: A field-level lock selectively gates individual bit-slice updates and read data zeroing for protected fields, while keeping sibling fields within the same register fully accessible.
+
+**Hierarchical Composition Rule**:
+The effective lock condition for any bitfield is the logical disjunction (OR) of its field lock, parent register lock, and ancestor block lock:
+- `eff_wr_locked(field) = blk_wr_locked || reg_wr_locked || fld_wr_locked`
+- `eff_rd_locked(field) = blk_rd_locked || reg_rd_locked || fld_rd_locked`
+
+Under this hierarchy:
+- If a block is locked, every register and field in the block is locked.
+- If a register is locked, every field in that register is locked.
+- If an individual field is locked, only that field is protected; neighboring fields remain writable or readable according to their own permissions.
+- Software event strobes are generated per-register and per-field, and are suppressed whenever the corresponding hierarchical lock evaluates true.
+
+#### Language-Agnostic Expression Syntax & Operators
+To maintain complete architectural independence between the core data model and HDL target deliverables, lock expressions in the data model and interchange formats are strictly language-agnostic logic expressions comprising:
+- **External Hardware Input Signals**: Signals from core logic, external pins, or security controllers (e.g. `sec_lock`, `debug_unlocked`, `pin_strapping_lock`).
+- **Internal Register Bitfields**: References to fields in the same or other registers using dot notation (e.g. `SYS_CTRL.LOCK`, `SECURITY.DEBUG_KEY`).
+- **Literals**: Standard binary and integer constants (`1'b0`, `1'b1`, `0`, `1`).
+- **Supported Operators**:
+  - Logical AND: `&&`, `and`, `AND`
+  - Logical OR: `||`, `or`, `OR`
+  - Bitwise XOR: `^`, `xor`, `XOR`
+  - Logical NOT / Inversion: `!`, `not`, `NOT`, `~`
+  - Equality / Inequality: `==`, `!=`, `/=`
+  - Grouping Parentheses: `( ... )`
+
+#### Target HDL Conversion via Template Callbacks
+The core data model and serialization handlers never embed target HDL signal naming or syntax. Instead, code generation templates dynamically convert agnostic lock expressions into target HDL constructs using built-in Inja helper callbacks:
+- `sv_lock_expr(expr)`: Emits synthesizable SystemVerilog logic expressions with indexed vector slices.
+- `v_lock_expr(expr)`: Emits synthesizable Verilog-2001 logic expressions.
+- `vhd_lock_expr(expr)`: Emits synthesizable VHDL boolean expressions with `std_logic` conversions (`'1'`).
+
+#### Backwards Compatibility & Legacy Scope Tags
+For backward compatibility with earlier project files, combined expressions with scope tags (`[w]`, `[r]`, `[rw]`, `[w] <expr1>; [r] <expr2>`) are automatically parsed upon load and decomposed into independent `lock_wr` and `lock_rd` model attributes.
+
+#### External Signal Deduplication Invariant
+When multiple registers or fields reference the same external hardware lock input signal (for example, multiple control registers all governed by an external lock input), **rmap** automatically recognizes the re-use and declares **exactly one** top-level input port declaration on block boundaries in code generation templates. This guarantees zero redundant port declarations across SystemVerilog, Verilog 2001, and VHDL.
+
+#### Hardware Strobe & Access Gating Semantics
+When a register or field evaluates as locked:
+1. **Software Write Protection**: When write-locked, software write pulse strobes are suppressed low, and software write data is blocked from mutating internal storage.
+2. **Software Read Protection**: When read-locked, software read pulse strobes are suppressed low, and bus read multiplexers return all zeros for the locked bit positions.
+3. **Hardware Logic Independence**: Core hardware updates continue to function according to the configured hardware access policy (`RW`, `WO`, `INCR`, `DECR`, `W1T`), unaffected by software lock state.
+4. **Formal Verification (SVA)**: Invariant assertions mathematically verify in simulation and formal model checking that software writes cannot alter write-locked registers, and software reads return zero when read-locked.
+
+#### Lossless Multi-Format Interoperability
+Independent write and read lock expressions are preserved with 100% roundtrip fidelity across all supported formats:
+
+| Format | Representation | Specification / Standard |
+| :--- | :--- | :--- |
+| **JSON** | `"lock_wr": "<expr>"`, `"lock_rd": "<expr>"` (with fallback `"lock"`) | Standard rmap JSON schema. |
+| **SystemRDL 2.0** | `rmap_lock_wr = "<expr>";`<br>`rmap_lock_rd = "<expr>";` | Accellera SystemRDL 2.0 user-defined properties (`rmap_lock_wr`, `rmap_lock_rd`). |
+| **IP-XACT** | `<rmap:lock_wr><expr></rmap:lock_wr>`<br>`<rmap:lock_rd><expr></rmap:lock_rd>` | IEEE 1685 qualified with `xmlns:rmap="https://github.com/zkalves/rmap"`. |
+| **ARM CMSIS-SVD** | `<rmap_lock_wr><expr></rmap_lock_wr>`<br>`<rmap_lock_rd><expr></rmap_lock_rd>` | ARM CMSIS-SVD vendor extension nodes. |
+| **CSV** | Columns 11 & 12: `Write Lock`, `Read Lock` | RFC 4180 spreadsheet columns. |
+| **Google Protobuf** | Item metadata string map (`"Write Lock"`, `"Read Lock"`) | Native `.rmt` / `.rmb` schema. |
+
 ### Core Data Model vs. Template-Specific Implementations
 
 **rmap** strictly decouples its core architectural data model from target-specific code generation artifacts:
-- **Tool Architecture & Data Model**: Defines address offsets, bitfield layouts, standard access policies (IEEE 1800.2), hardware access semantics, reset values, and arbitration rules in a target-agnostic manner.
-- **Template-Specific Implementations**: Concrete HDL signal naming conventions (e.g. `clk_i`, `rst_ni`, `hw_*_i`, `hw_*_o`), byte write strobes (`wstrb_i`), software read/write access pulse strobes (`sw_*_wr_strobe_o`, `sw_*_rd_strobe_o`), bus protocol slave wrappers (APB4, AXI4-Lite), SVA assertions, C struct layouts, and UVM adapter classes are defined by and customized within individual code generation templates.
+- **Tool Architecture & Data Model**: Defines address offsets, bitfield layouts, standard access policies (IEEE 1800.2), hardware access semantics, reset values, arbitration rules, and agnostic lock expressions in a target-agnostic manner.
+- **Template-Specific Implementations**: Concrete HDL signal naming conventions (e.g. clock, reset, hardware ports), byte write strobes, software read/write access pulse strobes, bus protocol slave wrappers (APB4, AXI4-Lite), SVA assertions, C struct layouts, and UVM adapter classes are defined by and customized within individual code generation templates.
 - For detailed signal specifications, protocol handshakes, and timing waveforms of individual deliverables, see the [Template Deliverable Catalog & Specifications](@ref templates_codegen).
 
 ---

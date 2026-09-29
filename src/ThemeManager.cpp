@@ -123,6 +123,12 @@ AccessKind parseAccessKind(QStringView a) {
     return AccessKind::W1C;
   if (a == u"W0CRS")
     return AccessKind::W1C;
+  if (a == u"WIRE")
+    return AccessKind::RO;
+  if (a == u"INCR")
+    return AccessKind::RW;
+  if (a == u"DECR")
+    return AccessKind::RW;
   if (a == u"NOACCESS")
     return AccessKind::NA;
   if (a == u"NA")

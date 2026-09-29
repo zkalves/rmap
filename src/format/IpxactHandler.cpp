@@ -6,332 +6,512 @@
  */
 
 #include "IpxactHandler.hpp"
+#include "../RegConfigWindow.hpp"
+#include "../RegMapTreeItem.hpp"
+#include "../RegMapTreeModel.hpp"
+#include <QDebug>
 #include <QFile>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
-#include <QDebug>
-#include "../RegMapTreeModel.hpp"
-#include "../RegMapTreeItem.hpp"
-#include "../RegConfigWindow.hpp"
 
-QString IpxactHandler::formatName() const { return QStringLiteral("IP-XACT (IEEE 1685)"); }
-QStringList IpxactHandler::supportedExtensions() const { return {QStringLiteral("xml"), QStringLiteral("ipxact")}; }
-QString IpxactHandler::fileFilter() const { return QStringLiteral("IP-XACT IEEE 1685 (*.xml *.ipxact)"); }
+QString IpxactHandler::formatName() const {
+  return QStringLiteral("IP-XACT (IEEE 1685)");
+}
+QStringList IpxactHandler::supportedExtensions() const {
+  return {QStringLiteral("xml"), QStringLiteral("ipxact")};
+}
+QString IpxactHandler::fileFilter() const {
+  return QStringLiteral("IP-XACT IEEE 1685 (*.xml *.ipxact)");
+}
 
 namespace {
 
 QString ipxactAccessToUvm(const QString &acc) {
-    QString a = acc.toLower().trimmed();
-    if (a == "read-write" || a == "rw") return "RW";
-    if (a == "read-only" || a == "ro" || a == "r") return "RO";
-    if (a == "write-only" || a == "wo" || a == "w") return "WO";
-    if (a == "read-writeonce" || a == "w1c") return "W1C";
-    if (a == "w1s") return "W1S";
-    if (a == "w1t") return "W1T";
-    if (a == "w0c") return "W0C";
-    if (a == "w0s") return "W0S";
-    if (a == "w0t") return "W0T";
-    if (a == "rc") return "RC";
-    if (a == "rs") return "RS";
-    if (a == "wrc") return "WRC";
-    if (a == "wrs") return "WRS";
-    if (a == "wc") return "WC";
-    if (a == "ws") return "WS";
-    if (a == "w1src") return "W1SRC";
-    if (a == "w1crs") return "W1CRS";
-    if (a == "w0src") return "W0SRC";
-    if (a == "w0crs") return "W0CRS";
-    if (a == "w1") return "W1";
-    if (a == "wo1") return "WO1";
-    if (a == "woc") return "WOC";
-    if (a == "wos") return "WOS";
-    if (a == "noaccess" || a == "na") return "NOACCESS";
+  QString a = acc.toLower().trimmed();
+  if (a == "read-write" || a == "rw")
     return "RW";
+  if (a == "read-only" || a == "ro" || a == "r")
+    return "RO";
+  if (a == "write-only" || a == "wo" || a == "w")
+    return "WO";
+  if (a == "read-writeonce" || a == "w1c")
+    return "W1C";
+  if (a == "w1s")
+    return "W1S";
+  if (a == "w1t")
+    return "W1T";
+  if (a == "w0c")
+    return "W0C";
+  if (a == "w0s")
+    return "W0S";
+  if (a == "w0t")
+    return "W0T";
+  if (a == "rc")
+    return "RC";
+  if (a == "rs")
+    return "RS";
+  if (a == "wrc")
+    return "WRC";
+  if (a == "wrs")
+    return "WRS";
+  if (a == "wc")
+    return "WC";
+  if (a == "ws")
+    return "WS";
+  if (a == "w1src")
+    return "W1SRC";
+  if (a == "w1crs")
+    return "W1CRS";
+  if (a == "w0src")
+    return "W0SRC";
+  if (a == "w0crs")
+    return "W0CRS";
+  if (a == "w1")
+    return "W1";
+  if (a == "wo1")
+    return "WO1";
+  if (a == "woc")
+    return "WOC";
+  if (a == "wos")
+    return "WOS";
+  if (a == "noaccess" || a == "na")
+    return "NOACCESS";
+  return "RW";
 }
 
 QString uvmAccessToIpxact(const QString &acc) {
-    QString a = acc.toUpper().trimmed();
-    if (a == "RO") return "read-only";
-    if (a == "WO" || a == "WO1" || a == "WOC" || a == "WOS") return "write-only";
-    if (a == "W1" || a == "W1C" || a == "W0C") return "read-writeOnce";
-    if (a == "NOACCESS") return "read-only";
-    return "read-write";
+  QString a = acc.toUpper().trimmed();
+  if (a == "RO")
+    return "read-only";
+  if (a == "WO" || a == "WO1" || a == "WOC" || a == "WOS")
+    return "write-only";
+  if (a == "W1" || a == "W1C" || a == "W0C")
+    return "read-writeOnce";
+  if (a == "NOACCESS")
+    return "read-only";
+  return "read-write";
 }
 
 uint64_t parseXmlNum(const QString &str) {
-    QString s = str.trimmed().toLower();
-    if (s.startsWith("0x")) return s.mid(2).toULongLong(nullptr, 16);
-    if (s.startsWith("'h")) return s.mid(2).toULongLong(nullptr, 16);
-    if (s.startsWith("0b")) return s.mid(2).toULongLong(nullptr, 2);
-    return s.toULongLong(nullptr, 10);
+  QString s = str.trimmed().toLower();
+  if (s.startsWith("0x"))
+    return s.mid(2).toULongLong(nullptr, 16);
+  if (s.startsWith("'h"))
+    return s.mid(2).toULongLong(nullptr, 16);
+  if (s.startsWith("0b"))
+    return s.mid(2).toULongLong(nullptr, 2);
+  return s.toULongLong(nullptr, 10);
 }
 
 } // anonymous namespace
 
-FormatResult IpxactHandler::read(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
-{
-    FormatResult result;
-    QFile file(filepath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        result.success = false;
-        result.errorMessage = QString("Cannot open IP-XACT file: %1").arg(file.errorString());
-        return result;
-    }
+FormatResult IpxactHandler::read(const QString &filepath,
+                                 RegMapTreeModel *model,
+                                 RegConfigWindow *config) {
+  FormatResult result;
+  QFile file(filepath);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    result.success = false;
+    result.errorMessage =
+        QString("Cannot open IP-XACT file: %1").arg(file.errorString());
+    return result;
+  }
 
-    QXmlStreamReader xml(&file);
+  QXmlStreamReader xml(&file);
 
-    QVector<QString> cols = {"Type", "Offset/LSB", "Size/Width", "Name", "SW Access", "HW Access", "Reset Value", "Is Rand", "Volatile", "Has Reset", "Description"};
-    QVariantMap rootData;
-    for (const QString &c : cols) rootData[c] = c;
-    RegMapTreeItem *rootItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+  QVector<QString> cols = {
+      "Type",        "Offset/LSB",  "Size/Width", "Name",     "SW Access",
+      "HW Access",   "Reset Value", "Is Rand",    "Volatile", "Has Reset",
+      "Description", "Write Lock",  "Read Lock"};
+  QVariantMap rootData;
+  for (const QString &c : cols)
+    rootData[c] = c;
+  rootData["Lock"] = "Write Lock";
+  RegMapTreeItem *rootItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
 
-    RegMapTreeItem *currentBlock = nullptr;
-    RegMapTreeItem *currentReg = nullptr;
+  RegMapTreeItem *currentBlock = nullptr;
+  RegMapTreeItem *currentReg = nullptr;
 
-    QString projectName = "IPXACT_Component";
-    uint32_t globalWidth = 32;
+  QString projectName = "IPXACT_Component";
+  uint32_t globalWidth = 32;
 
-    while (!xml.atEnd() && !xml.hasError()) {
-        QXmlStreamReader::TokenType token = xml.readNext();
-        if (token == QXmlStreamReader::StartElement) {
-            QString name = xml.name().toString();
+  while (!xml.atEnd() && !xml.hasError()) {
+    QXmlStreamReader::TokenType token = xml.readNext();
+    if (token == QXmlStreamReader::StartElement) {
+      QString name = xml.name().toString();
 
-            if (name == "component") {
-                // Outer component
-            } else if (name == "name" && !currentBlock && !currentReg) {
-                projectName = xml.readElementText();
-            } else if (name == "addressBlock") {
-                // Block container
-                QVariantMap blkData;
-                blkData["Type"] = "blk";
-                blkData["Offset/LSB"] = "0x0";
-                blkData["Name"] = "ADDR_BLOCK";
-                blkData["Description"] = "";
-                currentBlock = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem);
-                rootItem->appendChild(currentBlock);
-            } else if (name == "name" && currentBlock && !currentReg) {
-                currentBlock->setData("Name", xml.readElementText());
-            } else if (name == "baseAddress" && currentBlock && !currentReg) {
-                QString addr = xml.readElementText();
-                currentBlock->setData("Offset/LSB", QString("0x%1").arg(parseXmlNum(addr), 0, 16));
-            } else if (name == "register") {
-                // Register container
-                QVariantMap regData;
-                regData["Type"] = "reg";
-                regData["Offset/LSB"] = "0x0";
-                regData["Size/Width"] = QString::number(globalWidth);
-                regData["Name"] = "REG";
-                regData["SW Access"] = "RW";
-                regData["HW Access"] = "RO";
-                regData["Reset Value"] = "0x0";
-                regData["Description"] = "";
-                currentReg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, currentBlock ? currentBlock : rootItem);
-                if (currentBlock) currentBlock->appendChild(currentReg);
-                else rootItem->appendChild(currentReg);
-            } else if (name == "name" && currentReg) {
-                currentReg->setData("Name", xml.readElementText());
-            } else if (name == "addressOffset" && currentReg) {
-                QString offset = xml.readElementText();
-                currentReg->setData("Offset/LSB", QString("0x%1").arg(parseXmlNum(offset), 0, 16));
-            } else if (name == "size" && currentReg) {
-                QString sizeStr = xml.readElementText();
-                uint32_t sz = parseXmlNum(sizeStr);
-                if (sz > 0) {
-                    globalWidth = sz;
-                    currentReg->setData("Size/Width", QString::number(sz));
-                }
-            } else if (name == "description" && currentReg) {
-                currentReg->setData("Description", xml.readElementText());
-            } else if (name == "field") {
-                // Field container inside register
-                QString fldName = "FIELD";
-                QString fldDesc;
-                uint32_t bitOffset = 0;
-                uint32_t bitWidth = 1;
-                QString access = "RW";
-                uint64_t resetVal = 0;
-                bool hasReset = false;
-
-                while (!xml.atEnd()) {
-                    xml.readNext();
-                    if (xml.isEndElement() && xml.name().toString() == "field") {
-                        break;
-                    }
-                    if (xml.isStartElement()) {
-                        QString sub = xml.name().toString();
-                        if (sub == "name") fldName = xml.readElementText();
-                        else if (sub == "description") fldDesc = xml.readElementText();
-                        else if (sub == "bitOffset") bitOffset = parseXmlNum(xml.readElementText());
-                        else if (sub == "bitWidth") bitWidth = parseXmlNum(xml.readElementText());
-                        else if (sub == "access") access = ipxactAccessToUvm(xml.readElementText());
-                        else if (sub == "value") {
-                            resetVal = parseXmlNum(xml.readElementText());
-                            hasReset = true;
-                        }
-                    }
-                }
-
-                if (currentReg) {
-                    QVariantMap fldData;
-                    fldData["Type"] = "fld";
-                    fldData["Offset/LSB"] = QString::number(bitOffset);
-                    fldData["Size/Width"] = QString::number(bitWidth);
-                    fldData["Name"] = fldName;
-                    fldData["SW Access"] = access;
-                    fldData["HW Access"] = (access == "RO") ? "WO" : "RO";
-                    fldData["Reset Value"] = QString("0x%1").arg(resetVal, 0, 16);
-                    fldData["Is Rand"] = "true";
-                    fldData["Volatile"] = "false";
-                    fldData["Has Reset"] = hasReset ? "true" : "false";
-                    fldData["Description"] = fldDesc;
-                    RegMapTreeItem *fldItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData, currentReg);
-                    currentReg->appendChild(fldItem);
-                }
-            }
-        } else if (token == QXmlStreamReader::EndElement) {
-            QString name = xml.name().toString();
-            if (name == "register") {
-                currentReg = nullptr;
-            } else if (name == "addressBlock") {
-                currentBlock = nullptr;
-            }
-        }
-    }
-
-    if (xml.hasError()) {
-        delete rootItem;
-        result.success = false;
-        result.errorMessage = QString("XML Parse error: %1 (line %2)").arg(xml.errorString()).arg(xml.lineNumber());
-        return result;
-    }
-
-    file.close();
-
-    // If no blocks were created, ensure at least one default block wrapper exists
-    if (rootItem->childCount() == 0) {
+      if (name == "component") {
+        // Outer component
+      } else if (name == "name" && !currentBlock && !currentReg) {
+        projectName = xml.readElementText();
+      } else if (name == "addressBlock") {
+        // Block container
         QVariantMap blkData;
         blkData["Type"] = "blk";
         blkData["Offset/LSB"] = "0x0";
-        blkData["Name"] = projectName;
-        rootItem->appendChild(new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem));
-    }
+        blkData["Name"] = "ADDR_BLOCK";
+        blkData["Description"] = "";
+        currentBlock = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk,
+                                          blkData, rootItem);
+        rootItem->appendChild(currentBlock);
+      } else if (name == "name" && currentBlock && !currentReg) {
+        currentBlock->setData("Name", xml.readElementText());
+      } else if (name == "baseAddress" && currentBlock && !currentReg) {
+        QString addr = xml.readElementText();
+        currentBlock->setData("Offset/LSB",
+                              QString("0x%1").arg(parseXmlNum(addr), 0, 16));
+      } else if (name == "description" && currentBlock && !currentReg) {
+        currentBlock->setData("Description", xml.readElementText());
+      } else if ((name == "lock_wr" || name == "rmap_lock_wr") &&
+                 currentBlock && !currentReg) {
+        currentBlock->setData("Write Lock", xml.readElementText());
+        currentBlock->setData("Lock", currentBlock->data("Write Lock"));
+      } else if ((name == "lock_rd" || name == "rmap_lock_rd") &&
+                 currentBlock && !currentReg) {
+        currentBlock->setData("Read Lock", xml.readElementText());
+      } else if ((name == "lock" || name == "rmap_lock") && currentBlock &&
+                 !currentReg) {
+        QString lk = xml.readElementText();
+        currentBlock->setData("Lock", lk);
+        if (currentBlock->data("Write Lock").toString().isEmpty()) {
+          currentBlock->setData("Write Lock", lk);
+        }
+      } else if (name == "register") {
+        // Register container
+        QVariantMap regData;
+        regData["Type"] = "reg";
+        regData["Offset/LSB"] = "0x0";
+        regData["Size/Width"] = QString::number(globalWidth);
+        regData["Name"] = "REG";
+        regData["SW Access"] = "RW";
+        regData["HW Access"] = "RO";
+        regData["Reset Value"] = "0x0";
+        regData["Description"] = "";
+        currentReg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData,
+                                        currentBlock ? currentBlock : rootItem);
+        if (currentBlock)
+          currentBlock->appendChild(currentReg);
+        else
+          rootItem->appendChild(currentReg);
+      } else if (name == "name" && currentReg) {
+        currentReg->setData("Name", xml.readElementText());
+      } else if (name == "addressOffset" && currentReg) {
+        QString offset = xml.readElementText();
+        currentReg->setData("Offset/LSB",
+                            QString("0x%1").arg(parseXmlNum(offset), 0, 16));
+      } else if (name == "size" && currentReg) {
+        QString sizeStr = xml.readElementText();
+        uint32_t sz = parseXmlNum(sizeStr);
+        if (sz > 0) {
+          globalWidth = sz;
+          currentReg->setData("Size/Width", QString::number(sz));
+        }
+      } else if (name == "description" && currentReg) {
+        currentReg->setData("Description", xml.readElementText());
+      } else if ((name == "lock_wr" || name == "rmap_lock_wr") && currentReg) {
+        currentReg->setData("Write Lock", xml.readElementText());
+        currentReg->setData("Lock", currentReg->data("Write Lock"));
+      } else if ((name == "lock_rd" || name == "rmap_lock_rd") && currentReg) {
+        currentReg->setData("Read Lock", xml.readElementText());
+      } else if ((name == "lock" || name == "rmap_lock") && currentReg) {
+        QString lk = xml.readElementText();
+        currentReg->setData("Lock", lk);
+        if (currentReg->data("Write Lock").toString().isEmpty()) {
+          currentReg->setData("Write Lock", lk);
+        }
+      } else if (name == "field") {
+        // Field container inside register
+        QString fldName = "FIELD";
+        QString fldDesc;
+        QString fldWrLock;
+        QString fldRdLock;
+        QString fldLegacyLock;
+        uint32_t bitOffset = 0;
+        uint32_t bitWidth = 1;
+        QString access = "RW";
+        uint64_t resetVal = 0;
+        bool hasReset = false;
 
-    if (config) {
-        config->setProjectName(projectName);
-        config->setRegisterWidth(globalWidth);
-    }
+        while (!xml.atEnd()) {
+          xml.readNext();
+          if (xml.isEndElement() && xml.name().toString() == "field") {
+            break;
+          }
+          if (xml.isStartElement()) {
+            QString sub = xml.name().toString();
+            if (sub == "name")
+              fldName = xml.readElementText();
+            else if (sub == "description")
+              fldDesc = xml.readElementText();
+            else if (sub == "lock_wr" || sub == "rmap_lock_wr")
+              fldWrLock = xml.readElementText();
+            else if (sub == "lock_rd" || sub == "rmap_lock_rd")
+              fldRdLock = xml.readElementText();
+            else if (sub == "lock" || sub == "rmap_lock")
+              fldLegacyLock = xml.readElementText();
+            else if (sub == "bitOffset")
+              bitOffset = parseXmlNum(xml.readElementText());
+            else if (sub == "bitWidth")
+              bitWidth = parseXmlNum(xml.readElementText());
+            else if (sub == "access")
+              access = ipxactAccessToUvm(xml.readElementText());
+            else if (sub == "value") {
+              resetVal = parseXmlNum(xml.readElementText());
+              hasReset = true;
+            }
+          }
+        }
 
-    if (model) {
-        model->setRootItem(rootItem);
+        if (currentReg) {
+          QVariantMap fldData;
+          fldData["Type"] = "fld";
+          fldData["Offset/LSB"] = QString::number(bitOffset);
+          fldData["Size/Width"] = QString::number(bitWidth);
+          fldData["Name"] = fldName;
+          fldData["SW Access"] = access;
+          fldData["HW Access"] = (access == "RO") ? "WO" : "RO";
+          fldData["Reset Value"] = QString("0x%1").arg(resetVal, 0, 16);
+          fldData["Is Rand"] = "true";
+          fldData["Volatile"] = "false";
+          fldData["Has Reset"] = hasReset ? "true" : "false";
+          fldData["Description"] = fldDesc;
+          if (!fldWrLock.isEmpty()) {
+            fldData["Write Lock"] = fldWrLock;
+            fldData["Lock"] = fldWrLock;
+          } else if (!fldLegacyLock.isEmpty()) {
+            fldData["Write Lock"] = fldLegacyLock;
+            fldData["Lock"] = fldLegacyLock;
+          }
+          if (!fldRdLock.isEmpty()) {
+            fldData["Read Lock"] = fldRdLock;
+          }
+          RegMapTreeItem *fldItem = new RegMapTreeItem(
+              RegMapTreeItem::e_rmmKind::fld, fldData, currentReg);
+          currentReg->appendChild(fldItem);
+        }
+      }
+    } else if (token == QXmlStreamReader::EndElement) {
+      QString name = xml.name().toString();
+      if (name == "register") {
+        currentReg = nullptr;
+      } else if (name == "addressBlock") {
+        currentBlock = nullptr;
+      }
     }
+  }
 
-    result.success = true;
+  if (xml.hasError()) {
+    delete rootItem;
+    result.success = false;
+    result.errorMessage = QString("XML Parse error: %1 (line %2)")
+                              .arg(xml.errorString())
+                              .arg(xml.lineNumber());
     return result;
+  }
+
+  file.close();
+
+  // If no blocks were created, ensure at least one default block wrapper exists
+  if (rootItem->childCount() == 0) {
+    QVariantMap blkData;
+    blkData["Type"] = "blk";
+    blkData["Offset/LSB"] = "0x0";
+    blkData["Name"] = projectName;
+    rootItem->appendChild(
+        new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem));
+  }
+
+  if (config) {
+    config->setProjectName(projectName);
+    config->setRegisterWidth(globalWidth);
+  }
+
+  if (model) {
+    model->setRootItem(rootItem);
+  }
+
+  result.success = true;
+  return result;
 }
 
-FormatResult IpxactHandler::write(const QString &filepath, RegMapTreeModel *model, RegConfigWindow *config)
-{
-    FormatResult result;
-    if (!model || !model->getRootItem()) {
-        result.success = false;
-        result.errorMessage = "No register map model available to export.";
-        return result;
-    }
-
-    QFile file(filepath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        result.success = false;
-        result.errorMessage = QString("Cannot write to IP-XACT file: %1").arg(file.errorString());
-        return result;
-    }
-
-    uint32_t regWidth = 32;
-    QString projName = "chip_map";
-    QString projVer = "1.0";
-    if (config) {
-        protormap::Config *cfg = config->serialize();
-        if (cfg) {
-            if (cfg->reg_width() > 0) regWidth = cfg->reg_width();
-            if (!cfg->project_name().empty()) projName = QString::fromStdString(cfg->project_name());
-            if (!cfg->project_version().empty()) projVer = QString::fromStdString(cfg->project_version());
-            delete cfg;
-        }
-    }
-
-    QXmlStreamWriter xml(&file);
-    xml.setAutoFormatting(true);
-    xml.writeStartDocument();
-
-    xml.writeStartElement("ipxact:component");
-    xml.writeAttribute("xmlns:ipxact", "https://www.accellera.org/XMLSchema/IPXACT/1685-2014");
-    xml.writeAttribute("xmlns:xsi", "https://www.w3.org/2001/XMLSchema-instance");
-
-    xml.writeTextElement("ipxact:vendor", "rmap");
-    xml.writeTextElement("ipxact:library", "components");
-    xml.writeTextElement("ipxact:name", projName);
-    xml.writeTextElement("ipxact:version", projVer);
-
-    xml.writeStartElement("ipxact:memoryMaps");
-    xml.writeStartElement("ipxact:memoryMap");
-    xml.writeTextElement("ipxact:name", "default_memory_map");
-
-    RegMapTreeItem *root = model->getRootItem();
-    for (RegMapTreeItem *blk : root->getChildItems()) {
-        if (!blk || blk->kind() != RegMapTreeItem::e_rmmKind::blk) continue;
-
-        xml.writeStartElement("ipxact:addressBlock");
-        xml.writeTextElement("ipxact:name", blk->data("Name").toString().trimmed());
-        xml.writeTextElement("ipxact:baseAddress", blk->data("Offset/LSB").toString().trimmed());
-        xml.writeTextElement("ipxact:range", "0x1000");
-        xml.writeTextElement("ipxact:width", QString::number(regWidth));
-
-        for (RegMapTreeItem *reg : blk->getChildItems()) {
-            if (!reg || reg->kind() != RegMapTreeItem::e_rmmKind::reg) continue;
-
-            xml.writeStartElement("ipxact:register");
-            xml.writeTextElement("ipxact:name", reg->data("Name").toString().trimmed());
-            if (!reg->data("Description").toString().trimmed().isEmpty()) {
-                xml.writeTextElement("ipxact:description", reg->data("Description").toString().trimmed());
-            }
-            xml.writeTextElement("ipxact:addressOffset", reg->data("Offset/LSB").toString().trimmed());
-            xml.writeTextElement("ipxact:size", QString::number(regWidth));
-
-            for (RegMapTreeItem *fld : reg->getChildItems()) {
-                if (!fld || fld->kind() != RegMapTreeItem::e_rmmKind::fld) continue;
-
-                xml.writeStartElement("ipxact:field");
-                xml.writeTextElement("ipxact:name", fld->data("Name").toString().trimmed());
-                if (!fld->data("Description").toString().trimmed().isEmpty()) {
-                    xml.writeTextElement("ipxact:description", fld->data("Description").toString().trimmed());
-                }
-                xml.writeTextElement("ipxact:bitOffset", fld->data("Offset/LSB").toString().trimmed());
-                xml.writeTextElement("ipxact:bitWidth", fld->data("Size/Width").toString().trimmed());
-                xml.writeTextElement("ipxact:access", uvmAccessToIpxact(fld->data("SW Access").toString().trimmed()));
-
-                if (fld->data("Has Reset").toString().toLower() == "true") {
-                    xml.writeStartElement("ipxact:resets");
-                    xml.writeStartElement("ipxact:reset");
-                    xml.writeTextElement("ipxact:value", fld->data("Reset Value").toString().trimmed());
-                    xml.writeEndElement(); // ipxact:reset
-                    xml.writeEndElement(); // ipxact:resets
-                }
-
-                xml.writeEndElement(); // ipxact:field
-            }
-
-            xml.writeEndElement(); // ipxact:register
-        }
-
-        xml.writeEndElement(); // ipxact:addressBlock
-    }
-
-    xml.writeEndElement(); // ipxact:memoryMap
-    xml.writeEndElement(); // ipxact:memoryMaps
-    xml.writeEndElement(); // ipxact:component
-
-    xml.writeEndDocument();
-    file.close();
-
-    result.success = true;
+FormatResult IpxactHandler::write(const QString &filepath,
+                                  RegMapTreeModel *model,
+                                  RegConfigWindow *config) {
+  FormatResult result;
+  if (!model || !model->getRootItem()) {
+    result.success = false;
+    result.errorMessage = "No register map model available to export.";
     return result;
+  }
+
+  QFile file(filepath);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    result.success = false;
+    result.errorMessage =
+        QString("Cannot write to IP-XACT file: %1").arg(file.errorString());
+    return result;
+  }
+
+  uint32_t regWidth = 32;
+  QString projName = "chip_map";
+  QString projVer = "1.0";
+  if (config) {
+    protormap::Config *cfg = config->serialize();
+    if (cfg) {
+      if (cfg->reg_width() > 0)
+        regWidth = cfg->reg_width();
+      if (!cfg->project_name().empty())
+        projName = QString::fromStdString(cfg->project_name());
+      if (!cfg->project_version().empty())
+        projVer = QString::fromStdString(cfg->project_version());
+      delete cfg;
+    }
+  }
+
+  QXmlStreamWriter xml(&file);
+  xml.setAutoFormatting(true);
+  xml.writeStartDocument();
+
+  xml.writeStartElement("ipxact:component");
+  xml.writeAttribute("xmlns:ipxact",
+                     "https://www.accellera.org/XMLSchema/IPXACT/1685-2014");
+  xml.writeAttribute("xmlns:xsi", "https://www.w3.org/2001/XMLSchema-instance");
+  xml.writeAttribute("xmlns:rmap", "https://github.com/zkalves/rmap");
+
+  xml.writeTextElement("ipxact:vendor", "rmap");
+  xml.writeTextElement("ipxact:library", "components");
+  xml.writeTextElement("ipxact:name", projName);
+  xml.writeTextElement("ipxact:version", projVer);
+
+  xml.writeStartElement("ipxact:memoryMaps");
+  xml.writeStartElement("ipxact:memoryMap");
+  xml.writeTextElement("ipxact:name", "default_memory_map");
+
+  RegMapTreeItem *root = model->getRootItem();
+  for (RegMapTreeItem *blk : root->getChildItems()) {
+    if (!blk || blk->kind() != RegMapTreeItem::e_rmmKind::blk)
+      continue;
+
+    xml.writeStartElement("ipxact:addressBlock");
+    xml.writeTextElement("ipxact:name", blk->data("Name").toString().trimmed());
+    xml.writeTextElement("ipxact:baseAddress",
+                         blk->data("Offset/LSB").toString().trimmed());
+    xml.writeTextElement("ipxact:range", "0x1000");
+    xml.writeTextElement("ipxact:width", QString::number(regWidth));
+
+    for (RegMapTreeItem *reg : blk->getChildItems()) {
+      if (!reg || reg->kind() != RegMapTreeItem::e_rmmKind::reg)
+        continue;
+
+      xml.writeStartElement("ipxact:register");
+      xml.writeTextElement("ipxact:name",
+                           reg->data("Name").toString().trimmed());
+      if (!reg->data("Description").toString().trimmed().isEmpty()) {
+        xml.writeTextElement("ipxact:description",
+                             reg->data("Description").toString().trimmed());
+      }
+      xml.writeTextElement("ipxact:addressOffset",
+                           reg->data("Offset/LSB").toString().trimmed());
+      xml.writeTextElement("ipxact:size", QString::number(regWidth));
+
+      for (RegMapTreeItem *fld : reg->getChildItems()) {
+        if (!fld || fld->kind() != RegMapTreeItem::e_rmmKind::fld)
+          continue;
+
+        xml.writeStartElement("ipxact:field");
+        xml.writeTextElement("ipxact:name",
+                             fld->data("Name").toString().trimmed());
+        if (!fld->data("Description").toString().trimmed().isEmpty()) {
+          xml.writeTextElement("ipxact:description",
+                               fld->data("Description").toString().trimmed());
+        }
+        xml.writeTextElement("ipxact:bitOffset",
+                             fld->data("Offset/LSB").toString().trimmed());
+        xml.writeTextElement("ipxact:bitWidth",
+                             fld->data("Size/Width").toString().trimmed());
+        xml.writeTextElement(
+            "ipxact:access",
+            uvmAccessToIpxact(fld->data("SW Access").toString().trimmed()));
+
+        if (fld->data("Has Reset").toString().toLower() == "true") {
+          xml.writeStartElement("ipxact:resets");
+          xml.writeStartElement("ipxact:reset");
+          xml.writeTextElement("ipxact:value",
+                               fld->data("Reset Value").toString().trimmed());
+          xml.writeEndElement(); // ipxact:reset
+          xml.writeEndElement(); // ipxact:resets
+        }
+
+        QString fldWrLock = fld->data("Write Lock").toString().trimmed();
+        QString fldRdLock = fld->data("Read Lock").toString().trimmed();
+        QString fldLegacyLock = fld->data("Lock").toString().trimmed();
+        if (fldWrLock.isEmpty() && !fldLegacyLock.isEmpty())
+          fldWrLock = fldLegacyLock;
+
+        if (!fldWrLock.isEmpty() || !fldRdLock.isEmpty()) {
+          xml.writeStartElement("ipxact:vendorExtensions");
+          if (!fldWrLock.isEmpty()) {
+            xml.writeTextElement("rmap:lock_wr", fldWrLock);
+            xml.writeTextElement("rmap:lock", fldWrLock);
+          }
+          if (!fldRdLock.isEmpty()) {
+            xml.writeTextElement("rmap:lock_rd", fldRdLock);
+          }
+          xml.writeEndElement(); // ipxact:vendorExtensions
+        }
+
+        xml.writeEndElement(); // ipxact:field
+      }
+
+      QString regWrLock = reg->data("Write Lock").toString().trimmed();
+      QString regRdLock = reg->data("Read Lock").toString().trimmed();
+      QString regLegacyLock = reg->data("Lock").toString().trimmed();
+      if (regWrLock.isEmpty() && !regLegacyLock.isEmpty())
+        regWrLock = regLegacyLock;
+
+      if (!regWrLock.isEmpty() || !regRdLock.isEmpty()) {
+        xml.writeStartElement("ipxact:vendorExtensions");
+        if (!regWrLock.isEmpty()) {
+          xml.writeTextElement("rmap:lock_wr", regWrLock);
+          xml.writeTextElement("rmap:lock", regWrLock);
+        }
+        if (!regRdLock.isEmpty()) {
+          xml.writeTextElement("rmap:lock_rd", regRdLock);
+        }
+        xml.writeEndElement(); // ipxact:vendorExtensions
+      }
+
+      xml.writeEndElement(); // ipxact:register
+    }
+
+    QString blkWrLock = blk->data("Write Lock").toString().trimmed();
+    QString blkRdLock = blk->data("Read Lock").toString().trimmed();
+    QString blkLegacyLock = blk->data("Lock").toString().trimmed();
+    if (blkWrLock.isEmpty() && !blkLegacyLock.isEmpty())
+      blkWrLock = blkLegacyLock;
+    if (!blkWrLock.isEmpty() || !blkRdLock.isEmpty()) {
+      xml.writeStartElement("ipxact:vendorExtensions");
+      if (!blkWrLock.isEmpty()) {
+        xml.writeTextElement("rmap:lock_wr", blkWrLock);
+        xml.writeTextElement("rmap:lock", blkWrLock);
+      }
+      if (!blkRdLock.isEmpty()) {
+        xml.writeTextElement("rmap:lock_rd", blkRdLock);
+      }
+      xml.writeEndElement(); // ipxact:vendorExtensions
+    }
+
+    xml.writeEndElement(); // ipxact:addressBlock
+  }
+
+  xml.writeEndElement(); // ipxact:memoryMap
+  xml.writeEndElement(); // ipxact:memoryMaps
+  xml.writeEndElement(); // ipxact:component
+
+  xml.writeEndDocument();
+  file.close();
+
+  result.success = true;
+  return result;
 }

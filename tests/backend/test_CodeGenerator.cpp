@@ -6,6 +6,9 @@
  */
 
 #include "CodeGenerator.hpp"
+#include "LockParser.hpp"
+#include "RegConfigWindow.hpp"
+#include "RegMapTreeModel.hpp"
 #include <QDir>
 #include <QFile>
 #include <QProcess>
@@ -71,6 +74,10 @@ private slots:
   void testDynamicDataWidths();
   void testHwPrecedencePrecedenceParam();
   void testAllAccessPoliciesCodegen();
+  void testHwAccessPoliciesCodegen();
+  void testLockParserAndSynthesis();
+  void testSoftwareWriteLockRtlCodegen();
+  void testHierarchicalBlockAndFieldLockRtlCodegen();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower() {
@@ -1319,8 +1326,8 @@ void TestCodeGenerator::testFullGenerationAsciidoctorDoc() {
   root["blocks"] = json::array({blk});
 
   std::vector<TemplateMapping> mappings;
-  mappings.push_back(
-      {"templates/asciidoctor/reg_doc.adoc.inja", "work/asciidoctor/spi_doc.adoc"});
+  mappings.push_back({"templates/asciidoctor/reg_doc.adoc.inja",
+                      "work/asciidoctor/spi_doc.adoc"});
 
   GenerationReport report =
       cg.generate(root, "./templates", "./work", mappings);
@@ -1334,7 +1341,8 @@ void TestCodeGenerator::testFullGenerationAsciidoctorDoc() {
 
   QVERIFY(content.contains("= SPI_ADOC — Register Map Specification"));
   QVERIFY(content.contains("ifndef::skip_features_spi_adoc"));
-  QVERIFY(content.contains("*Software Bus Access Policies*: Implements `RW` access policy"));
+  QVERIFY(content.contains(
+      "*Software Bus Access Policies*: Implements `RW` access policy"));
   QVERIFY(!content.contains("Direct Memory Windows"));
   QVERIFY(content.contains("== Block: SPI_CORE"));
   QVERIFY(content.contains("`[15:0]`"));
@@ -2328,15 +2336,12 @@ void TestCodeGenerator::testPythonRunnerEdgeCases() {
   {
     json zeroBytesData = json::object();
     zeroBytesData["reg_width_bytes"] = 0;
-    zeroBytesData["blocks"] = json::array({
-        json::object({
-            {"name", "test_blk"},
-            {"registers", json::array({
-                json::object({{"name", "r0"}, {"offset_lsb", 0}})
-            })}
-        })
-    });
-    GenerationReport rep = cg.generate(zeroBytesData, "templates", "work/zero_out", {});
+    zeroBytesData["blocks"] = json::array({json::object(
+        {{"name", "test_blk"},
+         {"registers",
+          json::array({json::object({{"name", "r0"}, {"offset_lsb", 0}})})}})});
+    GenerationReport rep =
+        cg.generate(zeroBytesData, "templates", "work/zero_out", {});
     Q_UNUSED(rep);
   }
 
@@ -2810,8 +2815,8 @@ void TestCodeGenerator::testCommandLineInterface() {
     auto [cEmptyDiff, oEmptyDiff] =
         runRmap({"-f", "examples/rmt/peripherals/spi.rmt", "--diff", ""});
     QCOMPARE(cEmptyDiff, 1);
-    QVERIFY(
-        oEmptyDiff.contains("--diff requires a comparison target file argument"));
+    QVERIFY(oEmptyDiff.contains(
+        "--diff requires a comparison target file argument"));
 
     // Empty --convert destination argument
     auto [cEmptyConv, oEmptyConv] =
@@ -3293,6 +3298,753 @@ void TestCodeGenerator::testAllAccessPoliciesCodegen() {
   QString rtl = QString::fromUtf8(fRtl.readAll());
   fRtl.close();
   QVERIFY(!rtl.isEmpty());
+}
+
+void TestCodeGenerator::testHwAccessPoliciesCodegen() {
+  CodeGenerator cg;
+  json root = json::object();
+  root["name"] = "HW_POLICIES_SOC";
+  root["reg_width"] = 32;
+  root["reg_width_bytes"] = 4;
+
+  json blk = json::object();
+  blk["name"] = "test_hw_blk";
+  blk["base_addr"] = 0;
+  blk["data_width"] = 32;
+  blk["addr_width"] = 16;
+  blk["endianness"] = "little";
+
+  std::vector<std::string> hwPolicies = {"RO",  "RW",   "WO",   "WIRE",
+                                         "W1T", "INCR", "DECR", "NA"};
+
+  json regList = json::array();
+  uint32_t offset = 0;
+  for (const auto &pol : hwPolicies) {
+    json reg = json::object();
+    std::string lowerPol = QString::fromStdString(pol).toLower().toStdString();
+    reg["name"] = "reg_" + lowerPol;
+    reg["offset_lsb"] = offset;
+    reg["offset_hex"] = QString("0x%1").arg(offset, 0, 16).toStdString();
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+
+    json fld = json::object();
+    fld["name"] = "fld_" + lowerPol;
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = pol;
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+    offset += 4;
+  }
+
+  blk["registers"] = regList;
+  root["blocks"] = json::array({blk});
+
+  std::vector<TemplateMapping> mappings;
+  mappings.push_back({"templates/rtl/reg_map.sv.inja",
+                      "work/hw_policies_test/rtl/reg_map.sv"});
+  mappings.push_back(
+      {"templates/rtl/reg_map.v.inja", "work/hw_policies_test/rtl/reg_map.v"});
+  mappings.push_back({"templates/rtl/reg_map.vhd.inja",
+                      "work/hw_policies_test/rtl/reg_map.vhd"});
+  mappings.push_back({"templates/rtl/apb_reg_file.sv.inja",
+                      "work/hw_policies_test/rtl/apb_reg_file.sv"});
+  mappings.push_back({"templates/rtl/axil_reg_file.sv.inja",
+                      "work/hw_policies_test/rtl/axil_reg_file.sv"});
+
+  GenerationReport rep =
+      cg.generate(root, "templates", "work/hw_policies_test", mappings);
+  QVERIFY(!rep.has_errors());
+
+  // SV Checks
+  QFile fSv("work/hw_policies_test/rtl/reg_map.sv");
+  QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sv = QString::fromUtf8(fSv.readAll());
+  fSv.close();
+
+  QVERIFY(sv.contains("hw_reg_rw_fld_rw_wd_i"));
+  QVERIFY(sv.contains("hw_reg_rw_fld_rw_we_i"));
+  QVERIFY(sv.contains("hw_reg_rw_fld_rw_o"));
+  QVERIFY(sv.contains("hw_reg_wo_fld_wo_wd_i"));
+  QVERIFY(sv.contains("hw_reg_wo_fld_wo_we_i"));
+  QVERIFY(sv.contains("hw_reg_wire_fld_wire_i"));
+  QVERIFY(sv.contains("hw_reg_w1t_fld_w1t_tog_i"));
+  QVERIFY(sv.contains("hw_reg_incr_fld_incr_incr_i"));
+  QVERIFY(sv.contains("hw_reg_decr_fld_decr_decr_i"));
+  // NA should have no port
+  QVERIFY(!sv.contains("reg_na_fld_na_o"));
+  QVERIFY(!sv.contains("reg_na_fld_na_wd_i"));
+
+  // Verilog Checks
+  QFile fV("work/hw_policies_test/rtl/reg_map.v");
+  QVERIFY(fV.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString v = QString::fromUtf8(fV.readAll());
+  fV.close();
+  QVERIFY(v.contains("hw_reg_rw_fld_rw_wd_i"));
+  QVERIFY(v.contains("hw_reg_rw_fld_rw_we_i"));
+  QVERIFY(v.contains("hw_reg_wire_fld_wire_i"));
+  QVERIFY(v.contains("hw_reg_w1t_fld_w1t_tog_i"));
+  QVERIFY(v.contains("hw_reg_incr_fld_incr_incr_i"));
+  QVERIFY(v.contains("hw_reg_decr_fld_decr_decr_i"));
+
+  // VHDL Checks
+  QFile fVhd("work/hw_policies_test/rtl/reg_map.vhd");
+  QVERIFY(fVhd.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString vhd = QString::fromUtf8(fVhd.readAll());
+  fVhd.close();
+  QVERIFY(vhd.contains("hw_reg_rw_fld_rw_wd_i"));
+  QVERIFY(vhd.contains("hw_reg_rw_fld_rw_we_i"));
+  QVERIFY(vhd.contains("hw_reg_wire_fld_wire_i"));
+  QVERIFY(vhd.contains("hw_reg_w1t_fld_w1t_tog_i"));
+  QVERIFY(vhd.contains("hw_reg_incr_fld_incr_incr_i"));
+  QVERIFY(vhd.contains("hw_reg_decr_fld_decr_decr_i"));
+
+  // APB wrapper checks
+  QFile fApb("work/hw_policies_test/rtl/apb_reg_file.sv");
+  QVERIFY(fApb.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString apb = QString::fromUtf8(fApb.readAll());
+  fApb.close();
+  QVERIFY(apb.contains("hw_reg_rw_fld_rw_wd_i"));
+  QVERIFY(apb.contains("hw_reg_wire_fld_wire_i"));
+  QVERIFY(apb.contains("hw_reg_w1t_fld_w1t_tog_i"));
+  QVERIFY(apb.contains("hw_reg_incr_fld_incr_incr_i"));
+  QVERIFY(apb.contains("hw_reg_decr_fld_decr_decr_i"));
+
+  // AXI-Lite wrapper checks
+  QFile fAxil("work/hw_policies_test/rtl/axil_reg_file.sv");
+  QVERIFY(fAxil.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString axil = QString::fromUtf8(fAxil.readAll());
+  fAxil.close();
+  QVERIFY(axil.contains("hw_reg_rw_fld_rw_wd_i"));
+  QVERIFY(axil.contains("hw_reg_wire_fld_wire_i"));
+  QVERIFY(axil.contains("hw_reg_w1t_fld_w1t_tog_i"));
+  QVERIFY(axil.contains("hw_reg_incr_fld_incr_incr_i"));
+  QVERIFY(axil.contains("hw_reg_decr_fld_decr_decr_i"));
+}
+
+void TestCodeGenerator::testLockParserAndSynthesis() {
+  QString err;
+  // 1. Syntactic validation
+  QVERIFY(LockParser::isValidSyntax("", &err));
+  QVERIFY(LockParser::isValidSyntax("hw_sec_lock_i", &err));
+  QVERIFY(LockParser::isValidSyntax("!hw_sec_lock_i", &err));
+  QVERIFY(LockParser::isValidSyntax("hw_sec_lock_i && SYS_CTRL.LOCK", &err));
+  QVERIFY(LockParser::isValidSyntax("hw_sec_lock_i || !SYS_CTRL.LOCK", &err));
+  QVERIFY(LockParser::isValidSyntax(
+      "(hw_sec_lock_i ^ 1'b1) && (SYS_CTRL.LOCK == 1'b0)", &err));
+  QVERIFY(
+      LockParser::isValidSyntax("hw_sec_lock_i and not SYS_CTRL.LOCK", &err));
+  QVERIFY(
+      LockParser::isValidSyntax("hw_sec_lock_i or (SYS_CTRL.LOCK != 1)", &err));
+
+  // Invalid syntax
+  QVERIFY(!LockParser::isValidSyntax("(", &err));
+  QVERIFY(!LockParser::isValidSyntax("hw_sec_lock_i &&", &err));
+  QVERIFY(!LockParser::isValidSyntax("&& hw_sec_lock_i", &err));
+  QVERIFY(!LockParser::isValidSyntax("hw_sec_lock_i @ invalid", &err));
+
+  // 2. External signal extraction and deduplication
+  QStringList extSignals = LockParser::extractExternalSignals(
+      "hw_sec_lock_i && (SYS_CTRL.LOCK || hw_sec_lock_i)");
+  QCOMPARE(extSignals.size(), 1);
+  QCOMPARE(extSignals[0], QString("hw_sec_lock_i"));
+
+  QStringList extSignals2 = LockParser::extractExternalSignals(
+      "hw_sec_lock_i || hw_pin_lock_i && !hw_sec_lock_i");
+  QCOMPARE(extSignals2.size(), 2);
+  QVERIFY(extSignals2.contains("hw_sec_lock_i"));
+  QVERIFY(extSignals2.contains("hw_pin_lock_i"));
+
+  // 3. Expression translation with model
+  RegMapTreeModel model;
+  QVector<QString> cols = {"Type",      "Offset/LSB", "Size/Width",  "Name",
+                           "SW Access", "HW Access",  "Reset Value", "Is Rand",
+                           "Volatile",  "Has Reset",  "Description", "Lock"};
+  QVariantMap rootData;
+  for (const QString &c : cols)
+    rootData[c] = c;
+  auto *rootItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+  model.setRootItem(rootItem);
+
+  QVariantMap blkData;
+  blkData["Type"] = "blk";
+  blkData["Offset/LSB"] = "0x0";
+  blkData["Name"] = "TOP_BLK";
+  auto *blkItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, rootItem);
+  rootItem->appendChild(blkItem);
+
+  QVariantMap regData;
+  regData["Type"] = "reg";
+  regData["Offset/LSB"] = "0x0";
+  regData["Size/Width"] = "32";
+  regData["Name"] = "SYS_CTRL";
+  regData["SW Access"] = "RW";
+  auto *regItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, regData, blkItem);
+  blkItem->appendChild(regItem);
+
+  QVariantMap fldData;
+  fldData["Type"] = "fld";
+  fldData["Offset/LSB"] = "0";
+  fldData["Size/Width"] = "1";
+  fldData["Name"] = "LOCK";
+  fldData["SW Access"] = "RW";
+  auto *fldItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldData, regItem);
+  regItem->appendChild(fldItem);
+
+  ParsedLockResult res =
+      LockParser::parse("hw_sec_lock_i || SYS_CTRL.LOCK", &model, "TOP_BLK");
+  QVERIFY(res.valid);
+  QCOMPARE(res.scope, LockScope::Write);
+  QVERIFY(res.hasWriteLock);
+  QVERIFY(!res.hasReadLock);
+  QCOMPARE(res.externalSignals.size(), 1);
+  QCOMPARE(res.externalSignals[0], QString("hw_sec_lock_i"));
+  QCOMPARE(res.registerFieldRefs.size(), 1);
+  QCOMPARE(res.registerFieldRefs[0], QString("SYS_CTRL.LOCK"));
+  QVERIFY(res.svExpr.contains("reg_sys_ctrl_q[0]"));
+  QVERIFY(res.vExpr.contains("reg_sys_ctrl_q[0]"));
+  QVERIFY(res.vhdExpr.contains("reg_sys_ctrl_q(0)"));
+
+  // 2. Test Read-only Lock [r]
+  ParsedLockResult resRd =
+      LockParser::parse("[r] hw_read_lock_i", &model, "TOP_BLK");
+  QVERIFY(resRd.valid);
+  QCOMPARE(resRd.scope, LockScope::Read);
+  QVERIFY(!resRd.hasWriteLock);
+  QVERIFY(resRd.hasReadLock);
+  QCOMPARE(resRd.externalSignals.size(), 1);
+  QCOMPARE(resRd.externalSignals[0], QString("hw_read_lock_i"));
+  QCOMPARE(resRd.svReadExpr, QString("hw_read_lock_i"));
+  QCOMPARE(resRd.svExpr, QString("hw_read_lock_i"));
+
+  // 3. Test Dual Lock [rw]
+  ParsedLockResult resBoth =
+      LockParser::parse("[rw] hw_dual_lock_i", &model, "TOP_BLK");
+  QVERIFY(resBoth.valid);
+  QCOMPARE(resBoth.scope, LockScope::Both);
+  QVERIFY(resBoth.hasWriteLock);
+  QVERIFY(resBoth.hasReadLock);
+  QCOMPARE(resBoth.svWriteExpr, QString("hw_dual_lock_i"));
+  QCOMPARE(resBoth.svReadExpr, QString("hw_dual_lock_i"));
+
+  // 4. Test Independent Locks [w] and [r]
+  ParsedLockResult resIndep = LockParser::parse(
+      "[w] hw_sec_lock_i; [r] (SYS_CTRL.LOCK == 1)", &model, "TOP_BLK");
+  QVERIFY(resIndep.valid);
+  QCOMPARE(resIndep.scope, LockScope::Independent);
+  QVERIFY(resIndep.hasWriteLock);
+  QVERIFY(resIndep.hasReadLock);
+  QCOMPARE(resIndep.svWriteExpr, QString("hw_sec_lock_i"));
+  QVERIFY(resIndep.svReadExpr.contains("reg_sys_ctrl_q[0]"));
+
+  // 5. Test formatting helpers
+  QCOMPARE(LockParser::formatLockString(LockScope::Write, "sig1"),
+           QString("[w] sig1"));
+  QCOMPARE(LockParser::formatLockString(LockScope::Read, "", "sig2"),
+           QString("[r] sig2"));
+  QCOMPARE(LockParser::formatLockString(LockScope::Both, "sig3"),
+           QString("[rw] sig3"));
+  QCOMPARE(LockParser::formatLockString(LockScope::Independent, "sig1", "sig2"),
+           QString("[w] sig1; [r] sig2"));
+
+  QCOMPARE(LockParser::formatBadgeText("[rw] sig"), QString("🔒 sig"));
+  QCOMPARE(LockParser::formatBadgeText("[r] sig"), QString("🔒 sig"));
+  QCOMPARE(LockParser::formatBadgeText("[w] sig"), QString("🔒 sig"));
+  QCOMPARE(LockParser::formatBadgeText("sig"), QString("🔒 sig"));
+}
+
+void TestCodeGenerator::testSoftwareWriteLockRtlCodegen() {
+  QDir().mkpath("work/lock_test");
+  CodeGenerator cg;
+
+  json root = json::object();
+  root["name"] = "lock_demo";
+  root["reg_width"] = 32;
+  root["reg_width_bytes"] = 4;
+
+  json blk = json::object();
+  blk["name"] = "sec_blk";
+  blk["base_addr"] = 0;
+  blk["data_width"] = 32;
+  blk["addr_width"] = 16;
+  blk["endianness"] = "little";
+
+  json regList = json::array();
+
+  // Register 1: SEC_CTRL (contains field LOCK at bit 0, field DATA at bit 1..7)
+  {
+    json reg = json::object();
+    reg["name"] = "sec_ctrl";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+
+    json fldLock = json::object();
+    fldLock["name"] = "lock";
+    fldLock["offset_lsb"] = 0;
+    fldLock["size_width"] = 1;
+    fldLock["access"] = "RW";
+    fldLock["reset_val"] = 0;
+    fldLock["reset_hex"] = "0x0";
+    fldLock["hw_access"] = "RO";
+
+    json fldData = json::object();
+    fldData["name"] = "data";
+    fldData["offset_lsb"] = 1;
+    fldData["size_width"] = 7;
+    fldData["access"] = "RW";
+    fldData["reset_val"] = 0;
+    fldData["reset_hex"] = "0x0";
+    fldData["hw_access"] = "RO";
+
+    reg["fields"] = json::array({fldLock, fldData});
+    regList.push_back(reg);
+  }
+
+  // Register 2: PROT_REG with lock = "hw_sec_lock_i || sec_ctrl.lock"
+  {
+    json reg = json::object();
+    reg["name"] = "prot_reg";
+    reg["offset_lsb"] = 4;
+    reg["offset_hex"] = "0x4";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["lock"] = "hw_sec_lock_i || sec_ctrl.lock";
+
+    json fld = json::object();
+    fld["name"] = "data";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  // Register 3: AUX_REG with lock = "hw_sec_lock_i" (deduplication check!)
+  {
+    json reg = json::object();
+    reg["name"] = "aux_reg";
+    reg["offset_lsb"] = 8;
+    reg["offset_hex"] = "0x8";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["lock"] = "hw_sec_lock_i";
+
+    json fld = json::object();
+    fld["name"] = "val";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  // Register 4: SEC_KEY with lock = "[r] hw_read_lock_i" (read lock only!)
+  {
+    json reg = json::object();
+    reg["name"] = "sec_key";
+    reg["offset_lsb"] = 12;
+    reg["offset_hex"] = "0xC";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["lock"] = "[r] hw_read_lock_i";
+
+    json fld = json::object();
+    fld["name"] = "key";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  // Register 5: CRYPTO_CFG with lock = "[rw] hw_dual_lock_i" (both read and
+  // write lock!)
+  {
+    json reg = json::object();
+    reg["name"] = "crypto_cfg";
+    reg["offset_lsb"] = 16;
+    reg["offset_hex"] = "0x10";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["lock"] = "[rw] hw_dual_lock_i";
+
+    json fld = json::object();
+    fld["name"] = "cfg";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  blk["registers"] = regList;
+  root["blocks"] = json::array({blk});
+
+  std::vector<TemplateMapping> mappings = {
+      {"templates/rtl/reg_map.sv.inja", "work/lock_test/reg_map.sv"},
+      {"templates/rtl/reg_map.v.inja", "work/lock_test/reg_map.v"},
+      {"templates/rtl/reg_map.vhd.inja", "work/lock_test/reg_map.vhd"},
+      {"templates/rtl/apb_reg_file.sv.inja", "work/lock_test/apb_reg_file.sv"},
+      {"templates/rtl/axil_reg_file.sv.inja",
+       "work/lock_test/axil_reg_file.sv"},
+      {"templates/rtl/reg_map_sva.sv.inja", "work/lock_test/reg_map_sva.sv"},
+      {"templates/rtl_tb/tb_reg_map.sv.inja", "work/lock_test/tb_reg_map.sv"}};
+
+  GenerationReport rep =
+      cg.generate(root, "templates", "work/lock_test", mappings);
+  QVERIFY(!rep.has_errors());
+
+  // 1. Verify SystemVerilog RTL
+  QFile fSv("work/lock_test/reg_map.sv");
+  QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sv = QString::fromUtf8(fSv.readAll());
+  fSv.close();
+
+  // Deduplication invariant: hw_sec_lock_i declared exactly ONCE as input port
+  int portOccurrences = sv.count("hw_sec_lock_i,");
+  QCOMPARE(portOccurrences, 1);
+  QVERIFY(sv.contains("input  logic"));
+  QVERIFY(sv.contains("hw_sec_lock_i,"));
+  QVERIFY(sv.contains("hw_read_lock_i,"));
+  QVERIFY(sv.contains("hw_dual_lock_i,"));
+
+  // Lock status signal generation
+  QVERIFY(sv.contains("reg_prot_reg_locked"));
+  QVERIFY(sv.contains("reg_aux_reg_locked"));
+  QVERIFY(sv.contains("reg_sec_key_rd_locked"));
+  QVERIFY(sv.contains("reg_crypto_cfg_wr_locked"));
+  QVERIFY(sv.contains("reg_crypto_cfg_rd_locked"));
+
+  // Strobe gating
+  QVERIFY(sv.contains("!reg_prot_reg_wr_locked"));
+  QVERIFY(sv.contains("!reg_aux_reg_wr_locked"));
+  QVERIFY(sv.contains("!reg_sec_key_rd_locked"));
+  QVERIFY(sv.contains("!reg_crypto_cfg_wr_locked"));
+  QVERIFY(sv.contains("!reg_crypto_cfg_rd_locked"));
+
+  // 2. Verify Verilog 2001 RTL
+  QFile fV("work/lock_test/reg_map.v");
+  QVERIFY(fV.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString v = QString::fromUtf8(fV.readAll());
+  fV.close();
+  QCOMPARE(v.count("hw_sec_lock_i,"), 1);
+  QVERIFY(v.contains("reg_prot_reg_locked"));
+  QVERIFY(v.contains("reg_sec_key_rd_locked"));
+  QVERIFY(v.contains("reg_crypto_cfg_rd_locked"));
+
+  // 3. Verify VHDL RTL
+  QFile fVhd("work/lock_test/reg_map.vhd");
+  QVERIFY(fVhd.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString vhd = QString::fromUtf8(fVhd.readAll());
+  fVhd.close();
+  QVERIFY(vhd.contains("hw_sec_lock_i : in  std_logic;"));
+  QVERIFY(vhd.contains("reg_prot_reg_locked"));
+  QVERIFY(vhd.contains("reg_sec_key_rd_locked"));
+  QVERIFY(vhd.contains("reg_crypto_cfg_rd_locked"));
+
+  // 4. Verify APB & AXI-Lite wrappers
+  QFile fApb("work/lock_test/apb_reg_file.sv");
+  QVERIFY(fApb.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString apb = QString::fromUtf8(fApb.readAll());
+  QVERIFY(apb.contains("input  logic"));
+  QVERIFY(apb.contains("hw_sec_lock_i,"));
+  QVERIFY(apb.contains("hw_read_lock_i,"));
+  QVERIFY(apb.contains("hw_dual_lock_i,"));
+  QVERIFY(apb.contains(".hw_sec_lock_i"));
+  QVERIFY(apb.contains("(hw_sec_lock_i)"));
+
+  QFile fAxil("work/lock_test/axil_reg_file.sv");
+  QVERIFY(fAxil.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString axil = QString::fromUtf8(fAxil.readAll());
+  fAxil.close();
+  QVERIFY(axil.contains("input  logic"));
+  QVERIFY(axil.contains("hw_sec_lock_i,"));
+  QVERIFY(axil.contains("hw_read_lock_i,"));
+  QVERIFY(axil.contains("hw_dual_lock_i,"));
+  QVERIFY(axil.contains(".hw_sec_lock_i"));
+  QVERIFY(axil.contains("(hw_sec_lock_i)"));
+
+  // 5. Verify SVA assertions
+  QFile fSva("work/lock_test/reg_map_sva.sv");
+  QVERIFY(fSva.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sva = QString::fromUtf8(fSva.readAll());
+  fSva.close();
+  QVERIFY(sva.contains("assert_lock_prot_reg_immutable"));
+  QVERIFY(sva.contains("assert_lock_sec_key_rd_zero"));
+  QVERIFY(sva.contains("assert_lock_crypto_cfg_rd_zero"));
+  QVERIFY(sva.contains("assert_lock_crypto_cfg_immutable"));
+
+  // 6. Verify Testbench
+  QFile fTb("work/lock_test/tb_reg_map.sv");
+  QVERIFY(fTb.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString tb = QString::fromUtf8(fTb.readAll());
+  fTb.close();
+  QVERIFY(tb.contains("hw_sec_lock_i"));
+  QVERIFY(tb.contains("Phase 7: Software Write Lock Verification"));
+}
+
+void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
+  QDir().mkpath("work/hier_lock_test");
+  CodeGenerator cg;
+
+  json root = json::object();
+  root["name"] = "hier_lock_demo";
+  root["reg_width"] = 32;
+  root["reg_width_bytes"] = 4;
+
+  json blk = json::object();
+  blk["name"] = "hier_blk";
+  blk["base_addr"] = 0;
+  blk["data_width"] = 32;
+  blk["addr_width"] = 16;
+  blk["endianness"] = "little";
+  // Block-level lock: independent write and read locks
+  blk["lock"] = "[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i";
+
+  json regList = json::array();
+
+  // Register 1: MIXED_REG with no reg-level lock, but field-level locks!
+  // field 0: DATA (bits 0..7) - no lock
+  // field 1: KEY (bits 8..15) - write lock "hw_key_wr_lock_i"
+  // field 2: SECRET (bits 16..23) - read lock "[r] hw_sec_rd_lock_i"
+  // field 3: SECURE_CTRL (bits 24..31) - dual lock "[rw] hw_ctrl_lock_i"
+  {
+    json reg = json::object();
+    reg["name"] = "mixed_reg";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+
+    json fld0 = json::object();
+    fld0["name"] = "data";
+    fld0["offset_lsb"] = 0;
+    fld0["size_width"] = 8;
+    fld0["access"] = "RW";
+    fld0["reset_val"] = 0;
+    fld0["reset_hex"] = "0x0";
+    fld0["hw_access"] = "RO";
+
+    json fld1 = json::object();
+    fld1["name"] = "key";
+    fld1["offset_lsb"] = 8;
+    fld1["size_width"] = 8;
+    fld1["access"] = "RW";
+    fld1["reset_val"] = 0;
+    fld1["reset_hex"] = "0x0";
+    fld1["hw_access"] = "RO";
+    fld1["lock"] = "hw_key_wr_lock_i";
+
+    json fld2 = json::object();
+    fld2["name"] = "secret";
+    fld2["offset_lsb"] = 16;
+    fld2["size_width"] = 8;
+    fld2["access"] = "RW";
+    fld2["reset_val"] = 0;
+    fld2["reset_hex"] = "0x0";
+    fld2["hw_access"] = "RO";
+    fld2["lock"] = "[r] hw_sec_rd_lock_i";
+
+    json fld3 = json::object();
+    fld3["name"] = "secure_ctrl";
+    fld3["offset_lsb"] = 24;
+    fld3["size_width"] = 8;
+    fld3["access"] = "RW";
+    fld3["reset_val"] = 0;
+    fld3["reset_hex"] = "0x0";
+    fld3["hw_access"] = "RO";
+    fld3["lock"] = "[rw] hw_ctrl_lock_i";
+
+    reg["fields"] = json::array({fld0, fld1, fld2, fld3});
+    regList.push_back(reg);
+  }
+
+  // Register 2: REG_LOCKED with register-level lock: "[rw] hw_reg_lock_i"
+  {
+    json reg = json::object();
+    reg["name"] = "reg_locked";
+    reg["offset_lsb"] = 4;
+    reg["offset_hex"] = "0x4";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["lock"] = "[rw] hw_reg_lock_i";
+
+    json fld = json::object();
+    fld["name"] = "val";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  blk["registers"] = regList;
+  root["blocks"] = json::array({blk});
+
+  std::vector<TemplateMapping> mappings = {
+      {"templates/rtl/reg_map.sv.inja", "work/hier_lock_test/reg_map.sv"},
+      {"templates/rtl/reg_map.v.inja", "work/hier_lock_test/reg_map.v"},
+      {"templates/rtl/reg_map.vhd.inja", "work/hier_lock_test/reg_map.vhd"},
+      {"templates/rtl/apb_reg_file.sv.inja",
+       "work/hier_lock_test/apb_reg_file.sv"},
+      {"templates/rtl/axil_reg_file.sv.inja",
+       "work/hier_lock_test/axil_reg_file.sv"},
+      {"templates/rtl/reg_map_sva.sv.inja",
+       "work/hier_lock_test/reg_map_sva.sv"}};
+
+  GenerationReport rep =
+      cg.generate(root, "templates", "work/hier_lock_test", mappings);
+  QVERIFY(!rep.has_errors());
+
+  // 1. SystemVerilog checks
+  QFile fSv("work/hier_lock_test/reg_map.sv");
+  QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sv = QString::fromUtf8(fSv.readAll());
+  fSv.close();
+
+  // Ports: block, reg, field signals present and deduplicated
+  QCOMPARE(sv.count("hw_blk_wr_lock_i,"), 1);
+  QCOMPARE(sv.count("hw_blk_rd_lock_i,"), 1);
+  QCOMPARE(sv.count("hw_key_wr_lock_i,"), 1);
+  QCOMPARE(sv.count("hw_sec_rd_lock_i,"), 1);
+  QCOMPARE(sv.count("hw_ctrl_lock_i,"), 1);
+  QCOMPARE(sv.count("hw_reg_lock_i,"), 1);
+
+  // Block-level locked wire declarations and assigns
+  QVERIFY(sv.contains("logic blk_wr_locked;"));
+  QVERIFY(sv.contains("logic blk_rd_locked;"));
+  QVERIFY(sv.contains("assign blk_wr_locked = (hw_blk_wr_lock_i);"));
+  QVERIFY(sv.contains("assign blk_rd_locked = (hw_blk_rd_lock_i);"));
+
+  // Register-level lock assigns incorporating blk locks
+  QVERIFY(sv.contains("assign reg_mixed_reg_wr_locked = blk_wr_locked;"));
+  QVERIFY(sv.contains("assign reg_mixed_reg_rd_locked = blk_rd_locked;"));
+  QVERIFY(sv.contains(
+      "assign reg_reg_locked_wr_locked = (hw_reg_lock_i) || blk_wr_locked;"));
+  QVERIFY(sv.contains(
+      "assign reg_reg_locked_rd_locked = (hw_reg_lock_i) || blk_rd_locked;"));
+
+  // Field-level lock assigns incorporating reg locks
+  QVERIFY(sv.contains("reg_mixed_reg_key_wr_locked"));
+  QVERIFY(sv.contains("reg_mixed_reg_secret_rd_locked"));
+  QVERIFY(sv.contains("reg_mixed_reg_secure_ctrl_wr_locked"));
+  QVERIFY(sv.contains("reg_mixed_reg_secure_ctrl_rd_locked"));
+
+  // Strobe generation for fields
+  QVERIFY(sv.contains("sw_mixed_reg_key_wr_strobe_o"));
+  QVERIFY(sv.contains("sw_mixed_reg_secret_rd_strobe_o"));
+
+  // Read decode field masking
+  QVERIFY(sv.contains("reg_mixed_reg_secret_rd_locked"));
+  QVERIFY(sv.contains("bus_rdata_o[16 +: 8] = '0;"));
+  QVERIFY(sv.contains("bus_rdata_o[16 +: 8] = reg_mixed_reg_q[16 +: 8];"));
+
+  // 2. Verilog 2001 checks
+  QFile fV("work/hier_lock_test/reg_map.v");
+  QVERIFY(fV.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString v = QString::fromUtf8(fV.readAll());
+  fV.close();
+  QVERIFY(v.contains("wire blk_wr_locked;"));
+  QVERIFY(v.contains("wire blk_rd_locked;"));
+  QVERIFY(v.contains("assign blk_wr_locked = (hw_blk_wr_lock_i);"));
+  QVERIFY(v.contains("assign blk_rd_locked = (hw_blk_rd_lock_i);"));
+  QVERIFY(v.contains("reg_mixed_reg_key_wr_locked"));
+  QVERIFY(v.contains("reg_mixed_reg_secret_rd_locked"));
+
+  // 3. VHDL checks
+  QFile fVhd("work/hier_lock_test/reg_map.vhd");
+  QVERIFY(fVhd.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString vhd = QString::fromUtf8(fVhd.readAll());
+  fVhd.close();
+  QVERIFY(vhd.contains("signal blk_wr_locked : std_logic;"));
+  QVERIFY(vhd.contains("signal blk_rd_locked : std_logic;"));
+  QVERIFY(vhd.contains("blk_wr_locked <= '1' when ("));
+  QVERIFY(vhd.contains("reg_mixed_reg_key_wr_locked"));
+  QVERIFY(vhd.contains("reg_mixed_reg_secret_rd_locked"));
+
+  // 4. SVA assertions checks
+  QFile fSva("work/hier_lock_test/reg_map_sva.sv");
+  QVERIFY(fSva.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sva = QString::fromUtf8(fSva.readAll());
+  fSva.close();
+  // Block-level SVA properties
+  QVERIFY(sva.contains("p_lock_blk_mixed_reg_immutable"));
+  QVERIFY(sva.contains("p_lock_blk_mixed_reg_rd_zero"));
+  QVERIFY(sva.contains("p_lock_blk_reg_locked_immutable"));
+  QVERIFY(sva.contains("p_lock_blk_reg_locked_rd_zero"));
+  // Field-level SVA properties
+  QVERIFY(sva.contains("p_lock_mixed_reg_key_immutable"));
+  QVERIFY(sva.contains("p_lock_mixed_reg_secret_rd_zero"));
+  QVERIFY(sva.contains("p_lock_mixed_reg_secure_ctrl_immutable"));
+  QVERIFY(sva.contains("p_lock_mixed_reg_secure_ctrl_rd_zero"));
+
+  // 5. APB and AXIL wrapper checks
+  QFile fApb("work/hier_lock_test/apb_reg_file.sv");
+  QVERIFY(fApb.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString apb = QString::fromUtf8(fApb.readAll());
+  fApb.close();
+  QVERIFY(apb.contains("hw_blk_wr_lock_i,"));
+  QVERIFY(apb.contains("hw_key_wr_lock_i,"));
+  QVERIFY(apb.contains(".hw_blk_wr_lock_i"));
+  QVERIFY(apb.contains("(hw_blk_wr_lock_i)"));
+  QVERIFY(apb.contains(".hw_key_wr_lock_i"));
+  QVERIFY(apb.contains("(hw_key_wr_lock_i)"));
+
+  QFile fAxil("work/hier_lock_test/axil_reg_file.sv");
+  QVERIFY(fAxil.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString axil = QString::fromUtf8(fAxil.readAll());
+  fAxil.close();
+  QVERIFY(axil.contains(".hw_blk_wr_lock_i"));
+  QVERIFY(axil.contains("(hw_blk_wr_lock_i)"));
+  QVERIFY(axil.contains(".hw_key_wr_lock_i"));
+  QVERIFY(axil.contains("(hw_key_wr_lock_i)"));
 }
 
 QTEST_MAIN(TestCodeGenerator)
