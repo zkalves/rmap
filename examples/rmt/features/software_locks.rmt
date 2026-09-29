@@ -1,0 +1,613 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.v.inja"
+    output_filepath: "./work/rtl/reg_map.v"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.vhd.inja"
+    output_filepath: "./work/rtl/reg_map.vhd"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/apb_reg_file.sv.inja"
+    output_filepath: "./work/rtl/apb_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/axil_reg_file.sv.inja"
+    output_filepath: "./work/rtl/axil_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map_sva.sv.inja"
+    output_filepath: "./work/rtl/reg_map_sva.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/python/reg_map.py.inja"
+    output_filepath: "./work/python/reg_map.py"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  template_outputs {
+    template_filename: "./templates/systemrdl/reg_map.rdl.inja"
+    output_filepath: "./work/systemrdl/reg_map.rdl"
+  }
+  reg_width: 32
+  hw_precedence: true
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 5
+  child_id: 7
+  child_id: 9
+  itemData {
+    key: "Name"
+    value: "SECURITY_CORE"
+  }
+  itemData {
+    key: "Description"
+    value: "Security Core peripheral demonstrating 3-level hierarchical software read and write locks"
+  }
+  itemData {
+    key: "Lock"
+    value: "[w] hw_tamper_lock_i; [r] hw_debug_lock_i"
+  }
+  itemData {
+    key: "Write Lock"
+    value: "hw_tamper_lock_i"
+  }
+  itemData {
+    key: "Read Lock"
+    value: "hw_debug_lock_i"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Name"
+    value: "SEC_CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x00"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "SW Access"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Security Control Register with internal software lock bit"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "LOCK_BIT"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "1"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Internal lock control bit referenced by downstream registers"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Name"
+    value: "CONFIG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "1"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "7"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Security mode configuration bitfield"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  itemData {
+    key: "Name"
+    value: "SEC_KEY"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x04"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "SW Access"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Secret key register guarded by composite write lock and read lock"
+  }
+  itemData {
+    key: "Lock"
+    value: "[w] hw_sec_lock_i || (SEC_CTRL.LOCK_BIT == 1); [r] hw_read_lock_i"
+  }
+  itemData {
+    key: "Write Lock"
+    value: "hw_sec_lock_i || (SEC_CTRL.LOCK_BIT == 1)"
+  }
+  itemData {
+    key: "Read Lock"
+    value: "hw_read_lock_i"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Name"
+    value: "KEY_PAYLOAD"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "32-bit root key payload protected from unauthorized software inspection or modification"
+  }
+}
+item {
+  kind: REG
+  id: 7
+  parent_id: 1
+  child_id: 8
+  itemData {
+    key: "Name"
+    value: "CRYPTO_CFG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x08"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "SW Access"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Cryptographic configuration register with dual [rw] software lock"
+  }
+  itemData {
+    key: "Lock"
+    value: "[rw] hw_crypto_lock_i"
+  }
+  itemData {
+    key: "Write Lock"
+    value: "hw_crypto_lock_i"
+  }
+  itemData {
+    key: "Read Lock"
+    value: "hw_crypto_lock_i"
+  }
+}
+item {
+  kind: FLD
+  id: 8
+  parent_id: 7
+  itemData {
+    key: "Name"
+    value: "ALGO_SELECT"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Cryptographic algorithm and key length configuration"
+  }
+}
+item {
+  kind: REG
+  id: 9
+  parent_id: 1
+  child_id: 10
+  child_id: 11
+  child_id: 12
+  child_id: 13
+  itemData {
+    key: "Name"
+    value: "MULTI_FIELD_REG"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0x0C"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "SW Access"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Description"
+    value: "Mixed register showcasing individual field-level software locks"
+  }
+}
+item {
+  kind: FLD
+  id: 10
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "PUBLIC_STATUS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Public status bitfield without any field-level lock"
+  }
+}
+item {
+  kind: FLD
+  id: 11
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "KEY_SLICE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "8"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Key slice with field-level write lock"
+  }
+  itemData {
+    key: "Lock"
+    value: "hw_key_wr_lock_i"
+  }
+  itemData {
+    key: "Write Lock"
+    value: "hw_key_wr_lock_i"
+  }
+}
+item {
+  kind: FLD
+  id: 12
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "PASSCODE"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "16"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Passcode slice with field-level read lock"
+  }
+  itemData {
+    key: "Lock"
+    value: "[r] hw_sec_rd_lock_i"
+  }
+  itemData {
+    key: "Read Lock"
+    value: "hw_sec_rd_lock_i"
+  }
+}
+item {
+  kind: FLD
+  id: 13
+  parent_id: 9
+  itemData {
+    key: "Name"
+    value: "SECURE_CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "24"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "8"
+  }
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Reset Value"
+    value: "0x0"
+  }
+  itemData {
+    key: "Is Rand"
+    value: "false"
+  }
+  itemData {
+    key: "Volatile"
+    value: "false"
+  }
+  itemData {
+    key: "Has Reset"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Secure control slice with field-level dual [rw] lock"
+  }
+  itemData {
+    key: "Lock"
+    value: "[rw] hw_ctrl_lock_i"
+  }
+  itemData {
+    key: "Write Lock"
+    value: "hw_ctrl_lock_i"
+  }
+  itemData {
+    key: "Read Lock"
+    value: "hw_ctrl_lock_i"
+  }
+}
