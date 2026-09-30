@@ -64,6 +64,7 @@ public:
   QStringList checkData(uint32_t regWidth = 32) noexcept;
 
   void refreshHeaderData();
+  int columnOf(const QString &columnName) const;
   bool isIndexInvalid(const QModelIndex &index) const;
   json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32);
   json extractJsonData(uint32_t regWidth = 32,

@@ -135,6 +135,16 @@ QVariant RegMapTreeItem::data(const QString &column) const {
   if (column == "Read Lock" && m_itemData.contains("Read Lock")) {
     return m_itemData["Read Lock"];
   }
+  if ((column == "Decode Only" || column == "decode_only" ||
+       column == "decode only") &&
+      m_itemData.contains("Decode Only")) {
+    return m_itemData["Decode Only"];
+  }
+  if ((column == "Decode Only" || column == "decode_only" ||
+       column == "decode only") &&
+      m_itemData.contains("decode_only")) {
+    return m_itemData["decode_only"];
+  }
   return QVariant();
 }
 
@@ -196,6 +206,11 @@ bool RegMapTreeItem::setData(const QString &column, const QVariant &value) {
   }
   if (column == "Read Lock") {
     m_itemData["Read Lock"] = value;
+  }
+  if (column == "Decode Only" || column == "decode_only" ||
+      column == "decode only") {
+    m_itemData["Decode Only"] = value;
+    m_itemData["decode_only"] = value;
   }
   return true;
 }

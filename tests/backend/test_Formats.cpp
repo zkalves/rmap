@@ -161,7 +161,8 @@ void TestFormats::test_IpxactWriteAndRoundtrip() {
   QCOMPARE(config2.projectVersion(), QString("3.0"));
   QCOMPARE(config2.projectVendor(), QString("Accellera"));
   QCOMPARE(config2.projectLibrary(), QString("Peripherals"));
-  QCOMPARE(config2.projectDescription(), QString("SPI bus interface controller"));
+  QCOMPARE(config2.projectDescription(),
+           QString("SPI bus interface controller"));
 
   RegMapTreeItem *root2 = model2.getRootItem();
   QVERIFY(root2 != nullptr);
@@ -270,7 +271,8 @@ void TestFormats::test_CmsisSvdWriteAndRoundtrip() {
   QCOMPARE(config2.projectName(), QString("SPI_Svd"));
   QCOMPARE(config2.projectVersion(), QString("4.0"));
   QCOMPARE(config2.projectVendor(), QString("ARM_Partner"));
-  QCOMPARE(config2.projectDescription(), QString("SPI Controller SVD description"));
+  QCOMPARE(config2.projectDescription(),
+           QString("SPI Controller SVD description"));
 
   RegMapTreeItem *root2 = model2.getRootItem();
   QVERIFY(root2 != nullptr);
@@ -400,7 +402,8 @@ void TestFormats::test_CsvRealWorldFile() {
   RegMapTreeModel model;
   RegConfigWindow config;
   FormatResult res = FormatManager::instance().loadFile(
-      "examples/features/format_conversion/dma_controller.csv", &model, &config);
+      "examples/features/format_conversion/dma_controller.csv", &model,
+      &config);
   QVERIFY2(res.success, qPrintable(res.errorMessage));
 
   RegMapTreeItem *root = model.getRootItem();
@@ -755,7 +758,7 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors() {
     specialMdl.insertRows(1, 1, RegMapTreeItem::e_rmmKind::reg, bIdx);
     QModelIndex rIdx = specialMdl.index(1, 0, bIdx);
     specialMdl.setData(specialMdl.index(1, 3, bIdx), "REG_TEST", Qt::EditRole);
-    specialMdl.setData(specialMdl.index(1, 10, bIdx), "Reg Description",
+    specialMdl.setData(specialMdl.index(1, 13, bIdx), "Reg Description",
                        Qt::EditRole);
 
     // Field 1: hasReset=true, resetVal="0x1" (both true), hwAccess="" (empty ->
@@ -770,7 +773,7 @@ void TestFormats::test_SystemRdlExtendedSyntaxAndErrors() {
     specialMdl.setData(specialMdl.index(0, 6, rIdx), "0x1", Qt::EditRole);
     specialMdl.setData(specialMdl.index(0, 9, rIdx), "true",
                        Qt::EditRole); // Has Reset = true
-    specialMdl.setData(specialMdl.index(0, 10, rIdx), "Field 1 desc",
+    specialMdl.setData(specialMdl.index(0, 13, rIdx), "Field 1 desc",
                        Qt::EditRole);
 
     // Field 2: hasReset=true, resetVal="" (hasReset true, val empty),
@@ -1754,7 +1757,7 @@ void TestFormats::test_CsvExtendedSyntaxAndErrors() {
 
   // CSV write with quotes, commas, and newlines in description -> covers
   // escapeCsv
-  model.setData(model.index(0, 10, model.index(0, 0, QModelIndex())),
+  model.setData(model.index(0, 13, model.index(0, 0, QModelIndex())),
                 "Desc with \"quotes\", comma, and\r\nnewlines", Qt::EditRole);
   QString quotedCsvPath = "work/test_formats/quoted_out.csv";
   QVERIFY(handler.write(quotedCsvPath, &model, &config).success);

@@ -9,8 +9,11 @@
 #include "RegMapTreeModel.hpp"
 #include "ThemeManager.hpp"
 #include <QComboBox>
+#include <QHeaderView>
 #include <QLineEdit>
 #include <QSortFilterProxyModel>
+#include <QTableView>
+#include <QTreeView>
 #include <QtTest>
 
 class TestDelegates : public QObject {
@@ -33,6 +36,8 @@ private slots:
   void testDelegateColorBlindModeAndBadgeEdges();
   void testDelegateEventsEdgeCases();
   void testRegLockDelegate();
+  void testDescriptionFieldSizeHint();
+  void testAllFieldsSizeHint();
 };
 
 void TestDelegates::testHexDecBinDelegateValidation() {
@@ -675,9 +680,9 @@ void TestDelegates::testRegLockDelegate() {
   QModelIndex regIndex = model.index(0, 0, blkIndex);
   model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
   QModelIndex fldLockIndex =
-      model.index(0, 11, regIndex); // Column 11: Write Lock
+      model.index(0, model.columnOf("Write Lock"), regIndex); // Write Lock
   QModelIndex fldRdLockIndex =
-      model.index(0, 12, regIndex); // Column 12: Read Lock
+      model.index(0, model.columnOf("Read Lock"), regIndex); // Read Lock
 
   model.setData(fldLockIndex, "hw_sec_lock_i", Qt::EditRole);
   model.setData(fldRdLockIndex, "hw_sec_rd_lock_i", Qt::EditRole);
@@ -712,6 +717,108 @@ void TestDelegates::testRegLockDelegate() {
   delegate.paint(&painter, option, fldLockIndex);
   delegate.paint(&painter, option, fldRdLockIndex);
   painter.end();
+}
+
+void TestDelegates::testDescriptionFieldSizeHint() {
+  QWidget parent;
+  RegMapDelegate delegate(&parent);
+  RegMapTreeModel model;
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+  QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+  QModelIndex regIndex = model.index(0, 0, blkIndex);
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+  int descCol = model.columnOf("Description");
+  QCOMPARE(descCol, 13);
+  QModelIndex fldDescIndex = model.index(0, descCol, regIndex);
+
+  // Field description empty
+  QStyleOptionViewItem option;
+  option.font = parent.font();
+  option.fontMetrics = parent.fontMetrics();
+  QSize hintEmpty = delegate.sizeHint(option, fldDescIndex);
+  int expectedMin =
+      option.fontMetrics.horizontalAdvance(QStringLiteral("Description")) + 20;
+  QVERIFY(hintEmpty.width() >= expectedMin);
+
+  // Field description short (1 character)
+  model.setData(fldDescIndex, "A", Qt::EditRole);
+  QSize hintShort = delegate.sizeHint(option, fldDescIndex);
+  QVERIFY(hintShort.width() >= expectedMin);
+
+  // With a QTableView attached
+  QTableView tableView(&parent);
+  tableView.setModel(&model);
+  option.widget = &tableView;
+  QSize hintWithTable = delegate.sizeHint(option, fldDescIndex);
+  int tableHdrWidth = tableView.horizontalHeader()->sectionSizeHint(descCol);
+  QVERIFY(hintWithTable.width() >= tableHdrWidth);
+}
+
+void TestDelegates::testAllFieldsSizeHint() {
+  QWidget parent;
+  RegMapTreeModel model;
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+  QModelIndex blkIndex = model.index(0, 0, QModelIndex());
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIndex);
+  QModelIndex regIndex = model.index(0, 0, blkIndex);
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::fld, regIndex);
+
+  QTableView tableView(&parent);
+  tableView.setModel(&model);
+
+  QTreeView treeView(&parent);
+  treeView.setModel(&model);
+
+  RegHexDecBinDelegate hexDelegate(&parent);
+  RegStrDelegate strDelegate(&parent);
+  RegAccessPolicyDelegate swDelegate(&parent);
+  RegHwAccessDelegate hwDelegate(&parent);
+  RegBoolDelegate boolDelegate(&parent);
+  RegLockDelegate lockDelegate(&model, &parent);
+  RegMapDelegate baseDelegate(&parent);
+
+  QStyleOptionViewItem option;
+  option.font = parent.font();
+  option.fontMetrics = parent.fontMetrics();
+
+  for (int col = 1; col < model.columnCount(); ++col) {
+    QModelIndex fldIdx = model.index(0, col, regIndex);
+    QString colName =
+        model.headerData(col, Qt::Horizontal, Qt::DisplayRole).toString();
+    int expectedMin = option.fontMetrics.horizontalAdvance(colName) + 20;
+
+    RegMapDelegate *d = &baseDelegate;
+    if (col == 1 || col == 2 || col == 6)
+      d = &hexDelegate;
+    else if (col == 3)
+      d = &strDelegate;
+    else if (col == 4)
+      d = &swDelegate;
+    else if (col == 5)
+      d = &hwDelegate;
+    else if (col == 7 || col == 8 || col == 9 || col == 12)
+      d = &boolDelegate;
+    else if (col == 10 || col == 11)
+      d = &lockDelegate;
+
+    // Test standalone fallback
+    option.widget = nullptr;
+    QSize hintStandalone = d->sizeHint(option, fldIdx);
+    QVERIFY(hintStandalone.width() >= expectedMin);
+
+    // Test with QTableView
+    option.widget = &tableView;
+    QSize hintTable = d->sizeHint(option, fldIdx);
+    int tableHdr = tableView.horizontalHeader()->sectionSizeHint(col);
+    QVERIFY(hintTable.width() >= tableHdr);
+
+    // Test with QTreeView
+    option.widget = &treeView;
+    QSize hintTree = d->sizeHint(option, fldIdx);
+    int treeHdr = treeView.header()->sectionSizeHint(col);
+    QVERIFY(hintTree.width() >= treeHdr);
+  }
 }
 
 QTEST_MAIN(TestDelegates)

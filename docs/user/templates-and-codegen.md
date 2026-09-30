@@ -229,6 +229,22 @@ The context passed to Inja templates provides rich hardware architecture and ver
      - `ERROR_ON_WRITE_TO_LOCKED`: Asserts bus error on write targeting write-locked registers or fields (default 0 / disabled; configurable via Inja custom parameter `param_error_on_write_to_locked`).
      - `ERROR_ON_READ_FROM_LOCKED`: Asserts bus error on read targeting read-locked registers or fields (default 0 / disabled; configurable via Inja custom parameter `param_error_on_read_from_locked`).
    - External SRAM / sub-bus passthrough ports (`mem_<name>_req_o`, `we_o`, `addr_o`, `wdata_o`, `wstrb_o`, `rdata_i`, `ready_i`) for defined memory (`mem`) regions.
+   - **Decode-Only Register & Field Architecture**:
+     - For registers marked `decode_only == true`:
+       - Omission of internal storage flip-flops (`reg_<reg>_q`) and single-cycle software event strobes (`sw_<reg>_*_strobe_o`).
+       - Register-level bus decode interface ports:
+         - `sw_<reg>_wr_valid_o`: Asserted during an active software write targeting the register address.
+         - `sw_<reg>_rd_valid_o`: Asserted during an active software read targeting the register address.
+         - `sw_<reg>_wdata_o`: Bus write data forwarded directly to external logic.
+         - `sw_<reg>_wstrb_o`: Bus byte write strobes forwarded to external logic.
+         - `sw_<reg>_rdata_i`: External read data multiplexed into `bus_rdata_o` upon software read.
+         - `sw_<reg>_ready_i`: External completion/wait-state handshake signal routed into `bus_ready_o`.
+         - `sw_<reg>_error_i`: External error response routed into `bus_error_o`.
+       - Per-field valid signals are strictly suppressed to maintain a clean register boundary.
+     - For mixed registers (`reg.decode_only == false && fld.decode_only == true`):
+       - Field-level decode interface ports (`sw_<reg>_<fld>_wr_valid_o`, `sw_<reg>_<fld>_rd_valid_o`, `sw_<reg>_<fld>_wdata_o`, `hw_<reg>_<fld>_i`) are generated exclusively for the decode-only bitfields.
+       - Register-level decode ports are omitted, and normal bitfields retain internal storage flip-flops and hardware output ports (`hw_<reg>_<fld>_o`).
+     - All decode-only ports are cleanly routed through bus protocol bridges (`apb_reg_file.sv.inja`, `axil_reg_file.sv.inja`), and formal assertions (`reg_map_sva.sv.inja`) guard strobe duration and storage checks accordingly.
 
    **WaveDrom Protocol Timing Diagrams**:
    - *Software Write Cycle with Byte Strobes & Pulse Strobe*:

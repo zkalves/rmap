@@ -79,6 +79,7 @@ private slots:
   void testLockParserAndSynthesis();
   void testSoftwareWriteLockRtlCodegen();
   void testHierarchicalBlockAndFieldLockRtlCodegen();
+  void testDecodeOnlyCodegen();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower() {
@@ -2531,8 +2532,9 @@ void TestCodeGenerator::testCommandLineInterface() {
 
   // 6. Strict linting mode (--strict)
   {
-    auto [codeStrictFail, outStrictFail] = runRmap(
-        {"-f", "examples/features/wide_bus_64bit/wide_bus_64bit.rmt", "-l", "--strict"});
+    auto [codeStrictFail, outStrictFail] =
+        runRmap({"-f", "examples/features/wide_bus_64bit/wide_bus_64bit.rmt",
+                 "-l", "--strict"});
     QCOMPARE(codeStrictFail, 1);
   }
 
@@ -2675,7 +2677,8 @@ void TestCodeGenerator::testCommandLineInterface() {
     QDir("examples/peripherals/spi/work").removeRecursively();
 
     auto [codeLintFail, outLintFail] = runRmap(
-        {"-f", "examples/features/strict_validation/invalid_overlap.rmt", "--lint"});
+        {"-f", "examples/features/strict_validation/invalid_overlap.rmt",
+         "--lint"});
     QCOMPARE(codeLintFail, 1);
 
     // Language-only CLI option without theme (line 109-111 in main.cpp)
@@ -3272,13 +3275,19 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/err_def/reg_map.sv"});
-    mappings.push_back({"templates/rtl/reg_map.v.inja", "work/err_def/reg_map.v"});
-    mappings.push_back({"templates/rtl/reg_map.vhd.inja", "work/err_def/reg_map.vhd"});
-    mappings.push_back({"templates/rtl/apb_reg_file.sv.inja", "work/err_def/apb.sv"});
-    mappings.push_back({"templates/rtl/axil_reg_file.sv.inja", "work/err_def/axil.sv"});
+    mappings.push_back(
+        {"templates/rtl/reg_map.sv.inja", "work/err_def/reg_map.sv"});
+    mappings.push_back(
+        {"templates/rtl/reg_map.v.inja", "work/err_def/reg_map.v"});
+    mappings.push_back(
+        {"templates/rtl/reg_map.vhd.inja", "work/err_def/reg_map.vhd"});
+    mappings.push_back(
+        {"templates/rtl/apb_reg_file.sv.inja", "work/err_def/apb.sv"});
+    mappings.push_back(
+        {"templates/rtl/axil_reg_file.sv.inja", "work/err_def/axil.sv"});
 
-    GenerationReport rep = cg.generate(root, "templates", "work/err_def", mappings);
+    GenerationReport rep =
+        cg.generate(root, "templates", "work/err_def", mappings);
     QVERIFY(!rep.has_errors());
 
     QFile fSv("work/err_def/reg_map.sv");
@@ -3305,7 +3314,8 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
     QVERIFY(vhd.contains("ERROR_ON_READ_FROM_WO     : std_logic := '0'"));
   }
 
-  // Case 2: Configured error response parameters (all enabled via custom parameters)
+  // Case 2: Configured error response parameters (all enabled via custom
+  // parameters)
   {
     json root = json::object();
     root["name"] = "ERR_PARAM_ENABLED";
@@ -3355,14 +3365,21 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
     root["blocks"] = json::array({blk});
 
     std::vector<TemplateMapping> mappings;
-    mappings.push_back({"templates/rtl/reg_map.sv.inja", "work/err_en/reg_map.sv"});
-    mappings.push_back({"templates/rtl/reg_map.v.inja", "work/err_en/reg_map.v"});
-    mappings.push_back({"templates/rtl/reg_map.vhd.inja", "work/err_en/reg_map.vhd"});
-    mappings.push_back({"templates/rtl/apb_reg_file.sv.inja", "work/err_en/apb.sv"});
-    mappings.push_back({"templates/rtl/axil_reg_file.sv.inja", "work/err_en/axil.sv"});
-    mappings.push_back({"templates/rtl/reg_map_sva.sv.inja", "work/err_en/sva.sv"});
+    mappings.push_back(
+        {"templates/rtl/reg_map.sv.inja", "work/err_en/reg_map.sv"});
+    mappings.push_back(
+        {"templates/rtl/reg_map.v.inja", "work/err_en/reg_map.v"});
+    mappings.push_back(
+        {"templates/rtl/reg_map.vhd.inja", "work/err_en/reg_map.vhd"});
+    mappings.push_back(
+        {"templates/rtl/apb_reg_file.sv.inja", "work/err_en/apb.sv"});
+    mappings.push_back(
+        {"templates/rtl/axil_reg_file.sv.inja", "work/err_en/axil.sv"});
+    mappings.push_back(
+        {"templates/rtl/reg_map_sva.sv.inja", "work/err_en/sva.sv"});
 
-    GenerationReport rep = cg.generate(root, "templates", "work/err_en", mappings);
+    GenerationReport rep =
+        cg.generate(root, "templates", "work/err_en", mappings);
     QVERIFY(!rep.has_errors());
 
     QFile fSv("work/err_en/reg_map.sv");
@@ -4241,6 +4258,268 @@ void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
   QVERIFY(axil.contains("(hw_blk_wr_lock_i)"));
   QVERIFY(axil.contains(".hw_key_wr_lock_i"));
   QVERIFY(axil.contains("(hw_key_wr_lock_i)"));
+}
+
+void TestCodeGenerator::testDecodeOnlyCodegen() {
+  CodeGenerator cg;
+  json root = json::object();
+  root["reg_width"] = 32;
+  root["reg_width_bytes"] = 4;
+
+  json blk = json::object();
+  blk["name"] = "test_blk";
+  blk["offset_hex"] = "0x0";
+  blk["size_bytes"] = 4096;
+  blk["has_decode_only_regs"] = true;
+
+  json regList = json::array();
+
+  // 1. reg_ext: Register marked decode_only
+  {
+    json reg = json::object();
+    reg["name"] = "reg_ext";
+    reg["offset_lsb"] = 0;
+    reg["offset_hex"] = "0x0";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["decode_only"] = true;
+    reg["has_decode_only_fields"] = false;
+    reg["all_fields_decode_only"] = false;
+    reg["is_full_decode_only"] = true;
+
+    json fld = json::object();
+    fld["name"] = "data";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+    fld["decode_only"] = false;
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  // 2. reg_mixed: Register is NOT decode_only, but has one decode_only field
+  // and one normal field
+  {
+    json reg = json::object();
+    reg["name"] = "reg_mixed";
+    reg["offset_lsb"] = 4;
+    reg["offset_hex"] = "0x4";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["decode_only"] = false;
+    reg["has_decode_only_fields"] = true;
+    reg["all_fields_decode_only"] = false;
+    reg["is_full_decode_only"] = false;
+
+    json fldNorm = json::object();
+    fldNorm["name"] = "fld_norm";
+    fldNorm["offset_lsb"] = 0;
+    fldNorm["size_width"] = 16;
+    fldNorm["access"] = "RW";
+    fldNorm["reset_val"] = 0;
+    fldNorm["reset_hex"] = "0x0";
+    fldNorm["hw_access"] = "RO";
+    fldNorm["decode_only"] = false;
+
+    json fldExt = json::object();
+    fldExt["name"] = "fld_ext";
+    fldExt["offset_lsb"] = 16;
+    fldExt["size_width"] = 16;
+    fldExt["access"] = "RW";
+    fldExt["reset_val"] = 0;
+    fldExt["reset_hex"] = "0x0";
+    fldExt["hw_access"] = "RO";
+    fldExt["decode_only"] = true;
+
+    reg["fields"] = json::array({fldNorm, fldExt});
+    regList.push_back(reg);
+  }
+
+  // 3. reg_norm: Standard register, not decode_only
+  {
+    json reg = json::object();
+    reg["name"] = "reg_norm";
+    reg["offset_lsb"] = 8;
+    reg["offset_hex"] = "0x8";
+    reg["size_width"] = 32;
+    reg["access"] = "RW";
+    reg["reset_val"] = 0;
+    reg["reset_hex"] = "0x0";
+    reg["decode_only"] = false;
+    reg["has_decode_only_fields"] = false;
+    reg["all_fields_decode_only"] = false;
+    reg["is_full_decode_only"] = false;
+
+    json fld = json::object();
+    fld["name"] = "val";
+    fld["offset_lsb"] = 0;
+    fld["size_width"] = 32;
+    fld["access"] = "RW";
+    fld["reset_val"] = 0;
+    fld["reset_hex"] = "0x0";
+    fld["hw_access"] = "RO";
+    fld["decode_only"] = false;
+
+    reg["fields"] = json::array({fld});
+    regList.push_back(reg);
+  }
+
+  blk["registers"] = regList;
+  root["blocks"] = json::array({blk});
+
+  std::vector<TemplateMapping> mappings = {
+      {"templates/rtl/reg_map.sv.inja", "work/decode_only_test/reg_map.sv"},
+      {"templates/rtl/reg_map.v.inja", "work/decode_only_test/reg_map.v"},
+      {"templates/rtl/reg_map.vhd.inja", "work/decode_only_test/reg_map.vhd"},
+      {"templates/rtl/apb_reg_file.sv.inja",
+       "work/decode_only_test/apb_reg_file.sv"},
+      {"templates/rtl/axil_reg_file.sv.inja",
+       "work/decode_only_test/axil_reg_file.sv"},
+      {"templates/rtl/reg_map_sva.sv.inja",
+       "work/decode_only_test/reg_map_sva.sv"}};
+
+  GenerationReport rep =
+      cg.generate(root, "templates", "work/decode_only_test", mappings);
+  QVERIFY(!rep.has_errors());
+
+  // 1. SystemVerilog checks
+  QFile fSv("work/decode_only_test/reg_map.sv");
+  QVERIFY(fSv.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sv = QString::fromUtf8(fSv.readAll());
+  fSv.close();
+
+  // (a) Register reg_ext: register-level ports generated
+  QVERIFY(sv.contains("sw_reg_ext_wr_valid_o,"));
+  QVERIFY(sv.contains("sw_reg_ext_rd_valid_o,"));
+  QVERIFY(sv.contains("sw_reg_ext_wdata_o,"));
+  QVERIFY(sv.contains("sw_reg_ext_wstrb_o,"));
+  QVERIFY(sv.contains("sw_reg_ext_rdata_i,"));
+  QVERIFY(sv.contains("sw_reg_ext_ready_i,"));
+  QVERIFY(sv.contains("sw_reg_ext_error_i,"));
+
+  // Verify reg_ext does NOT generate normal strobes or internal flop
+  QVERIFY(!sv.contains("sw_reg_ext_wr_strobe_o"));
+  QVERIFY(!sv.contains("sw_reg_ext_rd_strobe_o"));
+  QVERIFY(!sv.contains("reg_reg_ext_q"));
+
+  // Verify field-level signals are NOT generated for reg_ext (user rule: only
+  // reg-level signals if reg is decode-only)
+  QVERIFY(!sv.contains("sw_reg_ext_data_wr_valid_o"));
+  QVERIFY(!sv.contains("sw_reg_ext_data_rd_valid_o"));
+  QVERIFY(!sv.contains("sw_reg_ext_data_wdata_o"));
+
+  // (b) Mixed register reg_mixed:
+  // Register-level decode ports MUST NOT be generated because reg is not
+  // decode_only
+  QVERIFY(!sv.contains("sw_reg_mixed_wr_valid_o"));
+  QVERIFY(!sv.contains("sw_reg_mixed_rd_valid_o"));
+
+  // Field-level decode ports MUST be generated for fld_ext
+  QVERIFY(sv.contains("sw_reg_mixed_fld_ext_wr_valid_o,"));
+  QVERIFY(sv.contains("sw_reg_mixed_fld_ext_rd_valid_o,"));
+  QVERIFY(sv.contains("sw_reg_mixed_fld_ext_wdata_o,"));
+  QVERIFY(sv.contains("hw_reg_mixed_fld_ext_i,"));
+
+  // Field-level decode ports MUST NOT be generated for fld_norm
+  QVERIFY(!sv.contains("sw_reg_mixed_fld_norm_wr_valid_o"));
+
+  // Normal field fld_norm has hw output
+  QVERIFY(sv.contains("hw_reg_mixed_fld_norm_o,"));
+
+  // Storage flop reg_reg_mixed_q exists for the normal field
+  QVERIFY(sv.contains("reg_reg_mixed_q"));
+
+  // Ready multiplexing
+  QVERIFY(sv.contains("sw_reg_ext_ready_i"));
+
+  // Error multiplexing
+  QVERIFY(sv.contains("sw_reg_ext_error_i"));
+
+  // Read decode
+  QVERIFY(sv.contains("bus_rdata_o = sw_reg_ext_rdata_i;"));
+  QVERIFY(sv.contains("bus_rdata_o[16 +: 16] = hw_reg_mixed_fld_ext_i;"));
+  QVERIFY(sv.contains("bus_rdata_o[0 +: 16] = reg_reg_mixed_q[0 +: 16];"));
+
+  // 2. Verilog 2001 checks
+  QFile fV("work/decode_only_test/reg_map.v");
+  QVERIFY(fV.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString v = QString::fromUtf8(fV.readAll());
+  fV.close();
+  QVERIFY(
+      v.contains("output wire                      sw_reg_ext_wr_valid_o,"));
+  QVERIFY(v.contains("sw_reg_mixed_fld_ext_wr_valid_o,"));
+  QVERIFY(!v.contains("sw_reg_mixed_wr_valid_o"));
+  QVERIFY(!v.contains("sw_reg_ext_wr_strobe_o"));
+
+  // 3. VHDL checks
+  QFile fVhd("work/decode_only_test/reg_map.vhd");
+  QVERIFY(fVhd.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString vhd = QString::fromUtf8(fVhd.readAll());
+  fVhd.close();
+  QVERIFY(vhd.contains("sw_reg_ext_wr_valid_o"));
+  QVERIFY(vhd.contains("sw_reg_mixed_fld_ext_wr_valid_o"));
+  QVERIFY(!vhd.contains("sw_reg_mixed_wr_valid_o"));
+  QVERIFY(!vhd.contains("sw_reg_ext_wr_strobe_o"));
+
+  // 4. SVA assertions checks
+  QFile fSva("work/decode_only_test/reg_map_sva.sv");
+  QVERIFY(fSva.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString sva = QString::fromUtf8(fSva.readAll());
+  fSva.close();
+  QVERIFY(!sva.contains("p_sw_reg_ext_wr_strobe_pulse"));
+  QVERIFY(!sva.contains(".reg_reg_ext_q"));
+  QVERIFY(sva.contains("p_sw_reg_norm_wr_strobe_pulse"));
+  QVERIFY(sva.contains(".reg_reg_norm_q"));
+
+  // 5. APB and AXIL wrapper checks
+  QFile fApb("work/decode_only_test/apb_reg_file.sv");
+  QVERIFY(fApb.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString apb = QString::fromUtf8(fApb.readAll());
+  fApb.close();
+  QVERIFY(apb.contains("sw_reg_ext_wr_valid_o,"));
+  QVERIFY(apb.contains("sw_reg_mixed_fld_ext_wr_valid_o,"));
+  QVERIFY(apb.contains(".sw_reg_ext_wr_valid_o"));
+  QVERIFY(apb.contains(".sw_reg_mixed_fld_ext_wr_valid_o"));
+
+  QFile fAxil("work/decode_only_test/axil_reg_file.sv");
+  QVERIFY(fAxil.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString axil = QString::fromUtf8(fAxil.readAll());
+  fAxil.close();
+  QVERIFY(axil.contains("sw_reg_ext_wr_valid_o,"));
+  QVERIFY(axil.contains("sw_reg_mixed_fld_ext_wr_valid_o,"));
+  QVERIFY(axil.contains(".sw_reg_ext_wr_valid_o"));
+  QVERIFY(axil.contains(".sw_reg_mixed_fld_ext_wr_valid_o"));
+
+  // Also test RegMapTreeModel extraction with Decode Only items
+  RegMapTreeModel model;
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::blk, QModelIndex());
+  QModelIndex blkIdx = model.index(0, 0, QModelIndex());
+  model.setData(model.index(0, 3, QModelIndex()), "TEST_BLK", Qt::EditRole);
+
+  model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkIdx);
+  QModelIndex reg1Idx = model.index(0, 0, blkIdx);
+  model.setData(model.index(0, 1, blkIdx), "0x00", Qt::EditRole);
+  model.setData(model.index(0, 3, blkIdx), "REG_DECODE", Qt::EditRole);
+
+  RegMapTreeItem *regItem = model.getItem(reg1Idx);
+  QVERIFY(regItem != nullptr);
+  regItem->setData("Decode Only", "true");
+
+  json extractedJson = model.extractJsonData(32);
+  QVERIFY(extractedJson.contains("blocks"));
+  QVERIFY(extractedJson["blocks"][0]["has_decode_only_regs"].get<bool>());
+  QVERIFY(
+      extractedJson["blocks"][0]["registers"][0]["decode_only"].get<bool>());
+  QVERIFY(extractedJson["blocks"][0]["registers"][0]["is_full_decode_only"]
+              .get<bool>());
 }
 
 QTEST_MAIN(TestCodeGenerator)

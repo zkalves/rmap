@@ -113,7 +113,8 @@ RegMapTreeModel::RegMapTreeModel(QObject *parent) : QAbstractItemModel(parent) {
   headerlist << tr("Type") << tr("Offset/LSB") << tr("Size/Width") << tr("Name")
              << tr("SW Access") << tr("HW Access") << tr("Reset Value")
              << tr("Is Rand") << tr("Volatile") << tr("Has Reset")
-             << tr("Description") << tr("Write Lock") << tr("Read Lock");
+             << tr("Write Lock") << tr("Read Lock") << tr("Decode Only")
+             << tr("Description");
 
   for (const QString &str : headerlist) {
     data[str] = str;
@@ -207,6 +208,15 @@ void RegMapTreeModel::refreshHeaderData() {
   if (!m_displayColumns.isEmpty()) {
     emit headerDataChanged(Qt::Horizontal, 0, m_displayColumns.size() - 1);
   }
+}
+
+int RegMapTreeModel::columnOf(const QString &columnName) const {
+  for (int i = 0; i < m_displayColumns.size(); ++i) {
+    if (m_displayColumns[i].compare(columnName, Qt::CaseInsensitive) == 0) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 QModelIndex RegMapTreeModel::index(int row, int column,
@@ -372,7 +382,7 @@ void RegMapTreeModel::initRow(int row, QModelIndex index) {
       } else {
         this->setData(child, "true", Qt::EditRole);
       }
-    } else if (colName == "Volatile") {
+    } else if (colName == "Volatile" || colName == "Decode Only") {
       this->setData(child, "false", Qt::EditRole);
     } else {
       this->setData(child, "", Qt::EditRole);
@@ -627,8 +637,8 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node,
     if (!lockWrExpr.isEmpty()) {
       QString lockErr;
       if (!LockParser::isValidSyntax(lockWrExpr, &lockErr)) {
-        m_invalidCells.insert(
-            std::make_pair(node, 11)); // Highlight Write Lock column
+        m_invalidCells.insert(std::make_pair(
+            node, columnOf("Write Lock"))); // Highlight Write Lock column
         errors.append(tr("%1 '%2' has invalid Write Lock expression '%3': %4")
                           .arg(node->kindString().toUpper(), nodeName,
                                lockWrExpr, lockErr));
@@ -638,8 +648,8 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node,
     if (!lockRdExpr.isEmpty()) {
       QString lockErr;
       if (!LockParser::isValidSyntax(lockRdExpr, &lockErr)) {
-        m_invalidCells.insert(
-            std::make_pair(node, 12)); // Highlight Read Lock column
+        m_invalidCells.insert(std::make_pair(
+            node, columnOf("Read Lock"))); // Highlight Read Lock column
         errors.append(tr("%1 '%2' has invalid Read Lock expression '%3': %4")
                           .arg(node->kindString().toUpper(), nodeName,
                                lockRdExpr, lockErr));
@@ -691,6 +701,9 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
   bool is_rand = (node->data("Is Rand").toString().toLower() == "true");
   bool is_volatile = (node->data("Volatile").toString().toLower() == "true");
   bool has_reset = (node->data("Has Reset").toString().toLower() == "true");
+  bool decode_only =
+      (node->data("Decode Only").toString().toLower() == "true" ||
+       node->data("decode_only").toString().toLower() == "true");
 
   item_json["name"] = name;
   item_json["offset_lsb"] = offset_lsb;
@@ -704,6 +717,7 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
   item_json["is_rand"] = is_rand;
   item_json["volatile"] = is_volatile;
   item_json["has_reset"] = has_reset;
+  item_json["decode_only"] = decode_only;
   item_json["description"] = desc;
 
   std::string lock_wr =
@@ -909,6 +923,16 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
       currentOffset = regOffset + regBytes;
     }
 
+    bool has_decode_only_regs = false;
+    for (const auto &r : registers) {
+      if (r.value("decode_only", false) ||
+          r.value("has_decode_only_fields", false)) {
+        has_decode_only_regs = true;
+        break;
+      }
+    }
+    item_json["has_decode_only_regs"] = has_decode_only_regs;
+
     item_json["registers"] = registers;
   }
   if (!fields.empty()) {
@@ -916,6 +940,27 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
       return a.value("offset_lsb", 0ULL) < b.value("offset_lsb", 0ULL);
     });
     item_json["fields"] = fields;
+  }
+  if (kind == "reg") {
+    bool has_decode_only_fields = false;
+    bool all_fields_decode_only = !fields.empty();
+    bool has_normal_fields = false;
+    for (const auto &fld : fields) {
+      bool fld_do = fld.value("decode_only", false);
+      if (fld_do) {
+        has_decode_only_fields = true;
+      } else {
+        all_fields_decode_only = false;
+        has_normal_fields = true;
+      }
+    }
+    if (fields.empty()) {
+      all_fields_decode_only = false;
+    }
+    item_json["has_decode_only_fields"] = has_decode_only_fields;
+    item_json["all_fields_decode_only"] = all_fields_decode_only;
+    item_json["has_normal_fields"] = has_normal_fields;
+    item_json["is_full_decode_only"] = decode_only || all_fields_decode_only;
   }
   if (!memories.empty()) {
     std::sort(

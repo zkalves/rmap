@@ -105,6 +105,18 @@ Defines the abstract behavioral contract between internal core hardware logic an
 > [!NOTE]
 > Concrete HDL port signatures, naming conventions, and bus protocol adapters (such as hardware write enables, write data, live sampling, pulse toggles, and counter increment/decrement strobes) are defined by and customized within individual code generation templates. See [templates-and-codegen.md](templates-and-codegen.md).
 
+### Decode-Only Registers & External Storage Policy
+
+Certain peripheral subsystems require address decoding, transaction gating, and bus protocol arbitration without internal flip-flop register storage. Common examples include:
+- Offloading register storage and state management to external ASIC/FPGA logic or external IP cores.
+- Transparently forwarding register access requests across clock domains, asynchronous boundaries, or multi-cycle external datapaths.
+- Mixing fixed internal storage with externally-managed control bitfields within the same register address.
+
+To support these architectures, **rmap** provides an integrated **Decode-Only** policy configurable at both register and field granularity:
+- **Full Decode-Only Register**: When a register is configured as decode-only, the register map generator emits address decoding, write data/byte-strobe forwarding, and external read multiplexing logic, but completely omits internal flip-flop storage. Software read and write accesses generate external validation signals and interface directly with external hardware logic. External logic drives read data and controls completion via ready and error handshakes, permitting multi-cycle external transactions and wait-states.
+- **Decode-Only Bitfields in Mixed Registers**: When individual bitfields within a standard register are configured as decode-only, only the marked bitfields bypass internal storage and interface externally, while remaining bitfields retain synthesizable flip-flop storage and standard internal hardware update semantics.
+- **Hierarchical Signal Scoping Invariant**: If a register is marked decode-only, access signals are generated strictly at the register boundary, avoiding redundant per-field strobe signals. Conversely, if a register contains a mixture of normal and decode-only bitfields, external interface signals are generated exclusively for the decode-only bitfields, while internal storage bitfields maintain their standard hardware ports and flip-flops.
+
 ### Hardware vs. Software Arbitration Precedence
 
 When software bus transactions and internal hardware logic attempt concurrent writes to the same bitfield on the same cycle, the data model supports configurable arbitration precedence:
