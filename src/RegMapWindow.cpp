@@ -383,10 +383,26 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   this->treeView->setColumnHidden(7, true); // Is Rand
   this->treeView->setColumnHidden(8, true); // Volatile
   this->treeView->setColumnHidden(9, true); // Has Reset
-  // Note: Column 10 (Description) remains visible in treeView for all items
+  // Note: Description column (rightmost) remains visible in treeView for all
+  // items
   this->treeView->header()->setStretchLastSection(true);
   this->treeView->header()->setSectionResizeMode(QHeaderView::Interactive);
-  this->treeView->header()->setSectionResizeMode(10, QHeaderView::Stretch);
+  int descCol = m_model ? m_model->columnOf("Description") : 13;
+  if (descCol < 0)
+    descCol = 13;
+  this->treeView->header()->setSectionResizeMode(descCol, QHeaderView::Stretch);
+
+  connect(this->treeView->header(), &QHeaderView::sectionResized, this,
+          [this](int logicalIndex, int /*oldSize*/, int newSize) {
+            if (!this->treeView->header())
+              return;
+            int minHeaderSize =
+                this->treeView->header()->sectionSizeHint(logicalIndex);
+            if (newSize < minHeaderSize) {
+              this->treeView->header()->resizeSection(logicalIndex,
+                                                      minHeaderSize);
+            }
+          });
   leftViewLayout->addWidget(this->treeView);
 
   m_leftStackedWidget->addWidget(m_leftViewWidget);
@@ -433,7 +449,8 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_regNameEdit->setObjectName("regNameEdit");
   m_regNameEdit->setPlaceholderText(tr("Register name..."));
   m_regNameEdit->setClearButtonEnabled(true);
-  m_regNameEdit->setMinimumWidth(120);
+  m_regNameEdit->setMinimumWidth(
+      std::max(120, regNameTitle->sizeHint().width()));
 
   QLabel *regOffsetTitle = new QLabel(tr("Offset:"), m_regHeaderWidget);
   regOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
@@ -443,6 +460,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_regOffsetEdit->setPlaceholderText(tr("0x00"));
   m_regOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
   m_regOffsetEdit->setClearButtonEnabled(true);
+  m_regOffsetEdit->setMinimumWidth(regOffsetTitle->sizeHint().width());
   m_regOffsetEdit->setMaximumWidth(100);
 
   QLabel *descLabel = new QLabel(tr("Description:"), m_regHeaderWidget);
@@ -452,6 +470,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_regDescEdit->setObjectName("regDescEdit");
   m_regDescEdit->setPlaceholderText(tr("Register description..."));
   m_regDescEdit->setClearButtonEnabled(true);
+  m_regDescEdit->setMinimumWidth(descLabel->sizeHint().width());
 
   regHeaderLayout->addWidget(regNameTitle);
   regHeaderLayout->addWidget(m_regNameEdit);
@@ -510,7 +529,10 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
       if (currentRegProxy.isValid()) {
         QModelIndex currentRegSource =
             m_treeProxy->mapToSource(currentRegProxy);
-        QModelIndex descIndex = m_model->index(currentRegSource.row(), 10,
+        int descCol = m_model ? m_model->columnOf("Description") : 13;
+        if (descCol < 0)
+          descCol = 13;
+        QModelIndex descIndex = m_model->index(currentRegSource.row(), descCol,
                                                currentRegSource.parent());
         m_undoStack->push(
             new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
@@ -533,8 +555,24 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
   m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
       QHeaderView::Interactive);
+  int fldDescCol = m_model ? m_model->columnOf("Description") : 13;
+  if (fldDescCol < 0)
+    fldDescCol = 13;
   m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
-      10, QHeaderView::Stretch);
+      fldDescCol, QHeaderView::Stretch);
+
+  connect(m_fieldsTableView->horizontalHeader(), &QHeaderView::sectionResized,
+          this, [this](int logicalIndex, int /*oldSize*/, int newSize) {
+            if (!m_fieldsTableView->horizontalHeader())
+              return;
+            int minHeaderSize =
+                m_fieldsTableView->horizontalHeader()->sectionSizeHint(
+                    logicalIndex);
+            if (newSize < minHeaderSize) {
+              m_fieldsTableView->horizontalHeader()->resizeSection(
+                  logicalIndex, minHeaderSize);
+            }
+          });
 
   // Set field table delegates
   m_fieldsTableView->setItemDelegateForColumn(
@@ -556,11 +594,13 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_fieldsTableView->setItemDelegateForColumn(
       9, new RegBoolDelegate(this)); // Has Reset
   m_fieldsTableView->setItemDelegateForColumn(
-      10, new RegMapDelegate(this)); // Description
+      10, new RegLockDelegate(m_model, this)); // Write Lock
   m_fieldsTableView->setItemDelegateForColumn(
-      11, new RegLockDelegate(m_model, this)); // Write Lock
+      11, new RegLockDelegate(m_model, this)); // Read Lock
   m_fieldsTableView->setItemDelegateForColumn(
-      12, new RegLockDelegate(m_model, this)); // Read Lock
+      12, new RegBoolDelegate(this)); // Decode Only
+  m_fieldsTableView->setItemDelegateForColumn(
+      13, new RegMapDelegate(this)); // Description
   m_fieldsTableView->setColumnHidden(0, true);
   regViewLayout->addWidget(m_fieldsTableView);
 
@@ -588,7 +628,8 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_blkNameEdit->setObjectName("blkNameEdit");
   m_blkNameEdit->setPlaceholderText(tr("Block name..."));
   m_blkNameEdit->setClearButtonEnabled(true);
-  m_blkNameEdit->setMinimumWidth(120);
+  m_blkNameEdit->setMinimumWidth(
+      std::max(120, blkNameTitle->sizeHint().width()));
 
   QLabel *blkOffsetTitle = new QLabel(tr("Offset:"), m_blockHeaderWidget);
   blkOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
@@ -598,6 +639,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_blkOffsetEdit->setPlaceholderText(tr("0x0000"));
   m_blkOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
   m_blkOffsetEdit->setClearButtonEnabled(true);
+  m_blkOffsetEdit->setMinimumWidth(blkOffsetTitle->sizeHint().width());
   m_blkOffsetEdit->setMaximumWidth(100);
 
   QLabel *blkDescTitle = new QLabel(tr("Description:"), m_blockHeaderWidget);
@@ -607,6 +649,7 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_blkDescEdit->setObjectName("blkDescEdit");
   m_blkDescEdit->setPlaceholderText(tr("Block description..."));
   m_blkDescEdit->setClearButtonEnabled(true);
+  m_blkDescEdit->setMinimumWidth(blkDescTitle->sizeHint().width());
 
   blockHeaderLayout->addWidget(blkNameTitle);
   blockHeaderLayout->addWidget(m_blkNameEdit);
@@ -665,7 +708,10 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
       if (currentBlkProxy.isValid()) {
         QModelIndex currentBlkSource =
             m_treeProxy->mapToSource(currentBlkProxy);
-        QModelIndex descIndex = m_model->index(currentBlkSource.row(), 10,
+        int descCol = m_model ? m_model->columnOf("Description") : 13;
+        if (descCol < 0)
+          descCol = 13;
+        QModelIndex descIndex = m_model->index(currentBlkSource.row(), descCol,
                                                currentBlkSource.parent());
         m_undoStack->push(
             new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
@@ -841,11 +887,13 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   this->treeView->setItemDelegateForColumn(8, boolDelegate); // Volatile
   this->treeView->setItemDelegateForColumn(9, boolDelegate); // Has Reset
   this->treeView->setItemDelegateForColumn(
-      10, new RegMapDelegate(this)); // Description
+      10, new RegLockDelegate(m_model, this)); // Write Lock
   this->treeView->setItemDelegateForColumn(
-      11, new RegLockDelegate(m_model, this)); // Write Lock
+      11, new RegLockDelegate(m_model, this)); // Read Lock
   this->treeView->setItemDelegateForColumn(
-      12, new RegLockDelegate(m_model, this)); // Read Lock
+      12, new RegBoolDelegate(this)); // Decode Only
+  this->treeView->setItemDelegateForColumn(
+      13, new RegMapDelegate(this)); // Description
 }
 
 RegMapWindow::~RegMapWindow() {
@@ -2154,6 +2202,12 @@ void RegMapWindow::insertChild(RegMapTreeItem::e_rmmKind kind) {
 
   for (int col = 0; col < m_treeProxy->columnCount(); col++) {
     this->treeView->resizeColumnToContents(col);
+    if (this->treeView->header()) {
+      int minHeader = this->treeView->header()->sectionSizeHint(col);
+      if (this->treeView->columnWidth(col) < minHeader) {
+        this->treeView->setColumnWidth(col, minHeader);
+      }
+    }
   }
 
   // Expand parent in treeView
@@ -2242,12 +2296,25 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
         connectFieldsTableSignals();
       }
       m_fieldsTableView->setRootIndex(m_fieldProxy->mapFromSource(source_col0));
-      for (int col = 1; col < 10; ++col) {
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13;
+      for (int col = 1; col < descCol; ++col) {
         m_fieldsTableView->resizeColumnToContents(col);
+        int minHeader =
+            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+        if (m_fieldsTableView->columnWidth(col) < minHeader) {
+          m_fieldsTableView->setColumnWidth(col, minHeader);
+        }
       }
       m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
       m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
-          10, QHeaderView::Stretch);
+          descCol, QHeaderView::Stretch);
+      int minHeaderSize =
+          m_fieldsTableView->horizontalHeader()->sectionSizeHint(descCol);
+      if (m_fieldsTableView->columnWidth(descCol) < minHeaderSize) {
+        m_fieldsTableView->setColumnWidth(descCol, minHeaderSize);
+      }
     }
 
     uint32_t regWidth = 32;

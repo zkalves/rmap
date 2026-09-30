@@ -36,7 +36,7 @@ private slots:
 
 void TestRegMapTreeModel::testModelStructureAndHeaders() {
   RegMapTreeModel model;
-  QCOMPARE(model.columnCount(), 13);
+  QCOMPARE(model.columnCount(), 14);
   QCOMPARE(model.headerData(0, Qt::Horizontal, Qt::DisplayRole).toString(),
            QString("Type"));
   QCOMPARE(model.headerData(1, Qt::Horizontal, Qt::DisplayRole).toString(),
@@ -58,11 +58,21 @@ void TestRegMapTreeModel::testModelStructureAndHeaders() {
   QCOMPARE(model.headerData(9, Qt::Horizontal, Qt::DisplayRole).toString(),
            QString("Has Reset"));
   QCOMPARE(model.headerData(10, Qt::Horizontal, Qt::DisplayRole).toString(),
-           QString("Description"));
-  QCOMPARE(model.headerData(11, Qt::Horizontal, Qt::DisplayRole).toString(),
            QString("Write Lock"));
-  QCOMPARE(model.headerData(12, Qt::Horizontal, Qt::DisplayRole).toString(),
+  QCOMPARE(model.headerData(11, Qt::Horizontal, Qt::DisplayRole).toString(),
            QString("Read Lock"));
+  QCOMPARE(model.headerData(12, Qt::Horizontal, Qt::DisplayRole).toString(),
+           QString("Decode Only"));
+  QCOMPARE(model.headerData(13, Qt::Horizontal, Qt::DisplayRole).toString(),
+           QString("Description"));
+
+  QCOMPARE(model.columnOf("Type"), 0);
+  QCOMPARE(model.columnOf("Offset/LSB"), 1);
+  QCOMPARE(model.columnOf("Write Lock"), 10);
+  QCOMPARE(model.columnOf("Read Lock"), 11);
+  QCOMPARE(model.columnOf("Decode Only"), 12);
+  QCOMPARE(model.columnOf("Description"), 13);
+  QCOMPARE(model.columnOf("NonExistentColumn"), -1);
 }
 
 void TestRegMapTreeModel::testItemInsertionAndRemoval() {
@@ -109,11 +119,11 @@ void TestRegMapTreeModel::testDataGetAndSet() {
   QCOMPARE(model.data(blkIndex, Qt::DisplayRole).toString(),
            QString("MY_BLOCK"));
 
-  // Insert register and test Description (Column 10)
+  // Insert register and test Description (Column 13)
   QModelIndex blkCol0 = model.index(0, 0, QModelIndex());
   model.insertRows(0, 1, RegMapTreeItem::e_rmmKind::reg, blkCol0);
   QModelIndex regDescIndex =
-      model.index(0, 10, blkCol0); // Column 10: Description
+      model.index(0, 13, blkCol0); // Column 13: Description
   QVERIFY(model.setData(regDescIndex, "Main Control Register for SPI interface",
                         Qt::EditRole));
   QCOMPARE(model.data(regDescIndex, Qt::DisplayRole).toString(),
@@ -479,7 +489,7 @@ void TestRegMapTreeModel::testIndexAndDataRolesEdgeCases() {
   RegMapTreeModel model;
 
   // 1. Column count with valid and invalid parent
-  QCOMPARE(model.columnCount(QModelIndex()), 13);
+  QCOMPARE(model.columnCount(QModelIndex()), 14);
 
   // 2. Index navigation boundaries
   QVERIFY(!model.index(-1, 0, QModelIndex()).isValid());

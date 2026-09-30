@@ -131,9 +131,9 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
 
   // Column definitions
   QVector<QString> cols = {
-      "Type",        "Offset/LSB",  "Size/Width", "Name",     "SW Access",
-      "HW Access",   "Reset Value", "Is Rand",    "Volatile", "Has Reset",
-      "Description", "Write Lock",  "Read Lock"};
+      "Type",        "Offset/LSB",  "Size/Width", "Name",       "SW Access",
+      "HW Access",   "Reset Value", "Is Rand",    "Volatile",   "Has Reset",
+      "Description", "Write Lock",  "Read Lock",  "Decode Only"};
   QVariantMap rootData;
   for (const QString &c : cols)
     rootData[c] = c;
@@ -149,7 +149,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       colWidth = 5;
   int colAccess = 6, colReset = 7, colRand = 8, colVol = 9, colHasReset = 10,
       colDesc = 11;
-  int colWrLock = 12, colRdLock = 13, colLegacyLock = -1;
+  int colWrLock = 12, colRdLock = 13, colLegacyLock = -1, colDecodeOnly = -1;
 
   size_t startRow = 0;
   if (!rows.empty() &&
@@ -186,6 +186,8 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
         colWrLock = i;
       else if (h == "read lock" || h == "readlock" || h == "lock_rd")
         colRdLock = i;
+      else if (h == "decode only" || h == "decode_only" || h == "decodeonly")
+        colDecodeOnly = i;
       else if (h == "lock")
         colLegacyLock = i;
     }
@@ -222,6 +224,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
     if (wrLock.isEmpty() && colLegacyLock >= 0) {
       wrLock = getCol(colLegacyLock);
     }
+    QString decodeOnly = getCol(colDecodeOnly, "false");
 
     if (blkName.isEmpty())
       blkName = "TOP_BLK";
@@ -280,6 +283,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
         regData["HW Access"] = "RO";
         regData["Reset Value"] = "0x0";
         regData["Description"] = (type == "reg") ? desc : "";
+        regData["Decode Only"] = (type == "reg") ? decodeOnly : "false";
         if (type == "reg") {
           if (!wrLock.isEmpty()) {
             regData["Write Lock"] = wrLock;
@@ -310,6 +314,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       fldData["Is Rand"] = isRand;
       fldData["Volatile"] = isVol;
       fldData["Has Reset"] = hasReset;
+      fldData["Decode Only"] = decodeOnly;
       fldData["Description"] = desc;
       if (!wrLock.isEmpty()) {
         fldData["Write Lock"] = wrLock;
@@ -357,7 +362,7 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model,
   QStringList headers = {"Type",       "Block",     "Register", "Field",
                          "Offset/LSB", "Width",     "Access",   "Reset",
                          "IsRand",     "Volatile",  "HasReset", "Description",
-                         "Write Lock", "Read Lock", "Lock"};
+                         "Write Lock", "Read Lock", "Lock",     "Decode Only"};
   for (int i = 0; i < headers.size(); ++i) {
     out << escapeCsv(headers[i], delimiter)
         << (i + 1 < headers.size() ? QChar(delimiter) : QChar('\n'));
@@ -378,9 +383,10 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model,
       blkWrLock = blkLegacyLock;
 
     if (!blkWrLock.isEmpty() || !blkRdLock.isEmpty()) {
-      QStringList blkRow = {"blk",   blkName, "",        "",        blkOffset,
-                            "",      "",      "",        "false",   "false",
-                            "false", blkDesc, blkWrLock, blkRdLock, blkWrLock};
+      QStringList blkRow = {"blk",     blkName,   "",        "",
+                            blkOffset, "",        "",        "",
+                            "false",   "false",   "false",   blkDesc,
+                            blkWrLock, blkRdLock, blkWrLock, "false"};
       for (int i = 0; i < blkRow.size(); ++i) {
         out << escapeCsv(blkRow[i], delimiter)
             << (i + 1 < blkRow.size() ? QChar(delimiter) : QChar('\n'));
@@ -405,10 +411,14 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model,
                        ? QString::number(config->registerWidth())
                        : "32";
       }
+      QString regDecodeOnly = reg->data("Decode Only").toString().trimmed();
+      if (regDecodeOnly.isEmpty())
+        regDecodeOnly = "false";
 
-      QStringList regRow = {"reg",    blkName, regName,   "",        regOffset,
-                            regWidth, "RW",    "0x0",     "false",   "false",
-                            "false",  regDesc, regWrLock, regRdLock, regWrLock};
+      QStringList regRow = {"reg",     blkName,   regName,   "",
+                            regOffset, regWidth,  "RW",      "0x0",
+                            "false",   "false",   "false",   regDesc,
+                            regWrLock, regRdLock, regWrLock, regDecodeOnly};
       for (int i = 0; i < regRow.size(); ++i) {
         out << escapeCsv(regRow[i], delimiter)
             << (i + 1 < regRow.size() ? QChar(delimiter) : QChar('\n'));
@@ -433,10 +443,14 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model,
         QString fldLegacyLock = fld->data("Lock").toString().trimmed();
         if (fldWrLock.isEmpty() && !fldLegacyLock.isEmpty())
           fldWrLock = fldLegacyLock;
+        QString fldDecodeOnly = fld->data("Decode Only").toString().trimmed();
+        if (fldDecodeOnly.isEmpty())
+          fldDecodeOnly = "false";
 
-        QStringList row = {"fld",    blkName, regName,   fldName,   lsb,
-                           width,    access,  reset,     isRand,    isVol,
-                           hasReset, fldDesc, fldWrLock, fldRdLock, fldWrLock};
+        QStringList row = {"fld",     blkName,   regName,   fldName,
+                           lsb,       width,     access,    reset,
+                           isRand,    isVol,     hasReset,  fldDesc,
+                           fldWrLock, fldRdLock, fldWrLock, fldDecodeOnly};
         for (int i = 0; i < row.size(); ++i) {
           out << escapeCsv(row[i], delimiter)
               << (i + 1 < row.size() ? QChar(delimiter) : QChar('\n'));

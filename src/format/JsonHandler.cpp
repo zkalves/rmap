@@ -98,8 +98,8 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
   QString projDescription = "";
   if (rootJson.contains("project_description") &&
       rootJson["project_description"].is_string()) {
-    projDescription =
-        QString::fromStdString(rootJson["project_description"].get<std::string>());
+    projDescription = QString::fromStdString(
+        rootJson["project_description"].get<std::string>());
   }
 
   QVector<QString> cols = {
@@ -276,6 +276,11 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
               regData["Write Lock"] = lk;
             }
           }
+          regData["Decode Only"] = (regJson.contains("decode_only") &&
+                                    regJson["decode_only"].is_boolean() &&
+                                    regJson["decode_only"].get<bool>())
+                                       ? "true"
+                                       : "false";
 
           RegMapTreeItem *regItem = new RegMapTreeItem(
               RegMapTreeItem::e_rmmKind::reg, regData, blkItem);
@@ -332,6 +337,11 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
                                       fldJson["has_reset"].get<bool>())
                                          ? "true"
                                          : "false";
+              fldData["Decode Only"] = (fldJson.contains("decode_only") &&
+                                        fldJson["decode_only"].is_boolean() &&
+                                        fldJson["decode_only"].get<bool>())
+                                           ? "true"
+                                           : "false";
               fldData["Description"] =
                   (fldJson.contains("description") &&
                    fldJson["description"].is_string())

@@ -9,7 +9,11 @@
 #include "RegLockDialog.hpp"
 #include "RegMapTreeItem.hpp"
 #include "RegMapTreeModel.hpp"
+#include <QAbstractItemView>
 #include <QAbstractProxyModel>
+#include <QHeaderView>
+#include <QTableView>
+#include <QTreeView>
 
 RegMapDelegate::RegMapDelegate(QObject *parent)
     : QStyledItemDelegate(parent), m_regex(QStringLiteral(".*")) {}
@@ -64,6 +68,39 @@ void RegMapDelegate::paint(QPainter *painter,
   QStyledItemDelegate::paint(painter, opt, index);
 }
 
+QSize RegMapDelegate::sizeHint(const QStyleOptionViewItem &option,
+                               const QModelIndex &index) const {
+  QSize size = QStyledItemDelegate::sizeHint(option, index);
+  if (index.model()) {
+    QString colName =
+        index.model()
+            ->headerData(index.column(), Qt::Horizontal, Qt::DisplayRole)
+            .toString();
+    int headerWidth = 0;
+    if (const auto *view =
+            qobject_cast<const QAbstractItemView *>(option.widget)) {
+      if (const auto *tableView = qobject_cast<const QTableView *>(view)) {
+        if (tableView->horizontalHeader()) {
+          headerWidth =
+              tableView->horizontalHeader()->sectionSizeHint(index.column());
+        }
+      } else if (const auto *treeView =
+                     qobject_cast<const QTreeView *>(view)) {
+        if (treeView->header()) {
+          headerWidth = treeView->header()->sectionSizeHint(index.column());
+        }
+      }
+    }
+    if (headerWidth <= 0 && !colName.isEmpty()) {
+      headerWidth = option.fontMetrics.horizontalAdvance(colName) + 20;
+    }
+    if (size.width() < headerWidth) {
+      size.setWidth(headerWidth);
+    }
+  }
+  return size;
+}
+
 RegHexDecBinDelegate::RegHexDecBinDelegate(QObject *parent)
     : RegMapDelegate(QRegularExpression(QStringLiteral(
                          "(0[xX][0-9a-fA-F]+)|([0-9]+)|(0b[01]+)")),
@@ -87,7 +124,7 @@ AccessColors getAccessPolicyColors(const QString &access, ColorBlindMode mode) {
 
 // Access Policy Combobox Delegate (Software Access: RW, RO, WO, W1C, etc.)
 RegAccessPolicyDelegate::RegAccessPolicyDelegate(QObject *parent)
-    : QStyledItemDelegate(parent) {}
+    : RegMapDelegate(parent) {}
 
 void RegAccessPolicyDelegate::paint(QPainter *painter,
                                     const QStyleOptionViewItem &option,
@@ -201,7 +238,7 @@ bool RegAccessPolicyDelegate::editorEvent(QEvent *event,
 
 // Hardware Access Policy Delegate (HW Access: RO, RW, WO, NA, W1C, etc.)
 RegHwAccessDelegate::RegHwAccessDelegate(QObject *parent)
-    : QStyledItemDelegate(parent) {}
+    : RegMapDelegate(parent) {}
 
 void RegHwAccessDelegate::paint(QPainter *painter,
                                 const QStyleOptionViewItem &option,
@@ -317,7 +354,7 @@ bool RegHwAccessDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
 
 // Boolean Checkbox/Dropdown Delegate
 RegBoolDelegate::RegBoolDelegate(QObject *parent)
-    : QStyledItemDelegate(parent) {}
+    : RegMapDelegate(parent) {}
 
 QWidget *RegBoolDelegate::createEditor(QWidget *parent,
                                        const QStyleOptionViewItem &option,
@@ -363,7 +400,7 @@ bool RegBoolDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
 
 // RegLockDelegate Implementation
 RegLockDelegate::RegLockDelegate(const RegMapTreeModel *model, QObject *parent)
-    : QStyledItemDelegate(parent), m_model(model) {}
+    : RegMapDelegate(parent), m_model(model) {}
 
 QWidget *RegLockDelegate::createEditor(QWidget *parent,
                                        const QStyleOptionViewItem &option,
@@ -471,8 +508,25 @@ void RegLockDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
   QString selText = comboBox->currentText().trimmed();
 
   if (selData == "__CONFIG_LOCK__" || selText == tr("⚙ Configure Lock...")) {
-    QModelIndex wrIdx = model->index(index.row(), 11, index.parent());
-    QModelIndex rdIdx = model->index(index.row(), 12, index.parent());
+    int wrCol = 10;
+    int rdCol = 11;
+    if (auto *treeMdl = qobject_cast<const RegMapTreeModel *>(model)) {
+      int w = treeMdl->columnOf("Write Lock");
+      int r = treeMdl->columnOf("Read Lock");
+      if (w >= 0)
+        wrCol = w;
+      if (r >= 0)
+        rdCol = r;
+    } else if (m_model) {
+      int w = m_model->columnOf("Write Lock");
+      int r = m_model->columnOf("Read Lock");
+      if (w >= 0)
+        wrCol = w;
+      if (r >= 0)
+        rdCol = r;
+    }
+    QModelIndex wrIdx = model->index(index.row(), wrCol, index.parent());
+    QModelIndex rdIdx = model->index(index.row(), rdCol, index.parent());
     QString wrVal = wrIdx.isValid()
                         ? model->data(wrIdx, Qt::EditRole).toString().trimmed()
                         : QString();
@@ -508,8 +562,25 @@ bool RegLockDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
   if (event->type() == QEvent::MouseButtonDblClick) {
     QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
     if (mouseEvent->button() == Qt::LeftButton) {
-      QModelIndex wrIdx = model->index(index.row(), 11, index.parent());
-      QModelIndex rdIdx = model->index(index.row(), 12, index.parent());
+      int wrCol = 10;
+      int rdCol = 11;
+      if (auto *treeMdl = qobject_cast<const RegMapTreeModel *>(model)) {
+        int w = treeMdl->columnOf("Write Lock");
+        int r = treeMdl->columnOf("Read Lock");
+        if (w >= 0)
+          wrCol = w;
+        if (r >= 0)
+          rdCol = r;
+      } else if (m_model) {
+        int w = m_model->columnOf("Write Lock");
+        int r = m_model->columnOf("Read Lock");
+        if (w >= 0)
+          wrCol = w;
+        if (r >= 0)
+          rdCol = r;
+      }
+      QModelIndex wrIdx = model->index(index.row(), wrCol, index.parent());
+      QModelIndex rdIdx = model->index(index.row(), rdCol, index.parent());
       QString wrVal =
           wrIdx.isValid()
               ? model->data(wrIdx, Qt::EditRole).toString().trimmed()
