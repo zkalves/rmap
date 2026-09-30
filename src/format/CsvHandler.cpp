@@ -264,6 +264,28 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       continue;
     }
 
+    if (type == "mem") {
+      QVariantMap memData;
+      memData["Type"] = "mem";
+      memData["Offset/LSB"] = offsetLsb.isEmpty() ? "0x0" : offsetLsb;
+      memData["Size/Width"] = width.isEmpty() ? "1024" : width;
+      memData["Name"] = regName.isEmpty() ? "MEM" : regName;
+      memData["SW Access"] = access.isEmpty() ? "RW" : access;
+      memData["HW Access"] = "RW";
+      memData["Description"] = desc;
+      if (!wrLock.isEmpty()) {
+        memData["Write Lock"] = wrLock;
+        memData["Lock"] = wrLock;
+      }
+      if (!rdLock.isEmpty()) {
+        memData["Read Lock"] = rdLock;
+      }
+      RegMapTreeItem *memItem =
+          new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, blkItem);
+      blkItem->appendChild(memItem);
+      continue;
+    }
+
     // Ensure Register exists
     QString regKey = blkName + "::" + regName;
     RegMapTreeItem *regItem = nullptr;
@@ -393,10 +415,38 @@ FormatResult CsvHandler::write(const QString &filepath, RegMapTreeModel *model,
       }
     }
 
-    for (RegMapTreeItem *reg : blk->getChildItems()) {
-      if (!reg || reg->kind() != RegMapTreeItem::e_rmmKind::reg)
+    for (RegMapTreeItem *childNode : blk->getChildItems()) {
+      if (!childNode)
         continue;
 
+      if (childNode->kind() == RegMapTreeItem::e_rmmKind::mem) {
+        QString memName = childNode->data("Name").toString().trimmed();
+        QString memOffset = childNode->data("Offset/LSB").toString().trimmed();
+        QString memDesc = childNode->data("Description").toString().trimmed();
+        QString memWrLock = childNode->data("Write Lock").toString().trimmed();
+        QString memRdLock = childNode->data("Read Lock").toString().trimmed();
+        QString memWidth = childNode->data("Size/Width").toString().trimmed();
+        if (memWidth.isEmpty())
+          memWidth = "1024";
+        QString memAccess = childNode->data("SW Access").toString().trimmed();
+        if (memAccess.isEmpty())
+          memAccess = "RW";
+
+        QStringList memRow = {"mem",     blkName,   memName,   "",
+                              memOffset, memWidth,  memAccess, "0x0",
+                              "false",   "false",   "false",   memDesc,
+                              memWrLock, memRdLock, memWrLock, "false"};
+        for (int i = 0; i < memRow.size(); ++i) {
+          out << escapeCsv(memRow[i], delimiter)
+              << (i + 1 < memRow.size() ? QChar(delimiter) : QChar('\n'));
+        }
+        continue;
+      }
+
+      if (childNode->kind() != RegMapTreeItem::e_rmmKind::reg)
+        continue;
+
+      RegMapTreeItem *reg = childNode;
       QString regName = reg->data("Name").toString().trimmed();
       QString regOffset = reg->data("Offset/LSB").toString().trimmed();
       QString regDesc = reg->data("Description").toString().trimmed();

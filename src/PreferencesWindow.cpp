@@ -37,6 +37,9 @@ PreferencesWindow::PreferencesWindow(QWidget *parent)
   // Initialize Language combo
   populateLanguages();
 
+  // Initialize Layout combo
+  populateLayouts();
+
   connect(this->btnOpenThemesFolder, &QPushButton::clicked, this,
           &PreferencesWindow::onOpenThemesFolder);
   connect(&ThemeManager::instance(), &ThemeManager::themesUpdated, this,
@@ -52,6 +55,7 @@ PreferencesWindow::PreferencesWindow(QWidget *parent)
   m_colourBlindType = AppSettings::instance().colorBlindType();
   m_colourScheme = AppSettings::instance().colorScheme();
   m_language = AppSettings::instance().language();
+  m_layoutMode = AppSettings::instance().layoutMode();
   updateUiFromState();
 
   restoreWindowStateFromSettings();
@@ -72,6 +76,10 @@ void PreferencesWindow::saveStateFromUi() {
   if (m_language.isEmpty()) {
     m_language = "en";
   }
+  m_layoutMode = this->layoutCombo->currentData().toString();
+  if (m_layoutMode.isEmpty()) {
+    m_layoutMode = "tabbed";
+  }
 }
 
 void PreferencesWindow::updateUiFromState() {
@@ -89,6 +97,27 @@ void PreferencesWindow::updateUiFromState() {
   int langIdx = this->languageCombo->findData(m_language);
   if (langIdx >= 0) {
     this->languageCombo->setCurrentIndex(langIdx);
+  }
+  int layoutIdx = this->layoutCombo->findData(m_layoutMode);
+  if (layoutIdx >= 0) {
+    this->layoutCombo->setCurrentIndex(layoutIdx);
+  }
+}
+
+void PreferencesWindow::populateLayouts() {
+  QString current = this->layoutCombo->currentData().toString();
+  if (current.isEmpty()) {
+    current = m_layoutMode;
+  }
+  this->layoutCombo->clear();
+  this->layoutCombo->addItem(tr("Tabbed (Default)"), QStringLiteral("tabbed"));
+  this->layoutCombo->addItem(tr("Classic (Horizontal Split)"),
+                             AppSettings::classicLayoutId());
+  this->layoutCombo->addItem(tr("Full Table (Vertical Split)"),
+                             QStringLiteral("table"));
+  int idx = this->layoutCombo->findData(current);
+  if (idx >= 0) {
+    this->layoutCombo->setCurrentIndex(idx);
   }
 }
 
@@ -167,6 +196,7 @@ void PreferencesWindow::apply() {
   AppSettings::instance().setColorBlindType(m_colourBlindType);
   AppSettings::instance().setColorScheme(m_colourScheme);
   AppSettings::instance().setLanguage(m_language);
+  AppSettings::instance().setLayoutMode(m_layoutMode);
   ThemeManager::instance().setTheme(m_colourScheme);
   ThemeManager::instance().setColorBlindMode(
       m_colourBlindMode ? m_colourBlindType : ColorBlindMode::None);
@@ -185,9 +215,26 @@ void PreferencesWindow::reject() {
   m_colourBlindType = AppSettings::instance().colorBlindType();
   m_colourScheme = AppSettings::instance().colorScheme();
   m_language = AppSettings::instance().language();
+  m_layoutMode = AppSettings::instance().layoutMode();
   updateUiFromState();
   done(Rejected);
 }
+
+void PreferencesWindow::setLayoutMode(const QString &mode) {
+  QString m = mode.trimmed().toLower();
+  if (m == AppSettings::classicLayoutId() || m == "classic_split" ||
+      m == "classic_horizontal" || m == "horizontal") {
+    m = AppSettings::classicLayoutId();
+  } else if (m == "table") {
+    m = "table";
+  } else {
+    m = QStringLiteral("tabbed");
+  }
+  m_layoutMode = m;
+  updateUiFromState();
+}
+
+QString PreferencesWindow::layoutMode() const { return m_layoutMode; }
 
 void PreferencesWindow::setLanguage(const QString &lang) {
   m_language = lang.isEmpty() ? QStringLiteral("en") : lang;
@@ -203,6 +250,7 @@ void PreferencesWindow::changeEvent(QEvent *event) {
     populateThemes();
     populateColorBlindModes();
     populateLanguages();
+    populateLayouts();
     updateUiFromState();
   }
   QDialog::changeEvent(event);
