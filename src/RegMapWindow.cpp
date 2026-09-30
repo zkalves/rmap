@@ -10,6 +10,7 @@
 #include "BlockMemoryMapWidget.hpp"
 #include "LanguageManager.hpp"
 #include "PathUtils.hpp"
+#include "RegLockDialog.hpp"
 #include "RmapVersion.hpp"
 #include "ThemeManager.hpp"
 #include "format/FormatManager.hpp"
@@ -374,15 +375,18 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   this->treeView->setModel(m_treeProxy);
   this->treeView->setSortingEnabled(true);
   this->treeView->sortByColumn(1, Qt::AscendingOrder);
-  this->treeView->setAlternatingRowColors(true);
   this->treeView->setColumnHidden(
-      2, true); // Size (Register size is global in Config)
-  this->treeView->setColumnHidden(4, true); // SW Access
-  this->treeView->setColumnHidden(5, true); // HW Access Policy
-  this->treeView->setColumnHidden(6, true); // Reset Value
-  this->treeView->setColumnHidden(7, true); // Is Rand
-  this->treeView->setColumnHidden(8, true); // Volatile
-  this->treeView->setColumnHidden(9, true); // Has Reset
+      2, false); // Size/Width (Mem Size, Field Width, Reg Width)
+  this->treeView->setColumnWidth(2, 70);
+  this->treeView->setColumnHidden(4, true);  // SW Access
+  this->treeView->setColumnHidden(5, true);  // HW Access Policy
+  this->treeView->setColumnHidden(6, true);  // Reset Value
+  this->treeView->setColumnHidden(7, true);  // Is Rand
+  this->treeView->setColumnHidden(8, true);  // Volatile
+  this->treeView->setColumnHidden(9, true);  // Has Reset
+  this->treeView->setColumnHidden(10, true); // Write Lock
+  this->treeView->setColumnHidden(11, true); // Read Lock
+  this->treeView->setColumnHidden(12, true); // Decode Only
   // Note: Description column (rightmost) remains visible in treeView for all
   // items
   this->treeView->header()->setStretchLastSection(true);
@@ -438,61 +442,168 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
 
   m_regHeaderWidget = new QWidget(m_regViewWidget);
   m_regHeaderWidget->setObjectName("regHeaderWidget");
-  QHBoxLayout *regHeaderLayout = new QHBoxLayout(m_regHeaderWidget);
-  regHeaderLayout->setContentsMargins(4, 2, 4, 2);
-  regHeaderLayout->setSpacing(8);
+  QVBoxLayout *regHeaderMainLayout = new QVBoxLayout(m_regHeaderWidget);
+  regHeaderMainLayout->setContentsMargins(4, 2, 4, 2);
+  regHeaderMainLayout->setSpacing(4);
 
-  QLabel *regNameTitle = new QLabel(tr("Name:"), m_regHeaderWidget);
+  // Row 1: General & Access properties
+  QWidget *regRow1Widget = new QWidget(m_regHeaderWidget);
+  regRow1Widget->setObjectName("regRow1Widget");
+  QHBoxLayout *regRow1Layout = new QHBoxLayout(regRow1Widget);
+  regRow1Layout->setContentsMargins(0, 0, 0, 0);
+  regRow1Layout->setSpacing(6);
+
+  QLabel *regNameTitle = new QLabel(tr("Name:"), regRow1Widget);
   regNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
-
-  m_regNameEdit = new QLineEdit(m_regHeaderWidget);
+  m_regNameEdit = new QLineEdit(regRow1Widget);
   m_regNameEdit->setObjectName("regNameEdit");
   m_regNameEdit->setPlaceholderText(tr("Register name..."));
   m_regNameEdit->setClearButtonEnabled(true);
   m_regNameEdit->setMinimumWidth(
       std::max(120, regNameTitle->sizeHint().width()));
 
-  QLabel *regOffsetTitle = new QLabel(tr("Offset:"), m_regHeaderWidget);
+  QLabel *regOffsetTitle = new QLabel(tr("Offset:"), regRow1Widget);
   regOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
-
-  m_regOffsetEdit = new QLineEdit(m_regHeaderWidget);
+  m_regOffsetEdit = new QLineEdit(regRow1Widget);
   m_regOffsetEdit->setObjectName("regOffsetEdit");
   m_regOffsetEdit->setPlaceholderText(tr("0x00"));
   m_regOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
   m_regOffsetEdit->setClearButtonEnabled(true);
   m_regOffsetEdit->setMinimumWidth(regOffsetTitle->sizeHint().width());
-  m_regOffsetEdit->setMaximumWidth(100);
+  m_regOffsetEdit->setMaximumWidth(85);
 
-  QLabel *descLabel = new QLabel(tr("Description:"), m_regHeaderWidget);
+  QLabel *regSizeTitle = new QLabel(tr("Size:"), regRow1Widget);
+  regSizeTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_regSizeEdit = new QLineEdit(regRow1Widget);
+  m_regSizeEdit->setObjectName("regSizeEdit");
+  m_regSizeEdit->setPlaceholderText(tr("32"));
+  m_regSizeEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
+  m_regSizeEdit->setClearButtonEnabled(true);
+  m_regSizeEdit->setMinimumWidth(regSizeTitle->sizeHint().width());
+  m_regSizeEdit->setMaximumWidth(55);
+
+  QLabel *regSwTitle = new QLabel(tr("SW:"), regRow1Widget);
+  regSwTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_regSwAccessCombo = new QComboBox(regRow1Widget);
+  m_regSwAccessCombo->setObjectName("regSwAccessCombo");
+  m_regSwAccessCombo->addItems(
+      {"RW",  "RO",    "WO",    "W1",    "WO1",   "W1C", "W1S", "W1T",
+       "W0C", "W0S",   "W0T",   "RC",    "RS",    "WRC", "WRS", "WC",
+       "WS",  "W1SRC", "W1CRS", "W0SRC", "W0CRS", "WOC", "WOS", "NOACCESS"});
+  m_regSwAccessCombo->setMaximumWidth(95);
+
+  QLabel *regHwTitle = new QLabel(tr("HW:"), regRow1Widget);
+  regHwTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_regHwAccessCombo = new QComboBox(regRow1Widget);
+  m_regHwAccessCombo->setObjectName("regHwAccessCombo");
+  m_regHwAccessCombo->addItems({"RO", "RW", "WO", "WIRE", "W1T", "INCR", "DECR",
+                                "NA", "W1C", "W1S", "W0C", "RS", "RC"});
+  m_regHwAccessCombo->setMaximumWidth(85);
+
+  QLabel *regResetTitle = new QLabel(tr("Reset:"), regRow1Widget);
+  regResetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_regResetEdit = new QLineEdit(regRow1Widget);
+  m_regResetEdit->setObjectName("regResetEdit");
+  m_regResetEdit->setPlaceholderText(tr("0x0"));
+  m_regResetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
+  m_regResetEdit->setClearButtonEnabled(true);
+  m_regResetEdit->setMinimumWidth(regResetTitle->sizeHint().width());
+  m_regResetEdit->setMaximumWidth(95);
+
+  QLabel *descLabel = new QLabel(tr("Description:"), regRow1Widget);
   descLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
-
-  m_regDescEdit = new QLineEdit(m_regHeaderWidget);
+  m_regDescEdit = new QLineEdit(regRow1Widget);
   m_regDescEdit->setObjectName("regDescEdit");
   m_regDescEdit->setPlaceholderText(tr("Register description..."));
   m_regDescEdit->setClearButtonEnabled(true);
   m_regDescEdit->setMinimumWidth(descLabel->sizeHint().width());
 
-  regHeaderLayout->addWidget(regNameTitle);
-  regHeaderLayout->addWidget(m_regNameEdit);
-  regHeaderLayout->addWidget(regOffsetTitle);
-  regHeaderLayout->addWidget(m_regOffsetEdit);
-  regHeaderLayout->addWidget(descLabel);
-  regHeaderLayout->addWidget(m_regDescEdit, 1);
+  regRow1Layout->addWidget(regNameTitle);
+  regRow1Layout->addWidget(m_regNameEdit);
+  regRow1Layout->addWidget(regOffsetTitle);
+  regRow1Layout->addWidget(m_regOffsetEdit);
+  regRow1Layout->addWidget(regSizeTitle);
+  regRow1Layout->addWidget(m_regSizeEdit);
+  regRow1Layout->addWidget(regSwTitle);
+  regRow1Layout->addWidget(m_regSwAccessCombo);
+  regRow1Layout->addWidget(regHwTitle);
+  regRow1Layout->addWidget(m_regHwAccessCombo);
+  regRow1Layout->addWidget(regResetTitle);
+  regRow1Layout->addWidget(m_regResetEdit);
+  regRow1Layout->addWidget(descLabel);
+  regRow1Layout->addWidget(m_regDescEdit, 1);
 
+  // Row 2: Security & Verification properties
+  QWidget *regRow2Widget = new QWidget(m_regHeaderWidget);
+  regRow2Widget->setObjectName("regRow2Widget");
+  QHBoxLayout *regRow2Layout = new QHBoxLayout(regRow2Widget);
+  regRow2Layout->setContentsMargins(0, 0, 0, 0);
+  regRow2Layout->setSpacing(6);
+
+  QLabel *wrLockTitle = new QLabel(tr("Wr Lock:"), regRow2Widget);
+  wrLockTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_regWrLockEdit = new QLineEdit(regRow2Widget);
+  m_regWrLockEdit->setObjectName("regWrLockEdit");
+  m_regWrLockEdit->setPlaceholderText(tr("Write lock condition..."));
+  m_regWrLockEdit->setClearButtonEnabled(true);
+  m_regWrLockBtn = new QToolButton(regRow2Widget);
+  m_regWrLockBtn->setObjectName("regWrLockBtn");
+  m_regWrLockBtn->setText(QStringLiteral("🔒"));
+  m_regWrLockBtn->setToolTip(tr("Configure Software Locks"));
+
+  QLabel *rdLockTitle = new QLabel(tr("Rd Lock:"), regRow2Widget);
+  rdLockTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_regRdLockEdit = new QLineEdit(regRow2Widget);
+  m_regRdLockEdit->setObjectName("regRdLockEdit");
+  m_regRdLockEdit->setPlaceholderText(tr("Read lock condition..."));
+  m_regRdLockEdit->setClearButtonEnabled(true);
+  m_regRdLockBtn = new QToolButton(regRow2Widget);
+  m_regRdLockBtn->setObjectName("regRdLockBtn");
+  m_regRdLockBtn->setText(QStringLiteral("🔒"));
+  m_regRdLockBtn->setToolTip(tr("Configure Software Locks"));
+
+  m_regDecodeOnlyCheck = new QCheckBox(tr("Decode Only"), regRow2Widget);
+  m_regDecodeOnlyCheck->setObjectName("regDecodeOnlyCheck");
+  m_regDecodeOnlyCheck->setToolTip(
+      tr("Address decode only (no internal storage)"));
+
+  m_regHasResetCheck = new QCheckBox(tr("Has Reset"), regRow2Widget);
+  m_regHasResetCheck->setObjectName("regHasResetCheck");
+  m_regHasResetCheck->setToolTip(tr("Explicit hardware reset value"));
+
+  m_regRandCheck = new QCheckBox(tr("Is Rand"), regRow2Widget);
+  m_regRandCheck->setObjectName("regRandCheck");
+  m_regRandCheck->setToolTip(tr("UVM constrained-random stimulus"));
+
+  m_regVolatileCheck = new QCheckBox(tr("Volatile"), regRow2Widget);
+  m_regVolatileCheck->setObjectName("regVolatileCheck");
+  m_regVolatileCheck->setToolTip(
+      tr("Hardware can modify value asynchronously"));
+
+  regRow2Layout->addWidget(wrLockTitle);
+  regRow2Layout->addWidget(m_regWrLockEdit, 1);
+  regRow2Layout->addWidget(m_regWrLockBtn);
+  regRow2Layout->addWidget(rdLockTitle);
+  regRow2Layout->addWidget(m_regRdLockEdit, 1);
+  regRow2Layout->addWidget(m_regRdLockBtn);
+  regRow2Layout->addWidget(m_regDecodeOnlyCheck);
+  regRow2Layout->addWidget(m_regHasResetCheck);
+  regRow2Layout->addWidget(m_regRandCheck);
+  regRow2Layout->addWidget(m_regVolatileCheck);
+
+  regHeaderMainLayout->addWidget(regRow1Widget);
+  regHeaderMainLayout->addWidget(regRow2Widget);
   regViewLayout->addWidget(m_regHeaderWidget);
 
   connect(m_regNameEdit, &QLineEdit::editingFinished, this, [this]() {
-    if (!m_currentRegItem)
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
       return;
     QString newName = m_regNameEdit->text().trimmed();
     QString oldName = m_currentRegItem->data("Name").toString();
     if (newName != oldName && !newName.isEmpty()) {
-      QModelIndex currentRegProxy = this->treeView->currentIndex();
-      if (currentRegProxy.isValid()) {
-        QModelIndex currentRegSource =
-            m_treeProxy->mapToSource(currentRegProxy);
-        QModelIndex nameIndex = m_model->index(currentRegSource.row(), 3,
-                                               currentRegSource.parent());
+      int col = m_model->columnOf("Name");
+      QModelIndex nameIndex = currentRegSourceIndex(col);
+      if (nameIndex.isValid()) {
         m_undoStack->push(
             new EditCellCommand(m_model, nameIndex, oldName, newName));
       }
@@ -500,42 +611,212 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   });
 
   connect(m_regOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
-    if (!m_currentRegItem)
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
       return;
     QString rawOffset = m_regOffsetEdit->text().trimmed();
     QString newOffset = padHexOffsetString(rawOffset);
     m_regOffsetEdit->setText(newOffset);
     QString oldOffset = m_currentRegItem->data("Offset/LSB").toString();
     if (newOffset != oldOffset && !newOffset.isEmpty()) {
-      QModelIndex currentRegProxy = this->treeView->currentIndex();
-      if (currentRegProxy.isValid()) {
-        QModelIndex currentRegSource =
-            m_treeProxy->mapToSource(currentRegProxy);
-        QModelIndex offsetIndex = m_model->index(currentRegSource.row(), 1,
-                                                 currentRegSource.parent());
+      int col = m_model->columnOf("Offset/LSB");
+      QModelIndex offsetIndex = currentRegSourceIndex(col);
+      if (offsetIndex.isValid()) {
         m_undoStack->push(
             new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
       }
     }
   });
 
+  connect(m_regSizeEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString newSize = m_regSizeEdit->text().trimmed();
+    QString oldSize = m_currentRegItem->data("Size/Width").toString();
+    if (newSize != oldSize && !newSize.isEmpty()) {
+      int col = m_model->columnOf("Size/Width");
+      QModelIndex sizeIndex = currentRegSourceIndex(col);
+      if (sizeIndex.isValid()) {
+        m_undoStack->push(
+            new EditCellCommand(m_model, sizeIndex, oldSize, newSize));
+      }
+    }
+  });
+
+  connect(m_regSwAccessCombo, &QComboBox::currentTextChanged, this,
+          [this](const QString &newVal) {
+            if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+              return;
+            QString oldVal = m_currentRegItem->data("SW Access").toString();
+            if (newVal != oldVal && !newVal.isEmpty()) {
+              int col = m_model->columnOf("SW Access");
+              QModelIndex swIndex = currentRegSourceIndex(col);
+              if (swIndex.isValid()) {
+                m_undoStack->push(
+                    new EditCellCommand(m_model, swIndex, oldVal, newVal));
+              }
+            }
+          });
+
+  connect(m_regHwAccessCombo, &QComboBox::currentTextChanged, this,
+          [this](const QString &newVal) {
+            if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+              return;
+            QString oldVal = m_currentRegItem->data("HW Access").toString();
+            if (newVal != oldVal && !newVal.isEmpty()) {
+              int col = m_model->columnOf("HW Access");
+              QModelIndex hwIndex = currentRegSourceIndex(col);
+              if (hwIndex.isValid()) {
+                m_undoStack->push(
+                    new EditCellCommand(m_model, hwIndex, oldVal, newVal));
+              }
+            }
+          });
+
+  connect(m_regResetEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString rawReset = m_regResetEdit->text().trimmed();
+    QString newReset = padHexOffsetString(rawReset);
+    m_regResetEdit->setText(newReset);
+    QString oldReset = m_currentRegItem->data("Reset Value").toString();
+    if (newReset != oldReset && !newReset.isEmpty()) {
+      int col = m_model->columnOf("Reset Value");
+      QModelIndex resetIndex = currentRegSourceIndex(col);
+      if (resetIndex.isValid()) {
+        m_undoStack->push(
+            new EditCellCommand(m_model, resetIndex, oldReset, newReset));
+      }
+    }
+  });
+
   connect(m_regDescEdit, &QLineEdit::editingFinished, this, [this]() {
-    if (!m_currentRegItem)
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
       return;
     QString newDesc = m_regDescEdit->text();
     QString oldDesc = m_currentRegItem->data("Description").toString();
     if (newDesc != oldDesc) {
-      QModelIndex currentRegProxy = this->treeView->currentIndex();
-      if (currentRegProxy.isValid()) {
-        QModelIndex currentRegSource =
-            m_treeProxy->mapToSource(currentRegProxy);
-        int descCol = m_model ? m_model->columnOf("Description") : 13;
-        if (descCol < 0)
-          descCol = 13;
-        QModelIndex descIndex = m_model->index(currentRegSource.row(), descCol,
-                                               currentRegSource.parent());
+      int col = m_model ? m_model->columnOf("Description") : 13;
+      if (col < 0)
+        col = 13;
+      QModelIndex descIndex = currentRegSourceIndex(col);
+      if (descIndex.isValid()) {
         m_undoStack->push(
             new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
+      }
+    }
+  });
+
+  connect(m_regWrLockEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString newVal = m_regWrLockEdit->text().trimmed();
+    QString oldVal = m_currentRegItem->data("Write Lock").toString();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Write Lock");
+      QModelIndex idx = currentRegSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  connect(m_regRdLockEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString newVal = m_regRdLockEdit->text().trimmed();
+    QString oldVal = m_currentRegItem->data("Read Lock").toString();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Read Lock");
+      QModelIndex idx = currentRegSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  auto openLockDialogForReg = [this]() {
+    if (!m_currentRegItem || !m_model)
+      return;
+    QString wrExpr = m_currentRegItem->data("Write Lock").toString();
+    QString rdExpr = m_currentRegItem->data("Read Lock").toString();
+    QString name = m_currentRegItem->data("Name").toString();
+    RegLockDialog dlg(wrExpr, rdExpr, m_model, name, this);
+    if (dlg.exec() == QDialog::Accepted) {
+      QString newWr = dlg.writeExpression();
+      QString newRd = dlg.readExpression();
+      int wrCol = m_model->columnOf("Write Lock");
+      int rdCol = m_model->columnOf("Read Lock");
+      if (newWr != wrExpr) {
+        QModelIndex wrIdx = currentRegSourceIndex(wrCol);
+        if (wrIdx.isValid())
+          m_undoStack->push(new EditCellCommand(m_model, wrIdx, wrExpr, newWr));
+      }
+      if (newRd != rdExpr) {
+        QModelIndex rdIdx = currentRegSourceIndex(rdCol);
+        if (rdIdx.isValid())
+          m_undoStack->push(new EditCellCommand(m_model, rdIdx, rdExpr, newRd));
+      }
+    }
+  };
+  connect(m_regWrLockBtn, &QToolButton::clicked, this, openLockDialogForReg);
+  connect(m_regRdLockBtn, &QToolButton::clicked, this, openLockDialogForReg);
+
+  connect(m_regDecodeOnlyCheck, &QCheckBox::toggled, this,
+          [this](bool checked) {
+            if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+              return;
+            QString newVal =
+                checked ? QStringLiteral("true") : QStringLiteral("false");
+            QString oldVal =
+                m_currentRegItem->data("Decode Only").toString().toLower();
+            if (newVal != oldVal) {
+              int col = m_model->columnOf("Decode Only");
+              QModelIndex idx = currentRegSourceIndex(col);
+              if (idx.isValid()) {
+                m_undoStack->push(
+                    new EditCellCommand(m_model, idx, oldVal, newVal));
+              }
+            }
+          });
+
+  connect(m_regHasResetCheck, &QCheckBox::toggled, this, [this](bool checked) {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString newVal = checked ? QStringLiteral("true") : QStringLiteral("false");
+    QString oldVal = m_currentRegItem->data("Has Reset").toString().toLower();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Has Reset");
+      QModelIndex idx = currentRegSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  connect(m_regRandCheck, &QCheckBox::toggled, this, [this](bool checked) {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString newVal = checked ? QStringLiteral("true") : QStringLiteral("false");
+    QString oldVal = m_currentRegItem->data("Is Rand").toString().toLower();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Is Rand");
+      QModelIndex idx = currentRegSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  connect(m_regVolatileCheck, &QCheckBox::toggled, this, [this](bool checked) {
+    if (!m_currentRegItem || m_updatingRegHeader || !m_model)
+      return;
+    QString newVal = checked ? QStringLiteral("true") : QStringLiteral("false");
+    QString oldVal = m_currentRegItem->data("Volatile").toString().toLower();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Volatile");
+      QModelIndex idx = currentRegSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
       }
     }
   });
@@ -544,7 +825,26 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_bitfieldBar->setObjectName("bitfieldBar");
   regViewLayout->addWidget(m_bitfieldBar);
 
-  m_fieldsTableView = new QTableView(m_regViewWidget);
+  // Tab Bar for Detail Views
+  m_regTabBar = new QTabBar(m_regViewWidget);
+  m_regTabBar->setObjectName("regTabBar");
+  m_regTabBar->setDocumentMode(true);
+  m_regTabBar->setExpanding(false);
+  m_regTabBar->addTab(tr("Fields & Layout"));
+  m_regTabBar->addTab(tr("Verification & UVM"));
+  m_regTabBar->addTab(tr("Security & Locks"));
+  m_regTabBar->addTab(tr("Memory Map"));
+  m_regTabBar->addTab(tr("All Properties"));
+  regViewLayout->addWidget(m_regTabBar);
+
+  connect(m_regTabBar, &QTabBar::currentChanged, this,
+          [this](int index) { applyFieldTabColumnFilter(index); });
+
+  // Tab Stack: Page 0: Fields Table, Page 1: Memory Map
+  m_regTabStack = new QStackedWidget(m_regViewWidget);
+  m_regTabStack->setObjectName("regTabStack");
+
+  m_fieldsTableView = new QTableView(m_regTabStack);
   m_fieldsTableView->setObjectName("fieldsTableView");
   m_fieldsTableView->setAlternatingRowColors(true);
   m_fieldsTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -602,7 +902,24 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_fieldsTableView->setItemDelegateForColumn(
       13, new RegMapDelegate(this)); // Description
   m_fieldsTableView->setColumnHidden(0, true);
-  regViewLayout->addWidget(m_fieldsTableView);
+
+  m_regMapScrollArea = new QScrollArea(m_regTabStack);
+  m_regMapScrollArea->setObjectName("regMapScrollArea");
+  m_regMapScrollArea->setWidgetResizable(true);
+  m_regMapScrollArea->setFrameShape(QFrame::StyledPanel);
+
+  m_regBlockMemoryMapWidget = new BlockMemoryMapWidget(m_regMapScrollArea);
+  m_regBlockMemoryMapWidget->setObjectName("regBlockMemoryMapWidget");
+  m_regMapScrollArea->setWidget(m_regBlockMemoryMapWidget);
+
+  connect(m_regBlockMemoryMapWidget, &BlockMemoryMapWidget::registerClicked,
+          this, [this](int childRow, RegMapTreeItem *regItem) {
+            navigateToRegister(childRow, regItem);
+          });
+
+  m_regTabStack->addWidget(m_fieldsTableView);
+  m_regTabStack->addWidget(m_regMapScrollArea);
+  regViewLayout->addWidget(m_regTabStack, 1);
 
   m_rightStackedWidget->addWidget(m_regViewWidget);
 
@@ -617,24 +934,30 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
 
   m_blockHeaderWidget = new QWidget(m_blockViewWidget);
   m_blockHeaderWidget->setObjectName("blockHeaderWidget");
-  QHBoxLayout *blockHeaderLayout = new QHBoxLayout(m_blockHeaderWidget);
-  blockHeaderLayout->setContentsMargins(4, 2, 4, 2);
-  blockHeaderLayout->setSpacing(8);
+  QVBoxLayout *blkHeaderMainLayout = new QVBoxLayout(m_blockHeaderWidget);
+  blkHeaderMainLayout->setContentsMargins(4, 2, 4, 2);
+  blkHeaderMainLayout->setSpacing(4);
 
-  QLabel *blkNameTitle = new QLabel(tr("Name:"), m_blockHeaderWidget);
+  QWidget *blkRow1Widget = new QWidget(m_blockHeaderWidget);
+  blkRow1Widget->setObjectName("blkRow1Widget");
+  QHBoxLayout *blkRow1Layout = new QHBoxLayout(blkRow1Widget);
+  blkRow1Layout->setContentsMargins(0, 0, 0, 0);
+  blkRow1Layout->setSpacing(6);
+
+  QLabel *blkNameTitle = new QLabel(tr("Name:"), blkRow1Widget);
   blkNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
 
-  m_blkNameEdit = new QLineEdit(m_blockHeaderWidget);
+  m_blkNameEdit = new QLineEdit(blkRow1Widget);
   m_blkNameEdit->setObjectName("blkNameEdit");
   m_blkNameEdit->setPlaceholderText(tr("Block name..."));
   m_blkNameEdit->setClearButtonEnabled(true);
   m_blkNameEdit->setMinimumWidth(
       std::max(120, blkNameTitle->sizeHint().width()));
 
-  QLabel *blkOffsetTitle = new QLabel(tr("Offset:"), m_blockHeaderWidget);
+  QLabel *blkOffsetTitle = new QLabel(tr("Offset:"), blkRow1Widget);
   blkOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
 
-  m_blkOffsetEdit = new QLineEdit(m_blockHeaderWidget);
+  m_blkOffsetEdit = new QLineEdit(blkRow1Widget);
   m_blkOffsetEdit->setObjectName("blkOffsetEdit");
   m_blkOffsetEdit->setPlaceholderText(tr("0x0000"));
   m_blkOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
@@ -642,36 +965,72 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_blkOffsetEdit->setMinimumWidth(blkOffsetTitle->sizeHint().width());
   m_blkOffsetEdit->setMaximumWidth(100);
 
-  QLabel *blkDescTitle = new QLabel(tr("Description:"), m_blockHeaderWidget);
+  QLabel *blkDescTitle = new QLabel(tr("Description:"), blkRow1Widget);
   blkDescTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
 
-  m_blkDescEdit = new QLineEdit(m_blockHeaderWidget);
+  m_blkDescEdit = new QLineEdit(blkRow1Widget);
   m_blkDescEdit->setObjectName("blkDescEdit");
   m_blkDescEdit->setPlaceholderText(tr("Block description..."));
   m_blkDescEdit->setClearButtonEnabled(true);
   m_blkDescEdit->setMinimumWidth(blkDescTitle->sizeHint().width());
 
-  blockHeaderLayout->addWidget(blkNameTitle);
-  blockHeaderLayout->addWidget(m_blkNameEdit);
-  blockHeaderLayout->addWidget(blkOffsetTitle);
-  blockHeaderLayout->addWidget(m_blkOffsetEdit);
-  blockHeaderLayout->addWidget(blkDescTitle);
-  blockHeaderLayout->addWidget(m_blkDescEdit, 1);
+  blkRow1Layout->addWidget(blkNameTitle);
+  blkRow1Layout->addWidget(m_blkNameEdit);
+  blkRow1Layout->addWidget(blkOffsetTitle);
+  blkRow1Layout->addWidget(m_blkOffsetEdit);
+  blkRow1Layout->addWidget(blkDescTitle);
+  blkRow1Layout->addWidget(m_blkDescEdit, 1);
+
+  QWidget *blkRow2Widget = new QWidget(m_blockHeaderWidget);
+  blkRow2Widget->setObjectName("blkRow2Widget");
+  QHBoxLayout *blkRow2Layout = new QHBoxLayout(blkRow2Widget);
+  blkRow2Layout->setContentsMargins(0, 0, 0, 0);
+  blkRow2Layout->setSpacing(6);
+
+  QLabel *blkWrLockTitle = new QLabel(tr("Wr Lock:"), blkRow2Widget);
+  blkWrLockTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_blkWrLockEdit = new QLineEdit(blkRow2Widget);
+  m_blkWrLockEdit->setObjectName("blkWrLockEdit");
+  m_blkWrLockEdit->setPlaceholderText(
+      tr("Block-level write lock condition..."));
+  m_blkWrLockEdit->setClearButtonEnabled(true);
+  m_blkWrLockBtn = new QToolButton(blkRow2Widget);
+  m_blkWrLockBtn->setObjectName("blkWrLockBtn");
+  m_blkWrLockBtn->setText(QStringLiteral("🔒"));
+  m_blkWrLockBtn->setToolTip(tr("Configure Block Software Locks"));
+
+  QLabel *blkRdLockTitle = new QLabel(tr("Rd Lock:"), blkRow2Widget);
+  blkRdLockTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_blkRdLockEdit = new QLineEdit(blkRow2Widget);
+  m_blkRdLockEdit->setObjectName("blkRdLockEdit");
+  m_blkRdLockEdit->setPlaceholderText(tr("Block-level read lock condition..."));
+  m_blkRdLockEdit->setClearButtonEnabled(true);
+  m_blkRdLockBtn = new QToolButton(blkRow2Widget);
+  m_blkRdLockBtn->setObjectName("blkRdLockBtn");
+  m_blkRdLockBtn->setText(QStringLiteral("🔒"));
+  m_blkRdLockBtn->setToolTip(tr("Configure Block Software Locks"));
+
+  blkRow2Layout->addWidget(blkWrLockTitle);
+  blkRow2Layout->addWidget(m_blkWrLockEdit, 1);
+  blkRow2Layout->addWidget(m_blkWrLockBtn);
+  blkRow2Layout->addWidget(blkRdLockTitle);
+  blkRow2Layout->addWidget(m_blkRdLockEdit, 1);
+  blkRow2Layout->addWidget(m_blkRdLockBtn);
+
+  blkHeaderMainLayout->addWidget(blkRow1Widget);
+  blkHeaderMainLayout->addWidget(blkRow2Widget);
 
   blockViewLayout->addWidget(m_blockHeaderWidget);
 
   connect(m_blkNameEdit, &QLineEdit::editingFinished, this, [this]() {
-    if (!m_currentBlkItem)
+    if (!m_currentBlkItem || m_updatingBlkHeader || !m_model)
       return;
     QString newName = m_blkNameEdit->text().trimmed();
     QString oldName = m_currentBlkItem->data("Name").toString();
     if (newName != oldName && !newName.isEmpty()) {
-      QModelIndex currentBlkProxy = this->treeView->currentIndex();
-      if (currentBlkProxy.isValid()) {
-        QModelIndex currentBlkSource =
-            m_treeProxy->mapToSource(currentBlkProxy);
-        QModelIndex nameIndex = m_model->index(currentBlkSource.row(), 3,
-                                               currentBlkSource.parent());
+      int col = m_model->columnOf("Name");
+      QModelIndex nameIndex = currentBlkSourceIndex(col);
+      if (nameIndex.isValid()) {
         m_undoStack->push(
             new EditCellCommand(m_model, nameIndex, oldName, newName));
       }
@@ -679,19 +1038,16 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   });
 
   connect(m_blkOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
-    if (!m_currentBlkItem)
+    if (!m_currentBlkItem || m_updatingBlkHeader || !m_model)
       return;
     QString rawOffset = m_blkOffsetEdit->text().trimmed();
     QString newOffset = padHexOffsetString(rawOffset);
     m_blkOffsetEdit->setText(newOffset);
     QString oldOffset = m_currentBlkItem->data("Offset/LSB").toString();
     if (newOffset != oldOffset && !newOffset.isEmpty()) {
-      QModelIndex currentBlkProxy = this->treeView->currentIndex();
-      if (currentBlkProxy.isValid()) {
-        QModelIndex currentBlkSource =
-            m_treeProxy->mapToSource(currentBlkProxy);
-        QModelIndex offsetIndex = m_model->index(currentBlkSource.row(), 1,
-                                                 currentBlkSource.parent());
+      int col = m_model->columnOf("Offset/LSB");
+      QModelIndex offsetIndex = currentBlkSourceIndex(col);
+      if (offsetIndex.isValid()) {
         m_undoStack->push(
             new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
       }
@@ -699,25 +1055,76 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   });
 
   connect(m_blkDescEdit, &QLineEdit::editingFinished, this, [this]() {
-    if (!m_currentBlkItem)
+    if (!m_currentBlkItem || m_updatingBlkHeader || !m_model)
       return;
     QString newDesc = m_blkDescEdit->text();
     QString oldDesc = m_currentBlkItem->data("Description").toString();
     if (newDesc != oldDesc) {
-      QModelIndex currentBlkProxy = this->treeView->currentIndex();
-      if (currentBlkProxy.isValid()) {
-        QModelIndex currentBlkSource =
-            m_treeProxy->mapToSource(currentBlkProxy);
-        int descCol = m_model ? m_model->columnOf("Description") : 13;
-        if (descCol < 0)
-          descCol = 13;
-        QModelIndex descIndex = m_model->index(currentBlkSource.row(), descCol,
-                                               currentBlkSource.parent());
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13;
+      QModelIndex descIndex = currentBlkSourceIndex(descCol);
+      if (descIndex.isValid()) {
         m_undoStack->push(
             new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
       }
     }
   });
+
+  connect(m_blkWrLockEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentBlkItem || m_updatingBlkHeader || !m_model)
+      return;
+    QString newVal = m_blkWrLockEdit->text().trimmed();
+    QString oldVal = m_currentBlkItem->data("Write Lock").toString();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Write Lock");
+      QModelIndex idx = currentBlkSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  connect(m_blkRdLockEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentBlkItem || m_updatingBlkHeader || !m_model)
+      return;
+    QString newVal = m_blkRdLockEdit->text().trimmed();
+    QString oldVal = m_currentBlkItem->data("Read Lock").toString();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Read Lock");
+      QModelIndex idx = currentBlkSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  auto openLockDialogForBlk = [this]() {
+    if (!m_currentBlkItem || !m_model)
+      return;
+    QString wrExpr = m_currentBlkItem->data("Write Lock").toString();
+    QString rdExpr = m_currentBlkItem->data("Read Lock").toString();
+    QString name = m_currentBlkItem->data("Name").toString();
+    RegLockDialog dlg(wrExpr, rdExpr, m_model, name, this);
+    if (dlg.exec() == QDialog::Accepted) {
+      QString newWr = dlg.writeExpression();
+      QString newRd = dlg.readExpression();
+      int wrCol = m_model->columnOf("Write Lock");
+      int rdCol = m_model->columnOf("Read Lock");
+      if (newWr != wrExpr) {
+        QModelIndex wrIdx = currentBlkSourceIndex(wrCol);
+        if (wrIdx.isValid())
+          m_undoStack->push(new EditCellCommand(m_model, wrIdx, wrExpr, newWr));
+      }
+      if (newRd != rdExpr) {
+        QModelIndex rdIdx = currentBlkSourceIndex(rdCol);
+        if (rdIdx.isValid())
+          m_undoStack->push(new EditCellCommand(m_model, rdIdx, rdExpr, newRd));
+      }
+    }
+  };
+  connect(m_blkWrLockBtn, &QToolButton::clicked, this, openLockDialogForBlk);
+  connect(m_blkRdLockBtn, &QToolButton::clicked, this, openLockDialogForBlk);
 
   m_mapScrollArea = new QScrollArea(m_blockViewWidget);
   m_mapScrollArea->setObjectName("mapScrollArea");
@@ -732,7 +1139,439 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   m_rightStackedWidget->addWidget(m_blockViewWidget);
 
   // ==========================================
-  // Page 2: Empty View (Shown when no register or block is selected)
+  // Page 2: Memory View (Header + Memory Summary)
+  // ==========================================
+  m_memViewWidget = new QWidget(m_rightStackedWidget);
+  m_memViewWidget->setObjectName("memViewWidget");
+  QVBoxLayout *memViewLayout = new QVBoxLayout(m_memViewWidget);
+  memViewLayout->setContentsMargins(0, 0, 0, 0);
+  memViewLayout->setSpacing(6);
+
+  m_memHeaderWidget = new QWidget(m_memViewWidget);
+  m_memHeaderWidget->setObjectName("memHeaderWidget");
+  QVBoxLayout *memHeaderMainLayout = new QVBoxLayout(m_memHeaderWidget);
+  memHeaderMainLayout->setContentsMargins(4, 2, 4, 2);
+  memHeaderMainLayout->setSpacing(4);
+
+  // Row 1: Name, Offset, Size, SW Access, HW Access
+  QWidget *memRow1Widget = new QWidget(m_memHeaderWidget);
+  memRow1Widget->setObjectName("memRow1Widget");
+  QHBoxLayout *memRow1Layout = new QHBoxLayout(memRow1Widget);
+  memRow1Layout->setContentsMargins(0, 0, 0, 0);
+  memRow1Layout->setSpacing(6);
+
+  QLabel *memNameTitle = new QLabel(tr("Name:"), memRow1Widget);
+  memNameTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memNameEdit = new QLineEdit(memRow1Widget);
+  m_memNameEdit->setObjectName("memNameEdit");
+  m_memNameEdit->setPlaceholderText(tr("Memory name..."));
+  m_memNameEdit->setClearButtonEnabled(true);
+  m_memNameEdit->setMinimumWidth(
+      std::max(120, memNameTitle->sizeHint().width()));
+
+  QLabel *memOffsetTitle = new QLabel(tr("Offset:"), memRow1Widget);
+  memOffsetTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memOffsetEdit = new QLineEdit(memRow1Widget);
+  m_memOffsetEdit->setObjectName("memOffsetEdit");
+  m_memOffsetEdit->setPlaceholderText(tr("0x0000"));
+  m_memOffsetEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
+  m_memOffsetEdit->setClearButtonEnabled(true);
+  m_memOffsetEdit->setMinimumWidth(memOffsetTitle->sizeHint().width());
+  m_memOffsetEdit->setMaximumWidth(100);
+
+  QLabel *memSizeTitle = new QLabel(tr("Size (Bytes):"), memRow1Widget);
+  memSizeTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memSizeEdit = new QLineEdit(memRow1Widget);
+  m_memSizeEdit->setObjectName("memSizeEdit");
+  m_memSizeEdit->setPlaceholderText(tr("1024 or 0x400"));
+  m_memSizeEdit->setStyleSheet("font-family: monospace; font-size: 12px;");
+  m_memSizeEdit->setClearButtonEnabled(true);
+  m_memSizeEdit->setMinimumWidth(memSizeTitle->sizeHint().width());
+  m_memSizeEdit->setMaximumWidth(110);
+
+  QLabel *memSwAccessTitle = new QLabel(tr("SW Access:"), memRow1Widget);
+  memSwAccessTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memSwAccessCombo = new QComboBox(memRow1Widget);
+  m_memSwAccessCombo->setObjectName("memSwAccessCombo");
+  m_memSwAccessCombo->addItems({"RW", "RO", "WO", "NOACCESS"});
+
+  QLabel *memHwAccessTitle = new QLabel(tr("HW Access:"), memRow1Widget);
+  memHwAccessTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memHwAccessCombo = new QComboBox(memRow1Widget);
+  m_memHwAccessCombo->setObjectName("memHwAccessCombo");
+  m_memHwAccessCombo->addItems({"RW", "RO", "NA"});
+
+  memRow1Layout->addWidget(memNameTitle);
+  memRow1Layout->addWidget(m_memNameEdit);
+  memRow1Layout->addWidget(memOffsetTitle);
+  memRow1Layout->addWidget(m_memOffsetEdit);
+  memRow1Layout->addWidget(memSizeTitle);
+  memRow1Layout->addWidget(m_memSizeEdit);
+  memRow1Layout->addWidget(memSwAccessTitle);
+  memRow1Layout->addWidget(m_memSwAccessCombo);
+  memRow1Layout->addWidget(memHwAccessTitle);
+  memRow1Layout->addWidget(m_memHwAccessCombo);
+
+  // Row 2: Word Width, Depth, HDL Path, Description
+  QWidget *memRow2Widget = new QWidget(m_memHeaderWidget);
+  memRow2Widget->setObjectName("memRow2Widget");
+  QHBoxLayout *memRow2Layout = new QHBoxLayout(memRow2Widget);
+  memRow2Layout->setContentsMargins(0, 0, 0, 0);
+  memRow2Layout->setSpacing(6);
+
+  QLabel *memWwTitle = new QLabel(tr("Word Width:"), memRow2Widget);
+  memWwTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memWordWidthEdit = new QLineEdit(memRow2Widget);
+  m_memWordWidthEdit->setObjectName("memWordWidthEdit");
+  m_memWordWidthEdit->setPlaceholderText(tr("32"));
+  m_memWordWidthEdit->setMaximumWidth(70);
+
+  QLabel *memDepthTitle = new QLabel(tr("Depth:"), memRow2Widget);
+  memDepthTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memDepthEdit = new QLineEdit(memRow2Widget);
+  m_memDepthEdit->setObjectName("memDepthEdit");
+  m_memDepthEdit->setPlaceholderText(tr("256"));
+  m_memDepthEdit->setMaximumWidth(90);
+
+  QLabel *memHdlTitle = new QLabel(tr("HDL Path:"), memRow2Widget);
+  memHdlTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memHdlPathEdit = new QLineEdit(memRow2Widget);
+  m_memHdlPathEdit->setObjectName("memHdlPathEdit");
+  m_memHdlPathEdit->setPlaceholderText(tr("e.g. sram_inst"));
+  m_memHdlPathEdit->setClearButtonEnabled(true);
+  m_memHdlPathEdit->setMinimumWidth(140);
+
+  QLabel *memDescTitle = new QLabel(tr("Description:"), memRow2Widget);
+  memDescTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memDescEdit = new QLineEdit(memRow2Widget);
+  m_memDescEdit->setObjectName("memDescEdit");
+  m_memDescEdit->setPlaceholderText(tr("Memory description..."));
+  m_memDescEdit->setClearButtonEnabled(true);
+
+  memRow2Layout->addWidget(memWwTitle);
+  memRow2Layout->addWidget(m_memWordWidthEdit);
+  memRow2Layout->addWidget(memDepthTitle);
+  memRow2Layout->addWidget(m_memDepthEdit);
+  memRow2Layout->addWidget(memHdlTitle);
+  memRow2Layout->addWidget(m_memHdlPathEdit);
+  memRow2Layout->addWidget(memDescTitle);
+  memRow2Layout->addWidget(m_memDescEdit, 1);
+
+  // Row 3: Wr Lock, Rd Lock, UVM test exclusions
+  QWidget *memRow3Widget = new QWidget(m_memHeaderWidget);
+  memRow3Widget->setObjectName("memRow3Widget");
+  QHBoxLayout *memRow3Layout = new QHBoxLayout(memRow3Widget);
+  memRow3Layout->setContentsMargins(0, 0, 0, 0);
+  memRow3Layout->setSpacing(6);
+
+  QLabel *memWrLockTitle = new QLabel(tr("Wr Lock:"), memRow3Widget);
+  memWrLockTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memWrLockEdit = new QLineEdit(memRow3Widget);
+  m_memWrLockEdit->setObjectName("memWrLockEdit");
+  m_memWrLockEdit->setPlaceholderText(tr("Memory write lock condition..."));
+  m_memWrLockEdit->setClearButtonEnabled(true);
+  m_memWrLockBtn = new QToolButton(memRow3Widget);
+  m_memWrLockBtn->setObjectName("memWrLockBtn");
+  m_memWrLockBtn->setText(QStringLiteral("🔒"));
+  m_memWrLockBtn->setToolTip(tr("Configure Memory Software Locks"));
+
+  QLabel *memRdLockTitle = new QLabel(tr("Rd Lock:"), memRow3Widget);
+  memRdLockTitle->setStyleSheet("font-weight: bold; font-size: 12px;");
+  m_memRdLockEdit = new QLineEdit(memRow3Widget);
+  m_memRdLockEdit->setObjectName("memRdLockEdit");
+  m_memRdLockEdit->setPlaceholderText(tr("Memory read lock condition..."));
+  m_memRdLockEdit->setClearButtonEnabled(true);
+  m_memRdLockBtn = new QToolButton(memRow3Widget);
+  m_memRdLockBtn->setObjectName("memRdLockBtn");
+  m_memRdLockBtn->setText(QStringLiteral("🔒"));
+  m_memRdLockBtn->setToolTip(tr("Configure Memory Software Locks"));
+
+  m_memNoTestCheck = new QCheckBox(tr("No Mem Test"), memRow3Widget);
+  m_memNoTestCheck->setObjectName("memNoTestCheck");
+  m_memNoTestCheck->setToolTip(
+      tr("Exclude memory from all UVM memory tests (NO_MEM_TEST)"));
+
+  m_memNoWalkTestCheck = new QCheckBox(tr("No Walk Test"), memRow3Widget);
+  m_memNoWalkTestCheck->setObjectName("memNoWalkTestCheck");
+  m_memNoWalkTestCheck->setToolTip(
+      tr("Exclude memory from UVM walk test (NO_MEM_WALK_TEST)"));
+
+  m_memNoAccessTestCheck = new QCheckBox(tr("No Access Test"), memRow3Widget);
+  m_memNoAccessTestCheck->setObjectName("memNoAccessTestCheck");
+  m_memNoAccessTestCheck->setToolTip(
+      tr("Exclude memory from UVM access test (NO_MEM_ACCESS_TEST)"));
+
+  memRow3Layout->addWidget(memWrLockTitle);
+  memRow3Layout->addWidget(m_memWrLockEdit, 1);
+  memRow3Layout->addWidget(m_memWrLockBtn);
+  memRow3Layout->addWidget(memRdLockTitle);
+  memRow3Layout->addWidget(m_memRdLockEdit, 1);
+  memRow3Layout->addWidget(m_memRdLockBtn);
+  memRow3Layout->addWidget(m_memNoTestCheck);
+  memRow3Layout->addWidget(m_memNoWalkTestCheck);
+  memRow3Layout->addWidget(m_memNoAccessTestCheck);
+
+  memHeaderMainLayout->addWidget(memRow1Widget);
+  memHeaderMainLayout->addWidget(memRow2Widget);
+  memHeaderMainLayout->addWidget(memRow3Widget);
+
+  memViewLayout->addWidget(m_memHeaderWidget);
+
+  // Connect editing signals for memory fields
+  connect(m_memNameEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newName = m_memNameEdit->text().trimmed();
+    QString oldName = m_currentMemItem->data("Name").toString();
+    if (newName != oldName && !newName.isEmpty()) {
+      int col = m_model->columnOf("Name");
+      QModelIndex nameIndex = currentMemSourceIndex(col);
+      if (nameIndex.isValid()) {
+        m_undoStack->push(
+            new EditCellCommand(m_model, nameIndex, oldName, newName));
+      }
+    }
+  });
+
+  connect(m_memOffsetEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString rawOffset = m_memOffsetEdit->text().trimmed();
+    QString newOffset = padHexOffsetString(rawOffset);
+    m_memOffsetEdit->setText(newOffset);
+    QString oldOffset = m_currentMemItem->data("Offset/LSB").toString();
+    if (newOffset != oldOffset && !newOffset.isEmpty()) {
+      int col = m_model->columnOf("Offset/LSB");
+      QModelIndex offsetIndex = currentMemSourceIndex(col);
+      if (offsetIndex.isValid()) {
+        m_undoStack->push(
+            new EditCellCommand(m_model, offsetIndex, oldOffset, newOffset));
+      }
+    }
+  });
+
+  connect(m_memSizeEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newSize = m_memSizeEdit->text().trimmed();
+    QString oldSize = m_currentMemItem->data("Size/Width").toString();
+    if (newSize != oldSize && !newSize.isEmpty()) {
+      int col = m_model->columnOf("Size/Width");
+      if (col < 0)
+        col = 2;
+      QModelIndex sizeIndex = currentMemSourceIndex(col);
+      if (sizeIndex.isValid()) {
+        m_undoStack->push(
+            new EditCellCommand(m_model, sizeIndex, oldSize, newSize));
+      }
+    }
+  });
+
+  connect(m_memSwAccessCombo, &QComboBox::currentTextChanged, this,
+          [this](const QString &newVal) {
+            if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+              return;
+            QString oldVal = m_currentMemItem->data("SW Access").toString();
+            if (newVal != oldVal) {
+              int col = m_model->columnOf("SW Access");
+              if (col < 0)
+                col = 4;
+              QModelIndex swIndex = currentMemSourceIndex(col);
+              if (swIndex.isValid()) {
+                m_undoStack->push(
+                    new EditCellCommand(m_model, swIndex, oldVal, newVal));
+              }
+            }
+          });
+
+  connect(m_memHwAccessCombo, &QComboBox::currentTextChanged, this,
+          [this](const QString &newVal) {
+            if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+              return;
+            QString oldVal = m_currentMemItem->data("HW Access").toString();
+            if (oldVal.isEmpty())
+              oldVal = m_currentMemItem->data("HW Access Policy").toString();
+            if (newVal != oldVal) {
+              int col = m_model->columnOf("HW Access");
+              if (col < 0)
+                col = m_model->columnOf("HW Access Policy");
+              if (col < 0)
+                col = 5;
+              QModelIndex hwIndex = currentMemSourceIndex(col);
+              if (hwIndex.isValid()) {
+                m_undoStack->push(
+                    new EditCellCommand(m_model, hwIndex, oldVal, newVal));
+              }
+            }
+          });
+
+  connect(m_memDescEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newDesc = m_memDescEdit->text();
+    QString oldDesc = m_currentMemItem->data("Description").toString();
+    if (newDesc != oldDesc) {
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13;
+      QModelIndex descIndex = currentMemSourceIndex(descCol);
+      if (descIndex.isValid()) {
+        m_undoStack->push(
+            new EditCellCommand(m_model, descIndex, oldDesc, newDesc));
+      }
+    }
+  });
+
+  connect(m_memWordWidthEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newVal = m_memWordWidthEdit->text().trimmed();
+    QString oldVal = m_currentMemItem->data("Word Width").toString();
+    if (newVal != oldVal) {
+      m_undoStack->push(new EditItemPropertyCommand(
+          m_model, m_currentMemItem, "Word Width", oldVal, newVal));
+    }
+  });
+
+  connect(m_memDepthEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newVal = m_memDepthEdit->text().trimmed();
+    QString oldVal = m_currentMemItem->data("Depth").toString();
+    if (newVal != oldVal) {
+      m_undoStack->push(new EditItemPropertyCommand(m_model, m_currentMemItem,
+                                                    "Depth", oldVal, newVal));
+    }
+  });
+
+  connect(m_memHdlPathEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newVal = m_memHdlPathEdit->text().trimmed();
+    QString oldVal = m_currentMemItem->data("HDL Path").toString();
+    if (newVal != oldVal) {
+      m_undoStack->push(new EditItemPropertyCommand(
+          m_model, m_currentMemItem, "HDL Path", oldVal, newVal));
+    }
+  });
+
+  connect(m_memWrLockEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newVal = m_memWrLockEdit->text().trimmed();
+    QString oldVal = m_currentMemItem->data("Write Lock").toString();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Write Lock");
+      if (col < 0)
+        col = 10;
+      QModelIndex idx = currentMemSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  connect(m_memRdLockEdit, &QLineEdit::editingFinished, this, [this]() {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QString newVal = m_memRdLockEdit->text().trimmed();
+    QString oldVal = m_currentMemItem->data("Read Lock").toString();
+    if (newVal != oldVal) {
+      int col = m_model->columnOf("Read Lock");
+      if (col < 0)
+        col = 11;
+      QModelIndex idx = currentMemSourceIndex(col);
+      if (idx.isValid()) {
+        m_undoStack->push(new EditCellCommand(m_model, idx, oldVal, newVal));
+      }
+    }
+  });
+
+  auto openLockDialogForMem = [this]() {
+    if (!m_currentMemItem || !m_model)
+      return;
+    QString wrExpr = m_currentMemItem->data("Write Lock").toString();
+    QString rdExpr = m_currentMemItem->data("Read Lock").toString();
+    QString name = m_currentMemItem->data("Name").toString();
+    RegLockDialog dlg(wrExpr, rdExpr, m_model, name, this);
+    if (dlg.exec() == QDialog::Accepted) {
+      QString newWr = dlg.writeExpression();
+      QString newRd = dlg.readExpression();
+      int wrCol = m_model->columnOf("Write Lock");
+      int rdCol = m_model->columnOf("Read Lock");
+      if (newWr != wrExpr) {
+        QModelIndex wrIdx = currentMemSourceIndex(wrCol);
+        if (wrIdx.isValid())
+          m_undoStack->push(new EditCellCommand(m_model, wrIdx, wrExpr, newWr));
+      }
+      if (newRd != rdExpr) {
+        QModelIndex rdIdx = currentMemSourceIndex(rdCol);
+        if (rdIdx.isValid())
+          m_undoStack->push(new EditCellCommand(m_model, rdIdx, rdExpr, newRd));
+      }
+    }
+  };
+  connect(m_memWrLockBtn, &QToolButton::clicked, this, openLockDialogForMem);
+  connect(m_memRdLockBtn, &QToolButton::clicked, this, openLockDialogForMem);
+
+  connect(m_memNoTestCheck, &QCheckBox::toggled, this, [this](bool checked) {
+    if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+      return;
+    QVariant oldVal = m_currentMemItem->data("NO_MEM_TEST");
+    QVariant newVal = checked ? "true" : "false";
+    if (oldVal.toString().toLower() != newVal.toString().toLower()) {
+      m_undoStack->push(new EditItemPropertyCommand(
+          m_model, m_currentMemItem, "NO_MEM_TEST", oldVal, newVal));
+    }
+  });
+
+  connect(
+      m_memNoWalkTestCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+          return;
+        QVariant oldVal = m_currentMemItem->data("NO_MEM_WALK_TEST");
+        QVariant newVal = checked ? "true" : "false";
+        if (oldVal.toString().toLower() != newVal.toString().toLower()) {
+          m_undoStack->push(new EditItemPropertyCommand(
+              m_model, m_currentMemItem, "NO_MEM_WALK_TEST", oldVal, newVal));
+        }
+      });
+
+  connect(
+      m_memNoAccessTestCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (!m_currentMemItem || m_updatingMemHeader || !m_model)
+          return;
+        QVariant oldVal = m_currentMemItem->data("NO_MEM_ACCESS_TEST");
+        QVariant newVal = checked ? "true" : "false";
+        if (oldVal.toString().toLower() != newVal.toString().toLower()) {
+          m_undoStack->push(new EditItemPropertyCommand(
+              m_model, m_currentMemItem, "NO_MEM_ACCESS_TEST", oldVal, newVal));
+        }
+      });
+
+  QScrollArea *memSummaryScroll = new QScrollArea(m_memViewWidget);
+  memSummaryScroll->setObjectName("memSummaryScroll");
+  memSummaryScroll->setWidgetResizable(true);
+  memSummaryScroll->setFrameShape(QFrame::StyledPanel);
+  QWidget *summaryContainer = new QWidget(memSummaryScroll);
+  QVBoxLayout *summaryLayout = new QVBoxLayout(summaryContainer);
+  summaryLayout->setContentsMargins(12, 12, 12, 12);
+  summaryLayout->setSpacing(8);
+
+  m_memSummaryLabel = new QLabel(summaryContainer);
+  m_memSummaryLabel->setObjectName("memSummaryLabel");
+  m_memSummaryLabel->setTextFormat(Qt::RichText);
+  m_memSummaryLabel->setWordWrap(true);
+  summaryLayout->addWidget(m_memSummaryLabel);
+  summaryLayout->addStretch(1);
+
+  memSummaryScroll->setWidget(summaryContainer);
+  memViewLayout->addWidget(memSummaryScroll, 1);
+
+  m_rightStackedWidget->addWidget(m_memViewWidget);
+
+  // ==========================================
+  // Page 3: Empty View (Shown when no register or block is selected)
   // ==========================================
   m_emptyViewWidget = new QWidget(m_rightStackedWidget);
   m_emptyViewWidget->setObjectName("emptyViewWidget");
@@ -770,6 +1609,9 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
               return;
             QModelIndex fieldProxy = m_fieldProxy->mapFromSource(fieldSource);
             if (fieldProxy.isValid()) {
+              if (m_regTabBar && m_regTabBar->currentIndex() == 3) {
+                m_regTabBar->setCurrentIndex(0);
+              }
               QModelIndex root = m_fieldsTableView->rootIndex();
               QModelIndex tableIdx =
                   m_fieldProxy->index(fieldProxy.row(), 1, root);
@@ -860,9 +1702,11 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   setupThemeMenu();
   setupColorBlindMenu();
   setupLanguageMenu();
+  setupLayoutMenu();
   setColourBlindMode(AppSettings::instance().colorBlindMode());
   setColourScheme(AppSettings::instance().colorScheme());
   setLanguage(AppSettings::instance().language());
+  setLayoutMode(AppSettings::instance().layoutMode());
 
   restoreWindowStateFromSettings();
 
@@ -956,6 +1800,9 @@ void RegMapWindow::onToggleColorBlindMode(bool checked) {
   if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_blockMemoryMapWidget->setColorBlindMode(mode);
   }
+  if (m_regBlockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_regBlockMemoryMapWidget->setColorBlindMode(mode);
+  }
   if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_pref_window->setColourBlindMode(checked);
     m_pref_window->setColourBlindType(AppSettings::instance().colorBlindType());
@@ -1018,6 +1865,9 @@ void RegMapWindow::setColourBlindType(ColorBlindMode mode) {
     }
     if (m_blockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_blockMemoryMapWidget->setColorBlindMode(mode);
+    }
+    if (m_regBlockMemoryMapWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+      m_regBlockMemoryMapWidget->setColorBlindMode(mode);
     }
     if (m_pref_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_pref_window->setColourBlindType(mode);
@@ -1302,6 +2152,152 @@ QString RegMapWindow::language() const {
   return LanguageManager::instance().currentLanguage();
 }
 
+void RegMapWindow::setupLayoutMenu(void) {
+  if (!menuView) {
+    return;
+  }
+
+  m_layoutMenu = new QMenu(tr("La&yout"), menuView);
+  m_layoutMenu->setObjectName("menuLayout");
+  m_layoutActionGroup = new QActionGroup(this);
+  m_layoutActionGroup->setExclusive(true);
+
+  QAction *actTabbed = m_layoutMenu->addAction(tr("&Tabbed (Task-Centric)"));
+  actTabbed->setCheckable(true);
+  actTabbed->setData(QStringLiteral("tabbed"));
+  m_layoutActionGroup->addAction(actTabbed);
+
+  QAction *actClassic =
+      m_layoutMenu->addAction(tr("&Classic (Horizontal Split)"));
+  actClassic->setCheckable(true);
+  actClassic->setData(AppSettings::classicLayoutId());
+  m_layoutActionGroup->addAction(actClassic);
+
+  QAction *actTable =
+      m_layoutMenu->addAction(tr("Full &Table (Vertical Split)"));
+  actTable->setCheckable(true);
+  actTable->setData(QStringLiteral("table"));
+  m_layoutActionGroup->addAction(actTable);
+
+  connect(m_layoutActionGroup, &QActionGroup::triggered, this,
+          [this](QAction *action) {
+            if (action) {
+              setLayoutMode(action->data().toString());
+            }
+          });
+
+  connect(&AppSettings::instance(), &AppSettings::layoutModeChanged, this,
+          [this](const QString &mode) { setLayoutMode(mode); });
+
+  menuView->addMenu(m_layoutMenu);
+}
+
+void RegMapWindow::setLayoutMode(const QString &mode) {
+  QString m = mode.trimmed().toLower();
+  if (m == AppSettings::classicLayoutId() || m == "classic_split" ||
+      m == "classic_horizontal" || m == "horizontal") {
+    m = AppSettings::classicLayoutId();
+  } else if (m == "table") {
+    m = "table";
+  } else {
+    m = QStringLiteral("tabbed");
+  }
+
+  m_layoutMode = m;
+  AppSettings::instance().setLayoutMode(m);
+
+  if (m_layoutActionGroup) {
+    for (auto *act : m_layoutActionGroup->actions()) {
+      act->setChecked(act->data().toString() == m_layoutMode);
+    }
+  }
+
+  if (m_pref_window) {
+    m_pref_window->setLayoutMode(m_layoutMode);
+  }
+
+  if (m_layoutMode == AppSettings::classicLayoutId()) {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Vertical);
+      m_splitter->setSizes({250, 450});
+    }
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(false);
+    }
+    if (m_regTabStack) {
+      m_regTabStack->setCurrentIndex(0);
+    }
+    if (m_fieldsTableView && m_model) {
+      m_fieldsTableView->setColumnHidden(0, true);
+      for (int col = 1; col < m_model->columnCount(); ++col) {
+        m_fieldsTableView->setColumnHidden(col, false);
+        m_fieldsTableView->resizeColumnToContents(col);
+        int minHeader =
+            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+        if (m_fieldsTableView->columnWidth(col) < minHeader) {
+          m_fieldsTableView->setColumnWidth(col, minHeader);
+        }
+      }
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13;
+      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+          descCol, QHeaderView::Stretch);
+    }
+  } else if (m_layoutMode == "table") {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Horizontal);
+      m_splitter->setSizes({350, 850});
+    }
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(false);
+    }
+    if (m_regTabStack) {
+      m_regTabStack->setCurrentIndex(0);
+    }
+    if (m_fieldsTableView && m_model) {
+      m_fieldsTableView->setColumnHidden(0, true);
+      for (int col = 1; col < m_model->columnCount(); ++col) {
+        m_fieldsTableView->setColumnHidden(col, false);
+        m_fieldsTableView->resizeColumnToContents(col);
+        int minHeader =
+            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+        if (m_fieldsTableView->columnWidth(col) < minHeader) {
+          m_fieldsTableView->setColumnWidth(col, minHeader);
+        }
+      }
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13;
+      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+          descCol, QHeaderView::Stretch);
+    }
+  } else {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Horizontal);
+      m_splitter->setSizes({350, 850});
+    }
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(true);
+    }
+    applyFieldTabColumnFilter(m_regTabBar ? m_regTabBar->currentIndex() : 0);
+  }
+
+  if (this->statusBar()) {
+    QString label;
+    if (m_layoutMode == AppSettings::classicLayoutId()) {
+      label = tr("Classic Layout");
+    } else if (m_layoutMode == "table") {
+      label = tr("Full Table Layout");
+    } else {
+      label = tr("Tabbed Layout");
+    }
+    this->statusBar()->showMessage(tr("Layout: %1").arg(label), 3000);
+  }
+}
+
 void RegMapWindow::updateDynamicTranslations(void) {
   if (m_languageMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_languageMenu->setTitle(tr("&Language"));
@@ -1326,8 +2322,30 @@ void RegMapWindow::updateDynamicTranslations(void) {
     m_colorBlindMenu->setTitle(tr("Colour-&Blind Profile"));
     rebuildColorBlindMenu();
   }
+  if (m_layoutMenu) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_layoutMenu->setTitle(tr("La&yout"));
+    if (m_layoutActionGroup) {
+      for (auto *act : m_layoutActionGroup->actions()) {
+        QString data = act->data().toString();
+        if (data == "tabbed") {
+          act->setText(tr("&Tabbed (Task-Centric)"));
+        } else if (data == AppSettings::classicLayoutId()) {
+          act->setText(tr("&Classic (Horizontal Split)"));
+        } else if (data == "table") {
+          act->setText(tr("Full &Table (Vertical Split)"));
+        }
+      }
+    }
+  }
   if (m_model) {
     m_model->refreshHeaderData();
+  }
+  if (m_regTabBar) {
+    m_regTabBar->setTabText(0, tr("Fields & Layout"));
+    m_regTabBar->setTabText(1, tr("Verification & UVM"));
+    m_regTabBar->setTabText(2, tr("Security & Locks"));
+    m_regTabBar->setTabText(3, tr("Memory Map"));
+    m_regTabBar->setTabText(4, tr("All Properties"));
   }
   if (m_rmap_filename.isEmpty()) {
     setWindowTitle(tr("Register Map Generation Tool"));
@@ -1368,6 +2386,17 @@ void RegMapWindow::restoreWindowStateFromSettings() {
   QByteArray splitterState = AppSettings::instance().mainWindowSplitter();
   if (!splitterState.isEmpty() && m_splitter) {
     m_splitter->restoreState(splitterState);
+    Qt::Orientation expectedOrientation =
+        (m_layoutMode == AppSettings::classicLayoutId()) ? Qt::Vertical
+                                                         : Qt::Horizontal;
+    if (m_splitter->orientation() != expectedOrientation) {
+      m_splitter->setOrientation(expectedOrientation);
+      if (expectedOrientation == Qt::Vertical) {
+        m_splitter->setSizes({250, 450});
+      } else {
+        m_splitter->setSizes({350, 850});
+      }
+    }
   }
 }
 
@@ -1771,32 +2800,143 @@ void RegMapWindow::connectModelSignals(void) {
           m_blockMemoryMapWidget->refresh();
         }
         if (m_currentRegItem) {
+          m_updatingRegHeader = true;
           if (m_regNameEdit && !m_regNameEdit->hasFocus())
-            m_regNameEdit->setText(
-                m_currentRegItem->data("Name")
-                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+            m_regNameEdit->setText(m_currentRegItem->data("Name").toString());
           if (m_regOffsetEdit && !m_regOffsetEdit->hasFocus())
             m_regOffsetEdit->setText(padHexOffsetString(
-                m_currentRegItem->data("Offset/LSB")
-                    .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+                m_currentRegItem->data("Offset/LSB").toString()));
+          if (m_regSizeEdit && !m_regSizeEdit->hasFocus())
+            m_regSizeEdit->setText(
+                m_currentRegItem->data("Size/Width").toString());
+          if (m_regSwAccessCombo && !m_regSwAccessCombo->hasFocus()) {
+            int idx = m_regSwAccessCombo->findText(
+                m_currentRegItem->data("SW Access").toString());
+            if (idx >= 0)
+              m_regSwAccessCombo->setCurrentIndex(idx);
+          }
+          if (m_regHwAccessCombo && !m_regHwAccessCombo->hasFocus()) {
+            int idx = m_regHwAccessCombo->findText(
+                m_currentRegItem->data("HW Access").toString());
+            if (idx >= 0)
+              m_regHwAccessCombo->setCurrentIndex(idx);
+          }
+          if (m_regResetEdit && !m_regResetEdit->hasFocus())
+            m_regResetEdit->setText(padHexOffsetString(
+                m_currentRegItem->data("Reset Value").toString()));
           if (m_regDescEdit && !m_regDescEdit->hasFocus())
             m_regDescEdit->setText(
-                m_currentRegItem->data("Description")
-                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+                m_currentRegItem->data("Description").toString());
+          if (m_regWrLockEdit && !m_regWrLockEdit->hasFocus())
+            m_regWrLockEdit->setText(
+                m_currentRegItem->data("Write Lock").toString());
+          if (m_regRdLockEdit && !m_regRdLockEdit->hasFocus())
+            m_regRdLockEdit->setText(
+                m_currentRegItem->data("Read Lock").toString());
+          if (m_regDecodeOnlyCheck && !m_regDecodeOnlyCheck->hasFocus())
+            m_regDecodeOnlyCheck->setChecked(
+                m_currentRegItem->data("Decode Only").toString().toLower() ==
+                "true");
+          if (m_regHasResetCheck && !m_regHasResetCheck->hasFocus())
+            m_regHasResetCheck->setChecked(
+                m_currentRegItem->data("Has Reset").toString().toLower() ==
+                "true");
+          if (m_regRandCheck && !m_regRandCheck->hasFocus())
+            m_regRandCheck->setChecked(
+                m_currentRegItem->data("Is Rand").toString().toLower() ==
+                "true");
+          if (m_regVolatileCheck && !m_regVolatileCheck->hasFocus())
+            m_regVolatileCheck->setChecked(
+                m_currentRegItem->data("Volatile").toString().toLower() ==
+                "true");
+          m_updatingRegHeader = false;
         }
         if (m_currentBlkItem) {
+          m_updatingBlkHeader = true;
           if (m_blkNameEdit && !m_blkNameEdit->hasFocus())
-            m_blkNameEdit->setText(
-                m_currentBlkItem->data("Name")
-                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+            m_blkNameEdit->setText(m_currentBlkItem->data("Name").toString());
           if (m_blkOffsetEdit && !m_blkOffsetEdit->hasFocus())
             m_blkOffsetEdit->setText(padHexOffsetString(
-                m_currentBlkItem->data("Offset/LSB")
-                    .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+                m_currentBlkItem->data("Offset/LSB").toString()));
           if (m_blkDescEdit && !m_blkDescEdit->hasFocus())
             m_blkDescEdit->setText(
-                m_currentBlkItem->data("Description")
-                    .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+                m_currentBlkItem->data("Description").toString());
+          if (m_blkWrLockEdit && !m_blkWrLockEdit->hasFocus())
+            m_blkWrLockEdit->setText(
+                m_currentBlkItem->data("Write Lock").toString());
+          if (m_blkRdLockEdit && !m_blkRdLockEdit->hasFocus())
+            m_blkRdLockEdit->setText(
+                m_currentBlkItem->data("Read Lock").toString());
+          m_updatingBlkHeader = false;
+        }
+        if (m_currentMemItem) {
+          m_updatingMemHeader = true;
+          if (m_memNameEdit && !m_memNameEdit->hasFocus())
+            m_memNameEdit->setText(m_currentMemItem->data("Name").toString());
+          if (m_memOffsetEdit && !m_memOffsetEdit->hasFocus())
+            m_memOffsetEdit->setText(padHexOffsetString(
+                m_currentMemItem->data("Offset/LSB").toString()));
+          if (m_memSizeEdit && !m_memSizeEdit->hasFocus())
+            m_memSizeEdit->setText(
+                m_currentMemItem->data("Size/Width").toString());
+          if (m_memSwAccessCombo && !m_memSwAccessCombo->hasFocus()) {
+            int idx = m_memSwAccessCombo->findText(
+                m_currentMemItem->data("SW Access").toString());
+            if (idx >= 0)
+              m_memSwAccessCombo->setCurrentIndex(idx);
+            else
+              m_memSwAccessCombo->setCurrentText(
+                  m_currentMemItem->data("SW Access").toString());
+          }
+          if (m_memHwAccessCombo && !m_memHwAccessCombo->hasFocus()) {
+            QString hwVal = m_currentMemItem->data("HW Access").toString();
+            if (hwVal.isEmpty())
+              hwVal = m_currentMemItem->data("HW Access Policy").toString();
+            int idx = m_memHwAccessCombo->findText(hwVal);
+            if (idx >= 0)
+              m_memHwAccessCombo->setCurrentIndex(idx);
+            else
+              m_memHwAccessCombo->setCurrentText(hwVal);
+          }
+          if (m_memDescEdit && !m_memDescEdit->hasFocus())
+            m_memDescEdit->setText(
+                m_currentMemItem->data("Description").toString());
+          if (m_memWordWidthEdit && !m_memWordWidthEdit->hasFocus())
+            m_memWordWidthEdit->setText(
+                m_currentMemItem->data("Word Width").toString());
+          if (m_memDepthEdit && !m_memDepthEdit->hasFocus())
+            m_memDepthEdit->setText(m_currentMemItem->data("Depth").toString());
+          if (m_memHdlPathEdit && !m_memHdlPathEdit->hasFocus())
+            m_memHdlPathEdit->setText(
+                m_currentMemItem->data("HDL Path").toString());
+          if (m_memWrLockEdit && !m_memWrLockEdit->hasFocus())
+            m_memWrLockEdit->setText(
+                m_currentMemItem->data("Write Lock").toString());
+          if (m_memRdLockEdit && !m_memRdLockEdit->hasFocus())
+            m_memRdLockEdit->setText(
+                m_currentMemItem->data("Read Lock").toString());
+          if (m_memNoTestCheck && !m_memNoTestCheck->hasFocus())
+            m_memNoTestCheck->setChecked(
+                m_currentMemItem->data("NO_MEM_TEST").toString().toLower() ==
+                    "true" ||
+                m_currentMemItem->data("No Mem Test").toString().toLower() ==
+                    "true");
+          if (m_memNoWalkTestCheck && !m_memNoWalkTestCheck->hasFocus())
+            m_memNoWalkTestCheck->setChecked(
+                m_currentMemItem->data("NO_MEM_WALK_TEST")
+                        .toString()
+                        .toLower() == "true" ||
+                m_currentMemItem->data("No Walk Test").toString().toLower() ==
+                    "true");
+          if (m_memNoAccessTestCheck && !m_memNoAccessTestCheck->hasFocus())
+            m_memNoAccessTestCheck->setChecked(
+                m_currentMemItem->data("NO_MEM_ACCESS_TEST")
+                        .toString()
+                        .toLower() == "true" ||
+                m_currentMemItem->data("No Access Test").toString().toLower() ==
+                    "true");
+          m_updatingMemHeader = false;
+          updateMemSummary();
         }
       });
   connect(
@@ -1917,16 +3057,70 @@ void RegMapWindow::fileNew(void) {
     m_regNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
   if (m_regOffsetEdit)
     m_regOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regSizeEdit)
+    m_regSizeEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regResetEdit)
+    m_regResetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
   if (m_regDescEdit)
     m_regDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regWrLockEdit)
+    m_regWrLockEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regRdLockEdit)
+    m_regRdLockEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regDecodeOnlyCheck)
+    m_regDecodeOnlyCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regHasResetCheck)
+    m_regHasResetCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regRandCheck)
+    m_regRandCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_regVolatileCheck)
+    m_regVolatileCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
   if (m_blkNameEdit)
     m_blkNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
   if (m_blkOffsetEdit)
     m_blkOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
   if (m_blkDescEdit)
     m_blkDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkWrLockEdit)
+    m_blkWrLockEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkRdLockEdit)
+    m_blkRdLockEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memNameEdit)
+    m_memNameEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memOffsetEdit)
+    m_memOffsetEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memSizeEdit)
+    m_memSizeEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memDescEdit)
+    m_memDescEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memWordWidthEdit)
+    m_memWordWidthEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memDepthEdit)
+    m_memDepthEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memHdlPathEdit)
+    m_memHdlPathEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memWrLockEdit)
+    m_memWrLockEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memRdLockEdit)
+    m_memRdLockEdit->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memNoTestCheck)
+    m_memNoTestCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memNoWalkTestCheck)
+    m_memNoWalkTestCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memNoAccessTestCheck)
+    m_memNoAccessTestCheck->setChecked(
+        false); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memSummaryLabel)
+    m_memSummaryLabel->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
   m_currentRegItem = nullptr;
   m_currentBlkItem = nullptr;
+  m_currentMemItem = nullptr;
 
   updatePaneVisibility();
 
@@ -2260,6 +3454,7 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
       m_bitfieldBar->clear(); // GCOV_EXCL_BR_LINE - Defensive invariant
     m_currentRegItem = nullptr;
     m_currentBlkItem = nullptr;
+    m_currentMemItem = nullptr;
     if (m_rightStackedWidget &&
         m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
@@ -2274,8 +3469,10 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
   if (item->kindString() == "reg") {
     m_currentRegItem = item;
     m_currentBlkItem = nullptr;
+    m_currentMemItem = nullptr;
     if (m_regHeaderWidget) {
       m_regHeaderWidget->setVisible(true);
+      m_updatingRegHeader = true;
       if (m_regNameEdit)
         m_regNameEdit->setText(
             item->data("Name")
@@ -2284,10 +3481,61 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
         m_regOffsetEdit->setText(padHexOffsetString(
             item->data("Offset/LSB")
                 .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regSizeEdit)
+        m_regSizeEdit->setText(
+            item->data("Size/Width")
+                .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regSwAccessCombo) {
+        int idx =
+            m_regSwAccessCombo->findText(item->data("SW Access").toString());
+        if (idx >= 0)
+          m_regSwAccessCombo->setCurrentIndex(idx);
+        else
+          m_regSwAccessCombo->setCurrentText(
+              item->data("SW Access").toString());
+      }
+      if (m_regHwAccessCombo) {
+        int idx =
+            m_regHwAccessCombo->findText(item->data("HW Access").toString());
+        if (idx >= 0)
+          m_regHwAccessCombo->setCurrentIndex(idx);
+        else
+          m_regHwAccessCombo->setCurrentText(
+              item->data("HW Access").toString());
+      }
+      if (m_regResetEdit)
+        m_regResetEdit->setText(padHexOffsetString(
+            item->data("Reset Value")
+                .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
       if (m_regDescEdit)
         m_regDescEdit->setText(
             item->data("Description")
                 .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regWrLockEdit)
+        m_regWrLockEdit->setText(
+            item->data("Write Lock")
+                .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regRdLockEdit)
+        m_regRdLockEdit->setText(
+            item->data("Read Lock")
+                .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regDecodeOnlyCheck)
+        m_regDecodeOnlyCheck->setChecked(
+            item->data("Decode Only").toString().toLower() ==
+            "true"); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regHasResetCheck)
+        m_regHasResetCheck->setChecked(
+            item->data("Has Reset").toString().toLower() ==
+            "true"); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regRandCheck)
+        m_regRandCheck->setChecked(
+            item->data("Is Rand").toString().toLower() ==
+            "true"); // GCOV_EXCL_BR_LINE - Defensive invariant
+      if (m_regVolatileCheck)
+        m_regVolatileCheck->setChecked(
+            item->data("Volatile").toString().toLower() ==
+            "true"); // GCOV_EXCL_BR_LINE - Defensive invariant
+      m_updatingRegHeader = false;
     }
 
     if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
@@ -2296,24 +3544,26 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
         connectFieldsTableSignals();
       }
       m_fieldsTableView->setRootIndex(m_fieldProxy->mapFromSource(source_col0));
-      int descCol = m_model ? m_model->columnOf("Description") : 13;
-      if (descCol < 0)
-        descCol = 13;
-      for (int col = 1; col < descCol; ++col) {
-        m_fieldsTableView->resizeColumnToContents(col);
-        int minHeader =
-            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
-        if (m_fieldsTableView->columnWidth(col) < minHeader) {
-          m_fieldsTableView->setColumnWidth(col, minHeader);
+      if (m_layoutMode == "table") {
+        m_fieldsTableView->setColumnHidden(0, true);
+        for (int col = 1; col < m_model->columnCount(); ++col) {
+          m_fieldsTableView->setColumnHidden(col, false);
+          m_fieldsTableView->resizeColumnToContents(col);
+          int minHeader =
+              m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+          if (m_fieldsTableView->columnWidth(col) < minHeader) {
+            m_fieldsTableView->setColumnWidth(col, minHeader);
+          }
         }
-      }
-      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
-      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
-          descCol, QHeaderView::Stretch);
-      int minHeaderSize =
-          m_fieldsTableView->horizontalHeader()->sectionSizeHint(descCol);
-      if (m_fieldsTableView->columnWidth(descCol) < minHeaderSize) {
-        m_fieldsTableView->setColumnWidth(descCol, minHeaderSize);
+        int descCol = m_model->columnOf("Description");
+        if (descCol < 0)
+          descCol = 13;
+        m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+        m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+            descCol, QHeaderView::Stretch);
+      } else {
+        applyFieldTabColumnFilter(m_regTabBar ? m_regTabBar->currentIndex()
+                                              : 0);
       }
     }
 
@@ -2333,14 +3583,18 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
         m_regViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_rightStackedWidget->setCurrentWidget(m_regViewWidget);
     }
-  } else if (item->kindString() == "blk" || item->kindString() == "map" ||
-             item->kindString() == "mem") {
+  } else if (item->kindString() == "blk" || item->kindString() == "map") {
+    m_currentMemItem = nullptr;
     updateBlockView(item);
-    // GCOV_EXCL_START - Defensive invariant: TreeFilterProxyModel filters out
-    // fields, so only reg/blk/map/mem can be selected in treeView
+  } else if (item->kindString() == "mem") {
+    m_currentRegItem = nullptr;
+    m_currentBlkItem = nullptr;
+    m_currentMemItem = item;
+    updateMemView(item);
   } else {
     m_currentRegItem = nullptr;
     m_currentBlkItem = nullptr;
+    m_currentMemItem = nullptr;
     if (m_rightStackedWidget &&
         m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
@@ -2349,12 +3603,128 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
   // GCOV_EXCL_STOP
 }
 
+void RegMapWindow::applyFieldTabColumnFilter(int tabIndex) {
+  if (!m_fieldsTableView || !m_model)
+    return;
+
+  if (tabIndex == 3) {
+    if (m_regTabStack)
+      m_regTabStack->setCurrentIndex(1);
+    if (m_currentRegItem && m_regBlockMemoryMapWidget) {
+      RegMapTreeItem *parentBlk = m_currentRegItem->parentItem();
+      if (parentBlk) {
+        uint32_t regWidth = 32;
+        if (m_config_window) {
+          protormap::Config *cfg = m_config_window->serialize();
+          if (cfg && cfg->reg_width() > 0)
+            regWidth = cfg->reg_width();
+          delete cfg;
+        }
+        m_regBlockMemoryMapWidget->setBlock(parentBlk, regWidth);
+        m_regBlockMemoryMapWidget->setSelectedRegister(m_currentRegItem->row());
+      }
+    }
+    return;
+  }
+
+  if (m_regTabStack)
+    m_regTabStack->setCurrentIndex(0);
+
+  int hwAccessCol = m_model->columnOf("HW Access Policy");
+  int resetCol = m_model->columnOf("Reset Value");
+  int randCol = m_model->columnOf("Is Rand");
+  int volCol = m_model->columnOf("Volatile");
+  int hasResetCol = m_model->columnOf("Has Reset");
+  int wrLockCol = m_model->columnOf("Write Lock");
+  int rdLockCol = m_model->columnOf("Read Lock");
+  int decOnlyCol = m_model->columnOf("Decode Only");
+  int descCol = m_model->columnOf("Description");
+
+  if (hwAccessCol < 0)
+    hwAccessCol = 5;
+  if (resetCol < 0)
+    resetCol = 6;
+  if (randCol < 0)
+    randCol = 7;
+  if (volCol < 0)
+    volCol = 8;
+  if (hasResetCol < 0)
+    hasResetCol = 9;
+  if (wrLockCol < 0)
+    wrLockCol = 10;
+  if (rdLockCol < 0)
+    rdLockCol = 11;
+  if (decOnlyCol < 0)
+    decOnlyCol = 12;
+  if (descCol < 0)
+    descCol = 13;
+
+  m_fieldsTableView->setColumnHidden(0, true);
+
+  for (int col = 1; col < m_model->columnCount(); ++col) {
+    bool hide = false;
+    if (tabIndex == 0) {
+      // Tab 0: Fields & Layout (Core view)
+      // Visible: LSB, Size, Name, SW Access, Reset Value, Description
+      if (col == hwAccessCol || col == randCol || col == volCol ||
+          col == hasResetCol || col == wrLockCol || col == rdLockCol ||
+          col == decOnlyCol) {
+        hide = true;
+      }
+    } else if (tabIndex == 1) {
+      // Tab 1: Verification & UVM
+      // Visible: LSB, Size, Name, SW Access, HW Access, Reset Value, Is Rand,
+      // Volatile, Has Reset
+      if (col == wrLockCol || col == rdLockCol || col == decOnlyCol ||
+          col == descCol) {
+        hide = true;
+      }
+    } else if (tabIndex == 2) {
+      // Tab 2: Security & Locks
+      // Visible: LSB, Size, Name, SW Access, Write Lock, Read Lock, Decode
+      // Only, Description
+      if (col == hwAccessCol || col == resetCol || col == randCol ||
+          col == volCol || col == hasResetCol) {
+        hide = true;
+      }
+    }
+    // Tab 4: All Properties (nothing hidden except col 0)
+
+    m_fieldsTableView->setColumnHidden(col, hide);
+
+    if (!hide) {
+      m_fieldsTableView->resizeColumnToContents(col);
+      int minHeader =
+          m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+      if (m_fieldsTableView->columnWidth(col) < minHeader) {
+        m_fieldsTableView->setColumnWidth(col, minHeader);
+      }
+    }
+  }
+
+  // Set the rightmost visible column to Stretch
+  int lastVis = -1;
+  for (int col = m_model->columnCount() - 1; col >= 1; --col) {
+    if (!m_fieldsTableView->isColumnHidden(col)) {
+      lastVis = col;
+      break;
+    }
+  }
+  if (lastVis >= 0) {
+    m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+    m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+        lastVis, QHeaderView::Stretch);
+  }
+}
+
 void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem) {
   if (!blkItem)
     return;
   m_currentBlkItem = blkItem;
   m_currentRegItem = nullptr;
+  m_currentMemItem = nullptr;
 
+  m_updatingBlkHeader = true;
   if (m_blkNameEdit)
     m_blkNameEdit->setText(
         blkItem->data("Name")
@@ -2367,6 +3737,15 @@ void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem) {
     m_blkDescEdit->setText(
         blkItem->data("Description")
             .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkWrLockEdit)
+    m_blkWrLockEdit->setText(
+        blkItem->data("Write Lock")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_blkRdLockEdit)
+    m_blkRdLockEdit->setText(
+        blkItem->data("Read Lock")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  m_updatingBlkHeader = false;
 
   uint32_t regWidth = 32;
   if (m_config_window) { // GCOV_EXCL_BR_LINE - Defensive invariant
@@ -2384,6 +3763,178 @@ void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem) {
       m_blockViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_rightStackedWidget->setCurrentWidget(m_blockViewWidget);
   }
+}
+
+void RegMapWindow::updateMemView(RegMapTreeItem *memItem) {
+  if (!memItem)
+    return;
+  m_currentMemItem = memItem;
+  m_currentRegItem = nullptr;
+  m_currentBlkItem = nullptr;
+
+  m_updatingMemHeader = true;
+  if (m_memNameEdit)
+    m_memNameEdit->setText(
+        memItem->data("Name")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memOffsetEdit)
+    m_memOffsetEdit->setText(padHexOffsetString(
+        memItem->data("Offset/LSB")
+            .toString())); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memSizeEdit)
+    m_memSizeEdit->setText(
+        memItem->data("Size/Width")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memSwAccessCombo) {
+    int idx =
+        m_memSwAccessCombo->findText(memItem->data("SW Access").toString());
+    if (idx >= 0)
+      m_memSwAccessCombo->setCurrentIndex(idx);
+    else
+      m_memSwAccessCombo->setCurrentText(memItem->data("SW Access").toString());
+  }
+  if (m_memHwAccessCombo) {
+    QString hwVal = memItem->data("HW Access").toString();
+    if (hwVal.isEmpty())
+      hwVal = memItem->data("HW Access Policy").toString();
+    int idx = m_memHwAccessCombo->findText(hwVal);
+    if (idx >= 0)
+      m_memHwAccessCombo->setCurrentIndex(idx);
+    else
+      m_memHwAccessCombo->setCurrentText(hwVal);
+  }
+  if (m_memDescEdit)
+    m_memDescEdit->setText(
+        memItem->data("Description")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memWordWidthEdit)
+    m_memWordWidthEdit->setText(
+        memItem->data("Word Width")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memDepthEdit)
+    m_memDepthEdit->setText(
+        memItem->data("Depth")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memHdlPathEdit)
+    m_memHdlPathEdit->setText(
+        memItem->data("HDL Path")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memWrLockEdit)
+    m_memWrLockEdit->setText(
+        memItem->data("Write Lock")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memRdLockEdit)
+    m_memRdLockEdit->setText(
+        memItem->data("Read Lock")
+            .toString()); // GCOV_EXCL_BR_LINE - Defensive invariant
+  if (m_memNoTestCheck)
+    m_memNoTestCheck->setChecked(
+        memItem->data("NO_MEM_TEST").toString().toLower() == "true" ||
+        memItem->data("No Mem Test").toString().toLower() == "true");
+  if (m_memNoWalkTestCheck)
+    m_memNoWalkTestCheck->setChecked(
+        memItem->data("NO_MEM_WALK_TEST").toString().toLower() == "true" ||
+        memItem->data("No Walk Test").toString().toLower() == "true");
+  if (m_memNoAccessTestCheck)
+    m_memNoAccessTestCheck->setChecked(
+        memItem->data("NO_MEM_ACCESS_TEST").toString().toLower() == "true" ||
+        memItem->data("No Access Test").toString().toLower() == "true");
+  m_updatingMemHeader = false;
+
+  updateMemSummary();
+
+  if (m_rightStackedWidget &&
+      m_memViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
+    m_rightStackedWidget->setCurrentWidget(m_memViewWidget);
+  }
+}
+
+void RegMapWindow::updateMemSummary() {
+  if (!m_memSummaryLabel)
+    return;
+  if (!m_currentMemItem) {
+    m_memSummaryLabel->clear();
+    return;
+  }
+
+  uint64_t offset = parseNumericValue(m_currentMemItem->data("Offset/LSB"));
+  uint64_t sizeBytes = parseNumericValue(m_currentMemItem->data("Size/Width"));
+  if (sizeBytes == 0)
+    sizeBytes = 1024;
+
+  uint64_t endAddr = offset + (sizeBytes > 0 ? (sizeBytes - 1) : 0);
+
+  uint32_t regWidth = 32;
+  if (m_config_window) {
+    protormap::Config *cfg = m_config_window->serialize();
+    if (cfg && cfg->reg_width() > 0)
+      regWidth = cfg->reg_width();
+    delete cfg;
+  }
+
+  uint64_t wordWidth = parseNumericValue(m_currentMemItem->data("Word Width"));
+  if (wordWidth == 0)
+    wordWidth = regWidth;
+
+  uint64_t wordBytes = (wordWidth >= 8 ? wordWidth : 32) / 8;
+  uint64_t depth = parseNumericValue(m_currentMemItem->data("Depth"));
+  if (depth == 0) {
+    depth = (wordBytes > 0 && sizeBytes >= wordBytes)
+                ? (sizeBytes / wordBytes)
+                : (sizeBytes > 0 ? sizeBytes : 1024);
+  }
+
+  QString sizeHuman;
+  if (sizeBytes >= 1024 * 1024) {
+    sizeHuman = QString("%1 MB (%2 bytes)")
+                    .arg(double(sizeBytes) / (1024.0 * 1024.0), 0, 'f', 2)
+                    .arg(sizeBytes);
+  } else if (sizeBytes >= 1024) {
+    sizeHuman = QString("%1 KB (%2 bytes)")
+                    .arg(double(sizeBytes) / 1024.0, 0, 'f', 2)
+                    .arg(sizeBytes);
+  } else {
+    sizeHuman = QString("%1 bytes").arg(sizeBytes);
+  }
+
+  QString summary =
+      QString(
+          "<div style='font-family: sans-serif; line-height: 1.6;'>"
+          "<h3 style='margin: 0 0 8px 0;'>Memory Region Details</h3>"
+          "<table cellpadding='4' cellspacing='0' style='border-collapse: "
+          "collapse; width: 100%;'>"
+          "<tr><td><b>Address Range:</b></td><td><code>0x%1 - 0x%2</code></td>"
+          "<td><b>Total Size:</b></td><td>%3 (<code>0x%4</code>)</td></tr>"
+          "<tr><td><b>Word Width:</b></td><td>%5 bits</td>"
+          "<td><b>Depth:</b></td><td>%6 words</td></tr>"
+          "<tr><td><b>SW Access:</b></td><td>%7</td>"
+          "<td><b>HW Access:</b></td><td>%8</td></tr>"
+          "<tr><td><b>HDL Backdoor Path:</b></td><td "
+          "colspan='3'><code>%9</code></td></tr>"
+          "<tr><td><b>Write Lock:</b></td><td><code>%10</code></td>"
+          "<td><b>Read Lock:</b></td><td><code>%11</code></td></tr>"
+          "</table></div>")
+          .arg(QString("%1").arg(offset, 8, 16, QChar('0')).toUpper())
+          .arg(QString("%1").arg(endAddr, 8, 16, QChar('0')).toUpper())
+          .arg(sizeHuman)
+          .arg(QString("%1").arg(sizeBytes, 0, 16).toUpper())
+          .arg(wordWidth)
+          .arg(depth)
+          .arg(m_currentMemItem->data("SW Access").toString())
+          .arg(m_currentMemItem->data("HW Access").toString().isEmpty()
+                   ? m_currentMemItem->data("HW Access Policy").toString()
+                   : m_currentMemItem->data("HW Access").toString())
+          .arg(m_currentMemItem->data("HDL Path").toString().isEmpty()
+                   ? QStringLiteral("—")
+                   : m_currentMemItem->data("HDL Path").toString())
+          .arg(m_currentMemItem->data("Write Lock").toString().isEmpty()
+                   ? QStringLiteral("None")
+                   : m_currentMemItem->data("Write Lock").toString())
+          .arg(m_currentMemItem->data("Read Lock").toString().isEmpty()
+                   ? QStringLiteral("None")
+                   : m_currentMemItem->data("Read Lock").toString());
+
+  m_memSummaryLabel->setText(summary);
 }
 
 void RegMapWindow::navigateToRegister(int childRow, RegMapTreeItem *regItem) {
@@ -2471,6 +4022,63 @@ void RegMapWindow::duplicateSelectedRegister(void) {
   }
 }
 
+QModelIndex RegMapWindow::currentRegSourceIndex(int col) const {
+  if (!m_currentRegItem || !m_model)
+    return QModelIndex();
+  QModelIndex currentRegProxy = this->treeView->currentIndex();
+  if (currentRegProxy.isValid()) {
+    QModelIndex currentRegSource = m_treeProxy->mapToSource(currentRegProxy);
+    RegMapTreeItem *item = m_model->getItem(currentRegSource);
+    if (item == m_currentRegItem) {
+      return m_model->index(currentRegSource.row(), col,
+                            currentRegSource.parent());
+    }
+  }
+  RegMapTreeItem *blk = m_currentRegItem->parentItem();
+  if (blk) {
+    QModelIndex blkIdx = (blk->parentItem() == m_model->getRootItem())
+                             ? m_model->index(blk->row(), 0, QModelIndex())
+                             : QModelIndex();
+    return m_model->index(m_currentRegItem->row(), col, blkIdx);
+  }
+  return QModelIndex();
+}
+
+QModelIndex RegMapWindow::currentBlkSourceIndex(int col) const {
+  if (!m_currentBlkItem || !m_model)
+    return QModelIndex();
+  QModelIndex currentBlkProxy = this->treeView->currentIndex();
+  if (currentBlkProxy.isValid()) {
+    QModelIndex currentBlkSource = m_treeProxy->mapToSource(currentBlkProxy);
+    RegMapTreeItem *item = m_model->getItem(currentBlkSource);
+    if (item == m_currentBlkItem) {
+      return m_model->index(currentBlkSource.row(), col,
+                            currentBlkSource.parent());
+    }
+  }
+  return m_model->index(m_currentBlkItem->row(), col, QModelIndex());
+}
+
+QModelIndex RegMapWindow::currentMemSourceIndex(int col) const {
+  if (!m_currentMemItem || !m_model)
+    return QModelIndex();
+  QModelIndex currentMemProxy = this->treeView->currentIndex();
+  if (currentMemProxy.isValid()) {
+    QModelIndex currentMemSource = m_treeProxy->mapToSource(currentMemProxy);
+    RegMapTreeItem *item = m_model->getItem(currentMemSource);
+    if (item == m_currentMemItem) {
+      return m_model->index(currentMemSource.row(), col,
+                            currentMemSource.parent());
+    }
+  }
+  RegMapTreeItem *parent = m_currentMemItem->parentItem();
+  if (parent && parent != m_model->getRootItem()) {
+    QModelIndex parentIdx = m_model->index(parent->row(), 0, QModelIndex());
+    return m_model->index(m_currentMemItem->row(), col, parentIdx);
+  }
+  return m_model->index(m_currentMemItem->row(), col, QModelIndex());
+}
+
 void RegMapWindow::duplicateItem(const QModelIndex &index) {
   QModelIndex source_index;
   if (index.model() == m_fieldProxy) {
@@ -2500,6 +4108,15 @@ void RegMapWindow::duplicateItem(const QModelIndex &index) {
   if (item->kindString() == "reg") {
     uint64_t offset = parseNumericValue(storedData.colData.value("Offset/LSB"));
     uint64_t newOff = offset + regBytes;
+    storedData.colData["Offset/LSB"] = padHexOffsetString(
+        QString("0x") + QString("%1").arg(newOff, 4, 16, QChar('0')).toUpper());
+  } else if (item->kindString() == "mem") {
+    uint64_t offset = parseNumericValue(storedData.colData.value("Offset/LSB"));
+    uint64_t memSize =
+        parseNumericValue(storedData.colData.value("Size/Width"));
+    if (memSize == 0)
+      memSize = 1024;
+    uint64_t newOff = offset + memSize;
     storedData.colData["Offset/LSB"] = padHexOffsetString(
         QString("0x") + QString("%1").arg(newOff, 4, 16, QChar('0')).toUpper());
   } else if (item->kindString() == "fld") {

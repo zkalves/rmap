@@ -178,6 +178,69 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
     return mapItem;
   };
 
+  auto parseMemJson = [&](const nlohmann::json &memJson,
+                          RegMapTreeItem *parent) -> RegMapTreeItem * {
+    QVariantMap memData;
+    memData["Type"] = "mem";
+    memData["Offset/LSB"] = extractOffset(memJson);
+    memData["Size/Width"] =
+        (memJson.contains("size_width") && memJson["size_width"].is_number())
+            ? QString::number(memJson["size_width"].get<uint64_t>())
+            : "1024";
+    memData["Name"] =
+        memJson.contains("name") && memJson["name"].is_string()
+            ? QString::fromStdString(memJson["name"].get<std::string>())
+            : "MEM";
+    memData["SW Access"] =
+        memJson.contains("access") && memJson["access"].is_string()
+            ? QString::fromStdString(memJson["access"].get<std::string>())
+            : (memJson.contains("sw_access") && memJson["sw_access"].is_string()
+                   ? QString::fromStdString(
+                         memJson["sw_access"].get<std::string>())
+                   : "RW");
+    memData["HW Access"] =
+        memJson.contains("hw_access") && memJson["hw_access"].is_string()
+            ? QString::fromStdString(memJson["hw_access"].get<std::string>())
+            : "RW";
+    memData["Description"] =
+        memJson.contains("description") && memJson["description"].is_string()
+            ? QString::fromStdString(memJson["description"].get<std::string>())
+            : "";
+    if (memJson.contains("word_width") && memJson["word_width"].is_number()) {
+      memData["Word Width"] =
+          QString::number(memJson["word_width"].get<uint64_t>());
+    }
+    if (memJson.contains("depth") && memJson["depth"].is_number()) {
+      memData["Depth"] = QString::number(memJson["depth"].get<uint64_t>());
+    }
+    if (memJson.contains("hdl_path") && memJson["hdl_path"].is_string()) {
+      memData["HDL Path"] =
+          QString::fromStdString(memJson["hdl_path"].get<std::string>());
+    }
+    if (memJson.contains("write_lock") && memJson["write_lock"].is_string()) {
+      memData["Write Lock"] =
+          QString::fromStdString(memJson["write_lock"].get<std::string>());
+    }
+    if (memJson.contains("read_lock") && memJson["read_lock"].is_string()) {
+      memData["Read Lock"] =
+          QString::fromStdString(memJson["read_lock"].get<std::string>());
+    }
+    if (memJson.contains("no_mem_test")) {
+      memData["NO_MEM_TEST"] = memJson["no_mem_test"].get<bool>();
+    }
+    if (memJson.contains("no_walk_test")) {
+      memData["NO_MEM_WALK_TEST"] = memJson["no_walk_test"].get<bool>();
+    }
+    if (memJson.contains("no_access_test")) {
+      memData["NO_MEM_ACCESS_TEST"] = memJson["no_access_test"].get<bool>();
+    }
+
+    RegMapTreeItem *memItem =
+        new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, parent);
+    parent->appendChild(memItem);
+    return memItem;
+  };
+
   if (rootJson.contains("maps") && rootJson["maps"].is_array()) {
     for (const auto &mapJson : rootJson["maps"]) {
       parseMapJson(mapJson, rootItem);
@@ -221,6 +284,12 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
       if (blkJson.contains("maps") && blkJson["maps"].is_array()) {
         for (const auto &mapJson : blkJson["maps"]) {
           parseMapJson(mapJson, blkItem);
+        }
+      }
+
+      if (blkJson.contains("memories") && blkJson["memories"].is_array()) {
+        for (const auto &memJson : blkJson["memories"]) {
+          parseMemJson(memJson, blkItem);
         }
       }
 
@@ -380,34 +449,7 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
 
   if (rootJson.contains("memories") && rootJson["memories"].is_array()) {
     for (const auto &memJson : rootJson["memories"]) {
-      QVariantMap memData;
-      memData["Type"] = "mem";
-      memData["Offset/LSB"] = extractOffset(memJson);
-      memData["Size/Width"] =
-          (memJson.contains("size_width") && memJson["size_width"].is_number())
-              ? QString::number(memJson["size_width"].get<uint64_t>())
-              : "4096";
-      memData["Name"] =
-          memJson.contains("name")
-              ? QString::fromStdString(memJson["name"].get<std::string>())
-              : "MEMORY";
-      memData["SW Access"] =
-          memJson.contains("access")
-              ? QString::fromStdString(memJson["access"].get<std::string>())
-              : "RW";
-      memData["HW Access"] =
-          memJson.contains("hw_access")
-              ? QString::fromStdString(memJson["hw_access"].get<std::string>())
-              : "RO";
-      memData["Description"] =
-          memJson.contains("description")
-              ? QString::fromStdString(
-                    memJson["description"].get<std::string>())
-              : "";
-
-      RegMapTreeItem *memItem =
-          new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, memData, rootItem);
-      rootItem->appendChild(memItem);
+      parseMemJson(memJson, rootItem);
     }
   }
 

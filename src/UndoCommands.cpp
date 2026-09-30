@@ -34,6 +34,56 @@ void EditCellCommand::redo() {
 }
 
 // ============================================================================
+// EditItemPropertyCommand
+// ============================================================================
+
+EditItemPropertyCommand::EditItemPropertyCommand(
+    RegMapTreeModel *model, RegMapTreeItem *item, const QString &propertyName,
+    const QVariant &oldVal, const QVariant &newVal, QUndoCommand *parent)
+    : QUndoCommand(parent), m_model(model), m_item(item),
+      m_propertyName(propertyName), m_oldVal(oldVal), m_newVal(newVal) {
+  setText(QObject::tr("Edit %1").arg(propertyName));
+}
+
+void EditItemPropertyCommand::undo() {
+  if (m_item) {
+    m_item->setData(m_propertyName, m_oldVal);
+    if (m_model) {
+      QModelIndex parentIdx;
+      if (m_item->parentItem() &&
+          m_item->parentItem() != m_model->getRootItem()) {
+        parentIdx =
+            m_model->index(m_item->parentItem()->row(), 0, QModelIndex());
+      }
+      QModelIndex idx = m_model->index(m_item->row(), 0, parentIdx);
+      if (idx.isValid()) {
+        emit m_model->dataChanged(idx, idx, {Qt::DisplayRole, Qt::EditRole});
+      }
+      m_model->refreshHeaderData();
+    }
+  }
+}
+
+void EditItemPropertyCommand::redo() {
+  if (m_item) {
+    m_item->setData(m_propertyName, m_newVal);
+    if (m_model) {
+      QModelIndex parentIdx;
+      if (m_item->parentItem() &&
+          m_item->parentItem() != m_model->getRootItem()) {
+        parentIdx =
+            m_model->index(m_item->parentItem()->row(), 0, QModelIndex());
+      }
+      QModelIndex idx = m_model->index(m_item->row(), 0, parentIdx);
+      if (idx.isValid()) {
+        emit m_model->dataChanged(idx, idx, {Qt::DisplayRole, Qt::EditRole});
+      }
+      m_model->refreshHeaderData();
+    }
+  }
+}
+
+// ============================================================================
 // InsertItemCommand
 // ============================================================================
 
@@ -102,6 +152,16 @@ void DeleteItemCommand::captureItem(RegMapTreeItem *item, StoredNode &node) {
       "Write Lock", "Read Lock",   "Decode Only", "Description"};
   for (const QString &col : cols) {
     node.colData[col] = item->data(col);
+  }
+  const QStringList extraProps = {"Word Width",       "Depth",
+                                  "HDL Path",         "NO_MEM_TEST",
+                                  "NO_MEM_WALK_TEST", "NO_MEM_ACCESS_TEST",
+                                  "No Mem Test",      "No Walk Test",
+                                  "No Access Test"};
+  for (const QString &prop : extraProps) {
+    if (item->data(prop).isValid()) {
+      node.colData[prop] = item->data(prop);
+    }
   }
   for (RegMapTreeItem *c : item->getChildItems()) {
     StoredNode childNode;

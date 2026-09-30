@@ -104,6 +104,7 @@ private slots:
   void testHeadlessCliExtended();
   void testUncoveredEdgeCases();
   void testAdditionalBranchCoverage();
+  void testMemoryItemEditingAndProperties();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen() {
@@ -387,11 +388,74 @@ void TestRegMapWindow::testProxyFilteringAndSelectionSync() {
   QCOMPARE(fieldsTable->horizontalHeader()->sectionResizeMode(13),
            QHeaderView::Stretch);
 
-  // Verify all columns in fields table have width >= sectionSizeHint
+  // Verify all visible columns in fields table have width >= sectionSizeHint
   for (int c = 1; c <= 13; ++c) {
+    if (!fieldsTable->isColumnHidden(c)) {
+      int minHint = fieldsTable->horizontalHeader()->sectionSizeHint(c);
+      QVERIFY(fieldsTable->columnWidth(c) >= minHint);
+    }
+  }
+
+  // Verify tab bar exists and switching tabs works
+  auto *regTabBar = window.findChild<QTabBar *>("regTabBar");
+  QVERIFY(regTabBar != nullptr);
+  QCOMPARE(regTabBar->count(), 5);
+
+  // Tab 4: All Properties - all columns visible
+  regTabBar->setCurrentIndex(4);
+  for (int c = 1; c <= 13; ++c) {
+    QVERIFY(!fieldsTable->isColumnHidden(c));
     int minHint = fieldsTable->horizontalHeader()->sectionSizeHint(c);
     QVERIFY(fieldsTable->columnWidth(c) >= minHint);
   }
+
+  // Switch back to Tab 0: Fields & Layout
+  regTabBar->setCurrentIndex(0);
+  QVERIFY(!fieldsTable->isColumnHidden(1));  // LSB
+  QVERIFY(!fieldsTable->isColumnHidden(2));  // Size
+  QVERIFY(!fieldsTable->isColumnHidden(3));  // Name
+  QVERIFY(!fieldsTable->isColumnHidden(4));  // SW Access
+  QVERIFY(fieldsTable->isColumnHidden(5));   // HW Access hidden
+  QVERIFY(!fieldsTable->isColumnHidden(6));  // Reset visible
+  QVERIFY(fieldsTable->isColumnHidden(7));   // Is Rand hidden
+  QVERIFY(fieldsTable->isColumnHidden(10));  // Write Lock hidden
+  QVERIFY(!fieldsTable->isColumnHidden(13)); // Description visible
+
+  // Test layout switching between tabbed, classic (horizontal split), and full
+  // table
+  auto *splitter = window.findChild<QSplitter *>();
+  QVERIFY(splitter != nullptr);
+
+  QCOMPARE(window.layoutMode(), QString("tabbed"));
+  QCOMPARE(splitter->orientation(), Qt::Horizontal);
+
+  // Switch to classic (horizontal split, top-and-bottom)
+  window.setLayoutMode(AppSettings::classicLayoutId());
+  QCOMPARE(window.layoutMode(), AppSettings::classicLayoutId());
+  QCOMPARE(AppSettings::instance().layoutMode(),
+           AppSettings::classicLayoutId());
+  QCOMPARE(splitter->orientation(), Qt::Vertical);
+  QVERIFY(!regTabBar->isVisible());
+  for (int c = 1; c <= 13; ++c) {
+    QVERIFY(!fieldsTable->isColumnHidden(c));
+  }
+
+  // Switch to full table (vertical split, side-by-side)
+  window.setLayoutMode("table");
+  QCOMPARE(window.layoutMode(), QString("table"));
+  QCOMPARE(AppSettings::instance().layoutMode(), QString("table"));
+  QCOMPARE(splitter->orientation(), Qt::Horizontal);
+  QVERIFY(!regTabBar->isVisible());
+  for (int c = 1; c <= 13; ++c) {
+    QVERIFY(!fieldsTable->isColumnHidden(c));
+  }
+
+  // Switch back to tabbed
+  window.setLayoutMode("tabbed");
+  QCOMPARE(window.layoutMode(), QString("tabbed"));
+  QCOMPARE(AppSettings::instance().layoutMode(), QString("tabbed"));
+  QCOMPARE(splitter->orientation(), Qt::Horizontal);
+  QVERIFY(regTabBar->isVisible());
 
   // Resizing a section below sectionSizeHint clamps to sectionSizeHint
   int minHint1 = fieldsTable->horizontalHeader()->sectionSizeHint(1);
@@ -413,6 +477,57 @@ void TestRegMapWindow::testProxyFilteringAndSelectionSync() {
   QModelIndex descIndex = treeView->model()->index(0, 13, blkProxyIndex);
   QCOMPARE(treeView->model()->data(descIndex, Qt::DisplayRole).toString(),
            QString("Updated SPI Control Register description"));
+
+  // Verify all new register property controls are present and functional
+  auto *regSizeEdit = window.findChild<QLineEdit *>("regSizeEdit");
+  auto *regSwCombo = window.findChild<QComboBox *>("regSwAccessCombo");
+  auto *regHwCombo = window.findChild<QComboBox *>("regHwAccessCombo");
+  auto *regResetEdit = window.findChild<QLineEdit *>("regResetEdit");
+  auto *regDecodeOnlyCheck =
+      window.findChild<QCheckBox *>("regDecodeOnlyCheck");
+  auto *regHasResetCheck = window.findChild<QCheckBox *>("regHasResetCheck");
+  auto *regRandCheck = window.findChild<QCheckBox *>("regRandCheck");
+  auto *regVolatileCheck = window.findChild<QCheckBox *>("regVolatileCheck");
+  auto *regWrLockEdit = window.findChild<QLineEdit *>("regWrLockEdit");
+  auto *regRdLockEdit = window.findChild<QLineEdit *>("regRdLockEdit");
+
+  QVERIFY(regSizeEdit != nullptr);
+  QVERIFY(regSwCombo != nullptr);
+  QVERIFY(regHwCombo != nullptr);
+  QVERIFY(regResetEdit != nullptr);
+  QVERIFY(regDecodeOnlyCheck != nullptr);
+  QVERIFY(regHasResetCheck != nullptr);
+  QVERIFY(regRandCheck != nullptr);
+  QVERIFY(regVolatileCheck != nullptr);
+  QVERIFY(regWrLockEdit != nullptr);
+  QVERIFY(regRdLockEdit != nullptr);
+
+  QCOMPARE(regSizeEdit->text(), QString("32"));
+  QCOMPARE(regSwCombo->currentText(), QString("RW"));
+  QCOMPARE(regHwCombo->currentText(), QString("RO"));
+
+  // Edit register size via header
+  regSizeEdit->setText("16");
+  emit regSizeEdit->editingFinished();
+  QModelIndex sizeIndex = treeView->model()->index(0, 2, blkProxyIndex);
+  QCOMPARE(treeView->model()->data(sizeIndex, Qt::DisplayRole).toString(),
+           QString("16"));
+
+  // Edit SW access combo
+  regSwCombo->setCurrentText("RO");
+  QModelIndex swIndex = treeView->model()->index(0, 4, blkProxyIndex);
+  QCOMPARE(treeView->model()->data(swIndex, Qt::DisplayRole).toString(),
+           QString("RO"));
+
+  // Toggle boolean properties
+  regDecodeOnlyCheck->setChecked(true);
+  QModelIndex decodeIndex = treeView->model()->index(0, 12, blkProxyIndex);
+  QCOMPARE(treeView->model()->data(decodeIndex, Qt::DisplayRole).toBool(),
+           true);
+
+  // Undo changes
+  window.undoStack()->undo();
+  QCOMPARE(regDecodeOnlyCheck->isChecked(), false);
 }
 
 void TestRegMapWindow::testRegisterSortingByOffset() {
@@ -4124,6 +4239,212 @@ void TestRegMapWindow::testAdditionalBranchCoverage() {
 
     win.headlessExport("work/export_no_hwprec");
   }
+}
+
+void TestRegMapWindow::testMemoryItemEditingAndProperties() {
+  RegMapWindow win("examples/peripherals/spi/spi.rmt");
+  win.show();
+  QApplication::processEvents();
+
+  auto *treeView = win.findChild<QTreeView *>("treeView");
+  QVERIFY(treeView != nullptr);
+  // Column 2 ("Size/Width") must be visible in treeView
+  QVERIFY(!treeView->isColumnHidden(2));
+
+  // Select the block item
+  QModelIndex blkProxy = treeView->model()->index(0, 0);
+  treeView->setCurrentIndex(blkProxy);
+  QApplication::processEvents();
+
+  // Insert a Memory item into the block
+  win.insertChild(RegMapTreeItem::e_rmmKind::mem);
+  QApplication::processEvents();
+
+  // Find the newly inserted memory item
+  QModelIndex currentProxy = treeView->currentIndex();
+  QVERIFY(currentProxy.isValid());
+
+  // Selecting a memory item should switch rightStackedWidget to memViewWidget
+  QVERIFY(win.memViewWidget() != nullptr);
+  QCOMPARE(win.rightStackedWidget()->currentWidget(), win.memViewWidget());
+  QVERIFY(win.memSizeEdit() != nullptr);
+  QCOMPARE(win.memSizeEdit()->text(), QStringLiteral("1024"));
+
+  // 1. Edit Size via memSizeEdit
+  win.memSizeEdit()->setText("2048");
+  emit win.memSizeEdit()->editingFinished();
+  QApplication::processEvents();
+
+  auto *model = win.getModel();
+  RegMapTreeItem *memItem =
+      model->getItem(win.model()->index(0, 0, QModelIndex()))
+          ->getChildItems()
+          .last();
+  QCOMPARE(memItem->data("Size/Width").toString(), QStringLiteral("2048"));
+
+  // Test Undo on Size edit
+  win.undoStack()->undo();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Size/Width").toString(), QStringLiteral("1024"));
+  QCOMPARE(win.memSizeEdit()->text(), QStringLiteral("1024"));
+
+  // Test Redo on Size edit
+  win.undoStack()->redo();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Size/Width").toString(), QStringLiteral("2048"));
+  QCOMPARE(win.memSizeEdit()->text(), QStringLiteral("2048"));
+
+  // 2. Edit Hex Size
+  win.memSizeEdit()->setText("0x1000");
+  emit win.memSizeEdit()->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Size/Width").toString(), QStringLiteral("0x1000"));
+
+  // 3. Edit Name
+  auto *nameEdit = win.findChild<QLineEdit *>("memNameEdit");
+  QVERIFY(nameEdit != nullptr);
+  nameEdit->setText("SHARED_RAM");
+  emit nameEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Name").toString(), QStringLiteral("SHARED_RAM"));
+
+  // 4. Edit Offset
+  auto *offsetEdit = win.findChild<QLineEdit *>("memOffsetEdit");
+  QVERIFY(offsetEdit != nullptr);
+  offsetEdit->setText("0x200");
+  emit offsetEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Offset/LSB").toString(), QStringLiteral("0x0200"));
+
+  // 5. Edit SW Access
+  auto *swCombo = win.findChild<QComboBox *>("memSwAccessCombo");
+  QVERIFY(swCombo != nullptr);
+  swCombo->setCurrentText("RO");
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("SW Access").toString(), QStringLiteral("RO"));
+
+  // 6. Edit HW Access
+  auto *hwCombo = win.findChild<QComboBox *>("memHwAccessCombo");
+  QVERIFY(hwCombo != nullptr);
+  hwCombo->setCurrentText("RW");
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("HW Access").toString(), QStringLiteral("RW"));
+
+  // 7. Edit Description
+  auto *descEdit = win.findChild<QLineEdit *>("memDescEdit");
+  QVERIFY(descEdit != nullptr);
+  descEdit->setText("Buffer memory");
+  emit descEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Description").toString(),
+           QStringLiteral("Buffer memory"));
+
+  // 8. Edit Word Width & Depth
+  auto *wwEdit = win.findChild<QLineEdit *>("memWordWidthEdit");
+  QVERIFY(wwEdit != nullptr);
+  wwEdit->setText("64");
+  emit wwEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Word Width").toString(), QStringLiteral("64"));
+
+  auto *depthEdit = win.findChild<QLineEdit *>("memDepthEdit");
+  QVERIFY(depthEdit != nullptr);
+  depthEdit->setText("512");
+  emit depthEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Depth").toString(), QStringLiteral("512"));
+
+  // Test Undo on Depth
+  win.undoStack()->undo();
+  QApplication::processEvents();
+  QVERIFY(memItem->data("Depth").toString() != QStringLiteral("512"));
+  win.undoStack()->redo();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Depth").toString(), QStringLiteral("512"));
+
+  // 9. Edit HDL Path
+  auto *hdlEdit = win.findChild<QLineEdit *>("memHdlPathEdit");
+  QVERIFY(hdlEdit != nullptr);
+  hdlEdit->setText("top.dut.sram");
+  emit hdlEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("HDL Path").toString(),
+           QStringLiteral("top.dut.sram"));
+
+  // 10. Edit Locks
+  auto *wrLockEdit = win.findChild<QLineEdit *>("memWrLockEdit");
+  QVERIFY(wrLockEdit != nullptr);
+  wrLockEdit->setText("SEC_LOCK == 1");
+  emit wrLockEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Write Lock").toString(),
+           QStringLiteral("SEC_LOCK == 1"));
+
+  auto *rdLockEdit = win.findChild<QLineEdit *>("memRdLockEdit");
+  QVERIFY(rdLockEdit != nullptr);
+  rdLockEdit->setText("READ_LOCK == 1");
+  emit rdLockEdit->editingFinished();
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("Read Lock").toString(),
+           QStringLiteral("READ_LOCK == 1"));
+
+  // 11. Test UVM exclusions
+  auto *noTestCheck = win.findChild<QCheckBox *>("memNoTestCheck");
+  QVERIFY(noTestCheck != nullptr);
+  noTestCheck->setChecked(true);
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("NO_MEM_TEST").toString().toLower(),
+           QStringLiteral("true"));
+
+  auto *noWalkCheck = win.findChild<QCheckBox *>("memNoWalkTestCheck");
+  QVERIFY(noWalkCheck != nullptr);
+  noWalkCheck->setChecked(true);
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("NO_MEM_WALK_TEST").toString().toLower(),
+           QStringLiteral("true"));
+
+  auto *noAccessCheck = win.findChild<QCheckBox *>("memNoAccessTestCheck");
+  QVERIFY(noAccessCheck != nullptr);
+  noAccessCheck->setChecked(true);
+  QApplication::processEvents();
+  QCOMPARE(memItem->data("NO_MEM_ACCESS_TEST").toString().toLower(),
+           QStringLiteral("true"));
+
+  // 12. Test Duplication of Memory Item
+  win.duplicateItem(currentProxy);
+  QApplication::processEvents();
+  RegMapTreeItem *dupMem =
+      model->getItem(win.model()->index(0, 0, QModelIndex()))
+          ->getChildItems()
+          .last();
+  QVERIFY(dupMem != nullptr);
+  QCOMPARE(dupMem->data("Name").toString(), QStringLiteral("SHARED_RAM_COPY"));
+  uint64_t dupOff =
+      dupMem->data("Offset/LSB").toString().toULongLong(nullptr, 16);
+  QCOMPARE(dupOff, 0x0200ULL + 0x1000ULL);
+
+  // 13. Test JSON serialization and extraction
+  nlohmann::json extracted = model->extractJsonData(32, true);
+  QVERIFY(extracted.contains("blocks"));
+  bool foundMemInJson = false;
+  for (const auto &b : extracted["blocks"]) {
+    if (b.contains("memories")) {
+      for (const auto &m : b["memories"]) {
+        if (m.contains("name") && m["name"] == "SHARED_RAM") {
+          foundMemInJson = true;
+          QCOMPARE(m["size_width"].get<uint64_t>(), 0x1000ULL);
+          QCOMPARE(m["word_width"].get<uint64_t>(), 64ULL);
+          QCOMPARE(m["depth"].get<uint64_t>(), 512ULL);
+          QCOMPARE(m["hdl_path"].get<std::string>(),
+                   std::string("top.dut.sram"));
+          QCOMPARE(m["no_mem_test"].get<bool>(), true);
+          QCOMPARE(m["no_walk_test"].get<bool>(), true);
+          QCOMPARE(m["no_access_test"].get<bool>(), true);
+        }
+      }
+    }
+  }
+  QVERIFY(foundMemInJson);
 }
 
 QTEST_MAIN(TestRegMapWindow)

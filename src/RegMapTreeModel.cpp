@@ -313,10 +313,14 @@ void RegMapTreeModel::initRow(int row, QModelIndex index) {
     uint64_t prevOffset = parseNumericValue(prevItem->data("Offset/LSB"));
     uint64_t prevSize = parseNumericValue(prevItem->data("Size/Width"));
 
-    if (childItem->kind() == RegMapTreeItem::e_rmmKind::reg) {
-      // Register offsets increment by size in bytes (e.g. +4 bytes for 32-bit
-      // reg)
-      uint64_t byteSize = (prevSize == 0) ? 4 : (prevSize / 8);
+    if (childItem->kind() == RegMapTreeItem::e_rmmKind::reg ||
+        childItem->kind() == RegMapTreeItem::e_rmmKind::mem) {
+      uint64_t byteSize = 4;
+      if (prevItem->kind() == RegMapTreeItem::e_rmmKind::mem) {
+        byteSize = (prevSize == 0) ? 1024 : prevSize;
+      } else if (prevItem->kind() == RegMapTreeItem::e_rmmKind::reg) {
+        byteSize = (prevSize == 0) ? 4 : (prevSize / 8);
+      }
       nextOffsetLsb = prevOffset + byteSize;
     } else if (childItem->kind() == RegMapTreeItem::e_rmmKind::fld) {
       // Field LSBs increment by field width in bits
@@ -709,6 +713,7 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
   item_json["offset_lsb"] = offset_lsb;
   item_json["offset_hex"] = formatHex(offset_lsb);
   item_json["size_width"] = size_width;
+  item_json["size_hex"] = formatHex(size_width);
   item_json["access"] = sw_access;
   item_json["sw_access"] = sw_access;
   item_json["hw_access"] = hw_access;

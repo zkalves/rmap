@@ -115,6 +115,30 @@ void AppSettings::setLanguage(const QString &lang) {
   }
 }
 
+const QString &AppSettings::classicLayoutId() {
+  static const QString s = QStringLiteral("classic_split").left(7);
+  return s;
+}
+
+QString AppSettings::layoutMode() const { return m_layoutMode; }
+
+void AppSettings::setLayoutMode(const QString &mode) {
+  QString m = mode.trimmed().toLower();
+  if (m == classicLayoutId() || m == "classic_split" ||
+      m == "classic_horizontal" || m == "horizontal") {
+    m = classicLayoutId();
+  } else if (m == "table") {
+    m = "table";
+  } else {
+    m = QStringLiteral("tabbed");
+  }
+  if (m_layoutMode != m) {
+    m_layoutMode = m;
+    save();
+    emit layoutModeChanged(m_layoutMode);
+  }
+}
+
 bool AppSettings::hwPrecedence() const { return m_hwPrecedence; }
 
 void AppSettings::setHwPrecedence(bool precedence) {
@@ -374,6 +398,18 @@ void AppSettings::load() {
   if (m_language.isEmpty()) {
     m_language = "en";
   }
+  m_layoutMode = settings.value("Appearance/LayoutMode", "tabbed")
+                     .toString()
+                     .trimmed()
+                     .toLower();
+  if (m_layoutMode == classicLayoutId() || m_layoutMode == "classic_split" ||
+      m_layoutMode == "classic_horizontal" || m_layoutMode == "horizontal") {
+    m_layoutMode = classicLayoutId();
+  } else if (m_layoutMode == "table") {
+    m_layoutMode = "table";
+  } else {
+    m_layoutMode = "tabbed";
+  }
   m_hwPrecedence = settings.value("Generation/HwPrecedence", true).toBool();
 
   m_mainWindowGeometry = settings.value("Geometry/MainWindow").toByteArray();
@@ -415,6 +451,7 @@ void AppSettings::save() {
   settings.setValue("Appearance/ColorBlindType",
                     colorBlindModeToString(m_colorBlindType));
   settings.setValue("Appearance/Language", m_language);
+  settings.setValue("Appearance/LayoutMode", m_layoutMode);
   settings.setValue("Generation/HwPrecedence", m_hwPrecedence);
 
   if (!m_mainWindowGeometry.isEmpty()) {
