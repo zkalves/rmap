@@ -52,6 +52,9 @@ public:
   void setLanguage(const QString &lang);
   QString language() const;
 
+  void setLayoutMode(const QString &mode);
+  QString layoutMode() const;
+
   void saveWindowStateToSettings();
   void restoreWindowStateFromSettings();
 
@@ -73,12 +76,14 @@ private:
   bool m_colourBlindMode = false;
   ColorBlindMode m_colourBlindType = ColorBlindMode::Universal;
   QString m_language = QStringLiteral("en");
+  QString m_layoutMode = QStringLiteral("tabbed");
 
   void updateUiFromState();
   void saveStateFromUi();
   void populateThemes();
   void populateLanguages();
   void populateColorBlindModes();
+  void populateLayouts();
 };
 
 #endif // PREFERENCESWINDOW_HPP

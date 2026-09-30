@@ -61,6 +61,10 @@ public:
   QString language() const;
   void setLanguage(const QString &lang);
 
+  static const QString &classicLayoutId();
+  QString layoutMode() const;
+  void setLayoutMode(const QString &mode);
+
   bool hwPrecedence() const;
   void setHwPrecedence(bool precedence);
 
@@ -113,6 +117,7 @@ signals:
   void colorBlindModeChanged(bool enabled);
   void colorBlindTypeChanged(ColorBlindMode mode);
   void languageChanged(const QString &lang);
+  void layoutModeChanged(const QString &mode);
 
   friend class TestThemeManager;
 
@@ -123,6 +128,7 @@ private:
   bool m_colorBlindMode = false;
   ColorBlindMode m_colorBlindType = ColorBlindMode::Universal;
   QString m_language = QStringLiteral("en");
+  QString m_layoutMode = QStringLiteral("tabbed");
   bool m_hwPrecedence = true;
 
   QByteArray m_mainWindowGeometry;
