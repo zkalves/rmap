@@ -42,6 +42,8 @@ public:
                         const QModelIndex &index) const override;
   void paint(QPainter *painter, const QStyleOptionViewItem &option,
              const QModelIndex &index) const override;
+  QSize sizeHint(const QStyleOptionViewItem &option,
+                 const QModelIndex &index) const override;
 
 protected:
   QRegularExpression m_regex;
@@ -72,7 +74,7 @@ AccessColors getAccessPolicyColors(const QString &access, bool colorBlind);
 AccessColors getAccessPolicyColors(const QString &access, ColorBlindMode mode);
 
 // Delegate for UVM / SW Access Policies (RW, RO, WO, W1C, etc.)
-class RegAccessPolicyDelegate : public QStyledItemDelegate {
+class RegAccessPolicyDelegate : public RegMapDelegate {
   Q_OBJECT
 
 public:
@@ -92,7 +94,7 @@ public:
 using RegSwAccessDelegate = RegAccessPolicyDelegate;
 
 // Delegate for Hardware Access Policies (RO, RW, WO, NA, W1C, etc.)
-class RegHwAccessDelegate : public QStyledItemDelegate {
+class RegHwAccessDelegate : public RegMapDelegate {
   Q_OBJECT
 
 public:
@@ -110,7 +112,7 @@ public:
 };
 
 // Delegate for Boolean properties (Is Rand, Volatile, Has Reset)
-class RegBoolDelegate : public QStyledItemDelegate {
+class RegBoolDelegate : public RegMapDelegate {
   Q_OBJECT
 
 public:
@@ -129,7 +131,7 @@ class RegMapTreeModel;
 
 // Delegate for Software Write Locks (badge display, dropdown re-use, and
 // builder dialog)
-class RegLockDelegate : public QStyledItemDelegate {
+class RegLockDelegate : public RegMapDelegate {
   Q_OBJECT
 
 public:

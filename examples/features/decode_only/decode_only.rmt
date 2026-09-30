@@ -1,0 +1,321 @@
+config {
+  templateFolder: "./templates"
+  outputFolder: "./work"
+  template_outputs {
+    template_filename: "./templates/c/reg_map.h.inja"
+    output_filepath: "./work/c/reg_map.h"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.sv.inja"
+    output_filepath: "./work/rtl/reg_map.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.v.inja"
+    output_filepath: "./work/rtl/reg_map.v"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map.vhd.inja"
+    output_filepath: "./work/rtl/reg_map.vhd"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/apb_reg_file.sv.inja"
+    output_filepath: "./work/rtl/apb_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/axil_reg_file.sv.inja"
+    output_filepath: "./work/rtl/axil_reg_file.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/rtl/reg_map_sva.sv.inja"
+    output_filepath: "./work/rtl/reg_map_sva.sv"
+  }
+  template_outputs {
+    template_filename: "./templates/json/reg_map.json.inja"
+    output_filepath: "./work/json/reg_map.json"
+  }
+  reg_width: 32
+  hw_precedence: true
+}
+item {
+  child_id: 1
+}
+item {
+  kind: BLK
+  id: 1
+  child_id: 2
+  child_id: 5
+  child_id: 8
+  itemData {
+    key: "Name"
+    value: "DECODE_DEMO"
+  }
+  itemData {
+    key: "Offset"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size"
+    value: "4096"
+  }
+  itemData {
+    key: "Description"
+    value: "Decode-Only Feature Demonstration Block"
+  }
+}
+item {
+  kind: REG
+  id: 2
+  parent_id: 1
+  child_id: 3
+  child_id: 4
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Name"
+    value: "REG_NORMAL"
+  }
+  itemData {
+    key: "Offset"
+    value: "0x0"
+  }
+  itemData {
+    key: "Size"
+    value: "32"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "Standard register with internal storage flip-flops"
+  }
+}
+item {
+  kind: FLD
+  id: 3
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RO"
+  }
+  itemData {
+    key: "HW Access"
+    value: "WIRE"
+  }
+  itemData {
+    key: "Name"
+    value: "STATUS"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "Status bits"
+  }
+}
+item {
+  kind: FLD
+  id: 4
+  parent_id: 2
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Name"
+    value: "CTRL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "16"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "Control bits"
+  }
+}
+item {
+  kind: REG
+  id: 5
+  parent_id: 1
+  child_id: 6
+  child_id: 7
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Name"
+    value: "REG_MIXED"
+  }
+  itemData {
+    key: "Offset"
+    value: "0x4"
+  }
+  itemData {
+    key: "Size"
+    value: "32"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "Mixed register containing both internal and decode-only bitfields"
+  }
+}
+item {
+  kind: FLD
+  id: 6
+  parent_id: 5
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Name"
+    value: "INT_VAL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "Internal storage field"
+  }
+}
+item {
+  kind: FLD
+  id: 7
+  parent_id: 5
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Name"
+    value: "EXT_VAL"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "16"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "16"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Decode-only external field"
+  }
+}
+item {
+  kind: REG
+  id: 8
+  parent_id: 1
+  child_id: 9
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "Name"
+    value: "REG_DECODE_ONLY"
+  }
+  itemData {
+    key: "Offset"
+    value: "0x8"
+  }
+  itemData {
+    key: "Size"
+    value: "32"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "true"
+  }
+  itemData {
+    key: "Description"
+    value: "Full decode-only register without internal storage"
+  }
+}
+item {
+  kind: FLD
+  id: 9
+  parent_id: 8
+  itemData {
+    key: "Access Policy"
+    value: "RW"
+  }
+  itemData {
+    key: "HW Access"
+    value: "RO"
+  }
+  itemData {
+    key: "Name"
+    value: "PAYLOAD"
+  }
+  itemData {
+    key: "Offset/LSB"
+    value: "0"
+  }
+  itemData {
+    key: "Size/Width"
+    value: "32"
+  }
+  itemData {
+    key: "Decode Only"
+    value: "false"
+  }
+  itemData {
+    key: "Description"
+    value: "External payload data"
+  }
+}

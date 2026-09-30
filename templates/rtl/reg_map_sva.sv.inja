@@ -33,10 +33,12 @@ module {{ lower(blk.name) }}_reg_map_sva #(
 
   // Sideband Signals & Internal States
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
   input logic                      sw_{{ lower(reg.name) }}_wr_strobe_o,
   input logic                      sw_{{ lower(reg.name) }}_rd_strobe_o,
   input logic [DATA_WIDTH-1:0]     reg_{{ lower(reg.name) }}_q,
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
@@ -61,7 +63,9 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   input logic                      hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i,
   input logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 {% if existsIn(blk, "lock_signals") and length(blk.lock_signals) > 0 %}
   // Hardware Write-Lock Control Input Ports
@@ -84,6 +88,7 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   // 1. Single-Cycle Strobe Duration Assertions
   // -------------------------------------------------------------------------
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
   property p_sw_{{ lower(reg.name) }}_wr_strobe_pulse;
     $rose(sw_{{ lower(reg.name) }}_wr_strobe_o) |=> !sw_{{ lower(reg.name) }}_wr_strobe_o;
   endproperty
@@ -95,13 +100,16 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   endproperty
   assert_sw_{{ lower(reg.name) }}_rd_strobe_pulse: assert property (p_sw_{{ lower(reg.name) }}_rd_strobe_pulse)
     else $error("[SVA] sw_{{ lower(reg.name) }}_rd_strobe_o asserted for more than 1 consecutive cycle");
+{% endif %}
 {% endfor %}
 
   // -------------------------------------------------------------------------
   // 2. Read-Only (RO) Immutability on SW Writes
   // -------------------------------------------------------------------------
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or upper(fld.hw_access) == "NA") %}
   property p_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable;
     sw_{{ lower(reg.name) }}_wr_strobe_o |=> (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}]));
@@ -109,14 +117,18 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   assert_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable: assert property (p_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable)
     else $error("[SVA] RO field {{ reg.name }}.{{ fld.name }} was modified by a software write!");
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 
   // -------------------------------------------------------------------------
   // 3. Write-Only (WO) Read-Zero Behavior
   // -------------------------------------------------------------------------
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if upper(fld.access) == "WO" or upper(fld.access) == "WO1" or upper(fld.access) == "WOC" or upper(fld.access) == "WOS" or upper(fld.access) == "NOACCESS" %}
   property p_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }}_read_zero;
     (bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == '0);
@@ -124,14 +136,18 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   assert_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }}_read_zero: assert property (p_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }}_read_zero)
     else $error("[SVA] Write-Only field {{ reg.name }}.{{ fld.name }} did not return 0 upon software read!");
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 
   // -------------------------------------------------------------------------
   // 4. Hardware vs Software Arbitration Precedence
   // -------------------------------------------------------------------------
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if existsIn(fld, "hw_access") and (upper(fld.hw_access) == "WO" or upper(fld.hw_access) == "RW") %}
   property p_arb_{{ lower(reg.name) }}_{{ lower(fld.name) }};
     (sw_{{ lower(reg.name) }}_wr_strobe_o && hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_we_i) |=>
@@ -143,13 +159,16 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   assert_arb_{{ lower(reg.name) }}_{{ lower(fld.name) }}: assert property (p_arb_{{ lower(reg.name) }}_{{ lower(fld.name) }})
     else $error("[SVA] Arbitration failure on colliding HW/SW write for {{ reg.name }}.{{ fld.name }}!");
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 
   // -------------------------------------------------------------------------
   // 6. Software Lock Invariant Assertions
   // -------------------------------------------------------------------------
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
 {% if existsIn(reg, "lock_wr") and reg.lock_wr != "" %}
   property p_lock_{{ lower(reg.name) }}_immutable;
     (({{ sv_lock_expr(reg.lock_wr) }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q == $past(reg_{{ lower(reg.name) }}_q));
@@ -182,27 +201,34 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   assert_lock_{{ lower(reg.name) }}_rd_zero: assert property (p_lock_{{ lower(reg.name) }}_rd_zero)
     else $error("[SVA] Software read returned non-zero for register {{ reg.name }} while read-locked!");
 {% endif %}
+{% endif %}
 {% endfor %}
 {% if (existsIn(blk, "lock_wr") and blk.lock_wr != "") or (existsIn(blk, "lock_wr_expr_sv") and blk.lock_wr_expr_sv != "") %}
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
   property p_lock_blk_{{ lower(reg.name) }}_immutable;
     (({% if existsIn(blk, "lock_wr") and blk.lock_wr != "" %}{{ sv_lock_expr(blk.lock_wr) }}{% else %}{{ blk.lock_wr_expr_sv }}{% endif %}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q == $past(reg_{{ lower(reg.name) }}_q));
   endproperty
   assert_lock_blk_{{ lower(reg.name) }}_immutable: assert property (p_lock_blk_{{ lower(reg.name) }}_immutable)
     else $error("[SVA] Software write modified register {{ reg.name }} while block write-locked!");
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if (existsIn(blk, "lock_rd") and blk.lock_rd != "") or (existsIn(blk, "lock_rd_expr_sv") and blk.lock_rd_expr_sv != "") %}
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
   property p_lock_blk_{{ lower(reg.name) }}_rd_zero;
     (({% if existsIn(blk, "lock_rd") and blk.lock_rd != "" %}{{ sv_lock_expr(blk.lock_rd) }}{% else %}{{ blk.lock_rd_expr_sv }}{% endif %}) && bus_rd_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |-> (bus_rdata_o == '0);
   endproperty
   assert_lock_blk_{{ lower(reg.name) }}_rd_zero: assert property (p_lock_blk_{{ lower(reg.name) }}_rd_zero)
     else $error("[SVA] Software read returned non-zero for register {{ reg.name }} while block read-locked!");
+{% endif %}
 {% endfor %}
 {% endif %}
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if existsIn(fld, "lock_wr") and fld.lock_wr != "" %}
   property p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_immutable;
     (({{ sv_lock_expr(fld.lock_wr) }}) && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }})) |=> (reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}] == $past(reg_{{ lower(reg.name) }}_q[{{ fld.offset_lsb }} +: {{ fld.size_width }}]));
@@ -229,14 +255,18 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   assert_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero: assert property (p_lock_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_zero)
     else $error("[SVA] Software read returned non-zero for field {{ reg.name }}.{{ fld.name }} while field read-locked!");
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 
   // =========================================================================
   // Access Error Response Properties
   // =========================================================================
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if upper(fld.access) == "RO" or upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "NOACCESS" %}
   property p_err_wr_ro_{{ lower(reg.name) }}_{{ lower(fld.name) }};
     (ERROR_ON_WRITE_TO_RO && bus_wr_en_i && (bus_addr_i == ADDR_{{ upper(reg.name) }}) && (|bus_wstrb_i[{{ byte_end(fld.offset_lsb, fld.size_width) }} : {{ byte_idx(fld.offset_lsb) }}])) |-> bus_error_o;
@@ -251,7 +281,9 @@ module {{ lower(blk.name) }}_reg_map_sva #(
   assert_err_rd_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }}: assert property (p_err_rd_wo_{{ lower(reg.name) }}_{{ lower(fld.name) }})
     else $error("[SVA] Bus error not asserted on read from WO field {{ reg.name }}.{{ fld.name }}!");
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 
 endmodule
@@ -281,10 +313,12 @@ bind {{ lower(blk.name) }}_reg_file {{ lower(blk.name) }}_reg_map_sva #(
   .bus_ready_o(bus_ready_o),
   .bus_error_o(bus_error_o),
 {% for reg in blk.registers %}
+{% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
   .sw_{{ lower(reg.name) }}_wr_strobe_o(sw_{{ lower(reg.name) }}_wr_strobe_o),
   .sw_{{ lower(reg.name) }}_rd_strobe_o(sw_{{ lower(reg.name) }}_rd_strobe_o),
   .reg_{{ lower(reg.name) }}_q(reg_{{ lower(reg.name) }}_q),
 {% for fld in reg.fields %}
+{% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
@@ -309,7 +343,9 @@ bind {{ lower(blk.name) }}_reg_file {{ lower(blk.name) }}_reg_map_sva #(
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i),
   .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 {% if existsIn(blk, "lock_signals") and length(blk.lock_signals) > 0 %}
 {% for sig in blk.lock_signals %}

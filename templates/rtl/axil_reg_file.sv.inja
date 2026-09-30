@@ -21,9 +21,24 @@ module {{ lower(blk.name) }}_axil_reg_file #(
   // Hardware Core Sideband Signals
 {% for reg in blk.registers %}
   // --- Register: {{ reg.name }} (Offset: {{ reg.offset_hex }}) ---
+{% if existsIn(reg, "decode_only") and reg.decode_only %}
+  output logic                      sw_{{ lower(reg.name) }}_wr_valid_o,
+  output logic                      sw_{{ lower(reg.name) }}_rd_valid_o,
+  output logic [DATA_WIDTH-1:0]     sw_{{ lower(reg.name) }}_wdata_o,
+  output logic [STRB_WIDTH-1:0]     sw_{{ lower(reg.name) }}_wstrb_o,
+  input  logic [DATA_WIDTH-1:0]     sw_{{ lower(reg.name) }}_rdata_i,
+  input  logic                      sw_{{ lower(reg.name) }}_ready_i,
+  input  logic                      sw_{{ lower(reg.name) }}_error_i,
+{% else %}
   output logic                      sw_{{ lower(reg.name) }}_wr_strobe_o,
   output logic                      sw_{{ lower(reg.name) }}_rd_strobe_o,
 {% for fld in reg.fields %}
+{% if existsIn(fld, "decode_only") and fld.decode_only %}
+  output logic                      sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_valid_o,
+  output logic                      sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_valid_o,
+  output logic [{{ fld.size_width }}-1:0] sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_o,
+  input  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i,
+{% else %}
   output logic                      sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o,
   output logic                      sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o,
 {% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
@@ -50,8 +65,9 @@ module {{ lower(blk.name) }}_axil_reg_file #(
   input  logic                      hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i,
   output logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o,
 {% endif %}
+{% endif %}
 {% endfor %}
-
+{% endif %}
 {% endfor %}
 {% if existsIn(blk, "lock_signals") and length(blk.lock_signals) > 0 %}
   // Hardware Write-Lock Control Input Ports (deduplicated)
@@ -209,9 +225,24 @@ module {{ lower(blk.name) }}_axil_reg_file #(
     .clk_i                     (aclk_i),
     .rst_ni                    (aresetn_i),
 {% for reg in blk.registers %}
+{% if existsIn(reg, "decode_only") and reg.decode_only %}
+    .sw_{{ lower(reg.name) }}_wr_valid_o (sw_{{ lower(reg.name) }}_wr_valid_o),
+    .sw_{{ lower(reg.name) }}_rd_valid_o (sw_{{ lower(reg.name) }}_rd_valid_o),
+    .sw_{{ lower(reg.name) }}_wdata_o    (sw_{{ lower(reg.name) }}_wdata_o),
+    .sw_{{ lower(reg.name) }}_wstrb_o    (sw_{{ lower(reg.name) }}_wstrb_o),
+    .sw_{{ lower(reg.name) }}_rdata_i    (sw_{{ lower(reg.name) }}_rdata_i),
+    .sw_{{ lower(reg.name) }}_ready_i    (sw_{{ lower(reg.name) }}_ready_i),
+    .sw_{{ lower(reg.name) }}_error_i    (sw_{{ lower(reg.name) }}_error_i),
+{% else %}
     .sw_{{ lower(reg.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_wr_strobe_o),
     .sw_{{ lower(reg.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_rd_strobe_o),
 {% for fld in reg.fields %}
+{% if existsIn(fld, "decode_only") and fld.decode_only %}
+    .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_valid_o (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_valid_o),
+    .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_valid_o (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_valid_o),
+    .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_o    (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wdata_o),
+    .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i          (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i),
+{% else %}
     .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_wr_strobe_o),
     .sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o (sw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_rd_strobe_o),
 {% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
@@ -238,7 +269,9 @@ module {{ lower(blk.name) }}_axil_reg_file #(
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i(hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_decr_i),
     .hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o     (hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_o),
 {% endif %}
+{% endif %}
 {% endfor %}
+{% endif %}
 {% endfor %}
 {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
 {% for mem in blk.memories %}
