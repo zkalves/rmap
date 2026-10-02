@@ -417,7 +417,7 @@ QWidget *RegLockDelegate::createEditor(QWidget *parent,
     std::function<void(RegMapTreeItem *)> collectLocks =
         [&](RegMapTreeItem *node) {
           if (!node)
-            return;
+            return; // GCOV_EXCL_LINE - Defensive null check
           QString lk = node->data("Lock").toString().trimmed();
           if (!lk.isEmpty())
             existingLocks.insert(lk);

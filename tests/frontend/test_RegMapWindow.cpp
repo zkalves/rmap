@@ -10,6 +10,7 @@
 #include "LanguageManager.hpp"
 #include "RegConfigWindow.hpp"
 #include "RegMapWindow.hpp"
+#include "RegLockDialog.hpp"
 #include "SerializationContext.hpp"
 #include "format/FormatManager.hpp"
 #include "proto/rmap.pb.h"
@@ -106,6 +107,7 @@ private slots:
   void testAdditionalBranchCoverage();
   void testMemoryItemEditingAndProperties();
   void testAppIconAndWindowIcons();
+  void testHeaderPropertiesAndLayoutsCoverage();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen() {
@@ -4486,6 +4488,350 @@ void TestRegMapWindow::testAppIconAndWindowIcons() {
   }
   if (window.aboutWindow()) {
     QVERIFY(!window.aboutWindow()->windowIcon().isNull());
+  }
+}
+
+void TestRegMapWindow::testHeaderPropertiesAndLayoutsCoverage() {
+  QString file = "examples/peripherals/spi/spi.rmt";
+  RegMapWindow window(file);
+  window.show();
+  QApplication::processEvents();
+
+  auto *treeView = window.findChild<QTreeView *>("treeView");
+  QVERIFY(treeView != nullptr);
+  QVERIFY(treeView->model() != nullptr);
+
+  // 1. Select Block at row 0
+  QModelIndex blkProxy = treeView->model()->index(0, 0);
+  QVERIFY(blkProxy.isValid());
+  treeView->setCurrentIndex(blkProxy);
+  QApplication::processEvents();
+
+  // Test Block lock edits
+  auto *blkWrLockEdit = window.findChild<QLineEdit *>("blkWrLockEdit");
+  auto *blkRdLockEdit = window.findChild<QLineEdit *>("blkRdLockEdit");
+  auto *blkWrLockBtn = window.findChild<QToolButton *>("blkWrLockBtn");
+  auto *blkRdLockBtn = window.findChild<QToolButton *>("blkRdLockBtn");
+
+  if (blkWrLockEdit) {
+    blkWrLockEdit->setText("hw_blk_wr_lock_i");
+    emit blkWrLockEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (blkRdLockEdit) {
+    blkRdLockEdit->setText("hw_blk_rd_lock_i");
+    emit blkRdLockEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (blkWrLockBtn) {
+    QTimer::singleShot(50, []() {
+      for (QWidget *w : QApplication::topLevelWidgets()) {
+        if (auto *d = qobject_cast<RegLockDialog *>(w)) {
+          auto lineEdits = d->findChildren<QLineEdit *>();
+          if (lineEdits.size() >= 2) {
+            lineEdits[0]->setText("hw_new_blk_wr_lock");
+            lineEdits[1]->setText("hw_new_blk_rd_lock");
+          }
+          d->accept();
+        }
+      }
+    });
+    blkWrLockBtn->click();
+    QApplication::processEvents();
+  }
+  if (blkRdLockBtn) {
+    QTimer::singleShot(50, []() {
+      for (QWidget *w : QApplication::topLevelWidgets()) {
+        if (auto *d = qobject_cast<QDialog *>(w)) {
+          d->reject();
+        }
+      }
+    });
+    blkRdLockBtn->click();
+    QApplication::processEvents();
+  }
+
+  // 2. Select Register at row 0 under Block
+  QModelIndex regProxy = treeView->model()->index(0, 0, blkProxy);
+  QVERIFY(regProxy.isValid());
+  treeView->setCurrentIndex(regProxy);
+  QApplication::processEvents();
+
+  // Test Register header controls
+  auto *regHwAccessCombo = window.findChild<QComboBox *>("regHwAccessCombo");
+  auto *regResetEdit = window.findChild<QLineEdit *>("regResetEdit");
+  auto *regWrLockEdit = window.findChild<QLineEdit *>("regWrLockEdit");
+  auto *regRdLockEdit = window.findChild<QLineEdit *>("regRdLockEdit");
+  auto *regWrLockBtn = window.findChild<QToolButton *>("regWrLockBtn");
+  auto *regRdLockBtn = window.findChild<QToolButton *>("regRdLockBtn");
+  auto *regVolatileCheck = window.findChild<QCheckBox *>("regVolatileCheck");
+
+  if (regHwAccessCombo) {
+    regHwAccessCombo->setCurrentText("RO");
+    QApplication::processEvents();
+    regHwAccessCombo->setCurrentText("RW");
+    QApplication::processEvents();
+  }
+  if (regResetEdit) {
+    regResetEdit->setText("0x1234");
+    emit regResetEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (regWrLockEdit) {
+    regWrLockEdit->setText("hw_reg_wr_lock_i");
+    emit regWrLockEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (regRdLockEdit) {
+    regRdLockEdit->setText("hw_reg_rd_lock_i");
+    emit regRdLockEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (regWrLockBtn) {
+    QTimer::singleShot(50, []() {
+      for (QWidget *w : QApplication::topLevelWidgets()) {
+        if (auto *d = qobject_cast<RegLockDialog *>(w)) {
+          auto lineEdits = d->findChildren<QLineEdit *>();
+          if (lineEdits.size() >= 2) {
+            lineEdits[0]->setText("hw_new_reg_wr_lock");
+            lineEdits[1]->setText("hw_new_reg_rd_lock");
+          }
+          d->accept();
+        }
+      }
+    });
+    regWrLockBtn->click();
+    QApplication::processEvents();
+  }
+  if (regRdLockBtn) {
+    QTimer::singleShot(50, []() {
+      for (QWidget *w : QApplication::topLevelWidgets()) {
+        if (auto *d = qobject_cast<QDialog *>(w)) {
+          d->reject();
+        }
+      }
+    });
+    regRdLockBtn->click();
+    QApplication::processEvents();
+  }
+  if (regVolatileCheck) {
+    regVolatileCheck->setChecked(!regVolatileCheck->isChecked());
+    QApplication::processEvents();
+    regVolatileCheck->setChecked(!regVolatileCheck->isChecked());
+    QApplication::processEvents();
+  }
+  auto *regHasResetCheck = window.findChild<QCheckBox *>("regHasResetCheck");
+  if (regHasResetCheck) {
+    regHasResetCheck->setChecked(!regHasResetCheck->isChecked());
+    QApplication::processEvents();
+    regHasResetCheck->setChecked(!regHasResetCheck->isChecked());
+    QApplication::processEvents();
+  }
+  auto *regRandCheck = window.findChild<QCheckBox *>("regRandCheck");
+  if (regRandCheck) {
+    regRandCheck->setChecked(!regRandCheck->isChecked());
+    QApplication::processEvents();
+    regRandCheck->setChecked(!regRandCheck->isChecked());
+    QApplication::processEvents();
+  }
+
+  // Test registerClicked on memory map widget
+  auto *regBlockMap = window.findChild<BlockMemoryMapWidget *>("regBlockMemoryMapWidget");
+  if (regBlockMap) {
+    emit regBlockMap->registerClicked(0, nullptr);
+    QApplication::processEvents();
+  }
+
+  // 3. Create and test Memory Item
+  window.insertChild(RegMapTreeItem::e_rmmKind::mem);
+  QApplication::processEvents();
+
+  auto *memNameEdit = window.findChild<QLineEdit *>("memNameEdit");
+  auto *memOffsetEdit = window.findChild<QLineEdit *>("memOffsetEdit");
+  auto *memSizeEdit = window.findChild<QLineEdit *>("memSizeEdit");
+  auto *memSwAccessCombo = window.findChild<QComboBox *>("memSwAccessCombo");
+  auto *memHwAccessCombo = window.findChild<QComboBox *>("memHwAccessCombo");
+  auto *memDescEdit = window.findChild<QLineEdit *>("memDescEdit");
+  auto *memWordWidthEdit = window.findChild<QLineEdit *>("memWordWidthEdit");
+  auto *memDepthEdit = window.findChild<QLineEdit *>("memDepthEdit");
+  auto *memHdlPathEdit = window.findChild<QLineEdit *>("memHdlPathEdit");
+  auto *memWrLockEdit = window.findChild<QLineEdit *>("memWrLockEdit");
+  auto *memRdLockEdit = window.findChild<QLineEdit *>("memRdLockEdit");
+  auto *memWrLockBtn = window.findChild<QToolButton *>("memWrLockBtn");
+  auto *memRdLockBtn = window.findChild<QToolButton *>("memRdLockBtn");
+  auto *memNoTestCheck = window.findChild<QCheckBox *>("memNoTestCheck");
+  auto *memNoWalkTestCheck = window.findChild<QCheckBox *>("memNoWalkTestCheck");
+  auto *memNoAccessTestCheck = window.findChild<QCheckBox *>("memNoAccessTestCheck");
+
+  if (memNameEdit) {
+    memNameEdit->setText("MEM_TEST");
+    emit memNameEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memOffsetEdit) {
+    memOffsetEdit->setText("0x4000");
+    emit memOffsetEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memSizeEdit) {
+    memSizeEdit->setText("0x2000");
+    emit memSizeEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memSwAccessCombo) {
+    memSwAccessCombo->setCurrentText("RO");
+    QApplication::processEvents();
+    memSwAccessCombo->setCurrentText("RW");
+    QApplication::processEvents();
+  }
+  if (memHwAccessCombo) {
+    memHwAccessCombo->setCurrentText("RO");
+    QApplication::processEvents();
+    memHwAccessCombo->setCurrentText("RW");
+    QApplication::processEvents();
+  }
+  if (memDescEdit) {
+    memDescEdit->setText("Test memory description");
+    emit memDescEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memWordWidthEdit) {
+    memWordWidthEdit->setText("64");
+    emit memWordWidthEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memDepthEdit) {
+    memDepthEdit->setText("256");
+    emit memDepthEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memHdlPathEdit) {
+    memHdlPathEdit->setText("dut.u_mem");
+    emit memHdlPathEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memWrLockEdit) {
+    memWrLockEdit->setText("hw_mem_wr_lock_i");
+    emit memWrLockEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memRdLockEdit) {
+    memRdLockEdit->setText("hw_mem_rd_lock_i");
+    emit memRdLockEdit->editingFinished();
+    QApplication::processEvents();
+  }
+  if (memWrLockBtn) {
+    QTimer::singleShot(50, []() {
+      for (QWidget *w : QApplication::topLevelWidgets()) {
+        if (auto *d = qobject_cast<RegLockDialog *>(w)) {
+          auto lineEdits = d->findChildren<QLineEdit *>();
+          if (lineEdits.size() >= 2) {
+            lineEdits[0]->setText("hw_new_mem_wr_lock");
+            lineEdits[1]->setText("hw_new_mem_rd_lock");
+          }
+          d->accept();
+        }
+      }
+    });
+    memWrLockBtn->click();
+    QApplication::processEvents();
+  }
+  if (memRdLockBtn) {
+    QTimer::singleShot(50, []() {
+      for (QWidget *w : QApplication::topLevelWidgets()) {
+        if (auto *d = qobject_cast<QDialog *>(w)) {
+          d->reject();
+        }
+      }
+    });
+    memRdLockBtn->click();
+    QApplication::processEvents();
+  }
+  if (memNoTestCheck) {
+    memNoTestCheck->setChecked(!memNoTestCheck->isChecked());
+    QApplication::processEvents();
+    memNoTestCheck->setChecked(!memNoTestCheck->isChecked());
+    QApplication::processEvents();
+  }
+  if (memNoWalkTestCheck) {
+    memNoWalkTestCheck->setChecked(!memNoWalkTestCheck->isChecked());
+    QApplication::processEvents();
+    memNoWalkTestCheck->setChecked(!memNoWalkTestCheck->isChecked());
+    QApplication::processEvents();
+  }
+  if (memNoAccessTestCheck) {
+    memNoAccessTestCheck->setChecked(!memNoAccessTestCheck->isChecked());
+    QApplication::processEvents();
+    memNoAccessTestCheck->setChecked(!memNoAccessTestCheck->isChecked());
+    QApplication::processEvents();
+  }
+
+  // Test size string variations in updateMemSummary (MB, bytes, and zero)
+  if (memSizeEdit) {
+    memSizeEdit->setText("0x100000"); // 1MB
+    emit memSizeEdit->editingFinished();
+    QApplication::processEvents();
+
+    memSizeEdit->setText("512"); // < 1KB
+    emit memSizeEdit->editingFinished();
+    QApplication::processEvents();
+
+    memSizeEdit->setText("0"); // 0 bytes -> fallback 1024
+    emit memSizeEdit->editingFinished();
+    QApplication::processEvents();
+  }
+
+  // Duplicate the memory item while size is 0
+  QModelIndex memProxyIdx = treeView->currentIndex();
+  window.duplicateItem(memProxyIdx);
+  QApplication::processEvents();
+
+  // Test updateMemSummary when current mem item is null
+  window.m_currentMemItem = nullptr;
+  window.updateMemSummary();
+
+  // Test applyFieldTabColumnFilter for all tab indices with register selected
+  treeView->setCurrentIndex(regProxy);
+  for (int tab = 0; tab <= 4; ++tab) {
+    window.applyFieldTabColumnFilter(tab);
+    QApplication::processEvents();
+  }
+
+  // Test setLayoutMode directly
+  window.setLayoutMode("classic");
+  QApplication::processEvents();
+  window.setLayoutMode("table");
+  QApplication::processEvents();
+  window.updateFieldsTable(regProxy, QModelIndex());
+  window.updateFieldsTable(QModelIndex(), QModelIndex());
+  window.setLayoutMode("tabbed");
+  QApplication::processEvents();
+  window.setLayoutMode("classic_horizontal");
+  QApplication::processEvents();
+
+  // Test index fallback when current tree selection is cleared
+  treeView->setCurrentIndex(regProxy);
+  treeView->selectionModel()->clearCurrentIndex();
+  window.currentRegSourceIndex(1);
+
+  treeView->setCurrentIndex(blkProxy);
+  treeView->selectionModel()->clearCurrentIndex();
+  window.currentBlkSourceIndex(1);
+
+  treeView->setCurrentIndex(memProxyIdx);
+  treeView->selectionModel()->clearCurrentIndex();
+  window.currentMemSourceIndex(1);
+
+  // 4. Test Layout actions in m_layoutActionGroup
+  const QStringList layoutModes = {"classic", "two_column", "compact", "table"};
+  for (const QString &mode : layoutModes) {
+    for (QAction *action : window.findChildren<QAction *>()) {
+      if (action->data().toString() == mode) {
+        action->trigger();
+        QApplication::processEvents();
+        break;
+      }
+    }
   }
 }
 

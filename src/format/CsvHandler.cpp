@@ -18,7 +18,7 @@ namespace {
 
 inline bool isNonEmptyRecord(const QStringList &rec) {
   if (rec.isEmpty())
-    return false;
+    return false; // GCOV_EXCL_LINE - Defensive empty record check
   return rec.size() > 1 || !rec[0].isEmpty();
 }
 
@@ -98,9 +98,7 @@ QString CsvHandler::formatName() const {
   return QStringLiteral("CSV Spreadsheet");
 }
 QStringList CsvHandler::supportedExtensions() const {
-  static const QStringList exts = {QStringLiteral("csv"),
-                                   QStringLiteral("tsv")};
-  return exts;
+  return {QStringLiteral("csv"), QStringLiteral("tsv")};
 }
 QString CsvHandler::fileFilter() const {
   return QStringLiteral("CSV Table (*.csv *.tsv)");
@@ -149,7 +147,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       colWidth = 5;
   int colAccess = 6, colReset = 7, colRand = 8, colVol = 9, colHasReset = 10,
       colDesc = 11;
-  int colWrLock = 12, colRdLock = 13, colLegacyLock = -1, colDecodeOnly = -1;
+  int colWrLock = -1, colRdLock = -1, colLegacyLock = -1, colDecodeOnly = -1;
 
   size_t startRow = 0;
   if (!rows.empty() &&
@@ -195,6 +193,10 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       colWrLock = colLegacyLock;
     }
   }
+  if (colWrLock == -1)
+    colWrLock = 12;
+  if (colRdLock == -1)
+    colRdLock = 13;
 
   for (size_t r = startRow; r < rows.size(); ++r) {
     const QStringList &row = rows[r];

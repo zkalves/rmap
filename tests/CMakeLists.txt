@@ -41,6 +41,7 @@ set(FRONTEND_TESTS
     test_RegBitfieldBarWidget
     test_BlockMemoryMapWidget
     test_RegMapTreeView
+    test_RegLockDialog
 )
 
 foreach(test_name ${FRONTEND_TESTS})

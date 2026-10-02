@@ -617,6 +617,23 @@ void TestPathUtils::testDesktopIntegration() {
   bool reOk = PathUtils::ensureDesktopIntegration(testDir);
   QVERIFY(reOk);
 
+  // Overwrite an icon and pixmap with different size to trigger file replacement branch
+  QString iconPath16 = testDir + "/icons/hicolor/16x16/apps/rmap.png";
+  QFile f(iconPath16);
+  if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    f.write("small");
+    f.close();
+  }
+  QFile pm(pixmapPath);
+  if (pm.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    pm.write("small");
+    pm.close();
+  }
+  bool updateOk = PathUtils::ensureDesktopIntegration(testDir);
+  QVERIFY(updateOk);
+  QVERIFY(QFileInfo(iconPath16).size() > 5);
+  QVERIFY(QFileInfo(pixmapPath).size() > 5);
+
   // Clean up
   QDir(testDir).removeRecursively();
 }

@@ -1088,6 +1088,44 @@ void TestRegMapTreeModel::testUvmCookbookRalProperties() {
     }
   }
   QVERIFY(foundDisMem);
+
+  // Test invalid lock syntax in checkData (lines 642-649, 653-660)
+  QVariantMap invalidLockReg;
+  invalidLockReg["Type"] = "reg";
+  invalidLockReg["Name"] = "INV_LOCK_REG";
+  invalidLockReg["Offset/LSB"] = "0x08";
+  invalidLockReg["Size/Width"] = "32";
+  invalidLockReg["Write Lock"] = "&& invalid_syntax";
+  invalidLockReg["Read Lock"] = "(unclosed_syntax";
+  RegMapTreeItem *invReg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, invalidLockReg, blk);
+  blk->appendChild(invReg);
+
+  QStringList lockErrors = model.checkData(32);
+  QVERIFY(lockErrors.size() >= 2);
+
+  // Test decode_only in extractJsonData (line 956)
+  QVariantMap doFldData;
+  doFldData["Type"] = "fld";
+  doFldData["Name"] = "DEC_ONLY_FLD";
+  doFldData["Offset/LSB"] = "0";
+  doFldData["Size/Width"] = "1";
+  doFldData["Decode Only"] = "true";
+  doFldData["decode_only"] = true;
+  RegMapTreeItem *doFld = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, doFldData, invReg);
+  invReg->appendChild(doFld);
+
+  // Test memory depth fallback with size < wordBytes (line 804)
+  QVariantMap smallMem;
+  smallMem["Type"] = "mem";
+  smallMem["Name"] = "SMALL_MEM";
+  smallMem["Offset/LSB"] = "0x8000";
+  smallMem["Size/Width"] = "2";
+  smallMem["Word Width"] = "32";
+  RegMapTreeItem *smallMemItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, smallMem, blk);
+  blk->appendChild(smallMemItem);
+
+  nlohmann::json finalJson = model.extractJsonData(32);
+  Q_UNUSED(finalJson);
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

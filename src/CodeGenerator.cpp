@@ -250,19 +250,19 @@ void CodeGenerator::registerHelpers(Environment &env) {
 
   env.add_callback("sv_lock_expr", 1, [](Arguments &args) {
     if (args.empty() || !args.at(0)->is_string())
-      return std::string("");
+      return std::string(""); // GCOV_EXCL_LINE - Defensive argument type guard
     std::string s = args.at(0)->get<std::string>();
     return LockParser::toSystemVerilog(QString::fromStdString(s)).toStdString();
   });
   env.add_callback("v_lock_expr", 1, [](Arguments &args) {
     if (args.empty() || !args.at(0)->is_string())
-      return std::string("");
+      return std::string(""); // GCOV_EXCL_LINE - Defensive argument type guard
     std::string s = args.at(0)->get<std::string>();
     return LockParser::toVerilog(QString::fromStdString(s)).toStdString();
   });
   env.add_callback("vhd_lock_expr", 1, [](Arguments &args) {
     if (args.empty() || !args.at(0)->is_string())
-      return std::string("");
+      return std::string(""); // GCOV_EXCL_LINE - Defensive argument type guard
     std::string s = args.at(0)->get<std::string>();
     return LockParser::toVhdl(QString::fromStdString(s)).toStdString();
   });

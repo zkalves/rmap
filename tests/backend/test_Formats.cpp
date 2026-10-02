@@ -51,6 +51,7 @@ private slots:
   void test_ProtobufExtendedSyntaxAndErrors();
   void test_FormatsBranchAndConditionCoverage();
   void test_LockPropertyRoundtrip();
+  void testExtendedAccessPoliciesAndProperties();
 };
 
 void TestFormats::initTestCase() { QDir().mkpath("work/test_formats"); }
@@ -3414,6 +3415,321 @@ void TestFormats::test_LockPropertyRoundtrip() {
     QCOMPARE(r->child(4)->data("Lock").toString(),
              QString("[w] hw_wr_cond_i; [r] hw_rd_cond_i"));
   }
+}
+
+void TestFormats::testExtendedAccessPoliciesAndProperties() {
+  // 1. IP-XACT Access Policies and Number parsing
+  QString ipxactContent = QStringLiteral(
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<ipxact:component "
+      "xmlns:ipxact=\"http://www.accellera.org/XMLSchema/IPXACT/1685-2014\"\n"
+      "                  "
+      "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+      "  <ipxact:name>IPXACT_POLICIES</ipxact:name>\n"
+      "  <ipxact:memoryMaps>\n"
+      "    <ipxact:memoryMap>\n"
+      "      <ipxact:name>MAP</ipxact:name>\n"
+      "      <ipxact:addressBlock>\n"
+      "        <ipxact:name>BLK</ipxact:name>\n"
+      "        <ipxact:baseAddress>'h1000</ipxact:baseAddress>\n"
+      "        <ipxact:range>0b10000000</ipxact:range>\n"
+      "        <ipxact:width>32</ipxact:width>\n"
+      "        <ipxact:register>\n"
+      "          <ipxact:name>REG1</ipxact:name>\n"
+      "          <ipxact:addressOffset>'h0</ipxact:addressOffset>\n"
+      "          <ipxact:size>32</ipxact:size>\n"
+      "          <ipxact:field><ipxact:name>F_WO</ipxact:name><ipxact:bitOffset>0</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>write-only</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W1C</ipxact:name><ipxact:bitOffset>1</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>read-writeOnce</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W1S</ipxact:name><ipxact:bitOffset>2</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1s</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W1T</ipxact:name><ipxact:bitOffset>3</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1t</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W0C</ipxact:name><ipxact:bitOffset>4</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0c</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W0S</ipxact:name><ipxact:bitOffset>5</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0s</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W0T</ipxact:name><ipxact:bitOffset>6</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0t</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_RC</ipxact:name><ipxact:bitOffset>7</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>rc</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_RS</ipxact:name><ipxact:bitOffset>8</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>rs</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WRC</ipxact:name><ipxact:bitOffset>9</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wrc</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WRS</ipxact:name><ipxact:bitOffset>10</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wrs</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WC</ipxact:name><ipxact:bitOffset>11</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wc</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WS</ipxact:name><ipxact:bitOffset>12</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>ws</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W1SRC</ipxact:name><ipxact:bitOffset>13</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1src</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W1CRS</ipxact:name><ipxact:bitOffset>14</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1crs</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W0SRC</ipxact:name><ipxact:bitOffset>15</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0src</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W0CRS</ipxact:name><ipxact:bitOffset>16</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0crs</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_W1</ipxact:name><ipxact:bitOffset>17</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WO1</ipxact:name><ipxact:bitOffset>18</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wo1</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WOC</ipxact:name><ipxact:bitOffset>19</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>woc</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_WOS</ipxact:name><ipxact:bitOffset>20</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wos</ipxact:access></ipxact:field>\n"
+      "          <ipxact:field><ipxact:name>F_NA</ipxact:name><ipxact:bitOffset>21</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>noaccess</ipxact:access></ipxact:field>\n"
+      "        </ipxact:register>\n"
+      "      </ipxact:addressBlock>\n"
+      "    </ipxact:memoryMap>\n"
+      "  </ipxact:memoryMaps>\n"
+      "</ipxact:component>");
+
+  QString ipxactPath = "work/test_formats/ext_policies.xml";
+  QFile fX(ipxactPath);
+  QVERIFY(fX.open(QIODevice::WriteOnly | QIODevice::Text));
+  fX.write(ipxactContent.toUtf8());
+  fX.close();
+
+  RegMapTreeModel modelX;
+  RegConfigWindow configX;
+  IpxactHandler handlerX;
+  FormatResult resX = handlerX.read(ipxactPath, &modelX, &configX);
+  QVERIFY2(resX.success, qPrintable(resX.errorMessage));
+
+  QString outIpxact = "work/test_formats/ext_policies_out.xml";
+  FormatResult writeResX = handlerX.write(outIpxact, &modelX, &configX);
+  QVERIFY(writeResX.success);
+
+  // 2. SystemRDL properties coverage
+  QString rdlContent = QStringLiteral(
+      "property custom_prop { { inner_struct } };\n"
+      "addrmap top_map {\n"
+      "  name = \"TOP_RDL_PROJECT\";\n"
+      "  desc = \"Top level description\";\n"
+      "  regfile sub_blk {\n"
+      "    name = \"SUB_BLOCK\";\n"
+      "    desc = \"Sub block description\";\n"
+      "    rmap_lock_wr = \"hw_blk_wr_lock\";\n"
+      "    rmap_lock_rd = \"hw_blk_rd_lock\";\n"
+      "    reg ctrl_reg {\n"
+      "      name = \"CTRL\";\n"
+      "      rmap_lock = \"hw_legacy_reg_lock\";\n"
+      "      field {\n"
+      "        name = \"ENABLE\";\n"
+      "        rmap_lock_rd = \"hw_fld_rd_lock\";\n"
+      "      } enable[0:0] = 1'h0;\n"
+      "      field {\n"
+      "        name = \"STATUS\";\n"
+      "        rmap_lock = \"hw_fld_legacy_lock\";\n"
+      "      } status[1:1] = 1'h0;\n"
+      "    };\n"
+      "  } blk_inst;\n"
+      "};\n");
+
+  QString rdlPath = "work/test_formats/ext_rdl.rdl";
+  QFile fRdl(rdlPath);
+  QVERIFY(fRdl.open(QIODevice::WriteOnly | QIODevice::Text));
+  fRdl.write(rdlContent.toUtf8());
+  fRdl.close();
+
+  RegMapTreeModel modelRdl;
+  RegConfigWindow configRdl;
+  SystemRdlHandler handlerRdl;
+  FormatResult resRdl = handlerRdl.read(rdlPath, &modelRdl, &configRdl);
+  QVERIFY(resRdl.success);
+
+  // 1. Test CsvHandler supportedExtensions & full lock coverage
+  CsvHandler csvH;
+  QVERIFY(csvH.supportedExtensions().contains("csv"));
+
+  QString csvLocks =
+      "Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description,Lock,Read Lock\n"
+      "blk,BLK_A,,,,,,,false,false,false,Block with locks,,rd_blk_lock\n"
+      "blk,BLK_B,,,,,,,false,false,false,Block with both locks,wr_blk_b,rd_blk_b\n"
+      "mem,BLK_A,MEM_A,,0x00,1024,RW,0x0,false,false,false,Mem with locks,mem_wr,mem_rd\n"
+      "reg,BLK_A,REG_A,,0x10,0,RW,0x0,false,false,false,Reg with locks,,reg_rd\n"
+      "fld,BLK_A,REG_A,FLD_A,0,8,RW,0x0,false,false,false,Field with locks,,fld_rd\n";
+  QString csvLocksPath = "work/test_formats/locks.csv";
+  QFile fCsvL(csvLocksPath);
+  QVERIFY(fCsvL.open(QIODevice::WriteOnly | QIODevice::Text));
+  fCsvL.write(csvLocks.toUtf8());
+  fCsvL.close();
+
+  RegMapTreeModel modelCsvL;
+  RegConfigWindow configCsvL;
+  configCsvL.setRegisterWidth(64);
+  FormatResult resCsvL = csvH.read(csvLocksPath, &modelCsvL, &configCsvL);
+  QVERIFY(resCsvL.success);
+
+  // 2. Test CmsisSvdHandler lock_rd and fallback lock import and export
+  QString svdLockContent = QString::fromUtf8(
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+      "<device schemaVersion=\"1.1\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+      "  <name>SVD_LOCK_DEV</name>\n"
+      "  <peripherals>\n"
+      "    <peripheral>\n"
+      "      <name>PERIPH_LK</name>\n"
+      "      <baseAddress>0x40000000</baseAddress>\n"
+      "      <lock_rd>periph_rd_lock</lock_rd>\n"
+      "      <lock>periph_legacy_lock</lock>\n"
+      "      <registers>\n"
+      "        <register>\n"
+      "          <name>REG_LK</name>\n"
+      "          <addressOffset>0x00</addressOffset>\n"
+      "          <size>32</size>\n"
+      "          <lock_rd>reg_rd_lock</lock_rd>\n"
+      "          <lock>reg_legacy_lock</lock>\n"
+      "          <fields>\n"
+      "            <field>\n"
+      "              <name>FLD_LK</name>\n"
+      "              <bitOffset>0</bitOffset>\n"
+      "              <bitWidth>1</bitWidth>\n"
+      "              <lock_rd>fld_rd_lock</lock_rd>\n"
+      "              <lock>fld_legacy_lock</lock>\n"
+      "            </field>\n"
+      "          </fields>\n"
+      "        </register>\n"
+      "      </registers>\n"
+      "    </peripheral>\n"
+      "  </peripherals>\n"
+      "</device>\n");
+  QString svdLkPath = "work/test_formats/svd_locks.svd";
+  QFile fSvdLk(svdLkPath);
+  QVERIFY(fSvdLk.open(QIODevice::WriteOnly | QIODevice::Text));
+  fSvdLk.write(svdLockContent.toUtf8());
+  fSvdLk.close();
+
+  RegMapTreeModel modelSvdLk;
+  RegConfigWindow configSvdLk;
+  CmsisSvdHandler svdHandler;
+  FormatResult resSvdLk = svdHandler.read(svdLkPath, &modelSvdLk, &configSvdLk);
+  QVERIFY(resSvdLk.success);
+
+  QString svdOutPath = "work/test_formats/svd_locks_out.svd";
+  FormatResult resSvdOut = svdHandler.write(svdOutPath, &modelSvdLk, &configSvdLk);
+  QVERIFY(resSvdOut.success);
+
+  // 3. Test IpxactHandler 0b number, block description, lock_rd, and fallback lock
+  QString ipxactLocks = QString::fromUtf8(
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<ipxact:component xmlns:ipxact=\"http://www.accellera.org/XMLSchema/IPXACT/1685-2014\" xmlns:rmap=\"http://rmap.org/xml\">\n"
+      "  <ipxact:vendor>test</ipxact:vendor><ipxact:library>lib</ipxact:library><ipxact:name>comp</ipxact:name><ipxact:version>1.0</ipxact:version>\n"
+      "  <ipxact:memoryMaps>\n"
+      "    <ipxact:memoryMap>\n"
+      "      <ipxact:name>map</ipxact:name>\n"
+      "      <ipxact:addressBlock>\n"
+      "        <ipxact:name>BLK_LK</ipxact:name>\n"
+      "        <ipxact:baseAddress>0x0</ipxact:baseAddress>\n"
+      "        <ipxact:range>0x1000</ipxact:range>\n"
+      "        <ipxact:width>32</ipxact:width>\n"
+      "        <ipxact:description>Block description</ipxact:description>\n"
+      "        <ipxact:lock_rd>blk_rd_lock</ipxact:lock_rd>\n"
+      "        <ipxact:lock>blk_legacy_lock</ipxact:lock>\n"
+      "        <ipxact:register>\n"
+      "          <ipxact:name>REG_LK</ipxact:name>\n"
+      "          <ipxact:addressOffset>0x0</ipxact:addressOffset>\n"
+      "          <ipxact:size>32</ipxact:size>\n"
+      "          <ipxact:lock_rd>reg_rd_lock</ipxact:lock_rd>\n"
+      "          <ipxact:lock>reg_legacy_lock</ipxact:lock>\n"
+      "          <ipxact:field>\n"
+      "            <ipxact:name>FLD_LK</ipxact:name>\n"
+      "            <ipxact:bitOffset>0b0000</ipxact:bitOffset>\n"
+      "            <ipxact:bitWidth>0b0001</ipxact:bitWidth>\n"
+      "            <ipxact:lock_rd>fld_rd_lock</ipxact:lock_rd>\n"
+      "            <ipxact:lock>fld_legacy_lock</ipxact:lock>\n"
+      "          </ipxact:field>\n"
+      "        </ipxact:register>\n"
+      "      </ipxact:addressBlock>\n"
+      "    </ipxact:memoryMap>\n"
+      "  </ipxact:memoryMaps>\n"
+      "</ipxact:component>\n");
+  QString ipxactLkPath = "work/test_formats/ipxact_locks.xml";
+  QFile fIpLk(ipxactLkPath);
+  QVERIFY(fIpLk.open(QIODevice::WriteOnly | QIODevice::Text));
+  fIpLk.write(ipxactLocks.toUtf8());
+  fIpLk.close();
+
+  RegMapTreeModel modelIpLk;
+  RegConfigWindow configIpLk;
+  IpxactHandler ipHandler;
+  FormatResult resIpLk = ipHandler.read(ipxactLkPath, &modelIpLk, &configIpLk);
+  QVERIFY(resIpLk.success);
+
+  QString ipOutPath = "work/test_formats/ipxact_locks_out.xml";
+  FormatResult resIpOut = ipHandler.write(ipOutPath, &modelIpLk, &configIpLk);
+  QVERIFY(resIpOut.success);
+
+  // 4. Test JsonHandler block lock_rd and memories, memory write_lock and read_lock, reg and fld locks
+  nlohmann::json jsonLocks = {
+    {"name", "JSON_LK"},
+    {"blocks", nlohmann::json::array({
+      {
+        {"name", "BLK_LK"},
+        {"lock_rd", "blk_rd"},
+        {"memories", nlohmann::json::array({
+          {
+            {"name", "MEM_LK"},
+            {"offset_lsb", 0},
+            {"size_width", 1024},
+            {"write_lock", "mem_wr"},
+            {"read_lock", "mem_rd"}
+          }
+        })},
+        {"registers", nlohmann::json::array({
+          {
+            {"name", "REG_A"},
+            {"offset_lsb", 0},
+            {"lock_rd", "reg_rd"}
+          },
+          {
+            {"name", "REG_B"},
+            {"offset_lsb", 4},
+            {"lock", "reg_legacy"}
+          },
+          {
+            {"name", "REG_C"},
+            {"offset_lsb", 8},
+            {"fields", nlohmann::json::array({
+              {
+                {"name", "FLD_A"},
+                {"offset_lsb", 0},
+                {"size_width", 1},
+                {"lock_rd", "fld_rd"}
+              },
+              {
+                {"name", "FLD_B"},
+                {"offset_lsb", 1},
+                {"size_width", 1},
+                {"lock", "fld_legacy"}
+              }
+            })}
+          }
+        })}
+      }
+    })}
+  };
+  QString jsonLkPath = "work/test_formats/json_locks.json";
+  QFile fJsonLk(jsonLkPath);
+  QVERIFY(fJsonLk.open(QIODevice::WriteOnly | QIODevice::Text));
+  fJsonLk.write(QString::fromStdString(jsonLocks.dump(2)).toUtf8());
+  fJsonLk.close();
+
+  RegMapTreeModel modelJsonLk;
+  RegConfigWindow configJsonLk;
+  JsonHandler jsonHandler;
+  FormatResult resJsonLk = jsonHandler.read(jsonLkPath, &modelJsonLk, &configJsonLk);
+  QVERIFY(resJsonLk.success);
+
+  // 5. Test SystemRdlHandler top-level name, nested unknown component, block lock fallback, reg lock_rd
+  QString rdlLockContent = QString::fromUtf8(
+      "name = \"TopProjectName\";\n"
+      "unknown_type unk_inst { inner_type { }; };\n"
+      "addrmap top_map {\n"
+      "  regfile blk_lk {\n"
+      "    name = \"BLK_LK\";\n"
+      "    lock = \"blk_legacy_lock\";\n"
+      "    reg reg_lk {\n"
+      "      name = \"REG_LK\";\n"
+      "      rmap_lock_rd = \"reg_rd_lock\";\n"
+      "      field {\n"
+      "        name = \"F1\";\n"
+      "      } f1[0:0] = 1'h0;\n"
+      "    };\n"
+      "  } blk_inst;\n"
+      "};\n");
+  QString rdlLkPath = "work/test_formats/rdl_locks.rdl";
+  QFile fRdlLk(rdlLkPath);
+  QVERIFY(fRdlLk.open(QIODevice::WriteOnly | QIODevice::Text));
+  fRdlLk.write(rdlLockContent.toUtf8());
+  fRdlLk.close();
+
+  RegMapTreeModel modelRdlLk;
+  RegConfigWindow configRdlLk;
+  SystemRdlHandler rdlHandler;
+  FormatResult resRdlLk = rdlHandler.read(rdlLkPath, &modelRdlLk, &configRdlLk);
+  QVERIFY(resRdlLk.success);
 }
 
 QTEST_MAIN(TestFormats)
