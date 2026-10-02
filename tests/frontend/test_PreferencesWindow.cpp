@@ -75,6 +75,7 @@ void TestPreferencesWindow::testPreferencesDefaults() {
   QVERIFY(prefWin.windowFlags().testFlag(Qt::Window));
   QVERIFY(prefWin.windowFlags().testFlag(Qt::WindowMinMaxButtonsHint));
   QVERIFY(prefWin.windowFlags().testFlag(Qt::WindowCloseButtonHint));
+  QVERIFY(!prefWin.windowIcon().isNull());
 
   // Test empty and default colourScheme fallback (line 220 of
   // PreferencesWindow.cpp)

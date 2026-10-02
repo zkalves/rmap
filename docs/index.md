@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../res/images/app_icon_128.png" alt="rmap logo" width="128" height="128" />
+</p>
+
 # rmap Documentation Portal
 
 Welcome to the **rmap** documentation portal. **rmap** is a high-performance GUI & CLI application built with Modern C++ (C++17) and Qt 6 for designing hardware register maps, conducting real-time architectural validation, and generating register models across the full hardware and software lifecycle.

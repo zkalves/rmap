@@ -8,6 +8,7 @@
 #include "PreferencesWindow.hpp"
 #include "AppSettings.hpp"
 #include "LanguageManager.hpp"
+#include "RegMapWindow.hpp"
 #include "ThemeManager.hpp"
 #include <QDesktopServices>
 #include <QDir>
@@ -19,6 +20,7 @@
 PreferencesWindow::PreferencesWindow(QWidget *parent)
     : QDialog(parent, Qt::Window) {
   setupUi(this);
+  setWindowIcon(RegMapWindow::appIcon());
 
   setWindowTitle(tr("Preferences"));
   setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint |

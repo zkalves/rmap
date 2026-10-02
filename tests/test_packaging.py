@@ -60,6 +60,8 @@ class TestPackaging(unittest.TestCase):
         self.assertIn("Exec=rmap", content)
         self.assertIn("Icon=rmap", content)
         self.assertIn("Categories=", content)
+        self.assertIn("StartupWMClass=rmap", content)
+        self.assertIn("StartupNotify=true", content)
 
     def test_icon_assets_exist(self):
         main_icon = PROJECT_ROOT / "res" / "images" / "app_icon.png"
@@ -94,9 +96,24 @@ class TestPackaging(unittest.TestCase):
         self.assertIn("appimagetool", content)
         self.assertIn("usr/plugins", content)
 
+    def test_install_desktop_script(self):
+        script = PROJECT_ROOT / "script" / "install_desktop.sh"
+        self.assertTrue(script.exists(), "script/install_desktop.sh must exist")
+        self.assertTrue(os.access(script, os.X_OK), "script/install_desktop.sh must be executable")
+
+        res = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"bash -n failed on script/install_desktop.sh: {res.stderr}")
+
+        content = script.read_text(encoding="utf-8")
+        self.assertIn("rmap.desktop", content)
+        self.assertIn("StartupWMClass=rmap", content)
+        self.assertIn("StartupNotify=true", content)
+        self.assertIn("icons/hicolor", content)
+
     def test_makefile_packaging_targets(self):
         makefile = PROJECT_ROOT / "Makefile"
         content = makefile.read_text(encoding="utf-8")
+        self.assertIn("install-user-desktop:", content)
         self.assertIn("package-deb:", content)
         self.assertIn("package-rpm:", content)
         self.assertIn("package-appimage:", content)

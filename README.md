@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="res/images/app_icon_128.png" alt="rmap logo" width="128" height="128" />
+</p>
+
 # rmap — Hardware Register Map Designer & Model Generator
 
 [![CI](https://github.com/zkalves/rmap/actions/workflows/ci.yml/badge.svg)](https://github.com/zkalves/rmap/actions/workflows/ci.yml)

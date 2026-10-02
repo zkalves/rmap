@@ -362,6 +362,13 @@ foreach(icon_size 16 32 48 64 128 256 512)
     endif()
 endforeach()
 
+add_custom_target(install-user-desktop
+    COMMAND ${CMAKE_COMMAND} -E echo "Installing rmap desktop integration into ~/.local/share..."
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/script/install_desktop.sh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Installing rmap desktop entry and icons to current user environment"
+)
+
 # Tests Subdirectory
 if(BUILD_TESTING AND Qt6_FOUND)
     add_subdirectory(tests)

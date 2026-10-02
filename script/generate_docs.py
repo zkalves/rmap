@@ -309,6 +309,7 @@ def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "", pr
                 os.path.normpath(os.path.join(doc_dir, img_target)),
                 os.path.join(project_root, "docs", "images", img_basename) if project_root else os.path.join("docs", "images", img_basename),
                 os.path.join(project_root, "docs", "images", "wavedrom", img_basename) if project_root else os.path.join("docs", "images", "wavedrom", img_basename),
+                os.path.join(project_root, "res", "images", img_basename) if project_root else os.path.join("res", "images", img_basename),
             ]
             resolved_img = next((p for p in candidate_paths if os.path.isfile(p)), None)
             if resolved_img:
@@ -321,7 +322,32 @@ def parse_markdown_to_latex(md_content: str, default_chapter_title: str = "", pr
                 out.append(r'\end{figure}' + '\n')
             continue
 
-        # Skip or format HTML <details> and <summary> tags
+        # Check for HTML img tag: <img ... src="..." ...>
+        m_html_img = re.search(r'<img\s+[^>]*src=["\']([^"\']+)["\']', stripped)
+        if m_html_img:
+            flush_table()
+            flush_list()
+            img_target = m_html_img.group(1).strip()
+            img_basename = os.path.basename(img_target)
+            doc_dir = os.path.dirname(os.path.abspath(doc_path)) if doc_path else (os.path.join(project_root, "docs") if project_root else "docs")
+            candidate_paths = [
+                os.path.normpath(os.path.join(doc_dir, img_target)),
+                os.path.join(project_root, "docs", "images", img_basename) if project_root else os.path.join("docs", "images", img_basename),
+                os.path.join(project_root, "docs", "images", "wavedrom", img_basename) if project_root else os.path.join("docs", "images", "wavedrom", img_basename),
+                os.path.join(project_root, "res", "images", img_basename) if project_root else os.path.join("res", "images", img_basename),
+            ]
+            resolved_img = next((p for p in candidate_paths if os.path.isfile(p)), None)
+            if resolved_img:
+                clean_path = os.path.abspath(resolved_img).replace("\\", "/")
+                out.append(r'\begin{figure}[htbp]')
+                out.append(r'\centering')
+                out.append(r'\includegraphics[width=0.3\textwidth,keepaspectratio]{' + clean_path + r'}')
+                out.append(r'\end{figure}' + '\n')
+            continue
+
+        # Skip or format HTML <details>, <summary>, and <p> wrapper tags
+        if stripped.startswith('<p') or stripped.startswith('</p>'):
+            continue
         if stripped.startswith('<details>') or stripped.startswith('</details>') or stripped.startswith('<summary>') or stripped.startswith('</summary>'):
             if '<summary>' in stripped:
                 summary_content = re.sub(r'</?summary>', '', stripped).strip()
@@ -358,6 +384,10 @@ def compile_latex_book(
 ) -> bool:
     print(f"--> Compiling {doc_title}: {pdf_path}")
     version_str = get_version(project_root)
+    logo_path = os.path.abspath(os.path.join(project_root, "res", "images", "app_icon_256.png")).replace("\\", "/")
+    logo_tex = ""
+    if os.path.isfile(logo_path):
+        logo_tex = r"\includegraphics[width=2.8cm]{" + logo_path + r"}\\[0.8cm]"
 
     tex_out = []
     tex_out.append(r"""\documentclass[10pt,a4paper,oneside]{book}
@@ -410,8 +440,9 @@ def compile_latex_book(
 
 \begin{titlepage}
 \centering
-\vspace*{3cm}
-{\Huge\textbf{\color{brandblue}rmap}}\\[1.5cm]
+\vspace*{1.5cm}
+""" + logo_tex + r"""
+{\Huge\textbf{\color{brandblue}rmap}}\\[1.2cm]
 {\Large\textbf{""" + doc_subtitle + r"""}}\\[0.8cm]
 {\large """ + doc_type_desc + r"""}\\[2.5cm]
 \textbf{Version """ + version_str + r"""}\\[0.4cm]

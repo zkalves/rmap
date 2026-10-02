@@ -415,6 +415,17 @@ hr {
     background: transparent !important;
 }
 
+#projectlogo {
+    vertical-align: middle;
+    padding-right: 14px;
+}
+
+#projectlogo img {
+    max-height: 48px;
+    width: auto;
+    vertical-align: middle;
+}
+
 #projectname {
     font-size: 1.85rem !important;
     font-weight: 700 !important;

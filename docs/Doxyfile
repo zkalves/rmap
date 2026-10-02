@@ -4,7 +4,7 @@
 PROJECT_NAME           = "rmap"
 PROJECT_NUMBER         = "0.2.0"
 PROJECT_BRIEF          = "Hardware Register Map Designer & Model Generator"
-PROJECT_LOGO           =
+PROJECT_LOGO           = res/images/app_icon_128.png
 
 OUTPUT_DIRECTORY       = _site
 CREATE_SUBDIRS         = NO
@@ -110,7 +110,8 @@ EXCLUDE_PATTERNS       = */ui_* \
                          */mocs_compilation*
 EXCLUDE_SYMBOLS        = Ui::*
 IMAGE_PATH             = docs/images \
-                         docs/images/wavedrom
+                         docs/images/wavedrom \
+                         res/images
 
 USE_MDFILE_AS_MAINPAGE = docs/index.md
 

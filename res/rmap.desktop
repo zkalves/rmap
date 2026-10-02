@@ -9,3 +9,5 @@ Terminal=false
 Categories=Development;Engineering;Electronics;
 MimeType=application/json;text/xml;text/csv;
 Keywords=register;map;uvm;systemverilog;asic;fpga;hardware;
+StartupWMClass=rmap
+StartupNotify=true

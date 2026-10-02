@@ -30,9 +30,11 @@ private slots:
   void testResolvePathWithTemplatesSubdir();
   void testEdgeCasesAndOverloads();
   void testExtendedPathResolutionAndDiscovery();
+  void testDesktopIntegration();
 };
 
 void TestPathUtils::initTestCase() {
+  Q_INIT_RESOURCE(resources);
   qputenv("RMAP_TEST_ROOT", "/tmp/rmap_test_root");
   qputenv("RMAP_TEST_SUB", "sub_dir");
   qputenv("RMAP_TEST_FILE", "output.sv");
@@ -571,5 +573,54 @@ void TestPathUtils::testExtendedPathResolutionAndDiscovery() {
   QVERIFY(!PathUtils::isInstalledOverride());
 }
 
+void TestPathUtils::testDesktopIntegration() {
+  QString testDir = "work/test_path_utils/desktop_integration";
+  QDir(testDir).removeRecursively();
+
+  // Test creation in custom data directory
+  bool ok = PathUtils::ensureDesktopIntegration(testDir);
+  QVERIFY(ok);
+
+  // Verify desktop file exists and contains essential keys
+  QString desktopFile = testDir + "/applications/rmap.desktop";
+  QVERIFY(QFile::exists(desktopFile));
+
+  QFile df(desktopFile);
+  QVERIFY(df.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString content = QString::fromUtf8(df.readAll());
+  df.close();
+
+  QVERIFY(content.contains("[Desktop Entry]"));
+  QVERIFY(content.contains("Type=Application"));
+  QVERIFY(content.contains("Name=rmap"));
+  QVERIFY(content.contains("Exec="));
+  QVERIFY(content.contains("Icon=rmap"));
+  QVERIFY(content.contains("StartupWMClass=rmap"));
+  QVERIFY(content.contains("StartupNotify=true"));
+
+  // Verify all icon sizes were deployed
+  const QVector<int> sizes = {16, 32, 48, 64, 128, 256, 512};
+  for (int size : sizes) {
+    QString iconPath = QStringLiteral("%1/icons/hicolor/%2x%2/apps/rmap.png")
+                           .arg(testDir)
+                           .arg(size);
+    QVERIFY2(QFile::exists(iconPath), qPrintable(iconPath));
+    QVERIFY(QFileInfo(iconPath).size() > 0);
+  }
+
+  // Verify pixmap was deployed
+  QString pixmapPath = testDir + "/pixmaps/rmap.png";
+  QVERIFY(QFile::exists(pixmapPath));
+  QVERIFY(QFileInfo(pixmapPath).size() > 0);
+
+  // Test idempotency: re-running when files already exist
+  bool reOk = PathUtils::ensureDesktopIntegration(testDir);
+  QVERIFY(reOk);
+
+  // Clean up
+  QDir(testDir).removeRecursively();
+}
+
 QTEST_MAIN(TestPathUtils)
+
 #include "test_PathUtils.moc"

@@ -7,9 +7,15 @@
 
 #include "PathUtils.hpp"
 #include <QCoreApplication>
+#include <QFile>
+#include <QProcess>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
+#include <QStandardPaths>
+#include <QVector>
 #include <cstdlib>
+
+static inline void initRmapResources() { Q_INIT_RESOURCE(resources); }
 
 namespace PathUtils {
 
@@ -447,6 +453,155 @@ QString defaultTranslationsDir() {
 
   // 5. Fallback relative path
   return QString::fromUtf8(DEFAULT_TRANSLATIONS_DIR);
+}
+
+bool ensureDesktopIntegration(const QString &customDataDir) {
+#if defined(Q_OS_LINUX) || defined(Q_OS_UNIX)
+  static const bool rccInit = []() {
+    initRmapResources();
+    return true;
+  }();
+  Q_UNUSED(rccInit);
+
+  QString appsDir;
+  QString iconsDir;
+  QString pixmapsDir;
+
+  if (!customDataDir.trimmed().isEmpty()) {
+    QString base = expandEnvVars(customDataDir.trimmed());
+    appsDir = base + "/applications";
+    iconsDir = base + "/icons/hicolor";
+    pixmapsDir = base + "/pixmaps";
+  } else {
+    appsDir =
+        QStandardPaths::writableLocation(QStandardPaths::ApplicationsLocation);
+    if (appsDir.isEmpty()) {
+      appsDir = QDir::homePath() + "/.local/share/applications";
+    }
+    QString dataDir =
+        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    if (dataDir.isEmpty()) {
+      dataDir = QDir::homePath() + "/.local/share";
+    }
+    iconsDir = dataDir + "/icons/hicolor";
+    pixmapsDir = dataDir + "/pixmaps";
+  }
+
+  // Ensure directories exist
+  if (!QDir().mkpath(appsDir) || !QDir().mkpath(pixmapsDir)) {
+    return false;
+  }
+
+  // Copy icon tiers from embedded Qt resources (or fallback to source tree
+  // assets)
+  const QVector<int> sizes = {16, 32, 48, 64, 128, 256, 512};
+  for (int size : sizes) {
+    QString targetSubdir =
+        QStringLiteral("%1/%2x%2/apps").arg(iconsDir).arg(size);
+    QDir().mkpath(targetSubdir);
+    QString targetFile = QStringLiteral("%1/rmap.png").arg(targetSubdir);
+    QString resFile = QStringLiteral(":/icons/app_icon_%1.png").arg(size);
+    QString diskFile = QStringLiteral("res/images/app_icon_%1.png").arg(size);
+    QString srcFile = QFile::exists(resFile)
+                          ? resFile
+                          : (QFile::exists(diskFile) ? diskFile : QString());
+    if (!srcFile.isEmpty()) {
+      if (QFile::exists(targetFile)) {
+        QFile srcF(srcFile);
+        QFile dstF(targetFile);
+        if (srcF.size() != dstF.size()) {
+          QFile::remove(targetFile);
+          QFile::copy(srcFile, targetFile);
+        }
+      } else {
+        QFile::copy(srcFile, targetFile);
+      }
+    }
+  }
+
+  // Pixmap copy for legacy window managers and toolbars
+  QString pixmapFile = QStringLiteral("%1/rmap.png").arg(pixmapsDir);
+  QString resPixmap = QStringLiteral(":/icons/app_icon.png");
+  QString diskPixmap = QStringLiteral("res/images/app_icon.png");
+  QString srcPixmap =
+      QFile::exists(resPixmap)
+          ? resPixmap
+          : (QFile::exists(diskPixmap) ? diskPixmap : QString());
+  if (!srcPixmap.isEmpty()) {
+    if (QFile::exists(pixmapFile)) {
+      QFile srcF(srcPixmap);
+      QFile dstF(pixmapFile);
+      if (srcF.size() != dstF.size()) {
+        QFile::remove(pixmapFile);
+        QFile::copy(srcPixmap, pixmapFile);
+      }
+    } else {
+      QFile::copy(srcPixmap, pixmapFile);
+    }
+  }
+
+  // Write/update rmap.desktop
+  QString desktopFilePath = appsDir + "/rmap.desktop";
+  QString execPath = QCoreApplication::applicationFilePath();
+  if (execPath.isEmpty()) {
+    execPath = QStringLiteral("rmap");
+  }
+  QString execCmd = execPath.contains(' ')
+                        ? QStringLiteral("\"%1\"").arg(execPath)
+                        : execPath;
+
+  QString content =
+      QStringLiteral(
+          "[Desktop Entry]\n"
+          "Type=Application\n"
+          "Name=rmap\n"
+          "GenericName=Hardware Register Map Designer\n"
+          "Comment=Hardware Register Map Designer & Model Generator\n"
+          "Exec=%1 %F\n"
+          "Icon=rmap\n"
+          "Terminal=false\n"
+          "Categories=Development;Engineering;Electronics;\n"
+          "MimeType=application/json;text/xml;text/csv;\n"
+          "Keywords=register;map;uvm;systemverilog;asic;fpga;hardware;\n"
+          "StartupWMClass=rmap\n"
+          "StartupNotify=true\n")
+          .arg(execCmd);
+
+  bool writeNeeded = true;
+  if (QFile::exists(desktopFilePath)) {
+    QFile existingFile(desktopFilePath);
+    if (existingFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+      QString existingContent = QString::fromUtf8(existingFile.readAll());
+      existingFile.close();
+      if (existingContent == content) {
+        writeNeeded = false;
+      }
+    }
+  }
+
+  if (writeNeeded) {
+    QFile desktopFile(desktopFilePath);
+    if (desktopFile.open(QIODevice::WriteOnly | QIODevice::Text |
+                         QIODevice::Truncate)) {
+      desktopFile.write(content.toUtf8());
+      desktopFile.close();
+    }
+  }
+
+  // Non-blocking cache updates when installing to default user directory
+  if (customDataDir.trimmed().isEmpty()) {
+    QProcess::startDetached(QStringLiteral("update-desktop-database"),
+                            {appsDir});
+    QProcess::startDetached(
+        QStringLiteral("gtk-update-icon-cache"),
+        {QStringLiteral("-f"), QStringLiteral("-t"), iconsDir});
+  }
+
+  return QFile::exists(desktopFilePath);
+#else
+  Q_UNUSED(customDataDir);
+  return true;
+#endif
 }
 
 } // namespace PathUtils
