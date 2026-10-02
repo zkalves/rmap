@@ -69,6 +69,7 @@ public:
   bool headlessLint(bool strict, const QString &format, const QString &outFile);
   static bool semanticDiff(const QString &file1, const QString &file2,
                            const QString &format, const QString &outFile);
+  static QIcon appIcon();
 
   void fileOpen(QString fname);
   bool fileSave(QString fname = "");

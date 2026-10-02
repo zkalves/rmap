@@ -34,6 +34,10 @@ run: rmap
 install: rmap
 	@DESTDIR="$(DESTDIR)" cmake --install build --prefix "$(PREFIX)"
 
+# Install FreeDesktop desktop entry and icons to current user environment (~/.local/share)
+install-user-desktop:
+	@./script/install_desktop.sh
+
 # Uninstall rmap executable and installed assets
 uninstall:
 	@if [ -f build/install_manifest.txt ]; then \

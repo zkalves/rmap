@@ -283,20 +283,25 @@ protected:
   }
 };
 
+QIcon RegMapWindow::appIcon() {
+  Q_INIT_RESOURCE(resources);
+  QIcon icon(QStringLiteral(":/icons/app_icon.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_512.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_256.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_128.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_64.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_48.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_32.png"));
+  icon.addFile(QStringLiteral(":/icons/app_icon_16.png"));
+  return icon;
+}
+
 RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
     : QMainWindow(parent) {
   Q_INIT_RESOURCE(resources);
   GOOGLE_PROTOBUF_VERIFY_VERSION;
-  QIcon appIcon(":/icons/app_icon.png");
-  appIcon.addFile(":/icons/app_icon_512.png", QSize(512, 512));
-  appIcon.addFile(":/icons/app_icon_256.png", QSize(256, 256));
-  appIcon.addFile(":/icons/app_icon_128.png", QSize(128, 128));
-  appIcon.addFile(":/icons/app_icon_64.png", QSize(64, 64));
-  appIcon.addFile(":/icons/app_icon_48.png", QSize(48, 48));
-  appIcon.addFile(":/icons/app_icon_32.png", QSize(32, 32));
-  appIcon.addFile(":/icons/app_icon_16.png", QSize(16, 16));
   this->setupUi(this);
-  setWindowIcon(appIcon);
+  setWindowIcon(appIcon());
   m_active_folder = ".";
   m_is_regmap_modified = false;
   m_rmap_filename = rmap_filename;
@@ -416,6 +421,42 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   // ==========================================
   m_leftEmptyWidget = new QWidget(m_leftStackedWidget);
   m_leftEmptyWidget->setObjectName("leftEmptyWidget");
+
+  QVBoxLayout *leftEmptyLayout = new QVBoxLayout(m_leftEmptyWidget);
+  leftEmptyLayout->setAlignment(Qt::AlignCenter);
+  leftEmptyLayout->setSpacing(8);
+  leftEmptyLayout->setContentsMargins(16, 16, 16, 16);
+
+  leftEmptyLayout->addStretch(1);
+
+  QLabel *leftEmptyLogo = new QLabel(m_leftEmptyWidget);
+  leftEmptyLogo->setObjectName("leftEmptyLogoLabel");
+  QPixmap leftLogoPix(":/icons/app_icon_64.png");
+  leftEmptyLogo->setPixmap(leftLogoPix);
+  leftEmptyLogo->setAlignment(Qt::AlignCenter);
+  leftEmptyLayout->addWidget(leftEmptyLogo);
+
+  QLabel *leftEmptyTitle = new QLabel(tr("No Register Map"), m_leftEmptyWidget);
+  leftEmptyTitle->setObjectName("leftEmptyTitleLabel");
+  QFont leftTitleFont = leftEmptyTitle->font();
+  leftTitleFont.setPointSize(11);
+  leftTitleFont.setBold(true);
+  leftEmptyTitle->setFont(leftTitleFont);
+  leftEmptyTitle->setAlignment(Qt::AlignCenter);
+  leftEmptyLayout->addWidget(leftEmptyTitle);
+
+  QLabel *leftEmptyHint =
+      new QLabel(tr("Create a new map (Ctrl+N)\nor open a file (Ctrl+O)"),
+                 m_leftEmptyWidget);
+  leftEmptyHint->setObjectName("leftEmptyHintLabel");
+  QFont leftHintFont = leftEmptyHint->font();
+  leftHintFont.setPointSize(9);
+  leftEmptyHint->setFont(leftHintFont);
+  leftEmptyHint->setAlignment(Qt::AlignCenter);
+  leftEmptyLayout->addWidget(leftEmptyHint);
+
+  leftEmptyLayout->addStretch(2);
+
   m_leftStackedWidget->addWidget(m_leftEmptyWidget);
   m_leftStackedWidget->setCurrentWidget(m_leftEmptyWidget);
 
@@ -1575,6 +1616,55 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   // ==========================================
   m_emptyViewWidget = new QWidget(m_rightStackedWidget);
   m_emptyViewWidget->setObjectName("emptyViewWidget");
+
+  QVBoxLayout *emptyLayout = new QVBoxLayout(m_emptyViewWidget);
+  emptyLayout->setAlignment(Qt::AlignCenter);
+  emptyLayout->setSpacing(12);
+  emptyLayout->setContentsMargins(24, 24, 24, 24);
+
+  emptyLayout->addStretch(1);
+
+  QLabel *emptyLogoLabel = new QLabel(m_emptyViewWidget);
+  emptyLogoLabel->setObjectName("emptyLogoLabel");
+  QPixmap emptyLogoPix(":/icons/app_icon_128.png");
+  emptyLogoLabel->setPixmap(emptyLogoPix);
+  emptyLogoLabel->setAlignment(Qt::AlignCenter);
+  emptyLayout->addWidget(emptyLogoLabel);
+
+  QLabel *emptyTitleLabel =
+      new QLabel(QStringLiteral("rmap"), m_emptyViewWidget);
+  emptyTitleLabel->setObjectName("emptyTitleLabel");
+  QFont emptyTitleFont = emptyTitleLabel->font();
+  emptyTitleFont.setPointSize(22);
+  emptyTitleFont.setBold(true);
+  emptyTitleLabel->setFont(emptyTitleFont);
+  emptyTitleLabel->setAlignment(Qt::AlignCenter);
+  emptyLayout->addWidget(emptyTitleLabel);
+
+  QLabel *emptySubtitleLabel =
+      new QLabel(tr("Hardware Register Map Designer & Model Generator"),
+                 m_emptyViewWidget);
+  emptySubtitleLabel->setObjectName("emptySubtitleLabel");
+  QFont emptySubFont = emptySubtitleLabel->font();
+  emptySubFont.setPointSize(11);
+  emptySubtitleLabel->setFont(emptySubFont);
+  emptySubtitleLabel->setAlignment(Qt::AlignCenter);
+  emptyLayout->addWidget(emptySubtitleLabel);
+
+  QLabel *emptyHintLabel = new QLabel(
+      tr("Select an item in the navigation tree to inspect details,\n"
+         "or use the toolbar to create a new register map (Ctrl+N) or open a "
+         "file (Ctrl+O)."),
+      m_emptyViewWidget);
+  emptyHintLabel->setObjectName("emptyHintLabel");
+  QFont emptyHintFont = emptyHintLabel->font();
+  emptyHintFont.setPointSize(10);
+  emptyHintLabel->setFont(emptyHintFont);
+  emptyHintLabel->setAlignment(Qt::AlignCenter);
+  emptyLayout->addWidget(emptyHintLabel);
+
+  emptyLayout->addStretch(2);
+
   m_rightStackedWidget->addWidget(m_emptyViewWidget);
   m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
 
@@ -2435,6 +2525,7 @@ void RegMapWindow::btnAbout(void) {
 
 void RegMapWindow::btnKeyBindings(void) {
   QDialog dialog(this, Qt::Window);
+  dialog.setWindowIcon(appIcon());
   dialog.setWindowTitle(tr("Keyboard Shortcuts & Key Bindings"));
   dialog.resize(580, 480);
   dialog.setMinimumSize(450, 350);

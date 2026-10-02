@@ -38,7 +38,8 @@ inline QString defaultOutputDir() {
  * Resolves in order of priority:
  * 1. RMAP_TEMPLATES_DIR environment variable (if non-empty).
  * 2. Local "./templates" if it exists and contains template subfolders.
- * 3. Application-relative relocatable directory (&lt;bin_dir&gt;/../share/rmap/templates).
+ * 3. Application-relative relocatable directory
+ * (&lt;bin_dir&gt;/../share/rmap/templates).
  * 4. Configured compile-time installation path (RMAP_INSTALL_TEMPLATES_DIR).
  * 5. Fallback relative "./templates".
  */
@@ -154,6 +155,17 @@ inline QString normalizeSeparators(const char *path) {
  */
 void setInstalledOverride(bool enable);
 bool isInstalledOverride();
+
+/**
+ * @brief Ensures FreeDesktop desktop entry and application icons are installed
+ * in the user's local XDG environment (~/.local/share/applications and
+ * ~/.local/share/icons/hicolor) so Wayland and X11 compositors display the
+ * native application icon in the taskbar, dock, and app launcher.
+ *
+ * @param customDataDir Optional override directory for testing purposes.
+ * @return true if desktop integration was successfully verified/created.
+ */
+bool ensureDesktopIntegration(const QString &customDataDir = QString());
 
 } // namespace PathUtils
 

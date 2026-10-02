@@ -105,6 +105,7 @@ private slots:
   void testUncoveredEdgeCases();
   void testAdditionalBranchCoverage();
   void testMemoryItemEditingAndProperties();
+  void testAppIconAndWindowIcons();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen() {
@@ -146,6 +147,19 @@ void TestRegMapWindow::testFileNewReset() {
   QCOMPARE(freshTreeView->model()->rowCount(), 0);
   QVERIFY(freshSearchBox->text().isEmpty());
   QVERIFY(!freshWindow.isModelLoaded());
+  auto *freshEmptyLogo = freshWindow.findChild<QLabel *>("emptyLogoLabel");
+  auto *freshEmptyTitle = freshWindow.findChild<QLabel *>("emptyTitleLabel");
+  auto *freshLeftEmptyLogo =
+      freshWindow.findChild<QLabel *>("leftEmptyLogoLabel");
+  auto *freshLeftEmptyTitle =
+      freshWindow.findChild<QLabel *>("leftEmptyTitleLabel");
+  QVERIFY(freshEmptyLogo != nullptr);
+  QVERIFY(!freshEmptyLogo->pixmap().isNull());
+  QVERIFY(freshEmptyTitle != nullptr);
+  QVERIFY(freshLeftEmptyLogo != nullptr);
+  QVERIFY(!freshLeftEmptyLogo->pixmap().isNull());
+  QVERIFY(freshLeftEmptyTitle != nullptr);
+  QVERIFY(!freshWindow.windowIcon().isNull());
 
   // 2. Open file and then trigger File -> New
   QString file = "examples/peripherals/spi/spi.rmt";
@@ -1394,6 +1408,7 @@ void TestRegMapWindow::testKeyBindingsDialog() {
   QObject::connect(dismissTimer, &QTimer::timeout, []() {
     QWidget *modal = QApplication::activeModalWidget();
     if (modal) {
+      QVERIFY(!modal->windowIcon().isNull());
       modal->close();
     }
   });
@@ -4445,6 +4460,33 @@ void TestRegMapWindow::testMemoryItemEditingAndProperties() {
     }
   }
   QVERIFY(foundMemInJson);
+}
+
+void TestRegMapWindow::testAppIconAndWindowIcons() {
+  QIcon icon = RegMapWindow::appIcon();
+  QVERIFY(!icon.isNull());
+  const QList<QSize> expectedSizes = {
+      QSize(16, 16),   QSize(32, 32),   QSize(48, 48),  QSize(64, 64),
+      QSize(128, 128), QSize(256, 256), QSize(512, 512)};
+  for (const auto &sz : expectedSizes) {
+    QPixmap px = icon.pixmap(sz);
+    QVERIFY(!px.isNull());
+    QVERIFY(px.width() > 0);
+    QVERIFY(px.height() > 0);
+  }
+
+  RegMapWindow window;
+  QVERIFY(!window.windowIcon().isNull());
+
+  if (window.configWindow()) {
+    QVERIFY(!window.configWindow()->windowIcon().isNull());
+  }
+  if (window.preferencesWindow()) {
+    QVERIFY(!window.preferencesWindow()->windowIcon().isNull());
+  }
+  if (window.aboutWindow()) {
+    QVERIFY(!window.aboutWindow()->windowIcon().isNull());
+  }
 }
 
 QTEST_MAIN(TestRegMapWindow)

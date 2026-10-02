@@ -60,15 +60,10 @@ int main(int argc, char *argv[]) {
   app.setDesktopFileName("rmap");
   app.setApplicationVersion(version);
 
-  QIcon appIcon(":/icons/app_icon.png");
-  appIcon.addFile(":/icons/app_icon_512.png", QSize(512, 512));
-  appIcon.addFile(":/icons/app_icon_256.png", QSize(256, 256));
-  appIcon.addFile(":/icons/app_icon_128.png", QSize(128, 128));
-  appIcon.addFile(":/icons/app_icon_64.png", QSize(64, 64));
-  appIcon.addFile(":/icons/app_icon_48.png", QSize(48, 48));
-  appIcon.addFile(":/icons/app_icon_32.png", QSize(32, 32));
-  appIcon.addFile(":/icons/app_icon_16.png", QSize(16, 16));
-  app.setWindowIcon(appIcon);
+  app.setWindowIcon(RegMapWindow::appIcon());
+  if (!headless_mode) {
+    PathUtils::ensureDesktopIntegration();
+  }
   QCommandLineParser parser;
   QCommandLineOption f_opt({"f", "file"}, "Register Map file to load", "file");
   QCommandLineOption e_opt({"e", "export"},
