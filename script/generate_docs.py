@@ -838,7 +838,7 @@ a:hover { text-decoration: underline; }
             return f"<!--__PROTECTED_DOC_BLOCK_{len(blocks)-1}__-->"
 
         prot_pattern = re.compile(
-            r'(<pre\b[^>]*>[\s\S]*?</pre>|<div class="fragment"[\s\S]*?</div>\s*</div>|<script\b[^>]*>[\s\S]*?</script>|<style\b[^>]*>[\s\S]*?</style>)',
+            r'(<pre\b[^>]*>[\s\S]*?</pre\b[^>]*>|<div class="fragment"[\s\S]*?</div>\s*</div>|<script\b[^>]*>[\s\S]*?</script\b[^>]*>|<style\b[^>]*>[\s\S]*?</style\b[^>]*>)',
             re.IGNORECASE
         )
         protected = prot_pattern.sub(save_block, html_text)

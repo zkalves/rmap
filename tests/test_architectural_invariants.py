@@ -268,7 +268,7 @@ def test_no_unparsed_markdown_bold():
                     rel = os.path.relpath(p, PROJECT_ROOT)
                     with open(p, "r", encoding="utf-8", errors="ignore") as fp:
                         content = fp.read()
-                    clean = re.sub(r'<pre\b[^>]*>[\s\S]*?</pre>', '', content, flags=re.IGNORECASE)
+                    clean = re.sub(r'<pre\b[^>]*>[\s\S]*?</pre\b[^>]*>', '', content, flags=re.IGNORECASE)
                     clean = re.sub(r'<div class="fragment"[\s\S]*?</div>\s*</div>', '', clean, flags=re.IGNORECASE)
                     matches = re.findall(r'\*\*(.+?)\*\*', clean)
                     if matches:
