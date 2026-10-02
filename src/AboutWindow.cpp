@@ -18,6 +18,7 @@
 
 #include "AboutWindow.hpp"
 #include "AppSettings.hpp"
+#include "RegMapWindow.hpp"
 #include <QApplication>
 #include <QCloseEvent>
 #include <QMoveEvent>
@@ -25,6 +26,7 @@
 
 AboutWindow::AboutWindow(QWidget *parent) : QDialog(parent, Qt::Window) {
   setupUi(this);
+  setWindowIcon(RegMapWindow::appIcon());
 
   setWindowTitle(tr("About rmap"));
   setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint |
@@ -149,7 +151,8 @@ void AboutWindow::initContent() {
       "<a href=\"https://www.gnu.org/licenses/gpl-3.0.html\">GNU General Public License</a> "
       "for more details.</p>"
       "<h4>Output Exception</h4>"
-      "<p>The code and artifacts generated as output by this tool are not subject "
+      "<p>The code and artifacts generated as output by this tool are not "
+      "subject "
       "to the license of this software. You may use, modify, redistribute, and "
       "sublicense the generated output for any purpose, commercial or "
       "non-commercial, without limitation or attribution requirement.</p>");

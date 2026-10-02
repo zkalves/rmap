@@ -20,6 +20,7 @@
 #include "LockParser.hpp"
 #include "RegMapTreeItem.hpp"
 #include "RegMapTreeModel.hpp"
+#include "RegMapWindow.hpp"
 #include <QBoxLayout>
 #include <QComboBox>
 #include <QCompleter>
@@ -35,6 +36,7 @@ RegLockDialog::RegLockDialog(const QString &writeExpr, const QString &readExpr,
                              const RegMapTreeModel *model,
                              const QString &contextItemName, QWidget *parent)
     : QDialog(parent), m_model(model), m_contextItemName(contextItemName) {
+  setWindowIcon(RegMapWindow::appIcon());
   setWindowTitle(contextItemName.isEmpty()
                      ? tr("Configure Register Locks")
                      : tr("Configure Locks: %1").arg(contextItemName));
@@ -54,6 +56,7 @@ RegLockDialog::RegLockDialog(const QString &currentExpr,
                              const RegMapTreeModel *model,
                              const QString &contextItemName, QWidget *parent)
     : QDialog(parent), m_model(model), m_contextItemName(contextItemName) {
+  setWindowIcon(RegMapWindow::appIcon());
   setWindowTitle(contextItemName.isEmpty()
                      ? tr("Configure Register Locks")
                      : tr("Configure Locks: %1").arg(contextItemName));
