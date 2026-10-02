@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
   app.setWindowIcon(RegMapWindow::appIcon());
   if (!headless_mode) {
-    PathUtils::ensureDesktopIntegration();
+    PathUtils::ensureDesktopIntegration(); // GCOV_EXCL_LINE - Desktop GUI auto-integration
   }
   QCommandLineParser parser;
   QCommandLineOption f_opt({"f", "file"}, "Register Map file to load", "file");

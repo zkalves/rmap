@@ -473,22 +473,20 @@ bool ensureDesktopIntegration(const QString &customDataDir) {
     iconsDir = base + "/icons/hicolor";
     pixmapsDir = base + "/pixmaps";
   } else {
+    // GCOV_EXCL_START - Fallback to standard user desktop locations
     appsDir =
         QStandardPaths::writableLocation(QStandardPaths::ApplicationsLocation);
-    // GCOV_EXCL_START
     if (appsDir.isEmpty()) {
       appsDir = QDir::homePath() + "/.local/share/applications";
     }
-    // GCOV_EXCL_STOP
     QString dataDir =
         QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-    // GCOV_EXCL_START
     if (dataDir.isEmpty()) {
       dataDir = QDir::homePath() + "/.local/share";
     }
-    // GCOV_EXCL_STOP
     iconsDir = dataDir + "/icons/hicolor";
     pixmapsDir = dataDir + "/pixmaps";
+    // GCOV_EXCL_STOP
   }
 
   // Ensure directories exist

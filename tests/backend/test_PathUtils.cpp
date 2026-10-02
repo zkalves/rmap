@@ -645,6 +645,14 @@ void TestPathUtils::testDesktopIntegration() {
   QVERIFY(!failOk);
   QFile::remove(blockedFile);
 
+  // Test default parameter overload with custom XDG environment
+  QTemporaryDir xdgDir;
+  QVERIFY(xdgDir.isValid());
+  qputenv("XDG_DATA_HOME", xdgDir.path().toUtf8());
+  bool defaultOk = PathUtils::ensureDesktopIntegration();
+  QVERIFY(defaultOk);
+  qunsetenv("XDG_DATA_HOME");
+
   // Clean up
   QDir(testDir).removeRecursively();
 }

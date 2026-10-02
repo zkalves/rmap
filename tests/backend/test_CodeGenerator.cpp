@@ -2715,6 +2715,7 @@ void TestCodeGenerator::testCommandLineInterface() {
   {
     QProcess proc;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("DISPLAY", ":99");
     env.insert("QT_QPA_PLATFORM", "offscreen");
     proc.setProcessEnvironment(env);
     proc.start(rmapBin, QStringList());
@@ -2732,6 +2733,7 @@ void TestCodeGenerator::testCommandLineInterface() {
   {
     QProcess proc;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("DISPLAY", ":99");
     env.insert("QT_QPA_PLATFORM", "offscreen");
     proc.setProcessEnvironment(env);
     proc.start(rmapBin, QStringList());
