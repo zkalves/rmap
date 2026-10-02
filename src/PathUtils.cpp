@@ -493,7 +493,7 @@ bool ensureDesktopIntegration(const QString &customDataDir) {
 
   // Ensure directories exist
   if (!QDir().mkpath(appsDir) || !QDir().mkpath(pixmapsDir)) {
-    return false;
+    return false; // GCOV_EXCL_LINE - Defensive filesystem error
   }
 
   // Copy icon tiers from embedded Qt resources (or fallback to source tree
