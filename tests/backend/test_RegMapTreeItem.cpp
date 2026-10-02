@@ -367,6 +367,45 @@ void TestRegMapTreeItem::testIconsAndKindString()
     QVERIFY(!iconFld.isEmpty());
     QVERIFY(!iconMem.isEmpty());
     QVERIFY(!iconMap.isEmpty());
+
+    // Test Lock / Write Lock compatibility and decode_only
+    QVariantMap wrOnlyData;
+    wrOnlyData["Write Lock"] = "hw_wr_lock";
+    RegMapTreeItem itemWr(RegMapTreeItem::e_rmmKind::reg, wrOnlyData);
+    QCOMPARE(itemWr.data("Lock").toString(), QString("hw_wr_lock"));
+    QCOMPARE(itemWr.data("Write Lock").toString(), QString("hw_wr_lock"));
+
+    QVariantMap lkOnlyData;
+    lkOnlyData["Lock"] = "hw_legacy_lock";
+    RegMapTreeItem itemLk(RegMapTreeItem::e_rmmKind::reg, lkOnlyData);
+    QCOMPARE(itemLk.data("Lock").toString(), QString("hw_legacy_lock"));
+    QCOMPARE(itemLk.data("Write Lock").toString(), QString("hw_legacy_lock"));
+
+    QVariantMap rdData;
+    rdData["Read Lock"] = "hw_rd_lock";
+    RegMapTreeItem itemRd(RegMapTreeItem::e_rmmKind::reg, rdData);
+    QCOMPARE(itemRd.data("Read Lock").toString(), QString("hw_rd_lock"));
+
+    QVariantMap decData;
+    decData["decode_only"] = true;
+    RegMapTreeItem itemDec(RegMapTreeItem::e_rmmKind::blk, decData);
+    QCOMPARE(itemDec.data("Decode Only").toBool(), true);
+
+    // Deserialization with Lock and Write Lock
+    SerializationContext ctx;
+    QVariantMap deserWrOnly;
+    deserWrOnly["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+    deserWrOnly["itemData"] = wrOnlyData;
+    RegMapTreeItem itemDeserWr;
+    itemDeserWr.deserialize(deserWrOnly, &ctx);
+    QCOMPARE(itemDeserWr.data("Lock").toString(), QString("hw_wr_lock"));
+
+    QVariantMap deserLkOnly;
+    deserLkOnly["kind"] = QVariant::fromValue(RegMapTreeItem::e_rmmKind::reg);
+    deserLkOnly["itemData"] = lkOnlyData;
+    RegMapTreeItem itemDeserLk;
+    itemDeserLk.deserialize(deserLkOnly, &ctx);
+    QCOMPARE(itemDeserLk.data("Write Lock").toString(), QString("hw_legacy_lock"));
 }
 
 QTEST_MAIN(TestRegMapTreeItem)

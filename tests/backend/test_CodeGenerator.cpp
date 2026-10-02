@@ -3328,8 +3328,15 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
 
     json blk = json::object();
     blk["name"] = "B1";
-    blk["lock_wr"] = "sec_wr_lock";
-    blk["lock_rd"] = "sec_rd_lock";
+    blk["Write Lock"] = "sec_wr_lock";
+    blk["Read Lock"] = "sec_rd_lock";
+
+    json blk2 = json::object();
+    blk2["name"] = "B2";
+    blk2["offset_hex"] = "0x100";
+    blk2["offset_lsb"] = 256;
+    blk2["lock_rd"] = "b2_rd_lock";
+    blk2["registers"] = json::array();
 
     json reg = json::object();
     reg["name"] = "R1";
@@ -3339,8 +3346,8 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
     reg["access"] = "RO";
     reg["reset_val"] = 0;
     reg["reset_hex"] = "0x0";
-    reg["lock_wr"] = "r1_wr_lock";
-    reg["lock_rd"] = "r1_rd_lock";
+    reg["Write Lock"] = "r1_wr_lock";
+    reg["Read Lock"] = "r1_rd_lock";
 
     json fld = json::object();
     fld["name"] = "F1";
@@ -3349,7 +3356,7 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
     fld["access"] = "RO";
     fld["reset_val"] = 0;
     fld["reset_hex"] = "0x0";
-    fld["lock_wr"] = "fld_wr_lock";
+    fld["Write Lock"] = "fld_wr_lock";
 
     json fld2 = json::object();
     fld2["name"] = "F2";
@@ -3358,11 +3365,11 @@ void TestCodeGenerator::testAccessErrorResponseParameters() {
     fld2["access"] = "WO";
     fld2["reset_val"] = 0;
     fld2["reset_hex"] = "0x0";
-    fld2["lock_rd"] = "fld_rd_lock";
+    fld2["Read Lock"] = "fld_rd_lock";
 
     reg["fields"] = json::array({fld, fld2});
     blk["registers"] = json::array({reg});
-    root["blocks"] = json::array({blk});
+    root["blocks"] = json::array({blk, blk2});
 
     std::vector<TemplateMapping> mappings;
     mappings.push_back(
@@ -3775,6 +3782,96 @@ void TestCodeGenerator::testLockParserAndSynthesis() {
   QCOMPARE(LockParser::formatBadgeText("[r] sig"), QString("🔒 sig"));
   QCOMPARE(LockParser::formatBadgeText("[w] sig"), QString("🔒 sig"));
   QCOMPARE(LockParser::formatBadgeText("sig"), QString("🔒 sig"));
+  QCOMPARE(LockParser::formatBadgeText(""), QString(""));
+  QCOMPARE(LockParser::formatBadgeText("🔒 already"), QString("🔒 already"));
+
+  // Additional LockParser syntax and operator coverage
+  QVERIFY(LockParser::isValidSyntax("~hw_sec_lock_i", &err));
+  QVERIFY(LockParser::isValidSyntax("SYS_CTRL.LOCK /= 1", &err));
+  QVERIFY(LockParser::isValidSyntax("hw_sec_lock_i XOR 1", &err));
+  QVERIFY(!LockParser::isValidSyntax("hw_sec_lock_i)", &err));
+  QVERIFY(!LockParser::isValidSyntax("(&& hw_sec_lock_i)", &err));
+  QVERIFY(!LockParser::isValidSyntax("(hw_sec_lock_i && )", &err));
+  QVERIFY(!LockParser::isValidSyntax("[w] hw_sec_lock_i; [r] @invalid", &err));
+
+  // Multi-bit field and 3-part references
+  QVariantMap fldModeData;
+  fldModeData["Type"] = "fld";
+  fldModeData["Offset/LSB"] = "4";
+  fldModeData["Size/Width"] = "4";
+  fldModeData["Name"] = "MODE";
+  fldModeData["SW Access"] = "RW";
+  auto *fldMode =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fldModeData, regItem);
+  regItem->appendChild(fldMode);
+
+  ParsedLockResult resMode =
+      LockParser::parse("SYS_CTRL.MODE == 4'hA", &model, "TOP_BLK");
+  QVERIFY(resMode.valid);
+  QVERIFY(resMode.svExpr.contains("reg_sys_ctrl_q[4 +: 4]"));
+  QVERIFY(resMode.vhdExpr.contains("reg_sys_ctrl_q(7 downto 4)"));
+
+  ParsedLockResult resMode3 =
+      LockParser::parse("TOP_BLK.SYS_CTRL.MODE == 4'hA", &model, "TOP_BLK");
+  QVERIFY(resMode3.valid);
+
+  ParsedLockResult resMismatch =
+      LockParser::parse("OTHER_BLK.SYS_CTRL.MODE == 4'hA", &model, "TOP_BLK");
+  QVERIFY(!resMismatch.valid);
+
+  ParsedLockResult resInvalidParts =
+      LockParser::parse("INVALID_SINGLE_PART_REF", &model, "TOP_BLK");
+  QVERIFY(resInvalidParts.valid); // Treated as external signal!
+
+  // Verbose scope prefixes: [write], [read], [both]
+  ParsedLockResult resWrLong =
+      LockParser::parse("[write] hw_sec_lock_i", &model, "TOP_BLK");
+  QVERIFY(resWrLong.valid);
+  QCOMPARE(resWrLong.scope, LockScope::Write);
+
+  ParsedLockResult resRdLong =
+      LockParser::parse("[read] hw_sec_lock_i", &model, "TOP_BLK");
+  QVERIFY(resRdLong.valid);
+  QCOMPARE(resRdLong.scope, LockScope::Read);
+
+  ParsedLockResult resBothLong =
+      LockParser::parse("[both] hw_sec_lock_i", &model, "TOP_BLK");
+  QVERIFY(resBothLong.valid);
+  QCOMPARE(resBothLong.scope, LockScope::Both);
+
+  ParsedLockResult resIndepLong = LockParser::parse(
+      "[write] hw_sec_lock_i; [read] hw_rd_lock_i", &model, "TOP_BLK");
+  QVERIFY(resIndepLong.valid);
+  QCOMPARE(resIndepLong.scope, LockScope::Independent);
+
+  ParsedLockResult resSemiUntagged =
+      LockParser::parse("hw_sec_lock_i; hw_rd_lock_i", &model, "TOP_BLK");
+  QVERIFY(resSemiUntagged.valid);
+
+  ParsedLockResult resRwBothSemi =
+      LockParser::parse("[rw] hw_sec_lock_i; [both] hw_rd_lock_i", &model, "TOP_BLK");
+  QVERIFY(resRwBothSemi.valid);
+  QCOMPARE(resRwBothSemi.scope, LockScope::Both);
+
+  ParsedLockResult resBothSameSemi =
+      LockParser::parse("[rw] hw_sec_lock_i; [both] hw_sec_lock_i", &model, "TOP_BLK");
+  QVERIFY(resBothSameSemi.valid);
+  QCOMPARE(resBothSameSemi.scope, LockScope::Both);
+
+  ParsedLockResult resRdOnlySemi =
+      LockParser::parse("[r] hw_rd1; [read] hw_rd2", &model, "TOP_BLK");
+  QVERIFY(resRdOnlySemi.valid);
+  QCOMPARE(resRdOnlySemi.scope, LockScope::Read);
+
+  ParsedLockResult resWrOnlySemi =
+      LockParser::parse("[w] hw_wr1; [write] hw_wr2", &model, "TOP_BLK");
+  QVERIFY(resWrOnlySemi.valid);
+  QCOMPARE(resWrOnlySemi.scope, LockScope::Write);
+
+  QCOMPARE(LockParser::formatLockString(LockScope::Independent, "hw_wr", ""),
+           QString("[w] hw_wr"));
+  QCOMPARE(LockParser::formatLockString(LockScope::Independent, "", "hw_rd"),
+           QString("[r] hw_rd"));
 }
 
 void TestCodeGenerator::testSoftwareWriteLockRtlCodegen() {
@@ -4051,6 +4148,7 @@ void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
   blk["addr_width"] = 16;
   blk["endianness"] = "little";
   // Block-level lock: independent write and read locks
+  blk["lock_wr"] = "hw_blk_wr_lock_i";
   blk["lock"] = "[w] hw_blk_wr_lock_i; [r] hw_blk_rd_lock_i";
 
   json regList = json::array();
@@ -4087,6 +4185,7 @@ void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
     fld1["reset_val"] = 0;
     fld1["reset_hex"] = "0x0";
     fld1["hw_access"] = "RO";
+    fld1["lock_wr"] = "hw_key_wr_lock_i";
     fld1["lock"] = "hw_key_wr_lock_i";
 
     json fld2 = json::object();
@@ -4097,6 +4196,7 @@ void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
     fld2["reset_val"] = 0;
     fld2["reset_hex"] = "0x0";
     fld2["hw_access"] = "RO";
+    fld2["lock_rd"] = "hw_sec_rd_lock_i";
     fld2["lock"] = "[r] hw_sec_rd_lock_i";
 
     json fld3 = json::object();
@@ -4123,6 +4223,8 @@ void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
     reg["access"] = "RW";
     reg["reset_val"] = 0;
     reg["reset_hex"] = "0x0";
+    reg["lock_wr"] = "hw_reg_lock_i";
+    reg["lock_rd"] = "hw_reg_lock_i";
     reg["lock"] = "[rw] hw_reg_lock_i";
 
     json fld = json::object();
@@ -4139,7 +4241,17 @@ void TestCodeGenerator::testHierarchicalBlockAndFieldLockRtlCodegen() {
   }
 
   blk["registers"] = regList;
-  root["blocks"] = json::array({blk});
+
+  json blk2 = json::object();
+  blk2["name"] = "hier_blk2";
+  blk2["base_addr"] = 0x1000;
+  blk2["data_width"] = 32;
+  blk2["addr_width"] = 16;
+  blk2["endianness"] = "little";
+  blk2["lock"] = "[w] hw_blk2_wr_lock_i; [r] hw_blk2_rd_lock_i";
+  blk2["registers"] = json::array();
+
+  root["blocks"] = json::array({blk, blk2});
 
   std::vector<TemplateMapping> mappings = {
       {"templates/rtl/reg_map.sv.inja", "work/hier_lock_test/reg_map.sv"},

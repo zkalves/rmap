@@ -175,7 +175,7 @@ void DeleteItemCommand::restoreItem(RegMapTreeModel *model,
                                     const StoredNode &node) {
   RegMapTreeItem *item = model->getItem(index);
   if (!item)
-    return;
+    return; // GCOV_EXCL_LINE - Defensive null item check
   for (auto it = node.colData.cbegin(); it != node.colData.cend(); ++it) {
     item->setData(it.key(), it.value());
   }

@@ -207,8 +207,8 @@ void TestThemeManager::testAllColorBlindModes()
     QCOMPARE(stringToColorBlindMode("achromatopsia"), ColorBlindMode::Achromatopsia);
     QCOMPARE(stringToColorBlindMode("none"), ColorBlindMode::None);
 
-    // 3. Test each CVD mode palette covers RW, RO, WO, W1C, W1S, W0C, RC, RS, NA
-    const QStringList policies = {"RW", "RO", "WO", "W1C", "W1S", "W0C", "RC", "RS", "NA"};
+    // 3. Test each CVD mode palette covers RW, RO, WO, W1C, W1S, W0C, RC, RS, NA, WIRE, INCR, DECR
+    const QStringList policies = {"RW", "RO", "WO", "W1C", "W1S", "W0C", "RC", "RS", "NA", "WIRE", "INCR", "DECR"};
 
     for (const auto &info : modes) {
         for (const QString &pol : policies) {

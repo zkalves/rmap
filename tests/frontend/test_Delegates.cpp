@@ -9,6 +9,7 @@
 #include "RegMapTreeModel.hpp"
 #include "ThemeManager.hpp"
 #include <QComboBox>
+#include <QDialog>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QSortFilterProxyModel>
@@ -707,17 +708,120 @@ void TestDelegates::testRegLockDelegate() {
   delegate.setModelData(editor, &model, fldLockIndex);
   QCOMPARE(model.data(fldLockIndex, Qt::DisplayRole).toString(), QString(""));
 
+  // 2b. Set custom text
+  comboBox->setEditText("hw_my_custom_lock");
+  delegate.setModelData(editor, &model, fldLockIndex);
+  QCOMPARE(model.data(fldLockIndex, Qt::DisplayRole).toString(), QString("hw_my_custom_lock"));
+
+  // 2c. Set item with non-empty item data (covers line 550)
+  comboBox->addItem("Custom Data Label", "my_custom_expr");
+  comboBox->setCurrentIndex(comboBox->count() - 1);
+  delegate.setModelData(editor, &model, fldLockIndex);
+  QCOMPARE(model.data(fldLockIndex, Qt::DisplayRole).toString(), QString("my_custom_expr"));
+
+  // 2d. Set custom text starting with lock icon (covers line 553)
+  comboBox->setCurrentIndex(-1);
+  comboBox->setEditText("🔒 my_badge_lock");
+  delegate.setModelData(editor, &model, fldLockIndex);
+  QCOMPARE(model.data(fldLockIndex, Qt::DisplayRole).toString(), QString("my_badge_lock"));
+
+  // 2e. Set __CONFIG_LOCK__ with auto-accept dialog
+  int cfgIdx = comboBox->findData("__CONFIG_LOCK__");
+  QVERIFY(cfgIdx >= 0);
+  comboBox->setCurrentIndex(cfgIdx);
+  QTimer::singleShot(50, []() {
+    for (QWidget *w : QApplication::topLevelWidgets()) {
+      if (auto *d = qobject_cast<QDialog *>(w)) {
+        d->accept();
+      }
+    }
+  });
+  delegate.setModelData(editor, &model, fldLockIndex);
+
   delete editor;
 
   // 3. Paint test: non-empty lock renders with amber badge
   model.setData(fldLockIndex, "hw_sec_lock_i || CTRL.LOCK", Qt::EditRole);
+  model.setData(fldRdLockIndex, "", Qt::EditRole);
   QImage img(200, 40, QImage::Format_ARGB32_Premultiplied);
   img.fill(Qt::white);
   QPainter painter(&img);
   delegate.paint(&painter, option, fldLockIndex);
   delegate.paint(&painter, option, fldRdLockIndex);
+  option.state |= QStyle::State_Selected;
+  delegate.paint(&painter, option, fldLockIndex);
   painter.end();
+
+  // Test createEditor with existing locks to populate existing locks in combo
+  QWidget *editorWithLocks = delegate.createEditor(&parent, option, fldLockIndex);
+  QComboBox *lockCombo = qobject_cast<QComboBox *>(editorWithLocks);
+  if (lockCombo && lockCombo->count() > 2) {
+    lockCombo->setCurrentIndex(1);
+    delegate.setModelData(editorWithLocks, &model, fldLockIndex);
+
+    lockCombo->setEditText("🔒 my_badge_lock");
+    delegate.setModelData(editorWithLocks, &model, fldLockIndex);
+  }
+  delete editorWithLocks;
+
+  // 4. Test editorEvent (double-click left button)
+  QTimer::singleShot(50, []() {
+    for (QWidget *w : QApplication::topLevelWidgets()) {
+      if (auto *d = qobject_cast<QDialog *>(w)) {
+        d->accept();
+      }
+    }
+  });
+  QMouseEvent dblClick(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  bool handled = delegate.editorEvent(&dblClick, &model, option, fldLockIndex);
+  QVERIFY(handled);
+
+  // Non-double-click or non-left button
+  QMouseEvent rightDblClick(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                            Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+  delegate.editorEvent(&rightDblClick, &model, option, fldLockIndex);
+
+  QMouseEvent mouseMove(QEvent::MouseMove, QPointF(5, 5), QPointF(5, 5), Qt::NoButton,
+                        Qt::NoButton, Qt::NoModifier);
+  delegate.editorEvent(&mouseMove, &model, option, fldLockIndex);
+
+  // 5. Test editorEvent with proxy model
+  QSortFilterProxyModel proxy;
+  proxy.setSourceModel(&model);
+  RegLockDelegate proxyDelegate(&model, &parent);
+  QModelIndex proxyFldLock = proxy.index(0, model.columnOf("Write Lock"), proxy.index(0, 0, proxy.index(0, 0, QModelIndex())));
+  QTimer::singleShot(50, []() {
+    for (QWidget *w : QApplication::topLevelWidgets()) {
+      if (auto *d = qobject_cast<QDialog *>(w)) {
+        d->accept();
+      }
+    }
+  });
+  QMouseEvent proxyDblClick(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  proxyDelegate.editorEvent(&proxyDblClick, &proxy, option, proxyFldLock);
+
+  // 6. Test setModelData with proxy model and __CONFIG_LOCK__ (covers lines 520-527)
+  QWidget *proxyEditor = proxyDelegate.createEditor(&parent, option, proxyFldLock);
+  QComboBox *proxyCombo = qobject_cast<QComboBox *>(proxyEditor);
+  if (proxyCombo) {
+    int pCfgIdx = proxyCombo->findData("__CONFIG_LOCK__");
+    if (pCfgIdx >= 0) {
+      proxyCombo->setCurrentIndex(pCfgIdx);
+      QTimer::singleShot(50, []() {
+        for (QWidget *w : QApplication::topLevelWidgets()) {
+          if (auto *d = qobject_cast<QDialog *>(w)) {
+            d->accept();
+          }
+        }
+      });
+      proxyDelegate.setModelData(proxyEditor, &proxy, proxyFldLock);
+    }
+  }
+  delete proxyEditor;
 }
+
 
 void TestDelegates::testDescriptionFieldSizeHint() {
   QWidget parent;
