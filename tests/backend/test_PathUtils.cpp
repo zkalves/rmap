@@ -634,6 +634,17 @@ void TestPathUtils::testDesktopIntegration() {
   QVERIFY(QFileInfo(iconPath16).size() > 5);
   QVERIFY(QFileInfo(pixmapPath).size() > 5);
 
+  // Test failure branch when directory cannot be created
+  QString blockedFile = "work/test_path_utils/blocked_file";
+  QFile bf(blockedFile);
+  if (bf.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    bf.write("block");
+    bf.close();
+  }
+  bool failOk = PathUtils::ensureDesktopIntegration(blockedFile + "/sub");
+  QVERIFY(!failOk);
+  QFile::remove(blockedFile);
+
   // Clean up
   QDir(testDir).removeRecursively();
 }
