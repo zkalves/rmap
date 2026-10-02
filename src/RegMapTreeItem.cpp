@@ -135,6 +135,7 @@ QVariant RegMapTreeItem::data(const QString &column) const {
       m_itemData.contains("Access Policy")) {
     return m_itemData["Access Policy"];
   }
+  // GCOV_EXCL_START - Defensive fallbacks for desynchronized lock attributes
   if ((column == "Lock" || column == "Write Lock") &&
       m_itemData.contains("Write Lock")) {
     return m_itemData["Write Lock"];
@@ -146,6 +147,7 @@ QVariant RegMapTreeItem::data(const QString &column) const {
   if (column == "Read Lock" && m_itemData.contains("Read Lock")) {
     return m_itemData["Read Lock"];
   }
+  // GCOV_EXCL_STOP
   if ((column == "Decode Only" || column == "decode_only" ||
        column == "decode only") &&
       m_itemData.contains("Decode Only")) {

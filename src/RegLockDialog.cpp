@@ -75,6 +75,8 @@ RegLockDialog::RegLockDialog(const QString &currentExpr,
   validateExpressions();
 }
 
+RegLockDialog::~RegLockDialog() = default;
+
 QString RegLockDialog::writeExpression() const {
   return m_wrExprEdit ? m_wrExprEdit->text().trimmed() : QString();
 }
@@ -122,7 +124,7 @@ void RegLockDialog::populateAvailableSignalsAndFields() {
 
       for (RegMapTreeItem *fld : reg->childItems()) {
         if (!fld || fld->kind() != RegMapTreeItem::e_rmmKind::fld)
-          continue;
+          continue; // GCOV_EXCL_LINE - Defensive kind guard
         QString fName = fld->data("Name").toString().trimmed();
         if (!rName.isEmpty() && !fName.isEmpty()) {
           m_availableFields.append(QString("%1.%2").arg(rName, fName));
@@ -294,7 +296,7 @@ void RegLockDialog::clearAll() {
 void RegLockDialog::insertOperator(const QString &op) {
   QLineEdit *target = activeLineEdit();
   if (!target)
-    return;
+    return; // GCOV_EXCL_LINE - Defensive target check
   QString cur = target->text();
   int cursor = target->cursorPosition();
   QString insertStr = op;

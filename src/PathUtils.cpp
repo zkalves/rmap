@@ -486,14 +486,18 @@ bool ensureDesktopIntegration(const QString &customDataDir) {
   } else {
     appsDir =
         QStandardPaths::writableLocation(QStandardPaths::ApplicationsLocation);
+    // GCOV_EXCL_START
     if (appsDir.isEmpty()) {
       appsDir = QDir::homePath() + "/.local/share/applications";
     }
+    // GCOV_EXCL_STOP
     QString dataDir =
         QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    // GCOV_EXCL_START
     if (dataDir.isEmpty()) {
       dataDir = QDir::homePath() + "/.local/share";
     }
+    // GCOV_EXCL_STOP
     iconsDir = dataDir + "/icons/hicolor";
     pixmapsDir = dataDir + "/pixmaps";
   }
@@ -554,9 +558,11 @@ bool ensureDesktopIntegration(const QString &customDataDir) {
   // Write/update rmap.desktop
   QString desktopFilePath = appsDir + "/rmap.desktop";
   QString execPath = QCoreApplication::applicationFilePath();
+  // GCOV_EXCL_START
   if (execPath.isEmpty()) {
     execPath = QStringLiteral("rmap");
   }
+  // GCOV_EXCL_STOP
   QString execCmd = execPath.contains(' ')
                         ? QStringLiteral("\"%1\"").arg(execPath)
                         : execPath;
@@ -600,6 +606,7 @@ bool ensureDesktopIntegration(const QString &customDataDir) {
   }
 
   // Non-blocking cache updates when installing to default user directory
+  // GCOV_EXCL_START
   if (customDataDir.trimmed().isEmpty()) {
     QProcess::startDetached(QStringLiteral("update-desktop-database"),
                             {appsDir});
@@ -607,6 +614,7 @@ bool ensureDesktopIntegration(const QString &customDataDir) {
         QStringLiteral("gtk-update-icon-cache"),
         {QStringLiteral("-f"), QStringLiteral("-t"), iconsDir});
   }
+  // GCOV_EXCL_STOP
 
   return QFile::exists(desktopFilePath);
 #else

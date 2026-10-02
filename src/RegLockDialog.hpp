@@ -46,7 +46,7 @@ public:
                          const QString &contextItemName = QString(),
                          QWidget *parent = nullptr);
 
-  ~RegLockDialog() override = default;
+  ~RegLockDialog() override;
 
   QString writeExpression() const;
   QString readExpression() const;
