@@ -400,7 +400,7 @@ For the full catalog of standalone template specifications, see the [Individual 
 In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template search folders, individual template files, per-template enable toggles, and target output destinations:
 
 - **Multiple Template Search Folders**: Configure one or more search directories (e.g. `./templates`, `../shared_templates`, `$MY_TEMPLATES`).
-- **Automatic Template Scanning**: Click **Scan / Refresh** to recursively discover all `*.inja` and `*.tmpl` files across all configured search folders. Newly discovered templates are added to the list unchecked (disabled by default) so you can selectively enable only what you need, while preserving your existing configuration.
+- **Automatic Template Scanning**: Click **Scan / Refresh** to recursively discover all `*.inja`, `*.tmpl`, `*.jinja`, and `*.j2` files across all configured search folders. Newly discovered templates are added to the list unchecked (disabled by default) so you can selectively enable only what you need, while preserving your existing configuration.
 - **Granular Enable / Disable Controls**: Toggle individual templates via checkboxes in the **Enable** column, or use **All** / **None** buttons to bulk-toggle generation. Only enabled templates are processed during GUI export (`Ctrl+E`) and headless export (`--export`).
 - **Relative Path Resolution**: Template and output paths specified as relative resolve relative to the register map file directory first, with fallback to the Current Working Directory (CWD).
 - **Environment Variable Expansion**: Paths can include `$VAR`, `${VAR}`, Windows `%VAR%`, and `~` (home directory), expanded dynamically at generation time.
@@ -415,11 +415,19 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
   - `{project_version}` / `{version}`: Project version defined in configuration.
   - `{project_vendor}` / `{vendor}`: Project vendor defined in configuration.
   - `{project_library}` / `{library}`: Project library defined in configuration.
-  - `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl`).
+  - `{file_extension}` / `{ext}`: Output file extension (stripped of `.inja` / `.tmpl` / `.jinja` / `.j2`).
   - `{template_name}` / `{filename}`: Base template name (e.g. `reg_map`, `reg_doc`).
   *(e.g., `{out}/{category}/{block_name}_regs.{ext}`).*
+- **Jinja / Inja Expressions in Filenames and Output Paths**: Template filenames and custom output paths support full Jinja / Inja expressions inside `{{ ... }}` (e.g. `{{project_name}}_{{module_name}}.sv.jinja` &rarr; `project_module.sv`):
+  - **Available Context**:
+    - `project_name`: Project name string defined in configuration (falls back to register map name).
+    - `module_name`: Active register block or module name string.
+    - All custom parameters defined in the Custom Parameters configuration table.
+    - All Inja helpers and filters: `snake_case(...)`, `camel_case(...)`, `pascal_case(...)`, `lower(...)`, `upper(...)`, `to_hex(...)`, `to_dec(...)`, `pad_zero(...)`, `bitmask(...)`, `sv_hex(...)`.
+  - **Automatic Multi-Block Fanout**: When a template filename or output path contains an expression referencing `module_name` (e.g. `{{module_name}}`), and the register map contains multiple blocks, **rmap** automatically fans out and generates one separate output file per block/module (e.g., `myproj_ctrl.sv` and `myproj_status.sv`), binding that block's `module_name` during rendering. Templates without `module_name` references render once as top-level files.
+  - **Defensive Error Handling**: If an expression contains a syntax error or references an undefined variable, the evaluation error is recorded in the generation report (`report.errors`) and generation of that file is skipped without producing malformed filenames.
 - **Direct File Output & Per-Template Overrides**: Users can override any template to target an explicit file path (e.g. `../../hw/rtl/spi_reg_file.sv` or `../../sw/include/spi_regs.h`). Missing parent directories are created automatically.
-- **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping `.inja` from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
+- **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping the template extension (`.inja`, `.tmpl`, `.jinja`, `.j2`) from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.
 - <b>Custom Parameters (Inja Template Variables)</b>: In the Configuration Dialog (`Ctrl+P`), the Custom Parameters table (`customParametersTable`) allows users to define arbitrary key-value pairs that are directly injected into the Inja root context and accessible across all templates and Python post-generation scripts. For example:
   - `param_hw_precedence`: Controls hardware vs. software arbitration priority in synthesizable RTL templates (`1` = hardware priority, default; `0` = software priority).

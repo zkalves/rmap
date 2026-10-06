@@ -684,17 +684,21 @@ void TestRegConfigWindow::testComputeDefaultOutputPathAllBranches() {
   cfgWin.addTemplateRow(true, "./templates/rtl/reg_map.sv.inja", "");
   cfgWin.addTemplateRow(true, "custom_templates/pkg/header.tmpl", "");
   cfgWin.addTemplateRow(true, "./custom_templates/pkg/defs.tmpl", "");
+  cfgWin.addTemplateRow(true, "custom_templates/pkg/reg.jinja", "");
+  cfgWin.addTemplateRow(true, "./custom_templates/pkg/mod.j2", "");
   cfgWin.addTemplateRow(true, "other_dir/unmatched.txt", "");
 
   cfgWin.onSyncDefaultOutputs();
 
   auto *table = cfgWin.findChild<QTableWidget *>("templateTable");
-  QCOMPARE(table->rowCount(), 5);
+  QCOMPARE(table->rowCount(), 7);
   QCOMPARE(table->item(0, 2)->text(), QString("work/c/reg_map.h"));
   QCOMPARE(table->item(1, 2)->text(), QString("work/rtl/reg_map.sv"));
   QCOMPARE(table->item(2, 2)->text(), QString("work/pkg/header"));
   QCOMPARE(table->item(3, 2)->text(), QString("work/pkg/defs"));
-  QCOMPARE(table->item(4, 2)->text(), QString("work/unmatched.txt"));
+  QCOMPARE(table->item(4, 2)->text(), QString("work/pkg/reg"));
+  QCOMPARE(table->item(5, 2)->text(), QString("work/pkg/mod"));
+  QCOMPARE(table->item(6, 2)->text(), QString("work/unmatched.txt"));
 }
 
 void TestRegConfigWindow::testOutputFolderEditedExtendedBranches() {

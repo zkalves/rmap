@@ -91,6 +91,7 @@ private slots:
   void testSoftwareWriteLockRtlCodegen();
   void testHierarchicalBlockAndFieldLockRtlCodegen();
   void testDecodeOnlyCodegen();
+  void testJinjaFilenameExpressions();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower() {
@@ -3861,13 +3862,13 @@ void TestCodeGenerator::testLockParserAndSynthesis() {
       LockParser::parse("hw_sec_lock_i; hw_rd_lock_i", &model, "TOP_BLK");
   QVERIFY(resSemiUntagged.valid);
 
-  ParsedLockResult resRwBothSemi =
-      LockParser::parse("[rw] hw_sec_lock_i; [both] hw_rd_lock_i", &model, "TOP_BLK");
+  ParsedLockResult resRwBothSemi = LockParser::parse(
+      "[rw] hw_sec_lock_i; [both] hw_rd_lock_i", &model, "TOP_BLK");
   QVERIFY(resRwBothSemi.valid);
   QCOMPARE(resRwBothSemi.scope, LockScope::Both);
 
-  ParsedLockResult resBothSameSemi =
-      LockParser::parse("[rw] hw_sec_lock_i; [both] hw_sec_lock_i", &model, "TOP_BLK");
+  ParsedLockResult resBothSameSemi = LockParser::parse(
+      "[rw] hw_sec_lock_i; [both] hw_sec_lock_i", &model, "TOP_BLK");
   QVERIFY(resBothSameSemi.valid);
   QCOMPARE(resBothSameSemi.scope, LockScope::Both);
 
@@ -4645,6 +4646,234 @@ void TestCodeGenerator::testDecodeOnlyCodegen() {
       extractedJson["blocks"][0]["registers"][0]["decode_only"].get<bool>());
   QVERIFY(extractedJson["blocks"][0]["registers"][0]["is_full_decode_only"]
               .get<bool>());
+}
+
+void TestCodeGenerator::testJinjaFilenameExpressions() {
+  CodeGenerator cg;
+  QDir().mkpath("work/jinja_tmpls");
+  QDir().mkpath("work/jinja_scan");
+  QDir().mkpath("work/jinja_out");
+
+  // 1. Basic Jinja filename expression:
+  // {{project_name}}_{{module_name}}.sv.jinja
+  QString tmpl1Path =
+      "work/jinja_tmpls/{{project_name}}_{{module_name}}.sv.jinja";
+  {
+    QFile f(tmpl1Path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Module: {{ module_name }} in {{ project_name }}\n");
+    f.close();
+  }
+
+  // 2. Custom header naming: {{project_name}}_{{module_name}}.h.jinja
+  QString tmpl2Path =
+      "work/jinja_tmpls/{{project_name}}_{{module_name}}.h.jinja";
+  {
+    QFile f(tmpl2Path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("#define {{ upper(module_name) }}_H\n");
+    f.close();
+  }
+
+  // 3. Callback helpers in filename:
+  // {{snake_case(project_name)}}_{{upper(module_name)}}.sv.j2
+  QString tmpl3Path =
+      "work/jinja_tmpls/"
+      "{{snake_case(project_name)}}_{{upper(module_name)}}.sv.j2";
+  {
+    QFile f(tmpl3Path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Upper module: {{ upper(module_name) }}\n");
+    f.close();
+  }
+
+  // 4. Non-block scoped template: {{project_name}}_top.sv.jinja
+  QString tmpl4Path = "work/jinja_tmpls/{{project_name}}_top.sv.jinja";
+  {
+    QFile f(tmpl4Path);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Top level for {{ project_name }} v{{ project_version }}\n");
+    f.close();
+  }
+
+  // Setup test JSON with 2 blocks
+  json data;
+  data["name"] = "my_soc";
+  data["project_name"] = "MyProject";
+  data["project_version"] = "2.1";
+  data["project_vendor"] = "AcmeCorp";
+  data["reg_width"] = 32;
+  data["reg_width_bytes"] = 4;
+
+  json blk1;
+  blk1["name"] = "uart";
+  blk1["registers"] = json::array();
+
+  json blk2;
+  blk2["name"] = "timer";
+  blk2["registers"] = json::array();
+
+  data["blocks"] = json::array({blk1, blk2});
+
+  // Test multi-block fanout: tmpl1 should generate 2 files (MyProject_uart.sv
+  // and MyProject_timer.sv)
+  std::vector<TemplateMapping> mappings;
+  mappings.push_back({tmpl1Path.toStdString(), ""});
+  mappings.push_back({tmpl2Path.toStdString(), ""});
+  mappings.push_back({tmpl3Path.toStdString(), ""});
+  mappings.push_back({tmpl4Path.toStdString(), ""});
+
+  GenerationReport report =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", mappings);
+  QVERIFY(!report.has_errors());
+
+  // Check generated files for tmpl1 (multi-block fanout)
+  QVERIFY(QFile::exists("work/jinja_out/MyProject_uart.sv"));
+  QVERIFY(QFile::exists("work/jinja_out/MyProject_timer.sv"));
+
+  {
+    QFile f("work/jinja_out/MyProject_uart.sv");
+    QVERIFY(f.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = QString::fromUtf8(f.readAll());
+    QVERIFY(content.contains("Module: uart in MyProject"));
+  }
+  {
+    QFile f("work/jinja_out/MyProject_timer.sv");
+    QVERIFY(f.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = QString::fromUtf8(f.readAll());
+    QVERIFY(content.contains("Module: timer in MyProject"));
+  }
+
+  // Check tmpl2 (flat aliases)
+  QVERIFY(QFile::exists("work/jinja_out/MyProject_uart.h"));
+  QVERIFY(QFile::exists("work/jinja_out/MyProject_timer.h"));
+
+  // Check tmpl3 (helper callbacks: snake_case and upper, .j2 extension)
+  QVERIFY(QFile::exists("work/jinja_out/my_project_UART.sv"));
+  QVERIFY(QFile::exists("work/jinja_out/my_project_TIMER.sv"));
+
+  // Check tmpl4 (non-block scoped: single file generated)
+  QVERIFY(QFile::exists("work/jinja_out/MyProject_top.sv"));
+  {
+    QFile f("work/jinja_out/MyProject_top.sv");
+    QVERIFY(f.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString content = QString::fromUtf8(f.readAll());
+    QVERIFY(content.contains("Top level for MyProject v2.1"));
+  }
+
+  // 5. Test custom output path with Jinja expressions
+  std::vector<TemplateMapping> customOutMappings;
+  customOutMappings.push_back(
+      {tmpl4Path.toStdString(), "{out}/custom/{{module_name}}_dispatch.sv"});
+  GenerationReport reportCustom = cg.generate(
+      data, "work/jinja_tmpls", "work/jinja_out", customOutMappings);
+  QVERIFY(!reportCustom.has_errors());
+  QVERIFY(QFile::exists("work/jinja_out/custom/uart_dispatch.sv"));
+  QVERIFY(QFile::exists("work/jinja_out/custom/timer_dispatch.sv"));
+
+  // 6. Test directory scanning with .jinja and .j2 templates
+  {
+    QFile f("work/jinja_scan/scanned_model.sv.jinja");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Scanned model\n");
+    f.close();
+  }
+  {
+    QFile f("work/jinja_scan/scanned_header.h.j2");
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Scanned header\n");
+    f.close();
+  }
+  GenerationReport reportScan =
+      cg.parseDirectory(data, "work/jinja_scan", "work/jinja_out/scan_res");
+  QVERIFY(!reportScan.has_errors());
+  QVERIFY(QFile::exists("work/jinja_out/scan_res/scanned_model.sv"));
+  QVERIFY(QFile::exists("work/jinja_out/scan_res/scanned_header.h"));
+
+  // 7. Test error handling for invalid Jinja syntax / unknown function in
+  // filename
+  QString tmplErrPath =
+      "work/jinja_tmpls/{{ unknown_function(project_name) }}.sv.jinja";
+  {
+    QFile f(tmplErrPath);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Broken\n");
+    f.close();
+  }
+  std::vector<TemplateMapping> errMappings;
+  errMappings.push_back({tmplErrPath.toStdString(), ""});
+  GenerationReport reportErr =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", errMappings);
+  QVERIFY(reportErr.has_errors());
+  QCOMPARE(reportErr.success_files.size(), (size_t)0);
+  QVERIFY(reportErr.errors[0].second.find("evaluation error") !=
+          std::string::npos);
+
+  // 8. Test error handling for undefined variable in filename expression
+  QString tmplUndefPath = "work/jinja_tmpls/{{ nonexistent_var }}.sv.jinja";
+  {
+    QFile f(tmplUndefPath);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Undefined variable\n");
+    f.close();
+  }
+  std::vector<TemplateMapping> undefMappings;
+  undefMappings.push_back({tmplUndefPath.toStdString(), ""});
+  GenerationReport reportUndef =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", undefMappings);
+  QVERIFY(reportUndef.has_errors());
+  QCOMPARE(reportUndef.success_files.size(), (size_t)0);
+  QVERIFY(reportUndef.errors[0].second.find("evaluation error") !=
+          std::string::npos);
+
+  // 9. Test error handling for invalid Jinja syntax in output path expression
+  std::vector<TemplateMapping> errOutMappings;
+  errOutMappings.push_back(
+      {tmpl4Path.toStdString(), "{out}/custom/{{ unknown_func() }}.sv"});
+  GenerationReport reportErrOut =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", errOutMappings);
+  QVERIFY(reportErrOut.has_errors());
+  QCOMPARE(reportErrOut.success_files.size(), (size_t)0);
+  QVERIFY(reportErrOut.errors[0].second.find("evaluation error") !=
+          std::string::npos);
+
+  // 10. Test unclosed expression in template filename (covers break on unclosed
+  // {{)
+  QString tmplUnclosedPath = "work/jinja_tmpls/unclosed_{{module_name.sv";
+  {
+    QFile f(tmplUnclosedPath);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Unclosed\n");
+    f.close();
+  }
+  std::vector<TemplateMapping> unclosedMappings;
+  unclosedMappings.push_back({tmplUnclosedPath.toStdString(), ""});
+  GenerationReport reportUnclosed =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", unclosedMappings);
+  QVERIFY(reportUnclosed.has_errors());
+
+  // 11. Test template filename with key as substring (covers kpos +=
+  // k.length())
+  QString tmplSubstringPath = "work/jinja_tmpls/{{other_module_name}}.sv.jinja";
+  {
+    QFile f(tmplSubstringPath);
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+    f.write("// Substring\n");
+    f.close();
+  }
+  std::vector<TemplateMapping> substrMappings;
+  substrMappings.push_back({tmplSubstringPath.toStdString(), ""});
+  GenerationReport reportSubstr =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", substrMappings);
+  QVERIFY(reportSubstr.has_errors());
+
+  // 12. Test relative custom template folder with ./ prefix
+  std::vector<TemplateMapping> dotSlashMappings;
+  dotSlashMappings.push_back(
+      {"./work/jinja_tmpls/{{project_name}}_top.sv.jinja", ""});
+  GenerationReport reportDotSlash =
+      cg.generate(data, "work/jinja_tmpls", "work/jinja_out", dotSlashMappings);
+  QVERIFY(!reportDotSlash.has_errors());
 }
 
 QTEST_MAIN(TestCodeGenerator)

@@ -294,10 +294,14 @@ RegConfigWindow::computeDefaultOutputPath(const QString &tmplRelPath,
     }
   }
 
-  if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
+  if (relSubPath.endsWith(".jinja", Qt::CaseInsensitive)) {
+    relSubPath.chop(6);
+  } else if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
     relSubPath.chop(5);
   } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
     relSubPath.chop(5);
+  } else if (relSubPath.endsWith(".j2", Qt::CaseInsensitive)) {
+    relSubPath.chop(3);
   }
 
   return defaultOutDir + "/" + relSubPath;
@@ -320,7 +324,9 @@ void RegConfigWindow::scanTemplateFolders() {
     if (!dir.exists())
       continue;
 
-    QDirIterator it(resolvedDir, QStringList() << "*.inja" << "*.tmpl",
+    QDirIterator it(resolvedDir,
+                    QStringList()
+                        << "*.inja" << "*.tmpl" << "*.jinja" << "*.j2",
                     QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext()) {
       QString file = it.next();
@@ -440,10 +446,10 @@ void RegConfigWindow::onBrowsePythonScript() {
 void RegConfigWindow::onAddTemplateFiles() {
   QString startDir = initialTemplateDir(this->templateFoldersList, baseDir());
 
-  QStringList files =
-      QFileDialog::getOpenFileNames(this, tr("Select Template Files"), startDir,
-                                    tr("Inja Templates (*.inja *.tmpl *.sv *.h "
-                                       "*.cpp *.txt);;All Files (*.*)"));
+  QStringList files = QFileDialog::getOpenFileNames(
+      this, tr("Select Template Files"), startDir,
+      tr("Template Files (*.inja *.tmpl *.jinja *.j2 *.sv *.h "
+         "*.cpp *.txt);;All Files (*.*)"));
 
   if (!files.isEmpty()) {
     for (const QString &file : files) {
@@ -480,10 +486,10 @@ void RegConfigWindow::onBrowseTemplate() {
     startDir = initialTemplateDir(this->templateFoldersList, baseDir());
   }
 
-  QString file =
-      QFileDialog::getOpenFileName(this, tr("Select Template File"), startDir,
-                                   tr("Inja Templates (*.inja *.tmpl *.sv *.h "
-                                      "*.cpp *.txt);;All Files (*.*)"));
+  QString file = QFileDialog::getOpenFileName(
+      this, tr("Select Template File"), startDir,
+      tr("Template Files (*.inja *.tmpl *.jinja *.j2 *.sv *.h "
+         "*.cpp *.txt);;All Files (*.*)"));
 
   if (!file.isEmpty()) {
     QString relTmpl = PathUtils::toRelativePath(file, baseDir());

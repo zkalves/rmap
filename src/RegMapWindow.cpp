@@ -1441,8 +1441,11 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
             if (!m_currentMemItem || m_updatingMemHeader || !m_model)
               return; // GCOV_EXCL_LINE - Defensive invariant
             QString oldVal = m_currentMemItem->data("HW Access").toString();
-            if (oldVal.isEmpty())
-              oldVal = m_currentMemItem->data("HW Access Policy").toString(); // GCOV_EXCL_LINE - Defensive fallback
+            if (oldVal.isEmpty()) {
+              // GCOV_EXCL_START - Defensive fallback
+              oldVal = m_currentMemItem->data("HW Access Policy").toString();
+              // GCOV_EXCL_STOP
+            }
             if (newVal != oldVal) {
               int col = m_model->columnOf("HW Access");
               // GCOV_EXCL_START - Defensive column fallback
@@ -2806,6 +2809,7 @@ void RegMapWindow::btnExport(void) {
   jsonData["project_vendor"] = cfg->project_vendor();
   jsonData["project_library"] = cfg->project_library();
   jsonData["project_description"] = cfg->project_description();
+
   for (const auto &[key, value] : cfg->custom_parameters()) {
     jsonData[key] = value;
   }
@@ -3703,7 +3707,7 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
     m_currentBlkItem = nullptr;
     m_currentMemItem = item;
     updateMemView(item);
-  // GCOV_EXCL_START - Defensive fallback for unhandled item kinds
+    // GCOV_EXCL_START - Defensive fallback for unhandled item kinds
   } else {
     m_currentRegItem = nullptr;
     m_currentBlkItem = nullptr;
@@ -4000,9 +4004,11 @@ void RegMapWindow::updateMemSummary() {
   uint64_t wordBytes = (wordWidth >= 8 ? wordWidth : 32) / 8;
   uint64_t depth = parseNumericValue(m_currentMemItem->data("Depth"));
   if (depth == 0) {
+    // GCOV_EXCL_START - Defensive fallback for tiny memory depth
     depth = (wordBytes > 0 && sizeBytes >= wordBytes)
                 ? (sizeBytes / wordBytes)
-                : (sizeBytes > 0 ? sizeBytes : 1024); // GCOV_EXCL_LINE - Defensive fallback for tiny memory depth
+                : (sizeBytes > 0 ? sizeBytes : 1024);
+    // GCOV_EXCL_STOP
   }
 
   QString sizeHuman;
@@ -4316,6 +4322,7 @@ bool RegMapWindow::headlessExport(const QString &out_dir) {
   jsonData["project_vendor"] = cfg->project_vendor();
   jsonData["project_library"] = cfg->project_library();
   jsonData["project_description"] = cfg->project_description();
+
   for (const auto &[key, value] : cfg->custom_parameters()) {
     jsonData[key] = value;
   }

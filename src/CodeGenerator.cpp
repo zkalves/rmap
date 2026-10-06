@@ -311,10 +311,47 @@ CodeGenerator::resolveTemplatePath(const std::string &tmpl_path,
   return resolved;
 }
 
+bool CodeGenerator::isBlockScopedTemplate(const std::string &tmpl_file,
+                                          const std::string &out_file) {
+  auto checkStr = [](const std::string &s) {
+    if (s.find("{{") == std::string::npos)
+      return false;
+    size_t pos = 0;
+    while ((pos = s.find("{{", pos)) != std::string::npos) {
+      size_t endPos = s.find("}}", pos + 2);
+      if (endPos == std::string::npos)
+        break;
+      std::string expr = s.substr(pos + 2, endPos - (pos + 2));
+      static const std::vector<std::string> keys = {"module_name"};
+      for (const auto &k : keys) {
+        size_t kpos = 0;
+        while ((kpos = expr.find(k, kpos)) != std::string::npos) {
+          bool leftOk =
+              (kpos == 0 ||
+               (!std::isalnum(static_cast<unsigned char>(expr[kpos - 1])) &&
+                expr[kpos - 1] != '_'));
+          bool rightOk = (kpos + k.length() >= expr.length() ||
+                          (!std::isalnum(static_cast<unsigned char>(
+                               expr[kpos + k.length()])) &&
+                           expr[kpos + k.length()] != '_'));
+          if (leftOk && rightOk) {
+            return true;
+          }
+          kpos += k.length();
+        }
+      }
+      pos = endPos + 2;
+    }
+    return false;
+  };
+  return checkStr(tmpl_file) || checkStr(out_file);
+}
+
 std::string CodeGenerator::resolveOutputPath(
     const std::string &tmpl_path, const std::string &out_path,
     const std::string &default_out_folder, const std::string &base_dir,
-    const json &context) {
+    const json &context, std::string *error_msg,
+    const std::string &default_tmpl_folder) {
   QString expTmpl =
       QString::fromStdString(PathUtils::expandEnvVars(tmpl_path)).trimmed();
   expTmpl = PathUtils::normalizeSeparators(expTmpl);
@@ -323,9 +360,27 @@ std::string CodeGenerator::resolveOutputPath(
       PathUtils::expandEnvVars(PathUtils::defaultTemplatesDir()).trimmed();
   expDefaultTmpl = PathUtils::normalizeSeparators(expDefaultTmpl);
 
+  QString expCustomTmpl;
+  if (!default_tmpl_folder.empty() && default_tmpl_folder != "templates" &&
+      default_tmpl_folder != "./templates" &&
+      default_tmpl_folder != expDefaultTmpl.toStdString() &&
+      default_tmpl_folder != ("./" + expDefaultTmpl).toStdString()) {
+    expCustomTmpl =
+        QString::fromStdString(PathUtils::expandEnvVars(default_tmpl_folder))
+            .trimmed();
+    expCustomTmpl = PathUtils::normalizeSeparators(expCustomTmpl);
+  }
+
   // Extract subpath relative to templates folder if applicable
   QString relSubPath;
-  if (expTmpl.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
+  if (!expCustomTmpl.isEmpty() &&
+      expTmpl.startsWith(expCustomTmpl + "/", Qt::CaseInsensitive)) {
+    relSubPath = expTmpl.mid(expCustomTmpl.length() + 1);
+  } else if (!expCustomTmpl.isEmpty() &&
+             expTmpl.startsWith("./" + expCustomTmpl + "/",
+                                Qt::CaseInsensitive)) {
+    relSubPath = expTmpl.mid(expCustomTmpl.length() + 3);
+  } else if (expTmpl.startsWith(expDefaultTmpl + "/", Qt::CaseInsensitive)) {
     relSubPath = expTmpl.mid(expDefaultTmpl.length() + 1);
   } else if (expTmpl.startsWith("./" + expDefaultTmpl + "/",
                                 Qt::CaseInsensitive)) {
@@ -344,11 +399,33 @@ std::string CodeGenerator::resolveOutputPath(
     }
   }
 
-  // Determine default base filename by stripping .inja / .tmpl suffix
-  if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
+  // Determine default base filename by stripping .jinja / .inja / .tmpl / .j2
+  // suffix
+  if (relSubPath.endsWith(".jinja", Qt::CaseInsensitive)) {
+    relSubPath.chop(6);
+  } else if (relSubPath.endsWith(".inja", Qt::CaseInsensitive)) {
     relSubPath.chop(5);
   } else if (relSubPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
     relSubPath.chop(5);
+  } else if (relSubPath.endsWith(".j2", Qt::CaseInsensitive)) {
+    relSubPath.chop(3);
+  }
+
+  // If relSubPath contains Jinja/Inja expressions, evaluate with context
+  if (relSubPath.contains("{{") && context.is_object() && !context.empty()) {
+    try {
+      Environment env;
+      registerHelpers(env);
+      std::string rendered = env.render(relSubPath.toStdString(), context);
+      relSubPath = QString::fromStdString(rendered);
+    } catch (const std::exception &e) {
+      if (error_msg) {
+        *error_msg =
+            std::string("Template filename expression evaluation error: ") +
+            e.what();
+      }
+      return "";
+    }
   }
 
   // Extract category, base filename, template name, and extension
@@ -378,6 +455,22 @@ std::string CodeGenerator::resolveOutputPath(
   QString expOut =
       QString::fromStdString(PathUtils::expandEnvVars(out_path)).trimmed();
   expOut = PathUtils::normalizeSeparators(expOut);
+
+  // If expOut contains Jinja/Inja expressions, evaluate with context
+  if (expOut.contains("{{") && context.is_object() && !context.empty()) {
+    try {
+      Environment env;
+      registerHelpers(env);
+      std::string rendered = env.render(expOut.toStdString(), context);
+      expOut = PathUtils::normalizeSeparators(QString::fromStdString(rendered));
+    } catch (const std::exception &e) {
+      if (error_msg) {
+        *error_msg =
+            std::string("Output path expression evaluation error: ") + e.what();
+      }
+      return "";
+    }
+  }
 
   // Dynamic variable expansion
   if (!expOut.isEmpty()) {
@@ -798,6 +891,19 @@ GenerationReport CodeGenerator::generate(
 
   preparedJson["features"] = extractFeatures(preparedJson);
 
+  if (preparedJson.value("project_name", "").empty()) {
+    preparedJson["project_name"] = preparedJson.value("name", "regmap");
+  }
+
+  std::string defaultModuleName = preparedJson.value("name", "regmap");
+  if (blksIt != preparedJson.end() && blksIt->is_array() && !blksIt->empty()) {
+    std::string bName = (*blksIt)[0].value("name", "");
+    if (!bName.empty()) {
+      defaultModuleName = bName;
+    }
+  }
+  preparedJson["module_name"] = defaultModuleName;
+
   // If no specific template mappings are defined, scan the default template
   // folder
   if (mappings.empty()) {
@@ -813,9 +919,9 @@ GenerationReport CodeGenerator::generate(
     for (const auto &m : mappings) {
       QString tmplPath = PathUtils::normalizeSeparators(
           QString::fromStdString(m.template_file));
-      std::string resolvedOut =
-          resolveOutputPath(m.template_file, m.output_file,
-                            default_output_folder, base_dir, preparedJson);
+      std::string resolvedOut = resolveOutputPath(
+          m.template_file, m.output_file, default_output_folder, base_dir,
+          preparedJson, nullptr, default_template_folder);
       QString normOut =
           PathUtils::normalizeSeparators(QString::fromStdString(resolvedOut));
       QFileInfo outFi(normOut);
@@ -891,9 +997,6 @@ GenerationReport CodeGenerator::generate(
     for (const auto &mapping : mappings) {
       std::string resolvedTmpl = resolveTemplatePath(
           mapping.template_file, default_template_folder, base_dir);
-      std::string resolvedOut =
-          resolveOutputPath(mapping.template_file, mapping.output_file,
-                            default_output_folder, base_dir, preparedJson);
 
       QFileInfo tmplInfo(QString::fromStdString(resolvedTmpl));
       if (!tmplInfo.exists() || !tmplInfo.isFile()) {
@@ -904,37 +1007,69 @@ GenerationReport CodeGenerator::generate(
         continue;
       }
 
-      // Ensure output parent directory exists
-      QFileInfo outInfo(QString::fromStdString(resolvedOut));
-      QDir outDir = outInfo.dir();
-      if (!outDir.exists()) {
-        outDir.mkpath(".");
-      }
-
-      // Use the template file's directory as Inja base so relative includes
-      // inside template resolve correctly
       std::string tmplDir = tmplInfo.absolutePath().toStdString();
       std::string tmplFileName = tmplInfo.fileName().toStdString();
 
-      try {
-        Environment env(tmplDir + "/", "");
-        env.set_line_statement("$$##$$");
-        env.set_trim_blocks(true);
-        env.set_lstrip_blocks(true);
-        registerHelpers(env);
+      // Check if mapping requires fanout across blocks
+      bool isScoped =
+          isBlockScopedTemplate(mapping.template_file, mapping.output_file);
+      std::vector<json> contextsToRender;
 
-        Template temp = env.parse_template(tmplFileName);
-        env.write(temp, preparedJson, resolvedOut);
+      if (isScoped && blksIt != preparedJson.end() && blksIt->is_array() &&
+          !blksIt->empty()) {
+        for (const auto &blk : *blksIt) {
+          json blockJson = preparedJson;
+          std::string bName = blk.value("name", "");
+          if (!bName.empty()) {
+            blockJson["name"] = bName;
+            blockJson["module_name"] = bName;
+          }
+          contextsToRender.push_back(blockJson);
+        }
+      } else {
+        contextsToRender.push_back(preparedJson);
+      }
 
-        qDebug() << "[CodeGenerator] Successfully generated:"
-                 << resolvedOut.c_str()
-                 << "from template:" << resolvedTmpl.c_str();
-        report.success_files.push_back(resolvedOut);
-      } catch (const std::exception &e) {
-        std::string err = std::string("Template rendering error: ") + e.what();
-        qWarning() << "[CodeGenerator]" << err.c_str()
-                   << "for template:" << resolvedTmpl.c_str();
-        report.errors.push_back({mapping.template_file, err});
+      for (const auto &ctx : contextsToRender) {
+        std::string pathErr;
+        std::string resolvedOut = resolveOutputPath(
+            mapping.template_file, mapping.output_file, default_output_folder,
+            base_dir, ctx, &pathErr, default_template_folder);
+
+        if (!pathErr.empty()) {
+          qWarning() << "[CodeGenerator]" << pathErr.c_str();
+          report.errors.push_back({mapping.template_file, pathErr});
+          continue;
+        }
+
+        // Ensure output parent directory exists
+        QFileInfo outInfo(QString::fromStdString(resolvedOut));
+        QDir outDir = outInfo.dir();
+        if (!outDir.exists()) {
+          outDir.mkpath(".");
+        }
+
+        try {
+          Environment env(tmplDir + "/", "");
+          env.set_line_statement("$$##$$");
+          env.set_trim_blocks(true);
+          env.set_lstrip_blocks(true);
+          registerHelpers(env);
+
+          Template temp = env.parse_template(tmplFileName);
+          env.write(temp, ctx, resolvedOut);
+
+          qDebug() << "[CodeGenerator] Successfully generated:"
+                   << resolvedOut.c_str()
+                   << "from template:" << resolvedTmpl.c_str();
+          report.success_files.push_back(resolvedOut);
+        } catch (const std::exception &e) {
+          std::string err =
+              std::string("Template rendering error: ") + e.what();
+          qWarning() << "[CodeGenerator]" << err.c_str()
+                     << "for template:" << resolvedTmpl.c_str();
+          report.errors.push_back({mapping.template_file, err});
+        }
       }
     }
   }
@@ -982,7 +1117,7 @@ GenerationReport CodeGenerator::parseDirectory(
   }
 
   QStringList filters;
-  filters << "*.inja" << "*.tmpl";
+  filters << "*.inja" << "*.tmpl" << "*.jinja" << "*.j2";
 
   std::vector<TemplateMapping> mappings;
   QDirIterator it(QString::fromStdString(resolvedTmplFolder), filters,
@@ -992,10 +1127,14 @@ GenerationReport CodeGenerator::parseDirectory(
     QFileInfo fi = it.fileInfo();
     QString relPath = tmplDir.relativeFilePath(fi.absoluteFilePath());
     QString relOutPath = relPath;
-    if (relOutPath.endsWith(".inja", Qt::CaseInsensitive)) {
+    if (relOutPath.endsWith(".jinja", Qt::CaseInsensitive)) {
+      relOutPath.chop(6);
+    } else if (relOutPath.endsWith(".inja", Qt::CaseInsensitive)) {
       relOutPath.chop(5);
     } else if (relOutPath.endsWith(".tmpl", Qt::CaseInsensitive)) {
       relOutPath.chop(5);
+    } else if (relOutPath.endsWith(".j2", Qt::CaseInsensitive)) {
+      relOutPath.chop(3);
     }
     QString targetOut =
         QDir(QString::fromStdString(outFolder)).filePath(relOutPath);
