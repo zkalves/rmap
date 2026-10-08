@@ -2493,7 +2493,9 @@ void TestCodeGenerator::testCommandLineInterface() {
     proc.setProcessChannelMode(QProcess::MergedChannels);
     QProcessEnvironment env =
         customEnv ? *customEnv : QProcessEnvironment::systemEnvironment();
-    env.insert("QT_QPA_PLATFORM", "offscreen");
+    if (!customEnv) {
+      env.remove("QT_QPA_PLATFORM");
+    }
     proc.setProcessEnvironment(env);
     proc.start(rmapBin, args);
     proc.waitForFinished(10000);
@@ -2520,9 +2522,17 @@ void TestCodeGenerator::testCommandLineInterface() {
     QProcessEnvironment noDispEnv = QProcessEnvironment::systemEnvironment();
     noDispEnv.remove("DISPLAY");
     noDispEnv.remove("WAYLAND_DISPLAY");
+    noDispEnv.remove("QT_QPA_PLATFORM");
     auto [codeNoDisp, outNoDisp] =
         runRmap({"-f", "examples/peripherals/spi/spi.rmt", "-l"}, &noDispEnv);
     QCOMPARE(codeNoDisp, 0);
+  }
+
+  // 3b. Explicit -platform offscreen CLI option
+  {
+    auto [codePlat, outPlat] = runRmap({"-platform", "offscreen", "--version"});
+    QCOMPARE(codePlat, 0);
+    QVERIFY(outPlat.contains("rmap"));
   }
 
   // 4. Semantic diff CLI mode (-d)
@@ -2729,9 +2739,9 @@ void TestCodeGenerator::testCommandLineInterface() {
     QProcess proc;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("DISPLAY", ":99");
-    env.insert("QT_QPA_PLATFORM", "offscreen");
+    env.remove("QT_QPA_PLATFORM");
     proc.setProcessEnvironment(env);
-    proc.start(rmapBin, QStringList());
+    proc.start(rmapBin, QStringList{"-platform", "offscreen"});
     QVERIFY(proc.waitForStarted(5000));
     QThread::msleep(300);
     proc.terminate();
@@ -2747,9 +2757,9 @@ void TestCodeGenerator::testCommandLineInterface() {
     QProcess proc;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("DISPLAY", ":99");
-    env.insert("QT_QPA_PLATFORM", "offscreen");
+    env.remove("QT_QPA_PLATFORM");
     proc.setProcessEnvironment(env);
-    proc.start(rmapBin, QStringList());
+    proc.start(rmapBin, QStringList{"-platform", "offscreen"});
     QVERIFY(proc.waitForStarted(5000));
     QThread::msleep(300);
     ::kill(static_cast<pid_t>(proc.processId()), SIGINT);

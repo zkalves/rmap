@@ -24,6 +24,7 @@
 #include <atomic>
 #include <csignal>
 #include <iostream>
+#include <vector>
 
 static void signalHandler(int sig) {
   Q_UNUSED(sig);
@@ -46,8 +47,12 @@ int main(int argc, char *argv[]) {
   if ((!disp || disp[0] == '\0') && (!wayland || wayland[0] == '\0')) {
     headless_mode = true;
   }
+  bool has_platform_arg = false;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
+    if (arg == "-platform" || arg == "--platform") {
+      has_platform_arg = true;
+    }
     if (arg == "--export" || arg == "-e" || arg == "--convert" || arg == "-c" ||
         arg.rfind("--convert=", 0) == 0 || arg.rfind("-c=", 0) == 0 ||
         arg == "--lint" || arg == "-l" || arg == "--diff" || arg == "-d" ||
@@ -56,16 +61,27 @@ int main(int argc, char *argv[]) {
         arg.rfind("--report-format=", 0) == 0 || arg == "--out" ||
         arg == "-o" || arg.rfind("--out=", 0) == 0 ||
         arg.rfind("-o=", 0) == 0 || arg == "--help" || arg == "-h" ||
-        arg == "--help-all" || arg == "--version" || arg == "-v") {
+        arg == "--help-all" || arg == "--version" || arg == "-v" ||
+        arg == "--all-configs" || arg == "--parameterized-rtl") {
       headless_mode = true;
-      break;
     }
   }
-  if (headless_mode) {
-    qputenv("QT_QPA_PLATFORM", "offscreen");
-  }
 
-  QApplication app(argc, argv);
+  std::vector<char *> app_argv;
+  app_argv.reserve(argc + 3);
+  for (int i = 0; i < argc; ++i) {
+    app_argv.push_back(argv[i]);
+  }
+  static char platform_flag[] = "-platform";
+  static char platform_val[] = "offscreen";
+  if (headless_mode && !has_platform_arg) {
+    app_argv.push_back(platform_flag);
+    app_argv.push_back(platform_val);
+  }
+  app_argv.push_back(nullptr);
+  int app_argc = static_cast<int>(app_argv.size()) - 1;
+
+  QApplication app(app_argc, app_argv.data());
   app.setApplicationName("rmap");
   app.setApplicationDisplayName("rmap");
   app.setDesktopFileName("rmap");

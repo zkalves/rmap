@@ -33,7 +33,7 @@ chmod +x rmap-*-x86_64.AppImage
 ./rmap-*-x86_64.AppImage
 
 # Or execute headlessly in CI or offscreen server
-QT_QPA_PLATFORM=offscreen ./rmap-*-x86_64.AppImage --version
+./rmap-*-x86_64.AppImage -platform offscreen --version
 ```
 
 ### Option B: Debian / Ubuntu Package (`.deb`)
@@ -246,8 +246,8 @@ For headless CI environments, compute nodes, or remote server systems where no d
 
 ```bash
 # Execute headless verification or export offscreen
-QT_QPA_PLATFORM=offscreen ./build/bin/rmap --version
-QT_QPA_PLATFORM=offscreen ./build/bin/rmap --help
+./build/bin/rmap -platform offscreen --version
+./build/bin/rmap -platform offscreen --help
 ```
 
 ---

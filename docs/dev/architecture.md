@@ -32,7 +32,7 @@ flowchart TD
 ## 2. Core Subsystems
 
 ### Subsystem 1: Application Entry & UI Controllers
-- **`rmap` (`src/main.cpp`)**: Application startup sequence, headless CLI argument processing (`--export`, `--lint`, `--convert`, `--diff`), mutual exclusivity enforcement, dynamic theme and language option queries, and offscreen Qt platform initialization (`QT_QPA_PLATFORM=offscreen`).
+- **`rmap` (`src/main.cpp`)**: Application startup sequence, headless CLI argument processing (`--export`, `--lint`, `--convert`, `--diff`), mutual exclusivity enforcement, dynamic theme and language option queries, and offscreen Qt platform initialization (`-platform offscreen`).
 - **`RegMapWindow` (`src/RegMapWindow.*`)**: Central main window orchestrating the dual-pane hierarchy view, bitfield visualizer, stacked memory map, undo/redo stack, search bar (`QLineEdit` with live substring/regex filtering via `TreeFilterProxyModel`), and headless batch conversion/export pipelines.
 - **`RegConfigWindow` (`src/RegConfigWindow.*`)**: Configuration dialog managing Inja template output paths, register width definitions, and custom template context parameters.
 - **`PreferencesWindow` (`src/PreferencesWindow.*`)**: User preferences dialog managing 8 color schemes, high-contrast themes, and barrier-free color-vision deficiency (CVD) palettes.

@@ -45,7 +45,7 @@ chmod +x rmap-*-x86_64.AppImage
 ./rmap-*-x86_64.AppImage
 
 # Run headlessly in CI or offscreen server
-QT_QPA_PLATFORM=offscreen ./rmap-*-x86_64.AppImage --version
+./rmap-*-x86_64.AppImage -platform offscreen --version
 ```
 
 #### Debian / Ubuntu (.deb)

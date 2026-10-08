@@ -3,7 +3,7 @@
 **rmap** includes built-in headless CLI capabilities allowing hardware build environments, EDA scripts, and CI/CD pipelines to validate register maps, run lint checks, compute semantic diffs, convert formats, and generate code without launching a graphical window.
 
 > [!NOTE]
-> Qt 6 is a required dependency for all builds of **rmap**. Headless CLI operations run automatically offscreen without requiring an X11/Wayland display server by initializing the offscreen platform plugin (`QT_QPA_PLATFORM=offscreen`).
+> Qt 6 is a required dependency for all builds of **rmap**. Headless CLI operations run automatically offscreen without requiring an X11/Wayland display server by initializing the offscreen platform plugin (`-platform offscreen`).
 
 ## Command Line Syntax
 
@@ -168,6 +168,6 @@ codegen:
     ./build/bin/rmap -f registers/soc_map.rmt --export --out ./build/generated
 ```
 
-In headless Linux server environments (where `$DISPLAY` is unset), **rmap** automatically initializes Qt in offscreen mode (`QT_QPA_PLATFORM=offscreen`), eliminating `Cannot connect to X server` failures.
+In headless Linux server environments (where `$DISPLAY` is unset), **rmap** automatically initializes Qt in offscreen mode (`-platform offscreen`), eliminating `Cannot connect to X server` failures. Users can also explicitly specify `-platform offscreen` (or any custom platform plugin) on the command line.
 
 [Next: Templates & Code Generation &rarr;](@ref templates_codegen)
