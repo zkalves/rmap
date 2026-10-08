@@ -158,7 +158,8 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       colWidth = 5;
   int colAccess = 6, colReset = 7, colRand = 8, colVol = 9, colHasReset = 10,
       colDesc = 11;
-  int colWrLock = -1, colRdLock = -1, colLegacyLock = -1, colDecodeOnly = -1;
+  int colWrLock = -1, colRdLock = -1, colLegacyLock = -1, colDecodeOnly = -1,
+      colConfigs = -1;
 
   size_t startRow = 0;
   if (!rows.empty() &&
@@ -197,6 +198,9 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
         colRdLock = i;
       else if (h == "decode only" || h == "decode_only" || h == "decodeonly")
         colDecodeOnly = i;
+      else if (h == "configs" || h == "configurations" ||
+               h == "enabled_configs")
+        colConfigs = i;
       else if (h == "lock")
         colLegacyLock = i;
     }
@@ -238,6 +242,7 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       wrLock = getCol(colLegacyLock);
     }
     QString decodeOnly = getCol(colDecodeOnly, "false");
+    QString configs = getCol(colConfigs);
 
     if (blkName.isEmpty())
       blkName = "TOP_BLK";
@@ -319,6 +324,9 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
         regData["Reset Value"] = "0x0";
         regData["Description"] = (type == "reg") ? desc : "";
         regData["Decode Only"] = (type == "reg") ? decodeOnly : "false";
+        if (type == "reg" && !configs.isEmpty()) {
+          regData["Configurations"] = configs;
+        }
         if (type == "reg") {
           if (!wrLock.isEmpty()) {
             regData["Write Lock"] = wrLock;
@@ -351,6 +359,9 @@ FormatResult CsvHandler::read(const QString &filepath, RegMapTreeModel *model,
       fldData["Has Reset"] = hasReset;
       fldData["Decode Only"] = decodeOnly;
       fldData["Description"] = desc;
+      if (!configs.isEmpty()) {
+        fldData["Configurations"] = configs;
+      }
       if (!wrLock.isEmpty()) {
         fldData["Write Lock"] = wrLock;
         fldData["Lock"] = wrLock;

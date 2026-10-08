@@ -19,6 +19,7 @@
 #include "RegMapTreeItem.hpp"
 #include <QDebug>
 #include <QMetaEnum>
+#include <QRegularExpression>
 
 RegMapTreeItem::RegMapTreeItem(e_rmmKind kind, QVariantMap &data,
                                RegMapTreeItem *parentItem)
@@ -158,6 +159,21 @@ QVariant RegMapTreeItem::data(const QString &column) const {
       m_itemData.contains("decode_only")) {
     return m_itemData["decode_only"];
   }
+  if ((column == "Configs" || column == "Configurations" ||
+       column == "enabled_configs") &&
+      m_itemData.contains("Configurations")) {
+    return m_itemData["Configurations"];
+  }
+  if ((column == "Configs" || column == "Configurations" ||
+       column == "enabled_configs") &&
+      m_itemData.contains("Configs")) {
+    return m_itemData["Configs"];
+  }
+  if ((column == "Configs" || column == "Configurations" ||
+       column == "enabled_configs") &&
+      m_itemData.contains("enabled_configs")) {
+    return m_itemData["enabled_configs"];
+  }
   return QVariant();
 }
 
@@ -225,7 +241,68 @@ bool RegMapTreeItem::setData(const QString &column, const QVariant &value) {
     m_itemData["Decode Only"] = value;
     m_itemData["decode_only"] = value;
   }
+  if (column == "Configs" || column == "Configurations" ||
+      column == "enabled_configs") {
+    m_itemData["Configurations"] = value;
+    m_itemData["Configs"] = value;
+    m_itemData["enabled_configs"] = value;
+  }
   return true;
+}
+
+QStringList RegMapTreeItem::enabledConfigs() const {
+  QVariant val;
+  if (m_itemData.contains("Configurations")) {
+    val = m_itemData["Configurations"];
+  } else if (m_itemData.contains("Configs")) {
+    val = m_itemData["Configs"];
+  } else if (m_itemData.contains("enabled_configs")) {
+    val = m_itemData["enabled_configs"];
+  }
+  if (!val.isValid()) {
+    return QStringList();
+  }
+  if (val.userType() == QMetaType::QStringList) {
+    QStringList res;
+    for (const QString &s : val.toStringList()) {
+      QString t = s.trimmed();
+      if (!t.isEmpty() && !res.contains(t, Qt::CaseInsensitive)) {
+        res.append(t);
+      }
+    }
+    return res;
+  }
+  QString str = val.toString().trimmed();
+  if (str.isEmpty()) {
+    return QStringList();
+  }
+  QStringList rawParts = str.split(
+      QRegularExpression(QStringLiteral("[,;\\s]+")), Qt::SkipEmptyParts);
+  QStringList res;
+  for (const QString &p : rawParts) {
+    QString t = p.trimmed();
+    if (!t.isEmpty() && !res.contains(t, Qt::CaseInsensitive)) {
+      res.append(t);
+    }
+  }
+  return res;
+}
+
+bool RegMapTreeItem::isEnabledInConfig(const QString &configName) const {
+  QString target = configName.trimmed();
+  if (target.isEmpty()) {
+    return true;
+  }
+  QStringList configs = enabledConfigs();
+  if (configs.isEmpty()) {
+    return true; // Universally active
+  }
+  for (const QString &c : configs) {
+    if (c.compare(target, Qt::CaseInsensitive) == 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 QString RegMapTreeItem::kindString() const noexcept {

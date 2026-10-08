@@ -61,6 +61,9 @@ public:
   bool removeChildren(int position, int count);
   bool setData(const QString &column, const QVariant &value);
 
+  QStringList enabledConfigs() const;
+  bool isEnabledInConfig(const QString &configName) const;
+
   QVector<e_rmmKind> possibleChildren() const noexcept;
   QString icon() const noexcept;
   QString kindString() const noexcept;

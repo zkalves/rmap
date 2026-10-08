@@ -76,7 +76,8 @@ public:
                         QWidget *parent = nullptr);
   ~RegMapWindow() override;
 
-  bool headlessExport(const QString &out_dir);
+  bool headlessExport(const QString &out_dir,
+                      const QString &configProfile = QString());
   bool headlessLint(bool strict, const QString &format, const QString &outFile);
   static bool semanticDiff(const QString &file1, const QString &file2,
                            const QString &format, const QString &outFile);

@@ -73,7 +73,8 @@ int main(int argc, char *argv[]) {
 
   app.setWindowIcon(RegMapWindow::appIcon());
   if (!headless_mode) {
-    PathUtils::ensureDesktopIntegration(); // GCOV_EXCL_LINE - Desktop GUI auto-integration
+    PathUtils::ensureDesktopIntegration(); // GCOV_EXCL_LINE - Desktop GUI
+                                           // auto-integration
   }
   QCommandLineParser parser;
   QCommandLineOption f_opt({"f", "file"}, "Register Map file to load", "file");
@@ -109,6 +110,15 @@ int main(int argc, char *argv[]) {
   QCommandLineOption theme_opt({"t", "theme", "colour-scheme", "color-scheme"},
                                themeHelp, "scheme", "default");
   QCommandLineOption lang_opt({"lang", "language"}, langHelp, "language");
+  QCommandLineOption config_opt(
+      "config",
+      "Target configuration profile for code generation and filtering", "name");
+  QCommandLineOption all_configs_opt(
+      "all-configs",
+      "Generate code deliverables for all defined configuration profiles");
+  QCommandLineOption param_rtl_opt("parameterized-rtl",
+                                   "Generate unified parameterized RTL "
+                                   "deliverables across all configurations");
 
   parser.setApplicationDescription(
       "rmap — Hardware Register Map Designer & Model Generator");
@@ -129,6 +139,9 @@ int main(int argc, char *argv[]) {
   parser.addOption(diff_opt);
   parser.addOption(theme_opt);
   parser.addOption(lang_opt);
+  parser.addOption(config_opt);
+  parser.addOption(all_configs_opt);
+  parser.addOption(param_rtl_opt);
   parser.process(app);
 
   // 1. Validate mutual exclusivity of headless action modes
@@ -309,7 +322,8 @@ int main(int argc, char *argv[]) {
 
   if (parser.isSet(e_opt)) {
     QString out_dir = PathUtils::expandEnvVars(parser.value(o_opt));
-    bool success = mainWin->headlessExport(out_dir);
+    QString config_name = parser.value(config_opt);
+    bool success = mainWin->headlessExport(out_dir, config_name);
     delete mainWin;
     return success ? 0 : 1;
   }

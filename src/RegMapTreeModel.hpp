@@ -77,9 +77,11 @@ public:
   void refreshHeaderData();
   int columnOf(const QString &columnName) const;
   bool isIndexInvalid(const QModelIndex &index) const;
-  json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32);
-  json extractJsonData(uint32_t regWidth = 32,
-                       bool hwPrecedence = true) noexcept;
+  json recursiveExtractJsonData(RegMapTreeItem *node, uint32_t regWidth = 32,
+                                const QString &configFilter = QString());
+  json extractJsonData(uint32_t regWidth = 32, bool hwPrecedence = true,
+                       const QString &configFilter = QString()) noexcept;
+  QStringList allProjectConfigs() const;
 
   static uint32_t calculateCrc32(const uint8_t *data, size_t length,
                                  uint32_t previousCrc32 = 0);

@@ -92,6 +92,7 @@ private slots:
   void testHierarchicalBlockAndFieldLockRtlCodegen();
   void testDecodeOnlyCodegen();
   void testJinjaFilenameExpressions();
+  void testConfigurationProfilesCodegen();
 };
 
 void TestCodeGenerator::testHelperUpperAndLower() {
@@ -4874,6 +4875,142 @@ void TestCodeGenerator::testJinjaFilenameExpressions() {
   GenerationReport reportDotSlash =
       cg.generate(data, "work/jinja_tmpls", "work/jinja_out", dotSlashMappings);
   QVERIFY(!reportDotSlash.has_errors());
+}
+
+void TestCodeGenerator::testConfigurationProfilesCodegen() {
+  CodeGenerator cg;
+  QDir().mkpath("work/config_test");
+
+  RegMapTreeModel model;
+  QVariantMap rootData;
+  rootData["Type"] = "root";
+  rootData["Name"] = "TOP_ROOT";
+  RegMapTreeItem *root =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+
+  QVariantMap blkData;
+  blkData["Type"] = "blk";
+  blkData["Name"] = "SYS_BLK";
+  blkData["Offset/LSB"] = "0x0";
+  RegMapTreeItem *blk =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, root);
+  root->appendChild(blk);
+
+  // REG_COMM at 0x0
+  QVariantMap r0Data;
+  r0Data["Type"] = "reg";
+  r0Data["Name"] = "REG_COMM";
+  r0Data["Offset/LSB"] = "0";
+  r0Data["Size/Width"] = "32";
+  RegMapTreeItem *r0 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r0Data, blk);
+  blk->appendChild(r0);
+
+  QVariantMap f0Data;
+  f0Data["Type"] = "fld";
+  f0Data["Name"] = "F_COMM";
+  f0Data["Offset/LSB"] = "0";
+  f0Data["Size/Width"] = "32";
+  RegMapTreeItem *f0 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, f0Data, r0);
+  r0->appendChild(f0);
+
+  // REG_PRO at 0x4 (Pro only)
+  QVariantMap r1Data;
+  r1Data["Type"] = "reg";
+  r1Data["Name"] = "REG_PRO";
+  r1Data["Offset/LSB"] = "4";
+  r1Data["Size/Width"] = "32";
+  r1Data["Configurations"] = "Pro";
+  RegMapTreeItem *r1 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r1Data, blk);
+  blk->appendChild(r1);
+
+  QVariantMap f1Data;
+  f1Data["Type"] = "fld";
+  f1Data["Name"] = "F_PRO";
+  f1Data["Offset/LSB"] = "0";
+  f1Data["Size/Width"] = "32";
+  RegMapTreeItem *f1 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, f1Data, r1);
+  r1->appendChild(f1);
+
+  // REG_END at 0x8
+  QVariantMap r2Data;
+  r2Data["Type"] = "reg";
+  r2Data["Name"] = "REG_END";
+  r2Data["Offset/LSB"] = "8";
+  r2Data["Size/Width"] = "32";
+  RegMapTreeItem *r2 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r2Data, blk);
+  blk->appendChild(r2);
+
+  QVariantMap f2Data;
+  f2Data["Type"] = "fld";
+  f2Data["Name"] = "F_END";
+  f2Data["Offset/LSB"] = "0";
+  f2Data["Size/Width"] = "32";
+  RegMapTreeItem *f2 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, f2Data, r2);
+  r2->appendChild(f2);
+
+  model.setRootItem(root);
+
+  // 1. Generate for "Base" configuration
+  json baseJson = model.extractJsonData(32, true, "Base");
+  std::vector<TemplateMapping> baseMappings = {
+      {"templates/c/reg_map.h.inja", "work/config_test/reg_map_base.h"},
+      {"templates/rtl/reg_map.sv.inja", "work/config_test/reg_map_base.sv"}};
+  GenerationReport repBase =
+      cg.generate(baseJson, "templates", "work/config_test", baseMappings);
+  QVERIFY(!repBase.has_errors());
+
+  // Check C header for Base:
+  // REG_PRO must be omitted, padding _reserved_ must exist
+  QFile fCBase("work/config_test/reg_map_base.h");
+  QVERIFY(fCBase.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString cBaseContent = QString::fromUtf8(fCBase.readAll());
+  fCBase.close();
+  QVERIFY(cBaseContent.contains("REG_COMM"));
+  QVERIFY(cBaseContent.contains("REG_END"));
+  QVERIFY(!cBaseContent.contains("REG_PRO"));
+  QVERIFY(cBaseContent.contains("_reserved_"));
+
+  // Check RTL for Base:
+  QFile fSvBase("work/config_test/reg_map_base.sv");
+  QVERIFY(fSvBase.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString svBaseContent = QString::fromUtf8(fSvBase.readAll());
+  fSvBase.close();
+  QVERIFY(svBaseContent.contains("reg_reg_comm_q"));
+  QVERIFY(svBaseContent.contains("reg_reg_end_q"));
+  QVERIFY(!svBaseContent.contains("reg_reg_pro_q"));
+
+  // 2. Generate for "Pro" configuration
+  json proJson = model.extractJsonData(32, true, "Pro");
+  std::vector<TemplateMapping> proMappings = {
+      {"templates/c/reg_map.h.inja", "work/config_test/reg_map_pro.h"},
+      {"templates/rtl/reg_map.sv.inja", "work/config_test/reg_map_pro.sv"}};
+  GenerationReport repPro =
+      cg.generate(proJson, "templates", "work/config_test", proMappings);
+  QVERIFY(!repPro.has_errors());
+
+  // Check C header for Pro:
+  QFile fCPro("work/config_test/reg_map_pro.h");
+  QVERIFY(fCPro.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString cProContent = QString::fromUtf8(fCPro.readAll());
+  fCPro.close();
+  QVERIFY(cProContent.contains("REG_COMM"));
+  QVERIFY(cProContent.contains("REG_PRO"));
+  QVERIFY(cProContent.contains("REG_END"));
+
+  // Check RTL for Pro:
+  QFile fSvPro("work/config_test/reg_map_pro.sv");
+  QVERIFY(fSvPro.open(QIODevice::ReadOnly | QIODevice::Text));
+  QString svProContent = QString::fromUtf8(fSvPro.readAll());
+  fSvPro.close();
+  QVERIFY(svProContent.contains("reg_reg_comm_q"));
+  QVERIFY(svProContent.contains("reg_reg_pro_q"));
+  QVERIFY(svProContent.contains("reg_reg_end_q"));
 }
 
 QTEST_MAIN(TestCodeGenerator)

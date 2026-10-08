@@ -233,7 +233,43 @@ Modern SoCs frequently access the same peripheral through multiple bus interface
 
 ---
 
-## 5. Multi-Format Interoperability Matrix
+## 5. Multiple Configuration Profiles & Product Variants
+
+In SoC and silicon IP development, a single peripheral core frequently supports multiple product configurations, market tiers (e.g. Standard vs. Advanced), or customer-specific SKU variants. In these designs, specific control, status, or diagnostic registers and bitfields are implemented in certain configurations but reserved in others.
+
+**rmap** provides native support for **Multiple Configuration Profiles**:
+
+### Configuration Profiles & Membership Model
+- **Named Configuration Profiles**: The register map defines a set of named configuration profiles (e.g., `["Base", "Pro", "Enterprise"]`).
+- **Granular Membership**: Profile membership is configured at both **Register** and **Bitfield** granularity via the `Configurations` property (`enabled_configs`).
+- **Default Universal Inclusion**: By default, any register or field without explicit configuration constraints is active across **all** configuration profiles.
+- **Reserved Status**: When a register or field is excluded from a profile, it is designated as **Reserved** for that profile.
+
+### Fixed Address Offset Pinning Invariant
+To ensure seamless binary software driver compatibility and uniform register map address layouts across product variants:
+- **Zero Address Re-compaction**: When a register is reserved in a specific configuration, subsequent registers **never** shift into its address offset.
+- **Address Gaps as Unmapped Space**: The reserved register's offset remains locked as an unmapped address hole, ensuring all implemented registers preserve identical memory-mapped offsets across every configuration profile.
+
+### Abstract Hardware & Software Semantics for Reserved Items
+When synthesizing or evaluating hardware for a configuration where an item is reserved:
+1. **Full Reserved Registers**:
+   - **Zero Storage Elements**: Flip-flops and internal state registers are completely omitted from synthesis.
+   - **Zero Hardware Ports**: Sideband interface ports (such as `hw_*_i`, `hw_*_o`, write enables, or pulse strobes) are omitted.
+   - **Unmapped Software Access**: Software accesses target an unmapped address region. Bus writes are silently dropped or trigger a protocol error per the block's access violation policy. Bus reads return zero (or bus error response) without latching.
+2. **Reserved Bitfields in Mixed Registers**:
+   - In registers containing both active and reserved bitfields, flip-flops are synthesized solely for the active bitfields.
+   - Writes targeting reserved bit slices are ignored and update no storage.
+   - Reads of reserved bit slices return `1'b0`.
+   - Active bitfields in the same register retain standard storage, hardware ports, and update semantics.
+
+### Software Headers & Verification Model
+- **C / C++ and Rust Struct Padding**: In generated struct definitions for a given configuration profile, reserved register slots are replaced with padding members (e.g., `uint32_t _reserved_N[1];`), preserving strict struct alignment and byte offsets.
+- **UVM RAL Generation**: In generated UVM Register Abstraction Layer models for a specific configuration profile, reserved registers are omitted from the `uvm_reg_block`, preventing stimulus sequences from targeting unmapped address locations.
+- **Unified Parameterized RTL**: When generating unified SystemVerilog deliverables across all configurations, feature presence parameters (e.g., `parameter bit HAS_<REG> = 1`) and conditional `generate` blocks govern synthesizable storage and port interfaces.
+
+---
+
+## 6. Multi-Format Interoperability Matrix
 
 **rmap** provides bidirectional roundtrip translation across industry-standard register specification formats:
 
@@ -271,7 +307,7 @@ rmap provides configurable project metadata attributes in the Project Configurat
 
 ---
 
-## 6. Configuration & Environment Variables
+## 7. Configuration & Environment Variables
 
 **rmap** behavior, template paths, and resource discovery can be configured through environment variables:
 

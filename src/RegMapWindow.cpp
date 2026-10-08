@@ -4286,7 +4286,8 @@ void RegMapWindow::duplicateItem(const QModelIndex &index) {
   this->treeView->viewport()->update();
 }
 
-bool RegMapWindow::headlessExport(const QString &out_dir) {
+bool RegMapWindow::headlessExport(const QString &out_dir,
+                                  const QString &configProfile) {
   if (m_rmap_filename.isEmpty()) {
     std::cerr << "No input file specified for headless export" << std::endl;
     return false;
@@ -4315,7 +4316,7 @@ bool RegMapWindow::headlessExport(const QString &out_dir) {
           // GCOV_EXCL_START - Defensive fallback
           : (m_config_window ? m_config_window->hwPrecedence() : true);
   // GCOV_EXCL_STOP
-  json jsonData = m_model->extractJsonData(regWidth, hwPrec);
+  json jsonData = m_model->extractJsonData(regWidth, hwPrec, configProfile);
   resolveExportProjectName(cfg, m_rmap_filename, jsonData);
   jsonData["project_name"] = cfg->project_name();
   jsonData["project_version"] = cfg->project_version();

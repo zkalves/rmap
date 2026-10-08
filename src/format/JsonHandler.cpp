@@ -361,6 +361,22 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
                                     regJson["decode_only"].get<bool>())
                                        ? "true"
                                        : "false";
+          if (regJson.contains("configs") && regJson["configs"].is_array()) {
+            QStringList cfgList;
+            for (const auto &c : regJson["configs"]) {
+              if (c.is_string())
+                cfgList << QString::fromStdString(c.get<std::string>());
+            }
+            regData["Configurations"] = cfgList.join(", ");
+          } else if (regJson.contains("enabled_configs") &&
+                     regJson["enabled_configs"].is_array()) {
+            QStringList cfgList;
+            for (const auto &c : regJson["enabled_configs"]) {
+              if (c.is_string())
+                cfgList << QString::fromStdString(c.get<std::string>());
+            }
+            regData["Configurations"] = cfgList.join(", ");
+          }
 
           RegMapTreeItem *regItem = new RegMapTreeItem(
               RegMapTreeItem::e_rmmKind::reg, regData, blkItem);
@@ -446,6 +462,23 @@ FormatResult JsonHandler::read(const QString &filepath, RegMapTreeModel *model,
                     fldData["Write Lock"].toString().isEmpty()) {
                   fldData["Write Lock"] = lk;
                 }
+              }
+              if (fldJson.contains("configs") &&
+                  fldJson["configs"].is_array()) {
+                QStringList cfgList;
+                for (const auto &c : fldJson["configs"]) {
+                  if (c.is_string())
+                    cfgList << QString::fromStdString(c.get<std::string>());
+                }
+                fldData["Configurations"] = cfgList.join(", ");
+              } else if (fldJson.contains("enabled_configs") &&
+                         fldJson["enabled_configs"].is_array()) {
+                QStringList cfgList;
+                for (const auto &c : fldJson["enabled_configs"]) {
+                  if (c.is_string())
+                    cfgList << QString::fromStdString(c.get<std::string>());
+                }
+                fldData["Configurations"] = cfgList.join(", ");
               }
 
               RegMapTreeItem *fldItem = new RegMapTreeItem(

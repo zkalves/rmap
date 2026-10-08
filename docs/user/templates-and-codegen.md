@@ -108,6 +108,8 @@ The context passed to Inja templates provides rich hardware architecture and ver
   - `hw_precedence`: Boolean flag indicating whether hardware updates take priority over concurrent software writes.
   - `param_hw_precedence`: Integer parameter value (`1` = hardware over software, `0` = software over hardware) for synthesizable HDL generics.
   - `regmap_crc32` / `regmap_crc32_hex`: Global 32-bit architectural CRC checksum.
+  - `project_configs`: Array of unique named configuration profile strings defined across the register map (e.g. `["Base", "Pro"]`).
+  - `current_config`: Active configuration profile string during code generation (empty string if generating for all configurations).
   - `features`: Structured metadata object representing architectural features implemented in the exported register map:
     - `features.access_policies`: List of uppercase SW access policy strings actually present in the map (e.g. `["RO", "RW"]`).
     - `features.access_policies_str`: Formatted string of implemented access policies (e.g. `` `RO`, `RW` ``).
@@ -161,10 +163,14 @@ The context passed to Inja templates provides rich hardware architecture and ver
   - `no_reset_test`: Disables UVM reset sequence (`NO_REG_HW_RESET_TEST`).
   - `no_bit_bash_test`: Disables UVM bit bash sequence (`NO_REG_BIT_BASH_TEST`).
   - `no_access_test`: Disables UVM register access sequence (`NO_REG_ACCESS_TEST`).
+  - `configs`: Array of configuration profile names enabling this register (empty if active across all configurations).
+  - `is_reserved`: Boolean flag indicating whether this register is reserved in the target configuration profile.
   - `fields`: Array of bitfield definitions within this register.
 
 - **Bitfields (`fields[]`)**:
   - `name`, `offset_lsb`, `size_width`, `access`, `reset_val`, `reset_hex`, `is_rand`, `volatile`, `has_reset`, `description`: Core field properties.
+  - `configs`: Array of configuration profile names enabling this bitfield (empty if active across all configurations).
+  - `is_reserved`: Boolean flag indicating whether this bitfield is reserved in the target configuration profile.
   - `hw_access`: Hardware internal core logic access policy (`"RO"`, `"RW"`, `"WO"`, `"WIRE"`, `"W1T"`, `"INCR"`, `"DECR"`, `"NA"`, etc.).
   - `lock_wr`, `lock_rd`: Independent field-level software write and read lock expressions.
   - `has_wr_lock`, `has_rd_lock`, `has_lock`: Field-level lock presence flags.

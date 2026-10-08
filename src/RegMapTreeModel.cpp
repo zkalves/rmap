@@ -506,7 +506,8 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node,
         uint64_t offset = parseNumericValue(child->data("Offset/LSB"));
         uint64_t size_bytes = parseNumericValue(child->data("Size/Width"));
         if (size_bytes == 0)
-          size_bytes = 4; // GCOV_EXCL_LINE - Defensive fallback for zero memory size
+          size_bytes =
+              4; // GCOV_EXCL_LINE - Defensive fallback for zero memory size
         regions.push_back({child, offset, offset + size_bytes - 1,
                            child->data("Name").toString(), "Memory"});
       }
@@ -687,7 +688,8 @@ QStringList RegMapTreeModel::checkData(uint32_t regWidth) noexcept {
 }
 
 json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
-                                               uint32_t regWidth) {
+                                               uint32_t regWidth,
+                                               const QString &configFilter) {
   json item_json;
 
   if (!node) {
@@ -736,6 +738,17 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
   item_json["decode_only"] = decode_only;
   item_json["description"] = desc;
 
+  QStringList itemConfigs = node->enabledConfigs();
+  std::vector<std::string> configsVec;
+  for (const QString &c : itemConfigs) {
+    configsVec.push_back(c.toStdString());
+  }
+  item_json["configs"] = configsVec;
+  item_json["enabled_configs"] = configsVec;
+  bool is_reserved = (!configFilter.trimmed().isEmpty() &&
+                      !node->isEnabledInConfig(configFilter));
+  item_json["is_reserved"] = is_reserved;
+
   std::string lock_wr =
       node->data("Write Lock").toString().trimmed().toStdString();
   if (!lock_wr.empty()) {
@@ -750,7 +763,8 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
   if (!lock.empty()) {
     item_json["lock"] = lock;
     if (lock_wr.empty()) {
-      item_json["lock_wr"] = lock; // GCOV_EXCL_LINE - Defensive lock alias fallback
+      item_json["lock_wr"] =
+          lock; // GCOV_EXCL_LINE - Defensive lock alias fallback
     }
   }
 
@@ -869,7 +883,12 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
   for (RegMapTreeItem *child : node->getChildItems()) {
     if (!child)
       continue; // GCOV_EXCL_LINE - Defensive null child guard
-    json child_json = recursiveExtractJsonData(child, regWidth);
+    if (!configFilter.trimmed().isEmpty() &&
+        !child->isEnabledInConfig(configFilter)) {
+      continue; // Skip reserved register or field for this configuration
+                // profile
+    }
+    json child_json = recursiveExtractJsonData(child, regWidth, configFilter);
     switch (child->kind()) {
     case RegMapTreeItem::e_rmmKind::blk:
       blocks.push_back(child_json);
@@ -1094,13 +1113,41 @@ uint32_t RegMapTreeModel::computeTreeCrc32(const json &rootJson) {
                         repr.size());
 }
 
-json RegMapTreeModel::extractJsonData(uint32_t regWidth,
-                                      bool hwPrecedence) noexcept {
-  json root_json = recursiveExtractJsonData(m_rootItem, regWidth);
+static void collectConfigsRecursive(RegMapTreeItem *node,
+                                    QSet<QString> &allConfigs) {
+  if (!node)
+    return;
+  for (const QString &c : node->enabledConfigs()) {
+    allConfigs.insert(c);
+  }
+  for (RegMapTreeItem *child : node->getChildItems()) {
+    collectConfigsRecursive(child, allConfigs);
+  }
+}
+
+QStringList RegMapTreeModel::allProjectConfigs() const {
+  QSet<QString> allConfigs;
+  collectConfigsRecursive(m_rootItem, allConfigs);
+  QStringList res = allConfigs.values();
+  res.sort(Qt::CaseInsensitive);
+  return res;
+}
+
+json RegMapTreeModel::extractJsonData(uint32_t regWidth, bool hwPrecedence,
+                                      const QString &configFilter) noexcept {
+  json root_json = recursiveExtractJsonData(m_rootItem, regWidth, configFilter);
   root_json["reg_width"] = regWidth;
   root_json["reg_width_bytes"] = regWidth / 8;
   root_json["hw_precedence"] = hwPrecedence;
   root_json["param_hw_precedence"] = hwPrecedence ? 1 : 0;
+
+  QStringList projectConfigs = allProjectConfigs();
+  std::vector<std::string> projConfigsVec;
+  for (const QString &c : projectConfigs) {
+    projConfigsVec.push_back(c.toStdString());
+  }
+  root_json["project_configs"] = projConfigsVec;
+  root_json["current_config"] = configFilter.toStdString();
 
   if (root_json.value("name", "").empty()) {
     root_json["name"] = "regmap";

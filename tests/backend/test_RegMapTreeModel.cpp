@@ -43,6 +43,7 @@ private slots:
   void testLinterExtendedRules();
   void testModelCoverageEdgeCases();
   void testUvmCookbookRalProperties();
+  void testConfigurationProfilesFiltering();
 };
 
 void TestRegMapTreeModel::testModelStructureAndHeaders() {
@@ -1108,7 +1109,8 @@ void TestRegMapTreeModel::testUvmCookbookRalProperties() {
   invalidLockReg["Size/Width"] = "32";
   invalidLockReg["Write Lock"] = "&& invalid_syntax";
   invalidLockReg["Read Lock"] = "(unclosed_syntax";
-  RegMapTreeItem *invReg = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, invalidLockReg, blk);
+  RegMapTreeItem *invReg =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, invalidLockReg, blk);
   blk->appendChild(invReg);
 
   QStringList lockErrors = model.checkData(32);
@@ -1122,7 +1124,8 @@ void TestRegMapTreeModel::testUvmCookbookRalProperties() {
   doFldData["Size/Width"] = "1";
   doFldData["Decode Only"] = "true";
   doFldData["decode_only"] = true;
-  RegMapTreeItem *doFld = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, doFldData, invReg);
+  RegMapTreeItem *doFld =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, doFldData, invReg);
   invReg->appendChild(doFld);
 
   // Test memory depth fallback with size < wordBytes (line 804)
@@ -1132,11 +1135,167 @@ void TestRegMapTreeModel::testUvmCookbookRalProperties() {
   smallMem["Offset/LSB"] = "0x8000";
   smallMem["Size/Width"] = "2";
   smallMem["Word Width"] = "32";
-  RegMapTreeItem *smallMemItem = new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, smallMem, blk);
+  RegMapTreeItem *smallMemItem =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::mem, smallMem, blk);
   blk->appendChild(smallMemItem);
 
   nlohmann::json finalJson = model.extractJsonData(32);
   Q_UNUSED(finalJson);
+}
+
+void TestRegMapTreeModel::testConfigurationProfilesFiltering() {
+  RegMapTreeModel model;
+  QVariantMap rootData;
+  rootData["Type"] = "root";
+  rootData["Name"] = "TOP_ROOT";
+  RegMapTreeItem *root =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::root, rootData);
+
+  QVariantMap blkData;
+  blkData["Type"] = "blk";
+  blkData["Name"] = "SYS_BLK";
+  blkData["Offset/LSB"] = "0x0";
+  RegMapTreeItem *blk =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::blk, blkData, root);
+  root->appendChild(blk);
+
+  // 1. REG_COMM at 0x0 (enabled in all)
+  QVariantMap r0Data;
+  r0Data["Type"] = "reg";
+  r0Data["Name"] = "REG_COMM";
+  r0Data["Offset/LSB"] = "0";
+  r0Data["Size/Width"] = "32";
+  RegMapTreeItem *r0 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r0Data, blk);
+  blk->appendChild(r0);
+
+  QVariantMap f0Data;
+  f0Data["Type"] = "fld";
+  f0Data["Name"] = "F_COMM";
+  f0Data["Offset/LSB"] = "0";
+  f0Data["Size/Width"] = "32";
+  RegMapTreeItem *f0 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, f0Data, r0);
+  r0->appendChild(f0);
+
+  // 2. REG_PRO at 0x4 (enabled ONLY in "Pro")
+  QVariantMap r1Data;
+  r1Data["Type"] = "reg";
+  r1Data["Name"] = "REG_PRO";
+  r1Data["Offset/LSB"] = "4";
+  r1Data["Size/Width"] = "32";
+  r1Data["Configurations"] = "Pro";
+  RegMapTreeItem *r1 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r1Data, blk);
+  blk->appendChild(r1);
+
+  QVariantMap f1Data;
+  f1Data["Type"] = "fld";
+  f1Data["Name"] = "F_PRO";
+  f1Data["Offset/LSB"] = "0";
+  f1Data["Size/Width"] = "32";
+  RegMapTreeItem *f1 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, f1Data, r1);
+  r1->appendChild(f1);
+
+  // 3. REG_END at 0x8 (enabled in all)
+  QVariantMap r2Data;
+  r2Data["Type"] = "reg";
+  r2Data["Name"] = "REG_END";
+  r2Data["Offset/LSB"] = "8";
+  r2Data["Size/Width"] = "32";
+  RegMapTreeItem *r2 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r2Data, blk);
+  blk->appendChild(r2);
+
+  QVariantMap f2Data;
+  f2Data["Type"] = "fld";
+  f2Data["Name"] = "F_END";
+  f2Data["Offset/LSB"] = "0";
+  f2Data["Size/Width"] = "32";
+  RegMapTreeItem *f2 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, f2Data, r2);
+  r2->appendChild(f2);
+
+  // 4. REG_MIXED at 0xC with fields for Base vs Pro
+  QVariantMap r3Data;
+  r3Data["Type"] = "reg";
+  r3Data["Name"] = "REG_MIXED";
+  r3Data["Offset/LSB"] = "12";
+  r3Data["Size/Width"] = "32";
+  RegMapTreeItem *r3 =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::reg, r3Data, blk);
+  blk->appendChild(r3);
+
+  QVariantMap fBaseData;
+  fBaseData["Type"] = "fld";
+  fBaseData["Name"] = "F_BASE_ONLY";
+  fBaseData["Offset/LSB"] = "0";
+  fBaseData["Size/Width"] = "16";
+  fBaseData["Configurations"] = "Base";
+  RegMapTreeItem *fBase =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fBaseData, r3);
+  r3->appendChild(fBase);
+
+  QVariantMap fProData;
+  fProData["Type"] = "fld";
+  fProData["Name"] = "F_PRO_ONLY";
+  fProData["Offset/LSB"] = "16";
+  fProData["Size/Width"] = "16";
+  fProData["Configurations"] = "Pro";
+  RegMapTreeItem *fPro =
+      new RegMapTreeItem(RegMapTreeItem::e_rmmKind::fld, fProData, r3);
+  r3->appendChild(fPro);
+
+  model.setRootItem(root);
+
+  // Test allProjectConfigs
+  QStringList projConfigs = model.allProjectConfigs();
+  QCOMPARE(projConfigs.size(), 2);
+  QVERIFY(projConfigs.contains("Base"));
+  QVERIFY(projConfigs.contains("Pro"));
+
+  // 1. Unfiltered Extraction
+  nlohmann::json allJson = model.extractJsonData(32, true);
+  QCOMPARE(allJson["current_config"].get<std::string>(), std::string(""));
+  const auto &allRegs = allJson["blocks"][0]["registers"];
+  QCOMPARE(allRegs.size(), (size_t)4);
+  QCOMPARE(allRegs[0]["name"].get<std::string>(), std::string("REG_COMM"));
+  QCOMPARE(allRegs[1]["name"].get<std::string>(), std::string("REG_PRO"));
+  QCOMPARE(allRegs[2]["name"].get<std::string>(), std::string("REG_END"));
+  QCOMPARE(allRegs[2]["pad_words_before"].get<uint64_t>(), (uint64_t)0);
+
+  // 2. Filtered: "Base" Configuration
+  // REG_PRO should be omitted, leaving an address gap at 0x4
+  // REG_END at 0x8 should get pad_words_before = 1
+  // REG_MIXED should only have F_BASE_ONLY
+  nlohmann::json baseJson = model.extractJsonData(32, true, "Base");
+  QCOMPARE(baseJson["current_config"].get<std::string>(), std::string("Base"));
+  const auto &baseRegs = baseJson["blocks"][0]["registers"];
+  QCOMPARE(baseRegs.size(), (size_t)3);
+  QCOMPARE(baseRegs[0]["name"].get<std::string>(), std::string("REG_COMM"));
+  QCOMPARE(baseRegs[1]["name"].get<std::string>(), std::string("REG_END"));
+  QCOMPARE(baseRegs[1]["offset_lsb"].get<uint64_t>(), (uint64_t)8);
+  QCOMPARE(baseRegs[1]["pad_words_before"].get<uint64_t>(), (uint64_t)1);
+  QCOMPARE(baseRegs[2]["name"].get<std::string>(), std::string("REG_MIXED"));
+  const auto &baseMixedFlds = baseRegs[2]["fields"];
+  QCOMPARE(baseMixedFlds.size(), (size_t)1);
+  QCOMPARE(baseMixedFlds[0]["name"].get<std::string>(),
+           std::string("F_BASE_ONLY"));
+
+  // 3. Filtered: "Pro" Configuration
+  // REG_PRO is present, REG_END has 0 pad words, REG_MIXED has F_PRO_ONLY
+  nlohmann::json proJson = model.extractJsonData(32, true, "Pro");
+  QCOMPARE(proJson["current_config"].get<std::string>(), std::string("Pro"));
+  const auto &proRegs = proJson["blocks"][0]["registers"];
+  QCOMPARE(proRegs.size(), (size_t)4);
+  QCOMPARE(proRegs[1]["name"].get<std::string>(), std::string("REG_PRO"));
+  QCOMPARE(proRegs[2]["name"].get<std::string>(), std::string("REG_END"));
+  QCOMPARE(proRegs[2]["pad_words_before"].get<uint64_t>(), (uint64_t)0);
+  const auto &proMixedFlds = proRegs[3]["fields"];
+  QCOMPARE(proMixedFlds.size(), (size_t)1);
+  QCOMPARE(proMixedFlds[0]["name"].get<std::string>(),
+           std::string("F_PRO_ONLY"));
 }
 
 QTEST_MAIN(TestRegMapTreeModel)

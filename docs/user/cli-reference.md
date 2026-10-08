@@ -25,6 +25,9 @@ rmap [OPTIONS] [file]
 | `-t <scheme>`| `--theme, --colour-scheme, --color-scheme <scheme>` | Set active colour scheme (`solarized8`, `solarized8_light`, `nord`, `dracula`, `monokai`, `classic`, `high_contrast_dark`, `high_contrast_light`). |
 | | `--lang, --language <lang>` | Set application language (`en`, `es`, `de`, `fr`, `zh_CN`, `ja`, `pt_BR`). |
 | `-o <path>` | `--out <path>` | Override output destination directory for code generation, or output file path for lint/diff reports. |
+| | `--config <name>` | Target configuration profile for code generation and filtering. |
+| | `--all-configs` | Generate code deliverables for all defined configuration profiles. |
+| | `--parameterized-rtl` | Generate unified parameterized RTL deliverables across all configurations. |
 | `-h` | `--help` | Display command-line help and usage. |
 | | `--help-all` | Display command-line help including generic Qt options. |
 | `-v` | `--version` | Display application version. |
