@@ -3449,28 +3449,96 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
       "          <ipxact:name>REG1</ipxact:name>\n"
       "          <ipxact:addressOffset>'h0</ipxact:addressOffset>\n"
       "          <ipxact:size>32</ipxact:size>\n"
-      "          <ipxact:field><ipxact:name>F_WO</ipxact:name><ipxact:bitOffset>0</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>write-only</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W1C</ipxact:name><ipxact:bitOffset>1</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>read-writeOnce</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W1S</ipxact:name><ipxact:bitOffset>2</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1s</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W1T</ipxact:name><ipxact:bitOffset>3</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1t</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W0C</ipxact:name><ipxact:bitOffset>4</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0c</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W0S</ipxact:name><ipxact:bitOffset>5</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0s</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W0T</ipxact:name><ipxact:bitOffset>6</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0t</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_RC</ipxact:name><ipxact:bitOffset>7</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>rc</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_RS</ipxact:name><ipxact:bitOffset>8</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>rs</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WRC</ipxact:name><ipxact:bitOffset>9</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wrc</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WRS</ipxact:name><ipxact:bitOffset>10</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wrs</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WC</ipxact:name><ipxact:bitOffset>11</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wc</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WS</ipxact:name><ipxact:bitOffset>12</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>ws</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W1SRC</ipxact:name><ipxact:bitOffset>13</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1src</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W1CRS</ipxact:name><ipxact:bitOffset>14</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1crs</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W0SRC</ipxact:name><ipxact:bitOffset>15</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0src</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W0CRS</ipxact:name><ipxact:bitOffset>16</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w0crs</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_W1</ipxact:name><ipxact:bitOffset>17</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WO1</ipxact:name><ipxact:bitOffset>18</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wo1</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WOC</ipxact:name><ipxact:bitOffset>19</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>woc</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_WOS</ipxact:name><ipxact:bitOffset>20</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wos</ipxact:access></ipxact:field>\n"
-      "          <ipxact:field><ipxact:name>F_NA</ipxact:name><ipxact:bitOffset>21</ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>noaccess</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WO</ipxact:name><ipxact:bitOffset>0</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>write-only</ipxact:access></"
+      "ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W1C</ipxact:name><ipxact:bitOffset>1</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>read-writeOnce</ipxact:access></"
+      "ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W1S</ipxact:name><ipxact:bitOffset>2</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w1s</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W1T</ipxact:name><ipxact:bitOffset>3</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w1t</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W0C</ipxact:name><ipxact:bitOffset>4</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w0c</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W0S</ipxact:name><ipxact:bitOffset>5</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w0s</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W0T</ipxact:name><ipxact:bitOffset>6</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w0t</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_RC</ipxact:name><ipxact:bitOffset>7</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>rc</"
+      "ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_RS</ipxact:name><ipxact:bitOffset>8</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>rs</"
+      "ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WRC</ipxact:name><ipxact:bitOffset>9</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>wrc</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WRS</ipxact:name><ipxact:bitOffset>10</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>wrs</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WC</ipxact:name><ipxact:bitOffset>11</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>wc</"
+      "ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WS</ipxact:name><ipxact:bitOffset>12</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>ws</"
+      "ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W1SRC</ipxact:name><ipxact:bitOffset>13</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w1src</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W1CRS</ipxact:name><ipxact:bitOffset>14</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w1crs</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W0SRC</ipxact:name><ipxact:bitOffset>15</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w0src</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W0CRS</ipxact:name><ipxact:bitOffset>16</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>w0crs</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_W1</ipxact:name><ipxact:bitOffset>17</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</ipxact:bitWidth><ipxact:access>w1</"
+      "ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WO1</ipxact:name><ipxact:bitOffset>18</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>wo1</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WOC</ipxact:name><ipxact:bitOffset>19</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>woc</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_WOS</ipxact:name><ipxact:bitOffset>20</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>wos</ipxact:access></ipxact:field>\n"
+      "          "
+      "<ipxact:field><ipxact:name>F_NA</ipxact:name><ipxact:bitOffset>21</"
+      "ipxact:bitOffset><ipxact:bitWidth>1</"
+      "ipxact:bitWidth><ipxact:access>noaccess</ipxact:access></ipxact:field>\n"
       "        </ipxact:register>\n"
       "      </ipxact:addressBlock>\n"
       "    </ipxact:memoryMap>\n"
@@ -3494,30 +3562,30 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
   QVERIFY(writeResX.success);
 
   // 2. SystemRDL properties coverage
-  QString rdlContent = QStringLiteral(
-      "property custom_prop { { inner_struct } };\n"
-      "addrmap top_map {\n"
-      "  name = \"TOP_RDL_PROJECT\";\n"
-      "  desc = \"Top level description\";\n"
-      "  regfile sub_blk {\n"
-      "    name = \"SUB_BLOCK\";\n"
-      "    desc = \"Sub block description\";\n"
-      "    rmap_lock_wr = \"hw_blk_wr_lock\";\n"
-      "    rmap_lock_rd = \"hw_blk_rd_lock\";\n"
-      "    reg ctrl_reg {\n"
-      "      name = \"CTRL\";\n"
-      "      rmap_lock = \"hw_legacy_reg_lock\";\n"
-      "      field {\n"
-      "        name = \"ENABLE\";\n"
-      "        rmap_lock_rd = \"hw_fld_rd_lock\";\n"
-      "      } enable[0:0] = 1'h0;\n"
-      "      field {\n"
-      "        name = \"STATUS\";\n"
-      "        rmap_lock = \"hw_fld_legacy_lock\";\n"
-      "      } status[1:1] = 1'h0;\n"
-      "    };\n"
-      "  } blk_inst;\n"
-      "};\n");
+  QString rdlContent =
+      QStringLiteral("property custom_prop { { inner_struct } };\n"
+                     "addrmap top_map {\n"
+                     "  name = \"TOP_RDL_PROJECT\";\n"
+                     "  desc = \"Top level description\";\n"
+                     "  regfile sub_blk {\n"
+                     "    name = \"SUB_BLOCK\";\n"
+                     "    desc = \"Sub block description\";\n"
+                     "    rmap_lock_wr = \"hw_blk_wr_lock\";\n"
+                     "    rmap_lock_rd = \"hw_blk_rd_lock\";\n"
+                     "    reg ctrl_reg {\n"
+                     "      name = \"CTRL\";\n"
+                     "      rmap_lock = \"hw_legacy_reg_lock\";\n"
+                     "      field {\n"
+                     "        name = \"ENABLE\";\n"
+                     "        rmap_lock_rd = \"hw_fld_rd_lock\";\n"
+                     "      } enable[0:0] = 1'h0;\n"
+                     "      field {\n"
+                     "        name = \"STATUS\";\n"
+                     "        rmap_lock = \"hw_fld_legacy_lock\";\n"
+                     "      } status[1:1] = 1'h0;\n"
+                     "    };\n"
+                     "  } blk_inst;\n"
+                     "};\n");
 
   QString rdlPath = "work/test_formats/ext_rdl.rdl";
   QFile fRdl(rdlPath);
@@ -3536,12 +3604,18 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
   QVERIFY(csvH.supportedExtensions().contains("csv"));
 
   QString csvLocks =
-      "Type,Block,Register,Field,Offset/LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description,Lock,Read Lock\n"
-      "blk,BLK_A,,,,,,,false,false,false,Block with locks,,rd_blk_lock\n"
-      "blk,BLK_B,,,,,,,false,false,false,Block with both locks,wr_blk_b,rd_blk_b\n"
-      "mem,BLK_A,MEM_A,,0x00,1024,RW,0x0,false,false,false,Mem with locks,mem_wr,mem_rd\n"
-      "reg,BLK_A,REG_A,,0x10,0,RW,0x0,false,false,false,Reg with locks,,reg_rd\n"
-      "fld,BLK_A,REG_A,FLD_A,0,8,RW,0x0,false,false,false,Field with locks,,fld_rd\n";
+      "Type,Block,Register,Field,Offset/"
+      "LSB,Width,Access,Reset,IsRand,Volatile,HasReset,Description,Lock,Read "
+      "Lock,Configurations\n"
+      "blk,BLK_A,,,,,,,false,false,false,Block with locks,,rd_blk_lock,\n"
+      "blk,BLK_B,,,,,,,false,false,false,Block with both "
+      "locks,wr_blk_b,rd_blk_b,\n"
+      "mem,BLK_A,MEM_A,,0x00,1024,RW,0x0,false,false,false,Mem with "
+      "locks,mem_wr,mem_rd,\n"
+      "reg,BLK_A,REG_A,,0x10,0,RW,0x0,false,false,false,Reg with "
+      "locks,,reg_rd,\"Base, Pro\"\n"
+      "fld,BLK_A,REG_A,FLD_A,0,8,RW,0x0,false,false,false,Field with "
+      "locks,,fld_rd,Base\n";
   QString csvLocksPath = "work/test_formats/locks.csv";
   QFile fCsvL(csvLocksPath);
   QVERIFY(fCsvL.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -3553,11 +3627,25 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
   configCsvL.setRegisterWidth(64);
   FormatResult resCsvL = csvH.read(csvLocksPath, &modelCsvL, &configCsvL);
   QVERIFY(resCsvL.success);
+  QCOMPARE(modelCsvL.rootItem()
+               ->getChildItems()[0]
+               ->getChildItems()[1]
+               ->data("Configurations")
+               .toString(),
+           QString("Base, Pro"));
+  QCOMPARE(modelCsvL.rootItem()
+               ->getChildItems()[0]
+               ->getChildItems()[1]
+               ->getChildItems()[0]
+               ->data("Configurations")
+               .toString(),
+           QString("Base"));
 
   // 2. Test CmsisSvdHandler lock_rd and fallback lock import and export
   QString svdLockContent = QString::fromUtf8(
       "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-      "<device schemaVersion=\"1.1\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+      "<device schemaVersion=\"1.1\" "
+      "xmlns:xs=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
       "  <name>SVD_LOCK_DEV</name>\n"
       "  <peripherals>\n"
       "    <peripheral>\n"
@@ -3599,14 +3687,21 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
   QVERIFY(resSvdLk.success);
 
   QString svdOutPath = "work/test_formats/svd_locks_out.svd";
-  FormatResult resSvdOut = svdHandler.write(svdOutPath, &modelSvdLk, &configSvdLk);
+  FormatResult resSvdOut =
+      svdHandler.write(svdOutPath, &modelSvdLk, &configSvdLk);
   QVERIFY(resSvdOut.success);
 
-  // 3. Test IpxactHandler 0b number, block description, lock_rd, and fallback lock
+  // 3. Test IpxactHandler 0b number, block description, lock_rd, and fallback
+  // lock
   QString ipxactLocks = QString::fromUtf8(
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<ipxact:component xmlns:ipxact=\"http://www.accellera.org/XMLSchema/IPXACT/1685-2014\" xmlns:rmap=\"http://rmap.org/xml\">\n"
-      "  <ipxact:vendor>test</ipxact:vendor><ipxact:library>lib</ipxact:library><ipxact:name>comp</ipxact:name><ipxact:version>1.0</ipxact:version>\n"
+      "<ipxact:component "
+      "xmlns:ipxact=\"http://www.accellera.org/XMLSchema/IPXACT/1685-2014\" "
+      "xmlns:rmap=\"http://rmap.org/xml\">\n"
+      "  "
+      "<ipxact:vendor>test</ipxact:vendor><ipxact:library>lib</"
+      "ipxact:library><ipxact:name>comp</ipxact:name><ipxact:version>1.0</"
+      "ipxact:version>\n"
       "  <ipxact:memoryMaps>\n"
       "    <ipxact:memoryMap>\n"
       "      <ipxact:name>map</ipxact:name>\n"
@@ -3652,55 +3747,44 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
   FormatResult resIpOut = ipHandler.write(ipOutPath, &modelIpLk, &configIpLk);
   QVERIFY(resIpOut.success);
 
-  // 4. Test JsonHandler block lock_rd and memories, memory write_lock and read_lock, reg and fld locks
+  // 4. Test JsonHandler block lock_rd and memories, memory write_lock and
+  // read_lock, reg and fld locks
   nlohmann::json jsonLocks = {
-    {"name", "JSON_LK"},
-    {"blocks", nlohmann::json::array({
-      {
-        {"name", "BLK_LK"},
-        {"lock_rd", "blk_rd"},
-        {"memories", nlohmann::json::array({
-          {
-            {"name", "MEM_LK"},
-            {"offset_lsb", 0},
-            {"size_width", 1024},
-            {"write_lock", "mem_wr"},
-            {"read_lock", "mem_rd"}
-          }
-        })},
-        {"registers", nlohmann::json::array({
-          {
-            {"name", "REG_A"},
-            {"offset_lsb", 0},
-            {"lock_rd", "reg_rd"}
-          },
-          {
-            {"name", "REG_B"},
-            {"offset_lsb", 4},
-            {"lock", "reg_legacy"}
-          },
-          {
-            {"name", "REG_C"},
-            {"offset_lsb", 8},
-            {"fields", nlohmann::json::array({
-              {
-                {"name", "FLD_A"},
-                {"offset_lsb", 0},
-                {"size_width", 1},
-                {"lock_rd", "fld_rd"}
-              },
-              {
-                {"name", "FLD_B"},
-                {"offset_lsb", 1},
-                {"size_width", 1},
-                {"lock", "fld_legacy"}
-              }
-            })}
-          }
-        })}
-      }
-    })}
-  };
+      {"name", "JSON_LK"},
+      {"blocks",
+       nlohmann::json::array(
+           {{{"name", "BLK_LK"},
+             {"lock_rd", "blk_rd"},
+             {"memories", nlohmann::json::array({{{"name", "MEM_LK"},
+                                                  {"offset_lsb", 0},
+                                                  {"size_width", 1024},
+                                                  {"write_lock", "mem_wr"},
+                                                  {"read_lock", "mem_rd"}}})},
+             {"registers",
+              nlohmann::json::array(
+                  {{{"name", "REG_A"},
+                    {"offset_lsb", 0},
+                    {"lock_rd", "reg_rd"},
+                    {"configs", nlohmann::json::array({"CFG_A", "CFG_B"})}},
+                   {{"name", "REG_B"},
+                    {"offset_lsb", 4},
+                    {"lock", "reg_legacy"},
+                    {"enabled_configs", nlohmann::json::array({"CFG_C"})}},
+                   {{"name", "REG_C"},
+                    {"offset_lsb", 8},
+                    {"fields",
+                     nlohmann::json::array(
+                         {{{"name", "FLD_A"},
+                           {"offset_lsb", 0},
+                           {"size_width", 1},
+                           {"lock_rd", "fld_rd"},
+                           {"configs", nlohmann::json::array({"CFG_A"})}},
+                          {{"name", "FLD_B"},
+                           {"offset_lsb", 1},
+                           {"size_width", 1},
+                           {"lock", "fld_legacy"},
+                           {"enabled_configs",
+                            nlohmann::json::array({"CFG_B"})}}})}}})}}})}};
   QString jsonLkPath = "work/test_formats/json_locks.json";
   QFile fJsonLk(jsonLkPath);
   QVERIFY(fJsonLk.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -3710,26 +3794,39 @@ void TestFormats::testExtendedAccessPoliciesAndProperties() {
   RegMapTreeModel modelJsonLk;
   RegConfigWindow configJsonLk;
   JsonHandler jsonHandler;
-  FormatResult resJsonLk = jsonHandler.read(jsonLkPath, &modelJsonLk, &configJsonLk);
+  FormatResult resJsonLk =
+      jsonHandler.read(jsonLkPath, &modelJsonLk, &configJsonLk);
   QVERIFY(resJsonLk.success);
+  RegMapTreeItem *jsonBlk = modelJsonLk.rootItem()->getChildItems()[0];
+  RegMapTreeItem *jsonRegA = jsonBlk->getChildItems()[1];
+  QCOMPARE(jsonRegA->data("Configurations").toString(),
+           QString("CFG_A, CFG_B"));
+  RegMapTreeItem *jsonRegB = jsonBlk->getChildItems()[2];
+  QCOMPARE(jsonRegB->data("Configurations").toString(), QString("CFG_C"));
+  RegMapTreeItem *jsonRegC = jsonBlk->getChildItems()[3];
+  QCOMPARE(jsonRegC->getChildItems()[0]->data("Configurations").toString(),
+           QString("CFG_A"));
+  QCOMPARE(jsonRegC->getChildItems()[1]->data("Configurations").toString(),
+           QString("CFG_B"));
 
-  // 5. Test SystemRdlHandler top-level name, nested unknown component, block lock fallback, reg lock_rd
-  QString rdlLockContent = QString::fromUtf8(
-      "name = \"TopProjectName\";\n"
-      "unknown_type unk_inst { inner_type { }; };\n"
-      "addrmap top_map {\n"
-      "  regfile blk_lk {\n"
-      "    name = \"BLK_LK\";\n"
-      "    lock = \"blk_legacy_lock\";\n"
-      "    reg reg_lk {\n"
-      "      name = \"REG_LK\";\n"
-      "      rmap_lock_rd = \"reg_rd_lock\";\n"
-      "      field {\n"
-      "        name = \"F1\";\n"
-      "      } f1[0:0] = 1'h0;\n"
-      "    };\n"
-      "  } blk_inst;\n"
-      "};\n");
+  // 5. Test SystemRdlHandler top-level name, nested unknown component, block
+  // lock fallback, reg lock_rd
+  QString rdlLockContent =
+      QString::fromUtf8("name = \"TopProjectName\";\n"
+                        "unknown_type unk_inst { inner_type { }; };\n"
+                        "addrmap top_map {\n"
+                        "  regfile blk_lk {\n"
+                        "    name = \"BLK_LK\";\n"
+                        "    lock = \"blk_legacy_lock\";\n"
+                        "    reg reg_lk {\n"
+                        "      name = \"REG_LK\";\n"
+                        "      rmap_lock_rd = \"reg_rd_lock\";\n"
+                        "      field {\n"
+                        "        name = \"F1\";\n"
+                        "      } f1[0:0] = 1'h0;\n"
+                        "    };\n"
+                        "  } blk_inst;\n"
+                        "};\n");
   QString rdlLkPath = "work/test_formats/rdl_locks.rdl";
   QFile fRdlLk(rdlLkPath);
   QVERIFY(fRdlLk.open(QIODevice::WriteOnly | QIODevice::Text));

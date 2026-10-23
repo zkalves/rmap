@@ -25,6 +25,8 @@ ifneq ($(REPO_TEMPLATES),)
   export RMAP_TEMPLATES_DIR ?= $(abspath $(REPO_TEMPLATES))
 endif
 
+DUMP_FILE ?= waveform.vcd
+
 EXAMPLES := $(sort $(wildcard peripherals/*) $(wildcard features/*))
 
 .PHONY: all clean sim-uvm $(EXAMPLES)
@@ -46,11 +48,25 @@ all:
 	@echo "✓ All $(words $(EXAMPLES)) examples PASSED successfully!"
 	@echo "================================================================"
 
+sim-verilator:
+	@echo "=== Running Verilator RTL Verification Across Examples ==="
+	@for ex in $(EXAMPLES); do \
+		if [ -d "$$ex" ] && grep -q '^sim-verilator:' "$$ex/Makefile" 2>/dev/null; then \
+			if [ ! -f "$$ex/work/sim/Makefile" ] && grep -q '^export:' "$$ex/Makefile" 2>/dev/null; then \
+				$(MAKE) -C "$$ex" export || exit 1; \
+			fi; \
+			$(MAKE) -C "$$ex" sim-verilator DUMP=$(DUMP) TRACE=$(TRACE) WAVE=$(WAVE) DUMP_FILE=$(DUMP_FILE) || exit 1; \
+		fi; \
+	done
+
 sim-uvm:
 	@echo "=== Running UVM Verification Across Examples ==="
 	@for ex in $(EXAMPLES); do \
-		if [ -d "$$ex" ]; then \
-			$(MAKE) -C "$$ex" sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) || exit 1; \
+		if [ -d "$$ex" ] && grep -q '^sim-uvm:' "$$ex/Makefile" 2>/dev/null; then \
+			if [ ! -f "$$ex/work/sim/Makefile" ] && grep -q '^export:' "$$ex/Makefile" 2>/dev/null; then \
+				$(MAKE) -C "$$ex" export || exit 1; \
+			fi; \
+			$(MAKE) -C "$$ex" sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) DUMP=$(DUMP) TRACE=$(TRACE) WAVE=$(WAVE) DUMP_FILE=$(DUMP_FILE) || exit 1; \
 		fi; \
 	done
 

@@ -495,6 +495,10 @@ void TestRegMapTreeModel::testMemoryOverlapValidation() {
   QVERIFY(model.checkData(32).isEmpty());
   QVERIFY(!model.isIndexInvalid(model.index(0, 1, blkIndex)));
   QVERIFY(!model.isIndexInvalid(model.index(1, 1, blkIndex)));
+
+  // Test zero size memory fallback to 4 bytes
+  model.setData(model.index(1, 2, blkIndex), "0", Qt::EditRole);
+  QVERIFY(model.checkData(32).isEmpty());
 }
 
 void TestRegMapTreeModel::testIndexAndDataRolesEdgeCases() {

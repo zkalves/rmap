@@ -353,12 +353,12 @@ def test_uvm(rmap_bin, work_dir):
 
     # Field configure calls
     assert 'this.enable = uvm_reg_field::type_id::create("ENABLE");' in content
-    assert 'this.enable.configure(this, 1, 0, "RW", false, 0x0001, true, true, 1);' in content
+    assert 'this.enable.configure(this, 1, 0, "RW", 0, \'h0001, 1, 1, 1);' in content
 
     # Map creation and registration
     assert 'this.default_map = create_map("default_map", 0, 4, UVM_LITTLE_ENDIAN);' in content
     assert 'this.control.add_hdl_path_slice("reg_control_q", 0, 32);' in content
-    assert 'this.default_map.add_reg(this.control, 0x0000, "RW");' in content
+    assert 'this.default_map.add_reg(this.control, \'h0000, "RW");' in content
 
     print("✓ UVM template verified successfully.\n")
 
@@ -924,6 +924,11 @@ def test_rtl_tb(rmap_bin, work_dir):
         run_command(ver_cmd)
         print("  ✓ Verilator lint check passed on RTL testbench.")
 
+    with open(tb_comp, "r", encoding="utf-8") as f:
+        tb_content = f.read()
+    assert "$dumpfile" in tb_content
+    assert "$dumpvars" in tb_content
+
     print("✓ RTL Testbench template verified successfully.\n")
 
 
@@ -1002,6 +1007,8 @@ def test_uvm_tb(rmap_bin, work_dir):
         top_content = f.read()
     assert "module tb_top;" in top_content
     assert "reg_bus_if" in top_content
+    assert "$dumpfile" in top_content
+    assert "$dumpvars" in top_content
     assert "run_test();" in top_content
 
     print("✓ UVM IEEE 1800.2 Testbench template verified successfully.\n")
@@ -1027,6 +1034,9 @@ def test_sim_makefile(rmap_bin, work_dir):
     assert "sim-verilator:" in content
     assert "sim-pyuvm:" in content
     assert "sim-uvm:" in content
+    assert "DUMP" in content
+    assert "VERILATOR_TRACE_OPT" in content
+    assert "--trace" in content
     assert "uvm-ieee" in content
     assert "UVM_VER" in content
     assert "1800.2-2020" in content

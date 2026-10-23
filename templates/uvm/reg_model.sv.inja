@@ -95,13 +95,13 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
   endclass
   {% endif %}
 
-  // Register: {{ reg.name }} @ {{ reg.offset_hex }}
+  // Register: {{ reg.name }} @ {{ sv_h(reg.offset_hex) }}
   class {{ lower(reg.name) }}_reg extends {% if existsIn(reg, "is_fifo") and reg.is_fifo %}uvm_reg_fifo{% else %}{% if existsIn(reg, "is_indirect") and reg.is_indirect %}uvm_reg_indirect_data{% else %}uvm_reg{% endif %}{% endif %};
     `uvm_object_utils({{ lower(reg.name) }}_reg)
 
     {% if not (existsIn(reg, "is_indirect") and reg.is_indirect) %}
     {% for fld in reg.fields %}
-    rand uvm_reg_field {{ lower(fld.name) }};
+    rand uvm_reg_field {{ sv_id(lower(fld.name)) }};
     {% endfor %}
     {% endif %}
 
@@ -142,8 +142,8 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     virtual function void build();
       {% if not (existsIn(reg, "is_indirect") and reg.is_indirect) %}
       {% for fld in reg.fields %}
-      this.{{ lower(fld.name) }} = uvm_reg_field::type_id::create("{{ fld.name }}");
-      this.{{ lower(fld.name) }}.configure(this, {{ fld.size_width }}, {{ fld.offset_lsb }}, "{{ upper(fld.access) }}", {% if existsIn(fld, "volatile") %}{{ fld.volatile }}{% else %}0{% endif %}, {% if existsIn(fld, "reset_hex") %}{{ fld.reset_hex }}{% else %}0{% endif %}, {% if existsIn(fld, "has_reset") %}{{ fld.has_reset }}{% else %}1{% endif %}, {% if existsIn(fld, "is_rand") %}{{ fld.is_rand }}{% else %}1{% endif %}, {% if existsIn(fld, "individually_accessible") %}{{ fld.individually_accessible }}{% else %}1{% endif %});
+      this.{{ sv_id(lower(fld.name)) }} = uvm_reg_field::type_id::create("{{ fld.name }}");
+      this.{{ sv_id(lower(fld.name)) }}.configure(this, {{ fld.size_width }}, {{ fld.offset_lsb }}, "{{ upper(fld.access) }}", {% if existsIn(fld, "volatile") and fld.volatile %}1{% else %}0{% endif %}, {% if existsIn(fld, "reset_val") %}{{ sv_h(fld.reset_val) }}{% else if existsIn(fld, "reset_hex") %}{{ sv_h(fld.reset_hex) }}{% else %}'h0000{% endif %}, {% if existsIn(fld, "has_reset") and not fld.has_reset %}0{% else %}1{% endif %}, {% if existsIn(fld, "is_rand") and not fld.is_rand %}0{% else %}1{% endif %}, {% if existsIn(fld, "individually_accessible") and not fld.individually_accessible %}0{% else %}1{% endif %});
       {% endfor %}
       {% endif %}
       {% if existsIn(reg, "has_callbacks") and reg.has_callbacks %}
@@ -154,27 +154,27 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
       {% endif %}
     endfunction
   endclass
-  rand {{ lower(reg.name) }}_reg {{ lower(reg.name) }};
+  rand {{ lower(reg.name) }}_reg {{ sv_id(lower(reg.name)) }};
   {% endfor %}
 
   {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
   {% for mem in blk.memories %}
-  // Memory: {{ mem.name }} @ {{ mem.offset_hex }}{% if existsIn(mem, "size_width") %} (Size: {{ mem.size_width }} B){% endif %}
-  uvm_mem {{ lower(mem.name) }};
+  // Memory: {{ mem.name }} @ {{ sv_h(mem.offset_hex) }}{% if existsIn(mem, "size_width") %} (Size: {{ mem.size_width }} B){% endif %}
+  uvm_mem {{ sv_id(lower(mem.name)) }};
   {% endfor %}
   {% endif %}
 
   {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
   {% for map in blk.maps %}
   {% if lower(map.name) != "default_map" %}
-  uvm_reg_map {{ lower(map.name) }};
+  uvm_reg_map {{ sv_id(lower(map.name)) }};
   {% endif %}
   {% endfor %}
   {% endif %}
 
   {% if existsIn(blk, "blocks") and length(blk.blocks) > 0 %}
   {% for sub in blk.blocks %}
-  rand {{ lower(sub.name) }}_reg_block {{ lower(sub.name) }};
+  rand {{ lower(sub.name) }}_reg_block {{ sv_id(lower(sub.name)) }};
   {% endfor %}
   {% endif %}
 
@@ -184,11 +184,11 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     option.name = "{{ blk.name }}_access_cov";
     ADDR: coverpoint addr {
       {% for reg in blk.registers %}
-      bins {{ lower(reg.name) }} = { {{ reg.offset_hex }} };
+      bins bin_{{ lower(reg.name) }} = { {{ sv_h(reg.offset_hex) }} };
       {% endfor %}
       {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
       {% for mem in blk.memories %}
-      bins {{ lower(mem.name) }} = { {{ mem.offset_hex }} };
+      bins bin_{{ lower(mem.name) }} = { {{ sv_h(mem.offset_hex) }} };
       {% endfor %}
       {% endif %}
     }
@@ -214,6 +214,8 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
 
   function new(string name = "{{ blk.name }}");
     super.new(name, build_coverage(UVM_CVR_ALL));
+    void'(uvm_reg_field::define_access("NOACCESS"));
+    void'(uvm_reg_field::define_access("NA"));
   endfunction
 
   virtual function void build();
@@ -228,81 +230,81 @@ class {{ lower(blk.name) }}_reg_block extends uvm_reg_block;
     {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
     {% for map in blk.maps %}
     {% if lower(map.name) != "default_map" %}
-    this.{{ lower(map.name) }} = create_map("{{ map.name }}", {{ map.base_hex }}, {{ map.n_bytes }}, {{ map.endianness }}, {{ map.byte_addressing }});
+    this.{{ sv_id(lower(map.name)) }} = create_map("{{ map.name }}", {{ sv_h(map.base_hex) }}, {{ map.n_bytes }}, {{ map.endianness }}, {{ map.byte_addressing }});
     {% endif %}
     {% endfor %}
     {% endif %}
 
     {% for reg in blk.registers %}
-    this.{{ lower(reg.name) }} = {{ lower(reg.name) }}_reg::type_id::create("{{ reg.name }}");
+    this.{{ sv_id(lower(reg.name)) }} = {{ lower(reg.name) }}_reg::type_id::create("{{ reg.name }}");
     {% if existsIn(reg, "is_indirect") and reg.is_indirect %}
-    this.{{ lower(reg.name) }}.configure({% if existsIn(reg, "index_reg") and length(reg.index_reg) > 0 %}this.{{ lower(reg.index_reg) }}{% else %}null{% endif %}, null, this, null);
-    this.{{ lower(reg.name) }}.build();
+    this.{{ sv_id(lower(reg.name)) }}.configure({% if existsIn(reg, "index_reg") and length(reg.index_reg) > 0 %}this.{{ sv_id(lower(reg.index_reg)) }}{% else %}null{% endif %}, null, this, null);
+    this.{{ sv_id(lower(reg.name)) }}.build();
     {% else %}
-    this.{{ lower(reg.name) }}.configure(this, null, "");
-    this.{{ lower(reg.name) }}.build();
-    this.{{ lower(reg.name) }}.add_hdl_path_slice("{% if existsIn(reg, "hdl_path") and length(reg.hdl_path) > 0 %}{{ reg.hdl_path }}{% else %}reg_{{ lower(reg.name) }}_q{% endif %}", 0, {{ reg.size_width }});
+    this.{{ sv_id(lower(reg.name)) }}.configure(this, null, "");
+    this.{{ sv_id(lower(reg.name)) }}.build();
+    this.{{ sv_id(lower(reg.name)) }}.add_hdl_path_slice("{% if existsIn(reg, "hdl_path") and length(reg.hdl_path) > 0 %}{{ reg.hdl_path }}{% else %}reg_{{ lower(reg.name) }}_q{% endif %}", 0, {{ reg.size_width }});
     {% endif %}
-    this.default_map.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{% if upper(reg.access) == "RO" %}RO{% else if upper(reg.access) == "WO" or upper(reg.access) == "WO1" or upper(reg.access) == "WOC" or upper(reg.access) == "WOS" %}WO{% else %}RW{% endif %}");
+    this.default_map.add_reg(this.{{ sv_id(lower(reg.name)) }}, {{ sv_h(reg.offset_hex) }}, "{% if upper(reg.access) == "RO" %}RO{% else if upper(reg.access) == "WO" or upper(reg.access) == "WO1" or upper(reg.access) == "WOC" or upper(reg.access) == "WOS" %}WO{% else %}RW{% endif %}");
     {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
     {% for map in blk.maps %}
     {% if lower(map.name) != "default_map" %}
-    this.{{ lower(map.name) }}.add_reg(this.{{ lower(reg.name) }}, {{ reg.offset_hex }}, "{% if upper(reg.access) == "RO" %}RO{% else if upper(reg.access) == "WO" or upper(reg.access) == "WO1" or upper(reg.access) == "WOC" or upper(reg.access) == "WOS" %}WO{% else %}RW{% endif %}");
+    this.{{ sv_id(lower(map.name)) }}.add_reg(this.{{ sv_id(lower(reg.name)) }}, {{ sv_h(reg.offset_hex) }}, "{% if upper(reg.access) == "RO" %}RO{% else if upper(reg.access) == "WO" or upper(reg.access) == "WO1" or upper(reg.access) == "WOC" or upper(reg.access) == "WOS" %}WO{% else %}RW{% endif %}");
     {% endif %}
     {% endfor %}
     {% endif %}
     {% if existsIn(reg, "no_reg_test") and reg.no_reg_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_TEST", 1);
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_TESTS", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(reg.name)) }}.get_full_name()}, "NO_REG_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(reg.name)) }}.get_full_name()}, "NO_REG_TESTS", 1);
     {% endif %}
     {% if existsIn(reg, "no_reset_test") and reg.no_reset_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_HW_RESET_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(reg.name)) }}.get_full_name()}, "NO_REG_HW_RESET_TEST", 1);
     {% endif %}
     {% if existsIn(reg, "no_bit_bash_test") and reg.no_bit_bash_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_BIT_BASH_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(reg.name)) }}.get_full_name()}, "NO_REG_BIT_BASH_TEST", 1);
     {% endif %}
     {% if existsIn(reg, "no_access_test") and reg.no_access_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(reg.name) }}.get_full_name()}, "NO_REG_ACCESS_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(reg.name)) }}.get_full_name()}, "NO_REG_ACCESS_TEST", 1);
     {% endif %}
     {% endfor %}
 
     {% if existsIn(blk, "memories") and length(blk.memories) > 0 %}
     {% for mem in blk.memories %}
-    this.{{ lower(mem.name) }} = new("{{ mem.name }}", {% if existsIn(mem, "depth") %}{{ mem.depth }}{% else %}{{ mem.size_width }} / {{ reg_width_bytes }}{% endif %}, {% if existsIn(mem, "word_width") %}{{ mem.word_width }}{% else %}{{ reg_width }}{% endif %}, "{{ upper(mem.access) }}");
-    this.{{ lower(mem.name) }}.configure(this, {% if existsIn(mem, "hdl_path") and length(mem.hdl_path) > 0 %}"{{ mem.hdl_path }}"{% else %}""{% endif %});
-    this.default_map.add_mem(this.{{ lower(mem.name) }}, {{ mem.offset_hex }});
+    this.{{ sv_id(lower(mem.name)) }} = new("{{ mem.name }}", {% if existsIn(mem, "depth") %}{{ mem.depth }}{% else %}{{ mem.size_width }} / {{ reg_width_bytes }}{% endif %}, {% if existsIn(mem, "word_width") %}{{ mem.word_width }}{% else %}{{ reg_width }}{% endif %}, "{{ upper(mem.access) }}");
+    this.{{ sv_id(lower(mem.name)) }}.configure(this, {% if existsIn(mem, "hdl_path") and length(mem.hdl_path) > 0 %}"{{ mem.hdl_path }}"{% else %}""{% endif %});
+    this.default_map.add_mem(this.{{ sv_id(lower(mem.name)) }}, {{ sv_h(mem.offset_hex) }});
     {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
     {% for map in blk.maps %}
     {% if lower(map.name) != "default_map" %}
-    this.{{ lower(map.name) }}.add_mem(this.{{ lower(mem.name) }}, {{ mem.offset_hex }});
+    this.{{ sv_id(lower(map.name)) }}.add_mem(this.{{ sv_id(lower(mem.name)) }}, {{ sv_h(mem.offset_hex) }});
     {% endif %}
     {% endfor %}
     {% endif %}
     {% if existsIn(mem, "no_mem_test") and mem.no_mem_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_TEST", 1);
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_TESTS", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(mem.name)) }}.get_full_name()}, "NO_MEM_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(mem.name)) }}.get_full_name()}, "NO_MEM_TESTS", 1);
     {% endif %}
     {% if existsIn(mem, "no_walk_test") and mem.no_walk_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_WALK_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(mem.name)) }}.get_full_name()}, "NO_MEM_WALK_TEST", 1);
     {% endif %}
     {% if existsIn(mem, "no_access_test") and mem.no_access_test %}
-    uvm_resource_db#(bit)::set({"REG::", this.{{ lower(mem.name) }}.get_full_name()}, "NO_MEM_ACCESS_TEST", 1);
+    uvm_resource_db#(bit)::set({"REG::", this.{{ sv_id(lower(mem.name)) }}.get_full_name()}, "NO_MEM_ACCESS_TEST", 1);
     {% endif %}
     {% endfor %}
     {% endif %}
 
     {% if existsIn(blk, "blocks") and length(blk.blocks) > 0 %}
     {% for sub in blk.blocks %}
-    this.{{ lower(sub.name) }} = {{ lower(sub.name) }}_reg_block::type_id::create("{{ sub.name }}");
-    this.{{ lower(sub.name) }}.configure(this);
-    this.{{ lower(sub.name) }}.build();
-    this.default_map.add_submap(this.{{ lower(sub.name) }}.default_map, {{ sub.offset_hex }});
+    this.{{ sv_id(lower(sub.name)) }} = {{ lower(sub.name) }}_reg_block::type_id::create("{{ sub.name }}");
+    this.{{ sv_id(lower(sub.name)) }}.configure(this);
+    this.{{ sv_id(lower(sub.name)) }}.build();
+    this.default_map.add_submap(this.{{ sv_id(lower(sub.name)) }}.default_map, {{ sv_h(sub.offset_hex) }});
     {% if existsIn(blk, "maps") and length(blk.maps) > 0 and existsIn(sub, "maps") and length(sub.maps) > 0 %}
     {% for map in blk.maps %}
     {% if lower(map.name) != "default_map" %}
     {% for smap in sub.maps %}
     {% if lower(smap.name) == lower(map.name) %}
-    this.{{ lower(map.name) }}.add_submap(this.{{ lower(sub.name) }}.{{ lower(smap.name) }}, {{ sub.offset_hex }});
+    this.{{ sv_id(lower(map.name)) }}.add_submap(this.{{ sv_id(lower(sub.name)) }}.{{ sv_id(lower(smap.name)) }}, {{ sv_h(sub.offset_hex) }});
     {% endif %}
     {% endfor %}
     {% endif %}

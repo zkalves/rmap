@@ -270,6 +270,7 @@ templates/
 | `bitmask` | `{{ bitmask(fld.size_width, fld.offset_lsb) }}` | `0x0000000F` | Computes 64-bit mask for bitfield slice. |
 | `pad_zero` | `{{ pad_zero(fld.offset_lsb, 2) }}` | `"04"` | Pads decimal number with leading zeroes. |
 | `sv_hex` | `{{ sv_hex(fld.reset_val, 32) }}` | `32'h0000_0000` | Formats SystemVerilog sized hexadecimal literal. |
+| `sv_h` | `{{ sv_h(fld.reset_val) }}` | `'h0000` | Formats SystemVerilog unsized hexadecimal literal with minimum digit padding. |
 
 ---
 

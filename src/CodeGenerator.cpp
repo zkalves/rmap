@@ -24,6 +24,7 @@
 #include <QStandardPaths>
 #include <QTemporaryFile>
 #include <set>
+#include <unordered_set>
 
 void CodeGenerator::registerHelpers(Environment &env) {
   // Helper: {{ to_hex(val, width) }}
@@ -220,10 +221,22 @@ void CodeGenerator::registerHelpers(Environment &env) {
       if (s.size() >= 2 && s.front() == '"' && s.back() == '"') {
         s = s.substr(1, s.size() - 2);
       }
-      try {
-        val = std::stoull(s, nullptr, 0);
-      } catch (...) {
-        val = 0;
+      auto h_pos = s.find("'h");
+      if (h_pos == std::string::npos) {
+        h_pos = s.find("'H");
+      }
+      if (h_pos != std::string::npos) {
+        try {
+          val = std::stoull(s.substr(h_pos + 2), nullptr, 16);
+        } catch (...) {
+          val = 0;
+        }
+      } else {
+        try {
+          val = std::stoull(s, nullptr, 0);
+        } catch (...) {
+          val = 0;
+        }
       }
     }
 
@@ -258,6 +271,111 @@ void CodeGenerator::registerHelpers(Environment &env) {
   };
   env.add_callback("sv_hex", 1, sv_hex_fn);
   env.add_callback("sv_hex", 2, sv_hex_fn);
+
+  // Helper: {{ sv_h(val, min_digits) }} or {{ sv_h(val) }} -> Unsized
+  // SystemVerilog hex literal (e.g. 'h0000, 'h0004, 'h1000)
+  auto sv_h_fn = [](Arguments &args) {
+    uint64_t val = 0;
+    int min_digits = 4;
+    if (args.at(0)->is_number()) {
+      val = args.at(0)->get<uint64_t>();
+    } else if (args.at(0)->is_string()) {
+      std::string s = args.at(0)->get<std::string>();
+      if (s.size() >= 2 && s.front() == '"' && s.back() == '"') {
+        s = s.substr(1, s.size() - 2);
+      }
+      auto h_pos = s.find("'h");
+      if (h_pos == std::string::npos) {
+        h_pos = s.find("'H");
+      }
+      if (h_pos != std::string::npos) {
+        try {
+          val = std::stoull(s.substr(h_pos + 2), nullptr, 16);
+        } catch (...) {
+          val = 0;
+        }
+      } else {
+        try {
+          val = std::stoull(s, nullptr, 0);
+        } catch (...) {
+          val = 0;
+        }
+      }
+    }
+
+    if (args.size() > 1) {
+      if (args.at(1)->is_number()) {
+        min_digits = args.at(1)->get<int>();
+      } else if (args.at(1)->is_string()) {
+        try {
+          min_digits = std::stoi(args.at(1)->get<std::string>());
+        } catch (...) {
+          min_digits = 4;
+        }
+      }
+    }
+
+    std::stringstream ss;
+    ss << "'h" << std::hex << std::uppercase << std::setfill('0')
+       << std::setw(min_digits) << val;
+    return ss.str();
+  };
+  env.add_callback("sv_h", 1, sv_h_fn);
+  env.add_callback("sv_h", 2, sv_h_fn);
+
+  // Helper: {{ sv_id(name) }} -> SystemVerilog escaped identifier if name collides with an IEEE 1800 keyword
+  static const std::unordered_set<std::string> kSvKeywords = {
+      "accept_on", "alias", "always", "always_comb", "always_ff", "always_latch",
+      "and", "assert", "assign", "assume", "automatic", "before", "begin", "bind",
+      "bins", "binsof", "bit", "break", "buf", "bufif0", "bufif1", "byte", "case",
+      "casex", "casez", "cell", "chandle", "checker", "class", "clocking", "cmos",
+      "config", "const", "constraint", "context", "continue", "cover", "covergroup",
+      "coverpoint", "cross", "deassign", "default", "defparam", "design",
+      "disable", "dist", "do", "edge", "else", "end", "endcase", "endchecker",
+      "endclass", "endclocking", "endconfig", "endfunction", "endgenerate",
+      "endgroup", "endinterface", "endmodule", "endpackage", "endprimitive",
+      "endprogram", "endproperty", "endspecify", "endsequence", "endtable",
+      "endtask", "enum", "event", "eventually", "expect", "export", "extends",
+      "extern", "final", "first_match", "for", "force", "foreach", "forever",
+      "fork", "forkjoin", "function", "generate", "genvar", "global", "highz0",
+      "highz1", "if", "iff", "ifnone", "ignore_bins", "illegal_bins",
+      "implements", "implies", "import", "incdir", "include", "initial", "inout",
+      "input", "inside", "instance", "int", "integer", "interconnect",
+      "interface", "intersect", "join", "join_any", "join_none", "large", "let",
+      "liblist", "library", "local", "localparam", "logic", "longint",
+      "macromodule", "matches", "medium", "modport", "module", "nand", "negedge",
+      "nettype", "new", "nexttime", "nmos", "nor", "noshowcancelled", "not",
+      "notif0", "notif1", "null", "or", "output", "package", "packed",
+      "parameter", "pmos", "posedge", "primitive", "priority", "program",
+      "property", "protected", "pull0", "pull1", "pulldown", "pullup",
+      "pulsestyle_ondetect", "pulsestyle_onevent", "pure", "rand", "randc",
+      "randcase", "randsequence", "rcmos", "real", "realtime", "ref", "reg",
+      "reject_on", "release", "repeat", "restrict", "return", "rnmos", "rpmos",
+      "rtran", "rtranif0", "rtranif1", "s_always", "s_eventually", "s_nexttime",
+      "s_until", "s_until_with", "scalared", "sequence", "shortint", "shortreal",
+      "showcancelled", "signed", "small", "soft", "solve", "specify", "specparam",
+      "static", "string", "strong", "strong0", "strong1", "struct", "super",
+      "supply0", "supply1", "sync_accept_on", "sync_reject_on", "table", "task",
+      "this", "throughout", "time", "timeprecision", "timeunit", "tran",
+      "tranif0", "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg",
+      "type", "typedef", "union", "unique", "unique0", "unsigned", "until",
+      "until_with", "untyped", "use", "uwire", "var", "vectored", "virtual",
+      "void", "wait", "wait_order", "wand", "weak", "weak0", "weak1", "while",
+      "wildcard", "wire", "with", "within", "wor", "xnor", "xor"
+  };
+  env.add_callback("sv_id", 1, [](Arguments &args) {
+    if (args.empty() || !args.at(0)->is_string())
+      return std::string("");
+    std::string s = args.at(0)->get<std::string>();
+    std::string lower_s = s;
+    for (char &c : lower_s) {
+      c = std::tolower(static_cast<unsigned char>(c));
+    }
+    if (kSvKeywords.find(lower_s) != kSvKeywords.end()) {
+      return "\\" + s + " ";
+    }
+    return s;
+  });
 
   env.add_callback("sv_lock_expr", 1, [](Arguments &args) {
     if (args.empty() || !args.at(0)->is_string())

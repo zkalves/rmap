@@ -113,6 +113,20 @@ module tb_{{ lower(blk.name) }}_reg_file;
     forever #5 clk_i = ~clk_i;
   end
 
+  // Optional Waveform Dumping (VCD / FST)
+  initial begin
+    string dump_file;
+    if ($test$plusargs("dump") || $test$plusargs("trace") || $test$plusargs("wave") || $test$plusargs("vcd") ||
+        $value$plusargs("dumpfile=%s", dump_file) || $value$plusargs("dump=%s", dump_file)) begin
+      if (dump_file == "") begin
+        dump_file = "waveform.vcd";
+      end
+      $dumpfile(dump_file);
+      $dumpvars(0, tb_{{ lower(blk.name) }}_reg_file);
+      $display("[WAVEFORM] Waveform dump enabled: %s", dump_file);
+    end
+  end
+
   // DUT Instantiation
   {{ lower(blk.name) }}_reg_file #(
     .ADDR_WIDTH(ADDR_WIDTH),
@@ -256,7 +270,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
 {% for reg in blk.registers %}
 {% for fld in reg.fields %}
 {% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or upper(fld.hw_access) != "NA")) %}
-    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = '0;
+    hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_i = {% if existsIn(fld, "reset_val") %}{{ sv_h(fld.reset_val) }}{% else if existsIn(fld, "reset_hex") %}{{ sv_h(fld.reset_hex) }}{% else %}'0{% endif %};
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" or upper(fld.access) == "WC" or upper(fld.access) == "W1C" or upper(fld.access) == "W0C" or upper(fld.access) == "W1CRS" or upper(fld.access) == "W0CRS" %}
     hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set_i = '0;
 {% else if upper(fld.access) == "WS" or upper(fld.access) == "W1S" or upper(fld.access) == "W0S" or upper(fld.access) == "W1SRC" or upper(fld.access) == "W0SRC" %}

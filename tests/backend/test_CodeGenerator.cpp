@@ -481,18 +481,18 @@ void TestCodeGenerator::testUvmCookbookRalFeatures() {
 
   // Verify individually_accessible = 0
   QVERIFY(content.contains(
-      "this.data.configure(this, 8, 0, \"RO\", true, 0x00, true, false, 0);"));
+      "this.data.configure(this, 8, 0, \"RO\", 1, 'h0000, 1, 0, 0);"));
 
   // Verify custom map declaration and creation
   QVERIFY(content.contains("uvm_reg_map ahb_map;"));
-  QVERIFY(content.contains("this.ahb_map = create_map(\"AHB_MAP\", 32'h1000, "
+  QVERIFY(content.contains("this.ahb_map = create_map(\"AHB_MAP\", 'h1000, "
                            "4, UVM_LITTLE_ENDIAN, 1);"));
 
   // Verify register added to default_map and AHB_map
   QVERIFY(content.contains(
-      "this.default_map.add_reg(this.rx_fifo, 32'h0000, \"RO\");"));
-  QVERIFY(content.contains(
-      "this.ahb_map.add_reg(this.rx_fifo, 32'h0000, \"RO\");"));
+      "this.default_map.add_reg(this.rx_fifo, 'h0000, \"RO\");"));
+  QVERIFY(
+      content.contains("this.ahb_map.add_reg(this.rx_fifo, 'h0000, \"RO\");"));
 
   // Verify custom HDL backdoor path
   QVERIFY(content.contains(
@@ -509,7 +509,7 @@ void TestCodeGenerator::testUvmCookbookRalFeatures() {
       content.contains("this.sram_buf = new(\"SRAM_BUF\", 2048, 32, \"RW\");"));
   QVERIFY(
       content.contains("this.sram_buf.configure(this, \"dut.soc.sram_arr\");"));
-  QVERIFY(content.contains("this.ahb_map.add_mem(this.sram_buf, 32'h4000);"));
+  QVERIFY(content.contains("this.ahb_map.add_mem(this.sram_buf, 'h4000);"));
   QVERIFY(content.contains("NO_MEM_TEST"));
   QVERIFY(content.contains("NO_MEM_WALK_TEST"));
 
@@ -518,9 +518,9 @@ void TestCodeGenerator::testUvmCookbookRalFeatures() {
   QVERIFY(content.contains(
       "this.gpio = gpio_reg_block::type_id::create(\"GPIO\");"));
   QVERIFY(content.contains(
-      "this.default_map.add_submap(this.gpio.default_map, 32'h0800);"));
-  QVERIFY(content.contains(
-      "this.ahb_map.add_submap(this.gpio.ahb_map, 32'h0800);"));
+      "this.default_map.add_submap(this.gpio.default_map, 'h0800);"));
+  QVERIFY(
+      content.contains("this.ahb_map.add_submap(this.gpio.ahb_map, 'h0800);"));
 
   // Verify indirect register extends uvm_reg_indirect_data
   QVERIFY(
@@ -927,7 +927,7 @@ void TestCodeGenerator::testFullGenerationRtlWithMemories() {
   uvmFile.close();
   QVERIFY(uvmContent.contains("uvm_mem buffer_ram;"));
   QVERIFY(uvmContent.contains(
-      "this.default_map.add_mem(this.buffer_ram, 0x1000);"));
+      "this.default_map.add_mem(this.buffer_ram, 'h1000);"));
 
   // 4. Check C Header
   QFile cFile("work/c/periph_reg_map.h");
@@ -2136,7 +2136,19 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases() {
              "hex_bool={{ to_hex(true, 4) }}\n"
              "dec_bool={{ to_dec(true) }}\n"
              "pad_bool={{ pad_zero(true, 4) }}\n"
-             "sv_hex_bool={{ sv_hex(true, 16) }}\n");
+             "sv_hex_bool={{ sv_hex(true, 16) }}\n"
+             "sv_hex_vh={{ sv_hex(\"32'h0123\", 16) }}\n"
+             "sv_hex_bad_vh={{ sv_hex(\"32'hZZZ\", 16) }}\n"
+             "sv_h_num={{ sv_h(255) }}\n"
+             "sv_h_str={{ sv_h(\"0x123\", 4) }}\n"
+             "sv_h_quoted={{ sv_h(\"\\\"0x1234\\\"\", 4) }}\n"
+             "sv_h_vh={{ sv_h(\"32'h0456\", 4) }}\n"
+             "sv_h_bad={{ sv_h(\"not_num\", \"invalid\") }}\n"
+             "sv_h_bad_vh={{ sv_h(\"32'hZZZ\", 4) }}\n"
+             "sv_id_normal={{ sv_id(\"my_reg\") }}\n"
+             "sv_id_keyword={{ sv_id(\"config\") }}\n"
+             "sv_id_upper_kw={{ sv_id(\"CONFIG\") }}\n"
+             "sv_id_bad={{ sv_id(123) }}\n");
   tmpl.close();
 
   std::vector<TemplateMapping> mappings = {
@@ -2162,8 +2174,20 @@ void TestCodeGenerator::testHelpersExtendedEdgeCases() {
   QVERIFY(content.contains("snake_dash=foo_bar_baz"));
   QVERIFY(content.contains("snake_camel=camel_case_word"));
   QVERIFY(content.contains("sv_hex_str=16'h0123"));
+  QVERIFY(content.contains("sv_hex_vh=16'h0123"));
+  QVERIFY(content.contains("sv_hex_bad_vh=16'h0000"));
   QVERIFY(content.contains("sv_hex_quoted=16'h1234"));
   QVERIFY(content.contains("sv_hex_bad=32'h0000"));
+  QVERIFY(content.contains("sv_h_num='h00FF"));
+  QVERIFY(content.contains("sv_h_str='h0123"));
+  QVERIFY(content.contains("sv_h_quoted='h1234"));
+  QVERIFY(content.contains("sv_h_vh='h0456"));
+  QVERIFY(content.contains("sv_h_bad='h0000"));
+  QVERIFY(content.contains("sv_h_bad_vh='h0000"));
+  QVERIFY(content.contains("sv_id_normal=my_reg"));
+  QVERIFY(content.contains("sv_id_keyword=\\config "));
+  QVERIFY(content.contains("sv_id_upper_kw=\\CONFIG "));
+  QVERIFY(content.contains("sv_id_bad="));
   QVERIFY(content.contains("hex_bad_width=0x30"));
   QVERIFY(content.contains("mask_bad=0x0"));
   QVERIFY(content.contains("mask_0=0x0"));

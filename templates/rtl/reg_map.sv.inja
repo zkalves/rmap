@@ -138,7 +138,7 @@ module {{ lower(blk.name) }}_reg_file #(
   // =========================================================================
 {% for reg in blk.registers %}
 {% if not (existsIn(reg, "decode_only") and reg.decode_only) %}
-  logic [DATA_WIDTH-1:0] reg_{{ lower(reg.name) }}_q, reg_{{ lower(reg.name) }}_d;
+  logic [DATA_WIDTH-1:0] reg_{{ lower(reg.name) }}_q /* verilator public */, reg_{{ lower(reg.name) }}_d;
 {% for fld in reg.fields %}
 {% if not (existsIn(fld, "decode_only") and fld.decode_only) %}
 {% if upper(fld.access) == "W1" or upper(fld.access) == "WO1" %}

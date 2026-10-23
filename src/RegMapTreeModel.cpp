@@ -505,9 +505,9 @@ void RegMapTreeModel::recursiveCheckData(RegMapTreeItem *node,
       } else if (childKind == RegMapTreeItem::e_rmmKind::mem) {
         uint64_t offset = parseNumericValue(child->data("Offset/LSB"));
         uint64_t size_bytes = parseNumericValue(child->data("Size/Width"));
-        if (size_bytes == 0)
-          size_bytes =
-              4; // GCOV_EXCL_LINE - Defensive fallback for zero memory size
+        if (size_bytes == 0) {
+          size_bytes = 4;
+        }
         regions.push_back({child, offset, offset + size_bytes - 1,
                            child->data("Name").toString(), "Memory"});
       }
@@ -870,7 +870,7 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
     item_json["byte_addressing"] = byte_addressing ? 1 : 0;
   } else if (kind == "blk") {
     QString blkHdl = node->data("HDL Path").toString().trimmed();
-    item_json["hdl_path"] = blkHdl.isEmpty() ? "DUT" : blkHdl.toStdString();
+    item_json["hdl_path"] = blkHdl.isEmpty() ? "dut" : blkHdl.toStdString();
   }
 
   // Structured arrays for native Inja loops
@@ -977,6 +977,28 @@ json RegMapTreeModel::recursiveExtractJsonData(RegMapTreeItem *node,
     item_json["fields"] = fields;
   }
   if (kind == "reg") {
+    // If register reset value was not explicitly specified or zero, compute
+    // composite from child fields
+    if (!fields.empty() &&
+        (reset_val == 0 || !node->data("Reset Value").isValid() ||
+         node->data("Reset Value").toString().trimmed().isEmpty())) {
+      uint64_t computed_reset = 0;
+      bool has_any_field_reset = false;
+      for (const auto &fld : fields) {
+        if (fld.value("has_reset", false)) {
+          has_any_field_reset = true;
+        }
+        uint64_t fld_val = fld.value("reset_val", 0ULL);
+        uint64_t fld_lsb = fld.value("offset_lsb", 0ULL);
+        computed_reset |= (fld_val << fld_lsb);
+      }
+      if (has_any_field_reset || computed_reset > 0) {
+        reset_val = computed_reset;
+        item_json["reset_val"] = reset_val;
+        item_json["reset_hex"] = formatHex(reset_val);
+      }
+    }
+
     bool has_decode_only_fields = false;
     bool all_fields_decode_only = !fields.empty();
     bool has_normal_fields = false;
@@ -1116,7 +1138,7 @@ uint32_t RegMapTreeModel::computeTreeCrc32(const json &rootJson) {
 static void collectConfigsRecursive(RegMapTreeItem *node,
                                     QSet<QString> &allConfigs) {
   if (!node)
-    return;
+    return; // GCOV_EXCL_LINE - Defensive null check
   for (const QString &c : node->enabledConfigs()) {
     allConfigs.insert(c);
   }

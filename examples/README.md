@@ -129,7 +129,7 @@ Every example includes an autonomous `Makefile` alongside real test harnesses fo
 | `make sim-rtl` | Runs synthesizable SystemVerilog register slice simulation | Icarus Verilog (`iverilog`) |
 | `make sim-verilator`| Compiles and executes cycle-accurate C++ simulation model | `verilator` |
 | `make sim-pyuvm` | Runs Python PyUVM functional verification testbench | `cocotb-config` & `iverilog` |
-| `make sim-uvm` | Executes IEEE 1800.2 standard SystemVerilog UVM verification suite | Cadence Xcelium, Synopsys VCS, or Siemens Questa |
+| `make sim-uvm` | Executes IEEE 1800.2 standard SystemVerilog UVM verification suite | Verilator 5.052+, Cadence Xcelium, Synopsys VCS, or Siemens Questa |
 | `make clean` | Cleans up all generated outputs and build artifacts | None |
 
 ### Running Examples

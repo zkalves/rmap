@@ -439,6 +439,8 @@ void TestRegMapTreeItem::testConfigurationProfiles() {
   QVariantMap strData;
   strData["Configurations"] = "Base, Pro";
   RegMapTreeItem itemStr(RegMapTreeItem::e_rmmKind::reg, strData);
+  QCOMPARE(itemStr.data("Configs").toString(), QString("Base, Pro"));
+  QCOMPARE(itemStr.data("enabled_configs").toString(), QString("Base, Pro"));
   QStringList cfgs = itemStr.enabledConfigs();
   QCOMPARE(cfgs.size(), 2);
   QVERIFY(cfgs.contains("Base"));
@@ -448,14 +450,29 @@ void TestRegMapTreeItem::testConfigurationProfiles() {
   QVERIFY(itemStr.isEnabledInConfig("PRO"));
   QVERIFY(!itemStr.isEnabledInConfig("Enterprise"));
 
-  // StringList
+  // StringList with enabled_configs
   QVariantMap listData;
   listData["enabled_configs"] = QStringList({"Core", "Debug"});
   RegMapTreeItem itemList(RegMapTreeItem::e_rmmKind::fld, listData);
+  QCOMPARE(itemList.data("Configurations").toStringList().size(), 2);
+  QCOMPARE(itemList.data("Configs").toStringList().size(), 2);
   QCOMPARE(itemList.enabledConfigs().size(), 2);
   QVERIFY(itemList.isEnabledInConfig("Core"));
   QVERIFY(itemList.isEnabledInConfig("debug"));
   QVERIFY(!itemList.isEnabledInConfig("Base"));
+
+  // Item with only Configs key
+  QVariantMap configsOnlyData;
+  configsOnlyData["Configs"] = "Alpha, Beta";
+  RegMapTreeItem itemConfigsOnly(RegMapTreeItem::e_rmmKind::reg,
+                                 configsOnlyData);
+  QCOMPARE(itemConfigsOnly.data("Configurations").toString(),
+           QString("Alpha, Beta"));
+  QCOMPARE(itemConfigsOnly.data("enabled_configs").toString(),
+           QString("Alpha, Beta"));
+  QCOMPARE(itemConfigsOnly.enabledConfigs().size(), 2);
+  QVERIFY(itemConfigsOnly.isEnabledInConfig("Alpha"));
+  QVERIFY(itemConfigsOnly.isEnabledInConfig("Beta"));
 
   // setData with Configs
   itemEmpty.setData("Configs", "Secure, Safety");

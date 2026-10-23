@@ -27,7 +27,21 @@ module tb_top;
   // Reset Generation
   initial begin
     rst_n = 1'b0;
-    #25 rst_n = 1'b1;
+    #20 rst_n = 1'b1;
+  end
+
+  // Optional Waveform Dumping (VCD / FST)
+  initial begin
+    string dump_file;
+    if ($test$plusargs("dump") || $test$plusargs("trace") || $test$plusargs("wave") || $test$plusargs("vcd") ||
+        $value$plusargs("dumpfile=%s", dump_file) || $value$plusargs("dump=%s", dump_file)) begin
+      if (dump_file == "") begin
+        dump_file = "waveform.vcd";
+      end
+      $dumpfile(dump_file);
+      $dumpvars(0, tb_top);
+      $display("[WAVEFORM] UVM Waveform dump enabled: %s", dump_file);
+    end
   end
 
   // Bus Interface Instance
@@ -45,7 +59,7 @@ module tb_top;
   logic sw_{{ lower(reg.name) }}_rd_strobe;
 {% for fld in reg.fields %}
 {% if (existsIn(fld, "hw_access") and upper(fld.hw_access) == "WIRE") or (upper(fld.access) == "RO" and (not existsIn(fld, "hw_access") or (upper(fld.hw_access) != "NA" and upper(fld.hw_access) != "WO" and upper(fld.hw_access) != "RW" and upper(fld.hw_access) != "W1T" and upper(fld.hw_access) != "INCR" and upper(fld.hw_access) != "DECR"))) %}
-  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in = '0;
+  logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_in = {% if existsIn(fld, "reset_val") %}{{ sv_h(fld.reset_val) }}{% else if existsIn(fld, "reset_hex") %}{{ sv_h(fld.reset_hex) }}{% else %}'0{% endif %};
 {% else if upper(fld.access) == "RC" or upper(fld.access) == "RS" %}
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_set = '0;
   logic [{{ fld.size_width }}-1:0] hw_{{ lower(reg.name) }}_{{ lower(fld.name) }}_out;

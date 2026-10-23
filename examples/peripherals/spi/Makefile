@@ -23,8 +23,12 @@ endif
 
 # Locate rmap executable: check local build tree first, then search system PATH
 RMAP       ?= $(shell if [ -x "$(CURDIR)/../../../build/bin/rmap" ]; then echo "$(CURDIR)/../../../build/bin/rmap"; elif command -v rmap >/dev/null 2>&1; then command -v rmap; else echo "rmap"; fi)
+# Locate verilator executable
+VERILATOR  ?= $(shell if command -v verilator >/dev/null 2>&1; then command -v verilator; elif [ -x "/opt/verilator/v5.052/bin/verilator" ]; then echo "/opt/verilator/v5.052/bin/verilator"; else echo "verilator"; fi)
 RMT_FILE   ?= spi.rmt
-SIM        ?= iverilog
+SIM        ?= verilator
+TEST       ?= spi_top_hw_reset_test
+DUMP_FILE  ?= waveform.vcd
 
 .PHONY: all export validate compile-c compile-rust run-python sim-rtl sim-verilator sim-pyuvm sim-uvm clean
 
@@ -74,9 +78,9 @@ sim-rtl:
 
 sim-verilator:
 	@if [ -f work/sim/Makefile ]; then \
-		if command -v verilator >/dev/null 2>&1; then \
+		if command -v $(VERILATOR) >/dev/null 2>&1 || [ -x "$(VERILATOR)" ]; then \
 			echo "=== [SPI] Running Verilator Simulation ==="; \
-			$(MAKE) -C work/sim sim-verilator; \
+			$(MAKE) -C work/sim sim-verilator DUMP=$(DUMP) TRACE=$(TRACE) WAVE=$(WAVE) DUMP_FILE=$(DUMP_FILE); \
 		else \
 			echo "INFO: verilator not installed; skipping Verilator simulation"; \
 		fi; \
@@ -93,7 +97,9 @@ sim-pyuvm:
 
 sim-uvm:
 	@if [ -f work/sim/Makefile ]; then \
-		$(MAKE) -C work/sim sim-uvm SIM=$(SIM) UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) || echo "INFO: Commercial UVM simulator not detected; skipping sim-uvm"; \
+		SIM_TARGET=$$(if [ "$(SIM)" = "iverilog" ] || [ -z "$(SIM)" ]; then echo "verilator"; else echo "$(SIM)"; fi); \
+		TEST_TARGET=$$(if [ -n "$(TEST)" ]; then echo "$(TEST)"; else echo "spi_top_hw_reset_test"; fi); \
+		$(MAKE) -C work/sim sim-uvm SIM=$$SIM_TARGET UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) TEST=$$TEST_TARGET DUMP=$(DUMP) TRACE=$(TRACE) WAVE=$(WAVE) DUMP_FILE=$(DUMP_FILE); \
 	fi
 
 clean:

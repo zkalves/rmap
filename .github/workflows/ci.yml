@@ -213,14 +213,14 @@ jobs:
             jq
 
       - name: Download Verilator artifact
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva'
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva' || matrix.template == 'uvm_tb'
         uses: actions/download-artifact@v5
         with:
           name: verilator-artifact
           path: /tmp
 
       - name: Extract Verilator and Add to PATH
-        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva'
+        if: matrix.template == 'rtl' || matrix.template == 'rtl_tb' || matrix.template == 'verilog' || matrix.template == 'apb' || matrix.template == 'axil' || matrix.template == 'sva' || matrix.template == 'uvm_tb'
         run: |
           tar -xzf /tmp/verilator-5.052.tar.gz -C /home/runner
           echo "/home/runner/verilator-5.052/bin" >> $GITHUB_PATH
@@ -272,6 +272,82 @@ jobs:
 
       - name: Run Template Test
         run: QT_QPA_PLATFORM=offscreen python3 tests/test_template.py ${{ matrix.template }}
+
+  test-examples-uvm:
+    name: UVM Verilator (${{ matrix.example }})
+    needs: [build, build-verilator]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - peripherals/spi
+          - peripherals/dma
+          - peripherals/sensor_hub
+          - peripherals/uart
+          - features/address_gap_example
+          - features/comprehensive
+          - features/custom_parameters
+          - features/map_node
+          - features/project_metadata
+          - features/python_post_generate
+          - features/soc_large_scale
+          - features/strict_validation
+          - features/template_folders
+          - features/wide_bus_64bit
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential \
+            gcc \
+            g++ \
+            make \
+            perl \
+            python3 \
+            qt6-base-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            zlib1g-dev \
+            libfl2 \
+            libfl-dev \
+            jq
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: build-artifact
+          path: build/
+
+      - name: Download Verilator artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: verilator-artifact
+          path: /tmp
+
+      - name: Extract Verilator and Add to PATH
+        run: |
+          tar -xzf /tmp/verilator-5.052.tar.gz -C /home/runner
+          echo "/home/runner/verilator-5.052/bin" >> $GITHUB_PATH
+          /home/runner/verilator-5.052/bin/verilator --version
+
+      - name: Restore Executable Permissions
+        run: chmod +x build/bin/* || true
+
+      - name: Export Register Models
+        run: |
+          export PATH="$PWD/build/bin:$PATH"
+          QT_QPA_PLATFORM=offscreen make -C examples/${{ matrix.example }} export
+
+      - name: Run UVM Simulation with Verilator
+        run: |
+          export PATH="$PWD/build/bin:$PATH"
+          make -C examples/${{ matrix.example }} sim-uvm SIM=verilator
 
   coverage:
     name: Code Coverage Analysis

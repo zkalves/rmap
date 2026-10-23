@@ -72,6 +72,10 @@ package reg_bus_pkg;
       vif.mck.wdata <= '0;
       vif.mck.wstrb <= '0;
 
+      // Wait for reset release before servicing transactions
+      wait (vif.rst_n === 1'b1);
+      @(vif.mck);
+
       forever begin
         seq_item_port.get_next_item(req);
         drive_transfer(req);
@@ -201,7 +205,7 @@ package reg_bus_pkg;
       item.op   = (rw.kind == UVM_WRITE) ? BUS_WRITE : BUS_READ;
       item.addr = rw.addr;
       item.data = rw.data;
-      item.strb = rw.byte_en;
+      item.strb = (rw.byte_en == '0) ? '1 : rw.byte_en;
       return item;
     endfunction
 

@@ -49,6 +49,15 @@ class {{ lower(blk.name) }}_reg_env extends uvm_env;
     // Connect Register Model map to Agent Sequencer & Adapter
     reg_model.default_map.set_sequencer(agent.sequencer, adapter);
     reg_model.default_map.set_auto_predict(0);
+    {% if existsIn(blk, "maps") and length(blk.maps) > 0 %}
+    {% for map in blk.maps %}
+    {% if lower(map.name) != "default_map" %}
+    reg_model.{{ lower(map.name) }}.set_sequencer(agent.sequencer, adapter);
+    reg_model.{{ lower(map.name) }}.set_auto_predict(0);
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    reg_model.set_hdl_path_root("tb_top.dut", "RTL");
 
     // Connect Monitor analysis port to Predictor
     predictor.map     = reg_model.default_map;

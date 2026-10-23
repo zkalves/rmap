@@ -208,6 +208,8 @@ The context passed to Inja templates provides rich hardware architecture and ver
 | `bitmask` | `{{ bitmask(fld.size_width, fld.offset_lsb) }}` | `0x00000001` |
 | `pad_zero`| `{{ pad_zero(fld.offset_lsb, 2) }}` | `"00"` |
 | `sv_hex`  | `{{ sv_hex(fld.reset_val, 32) }}` | `32'h0000` |
+| `sv_h`    | `{{ sv_h(fld.reset_val) }}` | `'h0000` |
+| `sv_id`   | `{{ sv_id(reg.name) }}` | `\config ` (escapes IEEE 1800 keywords) |
 | `sv_lock_expr` | `{{ sv_lock_expr(reg.lock_wr) }}` | `(hw_sec_lock_i \|\| reg_ctrl_q[0])` |
 | `v_lock_expr`  | `{{ v_lock_expr(reg.lock_wr) }}` | `(hw_sec_lock_i \|\| reg_ctrl_q[0])` |
 | `vhd_lock_expr`| `{{ vhd_lock_expr(reg.lock_wr) }}` | `((hw_sec_lock_i = '1') or (reg_ctrl_q(0) = '1'))` |
@@ -345,8 +347,10 @@ The context passed to Inja templates provides rich hardware architecture and ver
     - Compatible across Accellera UVM 1.1d, UVM 1.2, IEEE 1800.2-2017, and IEEE 1800.2-2020.
 
 21. **Multi-Tool Simulation Makefile** (`sim/Makefile.inja`):
-    - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and commercial EDA simulators (`sim-uvm SIM=vcs|xrun|mti`).
+    - Automated runner Makefile targeting Icarus Verilog (`sim-rtl`), Verilator (`sim-verilator`), Cocotb/pyuvm (`sim-pyuvm`), and Verilator / commercial EDA simulators (`sim-uvm SIM=verilator|vcs|xrun|mti`).
+    - Open-source IEEE 1800.2 UVM simulation with Verilator 5.052+ (`make sim-uvm SIM=verilator`).
     - Configurable UVM version selection via `UVM_VER=1800.2-2020|1800.2-2017|1.2|1.1d` or custom path via `UVM_HOME=/path/to/uvm`, with automatic local repository discovery.
+    - Optional waveform trace generation across Verilator and Icarus Verilog via `DUMP=1` (or `TRACE=1` / `WAVE=1`), supporting VCD (`DUMP=1` or `DUMP=vcd`) and FST (`DUMP=fst`) formats with custom output path (`DUMP_FILE=<filename>`).
 
 ### Software Strobes & Hardware Sideband Delivery Model
 
@@ -425,13 +429,10 @@ In the **Configuration Dialog** (`Ctrl+P`), you can configure multiple template 
   - `{template_name}` / `{filename}`: Base template name (e.g. `reg_map`, `reg_doc`).
   *(e.g., `{out}/{category}/{block_name}_regs.{ext}`).*
 - **Jinja / Inja Expressions in Filenames and Output Paths**: Template filenames and custom output paths support full Jinja / Inja expressions inside `{{ ... }}` (e.g. `{{project_name}}_{{module_name}}.sv.jinja` &rarr; `project_module.sv`):
-  - **Available Context**:
-    - `project_name`: Project name string defined in configuration (falls back to register map name).
-    - `module_name`: Active register block or module name string.
-    - All custom parameters defined in the Custom Parameters configuration table.
-    - All Inja helpers and filters: `snake_case(...)`, `camel_case(...)`, `pascal_case(...)`, `lower(...)`, `upper(...)`, `to_hex(...)`, `to_dec(...)`, `pad_zero(...)`, `bitmask(...)`, `sv_hex(...)`.
-  - **Automatic Multi-Block Fanout**: When a template filename or output path contains an expression referencing `module_name` (e.g. `{{module_name}}`), and the register map contains multiple blocks, **rmap** automatically fans out and generates one separate output file per block/module (e.g., `myproj_ctrl.sv` and `myproj_status.sv`), binding that block's `module_name` during rendering. Templates without `module_name` references render once as top-level files.
-  - **Defensive Error Handling**: If an expression contains a syntax error or references an undefined variable, the evaluation error is recorded in the generation report (`report.errors`) and generation of that file is skipped without producing malformed filenames.
+  - *Available Context*: Variables include `project_name` (project string), `module_name` (active register block or module string), all custom parameters defined in the configuration table, and all Inja helpers/filters (`snake_case`, `camel_case`, `pascal_case`, `lower`, `upper`, `to_hex`, `to_dec`, `pad_zero`, `bitmask`, `sv_hex`, `sv_h`, `sv_id`).
+  - *Automatic Multi-Block Fanout*: When a template filename or output path contains an expression referencing `module_name` (e.g. `{{module_name}}`), and the register map contains multiple blocks, rmap automatically fans out and generates one separate output file per block/module (e.g., `myproj_ctrl.sv` and `myproj_status.sv`), binding that block's `module_name` during rendering. Templates without `module_name` references render once as top-level files.
+  - *Defensive Error Handling*: If an expression contains a syntax error or references an undefined variable, the evaluation error is recorded in the generation report (`report.errors`) and generation of that file is skipped without producing malformed filenames.
+
 - **Direct File Output & Per-Template Overrides**: Users can override any template to target an explicit file path (e.g. `../../hw/rtl/spi_reg_file.sv` or `../../sw/include/spi_regs.h`). Missing parent directories are created automatically.
 - **Directory Output**: If a directory is specified (or ends in `/`), the filename is automatically computed by stripping the template extension (`.inja`, `.tmpl`, `.jinja`, `.j2`) from the template name, preserving the relative subfolder structure (e.g. `work/c/reg_map.h`).
 - **Relative Include Resolution**: Inja is initialized with each template's directory as root, ensuring `{% include %}` directives resolve cleanly regardless of template location.

@@ -65,7 +65,7 @@ flowchart TD
 - **Protobuf Data Schema (`src/format/rmap.proto`)**: Defines `protormap::Config`, `protormap::RegModel`, and `protormap::RegItem`.
 
 ### Subsystem 5: Code Generation, Localization & Utilities
-- **`CodeGenerator` (`src/CodeGenerator.*`)**: Pantor Inja template rendering engine managing template file resolution, Inja environment scoping, and destination path creation. Registers 12 domain helpers (`upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `msb`, `to_hex`, `to_dec`, `bitmask`, `pad_zero`, `sv_hex`) and evaluates dynamic path tokens (`{out_dir}`, `{name}`, `{block}`, `{cat}`, `{ext}`).
+- **`CodeGenerator` (`src/CodeGenerator.*`)**: Pantor Inja template rendering engine managing template file resolution, Inja environment scoping, and destination path creation. Registers 14 domain helpers (`upper`, `lower`, `camel_case`, `pascal_case`, `snake_case`, `c_type`, `msb`, `to_hex`, `to_dec`, `bitmask`, `pad_zero`, `sv_hex`, `sv_h`, `sv_id`) and evaluates dynamic path tokens (`{out_dir}`, `{name}`, `{block}`, `{cat}`, `{ext}`).
 - **`ThemeManager` (`src/ThemeManager.*`)**: Multi-theme styling engine supporting 8 color schemes, high-contrast modes, and Okabe-Ito / Wong CVD barrier-free palettes.
 - **`LanguageManager` (`src/LanguageManager.*`)**: Internationalization engine managing runtime JSON translation catalogs (`:/translations/*.json`) and dynamic locale switching via `JsonTranslator`.
 - **`AppSettings` (`src/AppSettings.*`)**: Persistent application settings and window geometry persistence via `QSettings`.
