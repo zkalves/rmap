@@ -2535,6 +2535,18 @@ void TestCodeGenerator::testCommandLineInterface() {
   auto [codeVer, outVer] = runRmap({"--version"});
   QCOMPARE(codeVer, 0);
   QVERIFY(outVer.contains("rmap"));
+  QVERIFY(outVer.contains("GPL"));
+
+  // 2a. --license and -L
+  auto [codeLic, outLic] = runRmap({"--license"});
+  QCOMPARE(codeLic, 0);
+  QVERIFY(outLic.contains("GNU General Public License"));
+  QVERIFY(outLic.contains("Output Exception"));
+
+  auto [codeLicShort, outLicShort] = runRmap({"-L"});
+  QCOMPARE(codeLicShort, 0);
+  QVERIFY(outLicShort.contains("GNU General Public License"));
+  QVERIFY(outLicShort.contains("Output Exception"));
 
   // 2b. Positional argument for register map file
   auto [codePos, outPos] = runRmap({"examples/peripherals/spi/spi.rmt", "-l"});

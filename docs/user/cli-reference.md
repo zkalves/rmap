@@ -30,7 +30,8 @@ rmap [OPTIONS] [file]
 | | `--parameterized-rtl` | Generate unified parameterized RTL deliverables across all configurations. |
 | `-h` | `--help` | Display command-line help and usage. |
 | | `--help-all` | Display command-line help including generic Qt options. |
-| `-v` | `--version` | Display application version. |
+| `-v` | `--version` | Display application version and license summary. |
+| `-L` | `--license` | Display application license and terms. |
 
 ### Mutual Exclusivity & Argument Compatibility
 

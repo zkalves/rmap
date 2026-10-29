@@ -39,7 +39,12 @@ int main(int argc, char *argv[]) {
   std::signal(SIGINT, signalHandler);
   Q_INIT_RESOURCE(resources);
   const QString version =
-      QStringLiteral("v") + QString::fromLatin1(RMAP_VERSION_STRING);
+      QStringLiteral("v") + QString::fromLatin1(RMAP_VERSION_STRING) +
+      QStringLiteral(
+          "\nLicense GPLv3+: GNU General Public License version 3 or later "
+          "<https://gnu.org/licenses/gpl.html> with Output Exception.\n"
+          "This is free software: you are free to change and redistribute it.\n"
+          "There is NO WARRANTY, to the extent permitted by law.");
 
   bool headless_mode = false;
   const char *disp = std::getenv("DISPLAY");
@@ -62,6 +67,7 @@ int main(int argc, char *argv[]) {
         arg == "-o" || arg.rfind("--out=", 0) == 0 ||
         arg.rfind("-o=", 0) == 0 || arg == "--help" || arg == "-h" ||
         arg == "--help-all" || arg == "--version" || arg == "-v" ||
+        arg == "--license" || arg == "-L" ||
         arg == "--all-configs" || arg == "--parameterized-rtl") {
       headless_mode = true;
     }
@@ -135,6 +141,8 @@ int main(int argc, char *argv[]) {
   QCommandLineOption param_rtl_opt("parameterized-rtl",
                                    "Generate unified parameterized RTL "
                                    "deliverables across all configurations");
+  QCommandLineOption license_opt({"L", "license"},
+                                 "Display application license and terms");
 
   parser.setApplicationDescription(
       "rmap — Hardware Register Map Designer & Model Generator");
@@ -158,7 +166,31 @@ int main(int argc, char *argv[]) {
   parser.addOption(config_opt);
   parser.addOption(all_configs_opt);
   parser.addOption(param_rtl_opt);
+  parser.addOption(license_opt);
   parser.process(app);
+
+  if (parser.isSet(license_opt)) {
+    std::cout
+        << "rmap — Hardware Register Map Designer & Model Generator\n"
+        << "Copyright (C) 2026 Ezequiel Alves. All rights reserved.\n\n"
+        << "License: GNU General Public License Version 3 (GPL-3.0-or-later) with Output Exception\n"
+        << "This program is free software: you can redistribute it and/or modify\n"
+        << "it under the terms of the GNU General Public License as published by\n"
+        << "the Free Software Foundation, either version 3 of the License, or\n"
+        << "(at your option) any later version.\n\n"
+        << "This program is distributed in the hope that it will be useful,\n"
+        << "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        << "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        << "GNU General Public License for more details.\n\n"
+        << "You should have received a copy of the GNU General Public License\n"
+        << "along with this program.  If not, see <https://www.gnu.org/licenses/>.\n\n"
+        << "Output Exception:\n"
+        << "The code and artifacts generated as output by this tool are not subject to the\n"
+        << "license of this software. You may use, modify, redistribute, and sublicense the\n"
+        << "generated output for any purpose, commercial or non-commercial, without limitation\n"
+        << "or attribution requirement.\n";
+    return 0;
+  }
 
   // 1. Validate mutual exclusivity of headless action modes
   int actionCount = 0;
