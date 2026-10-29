@@ -525,6 +525,15 @@ QString ColorScheme::generateStyleSheet() const {
   qss += QString("QSplitter::handle { background-color: %1; }\n")
              .arg(border.name());
 
+  qss += QString(
+      "QDockWidget { color: %1; }\n"
+      "QDockWidget::title { background-color: %2; color: %1; text-align: left; "
+      "padding: 3px 6px; font-size: 11px; font-weight: bold; border-bottom: 1px solid %3; }\n"
+      "QDockWidget::close-button, QDockWidget::float-button { border: none; background: transparent; "
+      "padding: 2px; }\n"
+      "QDockWidget::close-button:hover, QDockWidget::float-button:hover { background-color: %4; border-radius: 2px; }\n")
+      .arg(headerText.name(), headerBg.name(), border.name(), selectionBg.name());
+
   QString vsb = QStringLiteral(
       "QScrollBar:vertical { background: %1; width: 12px; margin: 0px; }\n"
       "QScrollBar::handle:vertical { background: %2; min-height: 20px; "

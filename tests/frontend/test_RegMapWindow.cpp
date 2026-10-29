@@ -20,8 +20,8 @@
 #include "BlockMemoryMapWidget.hpp"
 #include "LanguageManager.hpp"
 #include "RegConfigWindow.hpp"
-#include "RegMapWindow.hpp"
 #include "RegLockDialog.hpp"
+#include "RegMapWindow.hpp"
 #include "SerializationContext.hpp"
 #include "format/FormatManager.hpp"
 #include "proto/rmap.pb.h"
@@ -119,6 +119,7 @@ private slots:
   void testMemoryItemEditingAndProperties();
   void testAppIconAndWindowIcons();
   void testHeaderPropertiesAndLayoutsCoverage();
+  void testDockingPresetsAndLayoutLocking();
 };
 
 void TestRegMapWindow::testWindowInitAndFileOpen() {
@@ -4647,7 +4648,8 @@ void TestRegMapWindow::testHeaderPropertiesAndLayoutsCoverage() {
   }
 
   // Test registerClicked on memory map widget
-  auto *regBlockMap = window.findChild<BlockMemoryMapWidget *>("regBlockMemoryMapWidget");
+  auto *regBlockMap =
+      window.findChild<BlockMemoryMapWidget *>("regBlockMemoryMapWidget");
   if (regBlockMap) {
     emit regBlockMap->registerClicked(0, nullptr);
     QApplication::processEvents();
@@ -4671,8 +4673,10 @@ void TestRegMapWindow::testHeaderPropertiesAndLayoutsCoverage() {
   auto *memWrLockBtn = window.findChild<QToolButton *>("memWrLockBtn");
   auto *memRdLockBtn = window.findChild<QToolButton *>("memRdLockBtn");
   auto *memNoTestCheck = window.findChild<QCheckBox *>("memNoTestCheck");
-  auto *memNoWalkTestCheck = window.findChild<QCheckBox *>("memNoWalkTestCheck");
-  auto *memNoAccessTestCheck = window.findChild<QCheckBox *>("memNoAccessTestCheck");
+  auto *memNoWalkTestCheck =
+      window.findChild<QCheckBox *>("memNoWalkTestCheck");
+  auto *memNoAccessTestCheck =
+      window.findChild<QCheckBox *>("memNoAccessTestCheck");
 
   if (memNameEdit) {
     memNameEdit->setText("MEM_TEST");
@@ -4834,7 +4838,8 @@ void TestRegMapWindow::testHeaderPropertiesAndLayoutsCoverage() {
   window.currentMemSourceIndex(1);
 
   // 4. Test Layout actions in m_layoutActionGroup
-  const QStringList layoutModes = {"classic", "two_column", "compact", "table"};
+  const QStringList layoutModes = {"tabbed", "classic", "table",
+                                   "visual", "minimal", "custom"};
   for (const QString &mode : layoutModes) {
     for (QAction *action : window.findChildren<QAction *>()) {
       if (action->data().toString() == mode) {
@@ -4844,6 +4849,134 @@ void TestRegMapWindow::testHeaderPropertiesAndLayoutsCoverage() {
       }
     }
   }
+}
+
+void TestRegMapWindow::testDockingPresetsAndLayoutLocking() {
+  QString file = "examples/peripherals/spi/spi.rmt";
+  RegMapWindow window(file);
+  window.show();
+  QApplication::processEvents();
+
+  // 1. Verify 5 docks exist
+  auto *navDock = window.findChild<QDockWidget *>("NavigationDock");
+  auto *propDock = window.findChild<QDockWidget *>("PropertiesDock");
+  auto *fieldsDock = window.findChild<QDockWidget *>("FieldsTableDock");
+  auto *bitfieldDock = window.findChild<QDockWidget *>("BitfieldDock");
+  auto *memMapDock = window.findChild<QDockWidget *>("MemoryMapDock");
+
+  QVERIFY(navDock != nullptr);
+  QVERIFY(propDock != nullptr);
+  QVERIFY(fieldsDock != nullptr);
+  QVERIFY(bitfieldDock != nullptr);
+  QVERIFY(memMapDock != nullptr);
+
+  // 2. Test Presets via setLayoutMode / applyPresetLayout
+  // Preset: tabbed (default)
+  window.setLayoutMode("tabbed");
+  QApplication::processEvents();
+  QCOMPARE(window.layoutMode(), QString("tabbed"));
+  QVERIFY(navDock->isVisible());
+  QVERIFY(propDock->isVisible());
+  QVERIFY(fieldsDock->isVisible());
+  QVERIFY(bitfieldDock->isVisible());
+  QVERIFY(memMapDock->isVisible());
+
+  // Preset: classic
+  window.setLayoutMode(AppSettings::classicLayoutId());
+  QApplication::processEvents();
+  QCOMPARE(window.layoutMode(), AppSettings::classicLayoutId());
+  QVERIFY(navDock->isVisible());
+  QVERIFY(propDock->isVisible());
+  QVERIFY(fieldsDock->isVisible());
+  QVERIFY(bitfieldDock->isVisible());
+  QVERIFY(!memMapDock->isVisible());
+
+  // Preset: table
+  window.setLayoutMode("table");
+  QApplication::processEvents();
+  QCOMPARE(window.layoutMode(), QString("table"));
+  QVERIFY(navDock->isVisible());
+  QVERIFY(propDock->isVisible());
+  QVERIFY(fieldsDock->isVisible());
+  QVERIFY(!bitfieldDock->isVisible());
+  QVERIFY(!memMapDock->isVisible());
+
+  // Preset: visual
+  window.setLayoutMode("visual");
+  QApplication::processEvents();
+  QCOMPARE(window.layoutMode(), QString("visual"));
+  QVERIFY(navDock->isVisible());
+  QVERIFY(propDock->isVisible());
+  QVERIFY(fieldsDock->isVisible());
+  QVERIFY(bitfieldDock->isVisible());
+  QVERIFY(memMapDock->isVisible());
+
+  // Preset: minimal
+  window.setLayoutMode("minimal");
+  QApplication::processEvents();
+  QCOMPARE(window.layoutMode(), QString("minimal"));
+  QVERIFY(navDock->isVisible());
+  QVERIFY(fieldsDock->isVisible());
+  QVERIFY(!propDock->isVisible());
+  QVERIFY(!bitfieldDock->isVisible());
+  QVERIFY(!memMapDock->isVisible());
+
+  // Test floating dock handling during preset switch
+  bitfieldDock->setFloating(true);
+  QVERIFY(bitfieldDock->isFloating());
+  window.applyPresetLayout("tabbed");
+  QVERIFY(!bitfieldDock->isFloating());
+
+  // 3. Test Layout Locking
+  window.setLayoutLocked(true);
+  QVERIFY(AppSettings::instance().layoutLocked());
+  QVERIFY(!navDock->features().testFlag(QDockWidget::DockWidgetMovable));
+  QVERIFY(!navDock->features().testFlag(QDockWidget::DockWidgetFloatable));
+
+  window.setLayoutLocked(false);
+  QVERIFY(!AppSettings::instance().layoutLocked());
+  QVERIFY(navDock->features().testFlag(QDockWidget::DockWidgetMovable));
+  QVERIFY(navDock->features().testFlag(QDockWidget::DockWidgetFloatable));
+
+  // Toggle layout lock via action
+  auto *lockAction = window.findChild<QAction *>("actionLockLayout");
+  QVERIFY(lockAction != nullptr);
+  lockAction->trigger();
+  QVERIFY(AppSettings::instance().layoutLocked());
+  lockAction->trigger();
+  QVERIFY(!AppSettings::instance().layoutLocked());
+
+  // 4. Test Panels Menu (Toggle View Actions)
+  auto *panelsMenu = window.findChild<QMenu *>("menuPanels");
+  QVERIFY(panelsMenu != nullptr);
+  QVERIFY(!panelsMenu->actions().isEmpty());
+  for (QAction *act : panelsMenu->actions()) {
+    bool before = act->isChecked();
+    act->trigger();
+    QApplication::processEvents();
+    QCOMPARE(act->isChecked(), !before);
+    act->trigger();
+    QApplication::processEvents();
+    QCOMPARE(act->isChecked(), before);
+  }
+
+  // 5. Test Reset to Default Layout
+  auto *resetAction = window.findChild<QAction *>("actionResetLayout");
+  QVERIFY(resetAction != nullptr);
+  window.setLayoutMode("minimal");
+  QCOMPARE(window.layoutMode(), QString("minimal"));
+  resetAction->trigger();
+  QApplication::processEvents();
+  QCOMPARE(window.layoutMode(), QString("tabbed"));
+
+  // 6. Test onDockLayoutChanged -> switches to custom
+  window.onDockLayoutChanged();
+  QCOMPARE(window.layoutMode(), QString("custom"));
+  QCOMPARE(AppSettings::instance().layoutMode(), QString("custom"));
+
+  // Reset back to tabbed
+  window.resetToDefaultLayout();
+  QCOMPARE(window.layoutMode(), QString("tabbed"));
 }
 
 QTEST_MAIN(TestRegMapWindow)

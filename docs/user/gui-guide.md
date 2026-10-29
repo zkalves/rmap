@@ -42,6 +42,32 @@ The **rmap** graphical interface is designed specifically for hardware designers
   - **Interactive Bitfield Slice Visualizer**: Displays a continuous 32-bit or 64-bit segmented horizontal bar representing the physical bit layout of the selected register.
   - **Bitfields Table**: Detailed table listing all fields in the currently selected register (`Offset`, `Size`, `Name`, `Access Policy`, `HW Access`, `Reset Value`, `Is Rand`, `Volatile`, `Has Reset`, `Description`).
 
+### Modular Docking Architecture & Layout Presets
+
+**rmap** features a fully configurable native `QDockWidget` architecture where all primary functional panels operate as independent, dockable, detachable, and tabbed widgets:
+
+- **5 Modular Docks**:
+  - **Navigation Tree** (`NavigationDock`): Tree hierarchy view (`blk`, `reg`, `mem`) and live search filter.
+  - **Properties Inspector** (`PropertiesDock`): Dedicated inspector displaying contextual header properties (Name, Offset, Description) for selected registers, blocks, or memories.
+  - **Fields Table** (`FieldsTableDock`): Bitfields table with access policy pill badges, 1-click policy cycling, hardware access modes, reset values, and write/read lock rules.
+  - **Bitfield Visualizer** (`BitfieldDock`): Continuous 32/64-bit segmented bar visualizer with Okabe-Ito barrier-free color palette and interactive selection synchronization.
+  - **Memory Map Diagram** (`MemoryMapDock`): Stacked address space diagram highlighting unmapped gaps and register blocks.
+
+- **5 Built-In Layout Presets (`View -> Layout`)**:
+  - **Tabbed (Default)**: Balanced workflow combining the Navigation Tree on the left with Properties Inspector, Bitfield Visualizer, and Fields Table stacked vertically on the right, and the Memory Map Diagram tabbed alongside the Bitfield Visualizer.
+  - **Classic (Split)**: Traditional top-and-bottom split reproducing the legacy layout with a full-width Fields Table below the visualizer and properties header.
+  - **Full Table**: Spreadsheet-optimized layout maximizing table view surface by hiding the Bitfield Visualizer and Memory Map diagrams.
+  - **Visual Explorer**: Hardware-focused layout placing the Bitfield Visualizer and Memory Map diagram side-by-side above the Fields Table.
+  - **Review / Minimal**: Streamlined inspection layout showing only the Navigation Tree and Fields Table for dense register verification reviews.
+  - **Custom Layout**: Dynamically activated whenever panes are manually rearranged, tabbed, detached, or resized.
+
+- **Workspace Management & Controls**:
+  - **Lock Dock Movement (`View -> Layout -> Lock Dock Movement`)**: Freezes docking positions, disabling tab dragging or pane undocking to prevent accidental rearrangement.
+  - **Reset to Default Layout (`View -> Layout -> Reset to Default Layout`)**: Instantly restores the golden Tabbed preset.
+  - **Panels Visibility Menu (`View -> Panels`)**: Checkable menu items to quickly show or hide individual dock widgets.
+  - **Multi-Monitor & Detached Windows**: Double-click any dock header or drag it outside the application to float it across multiple displays.
+  - **Session State Persistence**: Window geometry, dock positions, tabbed groupings, and visibility states are automatically serialized across sessions in `~/.config/rmap/rmap.conf`.
+
 ---
 
 ## 2. Interactive Bitfield Bar Visualizer

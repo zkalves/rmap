@@ -1,0 +1,127 @@
+{
+  "version": "1.2.1",
+  "project": "rmap",
+  "source_of_truth": "docs/",
+  "agents": [
+    {
+      "name": "architect",
+      "model": "claude-sonnet-4.6-thinking",
+      "model_effort": "low",
+      "type": "specification_architect",
+      "role": "System & Specification Architect",
+      "description": "Interactive specification and architecture agent. Resolves contradictions, asks clarifying questions, prevents guessing, updates docs/ as canonical truth, verifies docs builds, and coordinates implementation lockstep while ingesting DOC-FLAG notices.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/architect.md"
+    },
+    {
+      "name": "designer",
+      "model": "claude-sonnet-4.6-thinking",
+      "model_effort": "low",
+      "type": "orchestrator",
+      "role": "System Design Orchestrator",
+      "description": "Orchestrates sub-agents to implement specifications from docs/ (golden reference) across sources, examples, templates, tests, and flows in lockstep with documentation. Flags implementation modifications to architect with DOC-FLAG. Never modifies documentation.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": true,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/designer.md"
+    },
+    {
+      "name": "source-maintainer",
+      "model": "gemini-3.1-pro",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "Source Code Maintainer",
+      "description": "Maintains C++17/Qt 6 code using clang-format, clang-tidy, and qt-ai-skills. Enforces zero warnings.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/source-maintainer.md"
+    },
+    {
+      "name": "feature-audit",
+      "model": "claude-sonnet-4.6-thinking",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "Feature Completeness Specialist",
+      "description": "Audits src/ and src/format/ against docs/ Markdown files and implements missing features.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/feature-audit.md"
+    },
+    {
+      "name": "test-coverage",
+      "model": "gemini-3.8-flash",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "Quality & Test Coverage Specialist",
+      "description": "Parses gcov coverage reports and writes Catch2 and QtTest suites to achieve 100% line/function coverage. Maintains dynamic coverage badges only in README.md (no coverage tables).",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/test-coverage.md"
+    },
+    {
+      "name": "uvm-template-sync",
+      "model": "gemini-3.8-flash",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "UVM Verification Specialist",
+      "description": "Audits templates/uvm/ and pyuvm testbenches against IEEE 1800.2 standards using pyuvm/Cocotb.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/uvm-template-sync.md"
+    },
+    {
+      "name": "rtl-lint-formal",
+      "model": "gemini-3.8-flash",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "RTL Quality & Linting Specialist",
+      "description": "Validates generated RTL and testbench templates using open-source linters (Verilator, svlint, iverilog, verible).",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/rtl-lint-formal.md"
+    },
+    {
+      "name": "format-interop",
+      "model": "gemini-3.8-flash",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "Format Interoperability Specialist",
+      "description": "Validates lossless roundtrip format translation across CMSIS-SVD, SystemRDL, IP-XACT, JSON, CSV, and Protobuf.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/format-interop.md"
+    },
+    {
+      "name": "doc-sync",
+      "model": "gemini-3.8-flash",
+      "model_effort": "low",
+      "type": "auditor",
+      "role": "Documentation Drift Auditor",
+      "description": "Read-only auditor that detects bidirectional drift between code/templates/CLI and docs/ (golden reference), verifying documentation updates are implemented and implementation updates are documented or flagged with DOC-FLAG. Never modifies documentation.",
+      "enable_write_tools": false,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/doc-sync.md"
+    },
+    {
+      "name": "release-ci",
+      "model": "gemini-3.8-flash",
+      "model_effort": "low",
+      "type": "autonomous_fixer",
+      "role": "Release & CI/CD Automation Specialist",
+      "description": "Manages CI workflows, SemVer version bumps, package targets, and automated test runners.",
+      "enable_write_tools": true,
+      "enable_subagent_tools": false,
+      "enable_mcp_tools": false,
+      "definition_file": ".agents/subagents/release-ci.md"
+    }
+  ]
+}

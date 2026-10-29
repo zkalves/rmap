@@ -1690,12 +1690,15 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   connect(m_blockMemoryMapWidget, &BlockMemoryMapWidget::registerClicked, this,
           &RegMapWindow::navigateToRegister);
 
-  // Splitter setup
+  // Splitter & Modular Dock Widget setup
   m_splitter = new QSplitter(Qt::Horizontal, this);
+  m_splitter->setObjectName("splitter");
   m_splitter->addWidget(leftPanel);
   m_splitter->addWidget(rightPanel);
   m_splitter->setSizes(QList<int>() << 350 << 850);
-  this->setCentralWidget(m_splitter);
+  m_splitter->hide();
+
+  setupDockWidgets();
 
   // Synchronize Bitfield Bar click with Fields Table selection (bidirectional
   // cross-probing)
@@ -1809,9 +1812,11 @@ RegMapWindow::RegMapWindow(const QString &rmap_filename, QWidget *parent)
   setupColorBlindMenu();
   setupLanguageMenu();
   setupLayoutMenu();
+  setupPanelsMenu();
   setColourBlindMode(AppSettings::instance().colorBlindMode());
   setColourScheme(AppSettings::instance().colorScheme());
   setLanguage(AppSettings::instance().language());
+  setLayoutLocked(AppSettings::instance().layoutLocked());
   setLayoutMode(AppSettings::instance().layoutMode());
 
   restoreWindowStateFromSettings();
@@ -2258,6 +2263,106 @@ QString RegMapWindow::language() const {
   return LanguageManager::instance().currentLanguage();
 }
 
+void RegMapWindow::setupDockWidgets(void) {
+  setDockNestingEnabled(true);
+  setCorner(Qt::TopLeftCorner, Qt::LeftDockWidgetArea);
+  setCorner(Qt::BottomLeftCorner, Qt::LeftDockWidgetArea);
+  setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
+  setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
+
+  // 1. Navigation Dock
+  m_navDock = new QDockWidget(tr("Navigation Tree"), this);
+  m_navDock->setObjectName("NavigationDock");
+  m_navDock->setWidget(m_leftStackedWidget);
+  addDockWidget(Qt::LeftDockWidgetArea, m_navDock);
+
+  // 2. Properties Inspector Dock
+  m_propertiesDock = new QDockWidget(tr("Properties Inspector"), this);
+  m_propertiesDock->setObjectName("PropertiesDock");
+  QWidget *propContainer = new QWidget(m_propertiesDock);
+  propContainer->setObjectName("propContainer");
+  propContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+  QVBoxLayout *propLayout = new QVBoxLayout(propContainer);
+  propLayout->setContentsMargins(0, 0, 0, 0);
+  propLayout->setSpacing(0);
+  m_propertiesStack = new QStackedWidget(propContainer);
+  m_propertiesStack->setObjectName("propertiesStack");
+  m_propertiesStack->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+  m_propertiesStack->addWidget(m_regHeaderWidget);
+  m_propertiesStack->addWidget(m_blockHeaderWidget);
+  m_propertiesStack->addWidget(m_memHeaderWidget);
+  m_emptyPropertiesWidget = new QWidget(m_propertiesStack);
+  m_emptyPropertiesWidget->setObjectName("emptyPropertiesWidget");
+  QLabel *emptyPropLabel = new QLabel(
+      tr("Select an item in the navigation tree to edit properties."),
+      m_emptyPropertiesWidget);
+  emptyPropLabel->setAlignment(Qt::AlignCenter);
+  QVBoxLayout *emptyPropLayout = new QVBoxLayout(m_emptyPropertiesWidget);
+  emptyPropLayout->addWidget(emptyPropLabel);
+  m_propertiesStack->addWidget(m_emptyPropertiesWidget);
+  m_propertiesStack->setCurrentWidget(m_emptyPropertiesWidget);
+  propLayout->addWidget(m_propertiesStack);
+  m_propertiesDock->setWidget(propContainer);
+  addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+
+  // 3. Bitfield Visualizer Dock
+  m_bitfieldDock = new QDockWidget(tr("Bitfield Visualizer"), this);
+  m_bitfieldDock->setObjectName("BitfieldDock");
+  QWidget *bitfieldContainer = new QWidget(m_bitfieldDock);
+  bitfieldContainer->setObjectName("bitfieldContainer");
+  bitfieldContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+  QVBoxLayout *bfLayout = new QVBoxLayout(bitfieldContainer);
+  bfLayout->setContentsMargins(0, 0, 0, 0);
+  bfLayout->setSpacing(0);
+  bfLayout->addWidget(m_bitfieldBar);
+  m_bitfieldDock->setWidget(bitfieldContainer);
+  addDockWidget(Qt::RightDockWidgetArea, m_bitfieldDock);
+
+  // 4. Fields Table Dock
+  m_fieldsDock = new QDockWidget(tr("Fields Table"), this);
+  m_fieldsDock->setObjectName("FieldsTableDock");
+  QWidget *fieldsContainer = new QWidget(m_fieldsDock);
+  fieldsContainer->setObjectName("fieldsContainer");
+  fieldsContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  QVBoxLayout *fLayout = new QVBoxLayout(fieldsContainer);
+  fLayout->setContentsMargins(0, 0, 0, 0);
+  fLayout->setSpacing(2);
+  fLayout->addWidget(m_regTabBar);
+  fLayout->addWidget(m_regTabStack);
+  m_fieldsDock->setWidget(fieldsContainer);
+  addDockWidget(Qt::RightDockWidgetArea, m_fieldsDock);
+
+  // 5. Memory Map Diagram Dock
+  m_memMapDock = new QDockWidget(tr("Memory Map Diagram"), this);
+  m_memMapDock->setObjectName("MemoryMapDock");
+  m_memMapDock->setWidget(m_mapScrollArea);
+  m_mapScrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  addDockWidget(Qt::RightDockWidgetArea, m_memMapDock);
+
+  m_fieldsTableView->show();
+  m_regTabBar->show();
+  m_bitfieldBar->show();
+  m_mapScrollArea->show();
+
+  m_docks = {m_navDock, m_propertiesDock, m_fieldsDock, m_bitfieldDock,
+             m_memMapDock};
+
+  for (auto *dock : m_docks) {
+    connect(dock, &QDockWidget::dockLocationChanged, this, [this]() {
+      if (!m_applyingPreset && QApplication::mouseButtons() != Qt::NoButton) {
+        onDockLayoutChanged();
+      }
+    });
+    connect(dock, &QDockWidget::topLevelChanged, this, [this](bool) {
+      if (!m_applyingPreset) {
+        onDockLayoutChanged();
+      }
+    });
+  }
+
+  this->setCentralWidget(nullptr);
+}
+
 void RegMapWindow::setupLayoutMenu(void) {
   if (!menuView) {
     return; // GCOV_EXCL_LINE - Defensive menuView check
@@ -2268,22 +2373,49 @@ void RegMapWindow::setupLayoutMenu(void) {
   m_layoutActionGroup = new QActionGroup(this);
   m_layoutActionGroup->setExclusive(true);
 
-  QAction *actTabbed = m_layoutMenu->addAction(tr("&Tabbed (Task-Centric)"));
+  QAction *actTabbed = m_layoutMenu->addAction(tr("&Tabbed (Default)"));
   actTabbed->setCheckable(true);
   actTabbed->setData(QStringLiteral("tabbed"));
   m_layoutActionGroup->addAction(actTabbed);
 
-  QAction *actClassic =
-      m_layoutMenu->addAction(tr("&Classic (Horizontal Split)"));
+  QAction *actClassic = m_layoutMenu->addAction(tr("&Classic (Split)"));
   actClassic->setCheckable(true);
   actClassic->setData(AppSettings::classicLayoutId());
   m_layoutActionGroup->addAction(actClassic);
 
-  QAction *actTable =
-      m_layoutMenu->addAction(tr("Full &Table (Vertical Split)"));
+  QAction *actTable = m_layoutMenu->addAction(tr("Full &Table"));
   actTable->setCheckable(true);
   actTable->setData(QStringLiteral("table"));
   m_layoutActionGroup->addAction(actTable);
+
+  QAction *actVisual = m_layoutMenu->addAction(tr("&Visual Explorer"));
+  actVisual->setCheckable(true);
+  actVisual->setData(QStringLiteral("visual"));
+  m_layoutActionGroup->addAction(actVisual);
+
+  QAction *actMinimal = m_layoutMenu->addAction(tr("&Review / Minimal"));
+  actMinimal->setCheckable(true);
+  actMinimal->setData(QStringLiteral("minimal"));
+  m_layoutActionGroup->addAction(actMinimal);
+
+  QAction *actCustom = m_layoutMenu->addAction(tr("&Custom Layout"));
+  actCustom->setCheckable(true);
+  actCustom->setData(QStringLiteral("custom"));
+  m_layoutActionGroup->addAction(actCustom);
+
+  m_layoutMenu->addSeparator();
+
+  m_actLockLayout = m_layoutMenu->addAction(tr("&Lock Dock Movement"));
+  m_actLockLayout->setObjectName("actionLockLayout");
+  m_actLockLayout->setCheckable(true);
+  m_actLockLayout->setChecked(AppSettings::instance().layoutLocked());
+  connect(m_actLockLayout, &QAction::toggled, this,
+          &RegMapWindow::setLayoutLocked);
+
+  QAction *actReset = m_layoutMenu->addAction(tr("&Reset to Default Layout"));
+  actReset->setObjectName("actionResetLayout");
+  connect(actReset, &QAction::triggered, this,
+          &RegMapWindow::resetToDefaultLayout);
 
   connect(m_layoutActionGroup, &QActionGroup::triggered, this,
           [this](QAction *action) {
@@ -2298,6 +2430,300 @@ void RegMapWindow::setupLayoutMenu(void) {
   menuView->addMenu(m_layoutMenu);
 }
 
+void RegMapWindow::setupPanelsMenu(void) {
+  if (!menuView) {
+    return; // GCOV_EXCL_LINE - Defensive menuView check
+  }
+
+  m_panelsMenu = new QMenu(tr("&Panels"), menuView);
+  m_panelsMenu->setObjectName("menuPanels");
+  if (m_navDock) {
+    m_panelsMenu->addAction(m_navDock->toggleViewAction());
+  }
+  if (m_propertiesDock) {
+    m_panelsMenu->addAction(m_propertiesDock->toggleViewAction());
+  }
+  if (m_fieldsDock) {
+    m_panelsMenu->addAction(m_fieldsDock->toggleViewAction());
+  }
+  if (m_bitfieldDock) {
+    m_panelsMenu->addAction(m_bitfieldDock->toggleViewAction());
+  }
+  if (m_memMapDock) {
+    m_panelsMenu->addAction(m_memMapDock->toggleViewAction());
+  }
+  menuView->addMenu(m_panelsMenu);
+}
+
+void RegMapWindow::setLayoutLocked(bool locked) {
+  m_layoutLocked = locked;
+  AppSettings::instance().setLayoutLocked(locked);
+  if (m_actLockLayout) {
+    m_actLockLayout->setChecked(locked);
+  }
+  for (auto *dock : m_docks) {
+    if (dock) {
+      if (locked) {
+        dock->setFeatures(QDockWidget::DockWidgetClosable);
+      } else {
+        dock->setFeatures(QDockWidget::DockWidgetMovable |
+                          QDockWidget::DockWidgetFloatable |
+                          QDockWidget::DockWidgetClosable);
+      }
+    }
+  }
+}
+
+void RegMapWindow::resetToDefaultLayout() {
+  setLayoutMode(QStringLiteral("tabbed"));
+}
+
+void RegMapWindow::onDockLayoutChanged(void) {
+  if (m_layoutMode != "custom") {
+    m_layoutMode = QStringLiteral("custom");
+    AppSettings::instance().setLayoutMode(m_layoutMode);
+    if (m_propertiesDock && m_propertiesDock->widget()) {
+      m_propertiesDock->widget()->setSizePolicy(QSizePolicy::Expanding,
+                                                QSizePolicy::Preferred);
+    }
+    if (m_bitfieldDock && m_bitfieldDock->widget()) {
+      m_bitfieldDock->widget()->setSizePolicy(QSizePolicy::Expanding,
+                                              QSizePolicy::Preferred);
+    }
+    if (m_layoutActionGroup) {
+      for (auto *act : m_layoutActionGroup->actions()) {
+        act->setChecked(act->data().toString() == "custom");
+      }
+    }
+    if (m_pref_window) {
+      m_pref_window->setLayoutMode(m_layoutMode);
+    }
+  }
+}
+
+void RegMapWindow::applyPresetLayout(const QString &preset) {
+  m_applyingPreset = true;
+
+  for (auto *dock : m_docks) {
+    if (dock && dock->isFloating()) {
+      dock->setFloating(false);
+    }
+  }
+
+  QString p = preset.trimmed().toLower();
+  if (p == AppSettings::classicLayoutId() || p == "classic_split" ||
+      p == "classic_horizontal" || p == "horizontal") {
+    p = AppSettings::classicLayoutId();
+  } else if (p == "table") {
+    p = "table";
+  } else if (p == "visual" || p == "visual_explorer") {
+    p = "visual";
+  } else if (p == "minimal" || p == "review" || p == "review_minimal") {
+    p = "minimal";
+  } else {
+    p = QStringLiteral("tabbed");
+  }
+
+  if (m_propertiesDock && m_propertiesDock->widget()) {
+    m_propertiesDock->widget()->setSizePolicy(
+        QSizePolicy::Expanding,
+        p == "custom" ? QSizePolicy::Preferred : QSizePolicy::Maximum);
+  }
+  if (m_bitfieldDock && m_bitfieldDock->widget()) {
+    m_bitfieldDock->widget()->setSizePolicy(
+        QSizePolicy::Expanding,
+        p == "custom" ? QSizePolicy::Preferred : QSizePolicy::Maximum);
+  }
+  if (m_fieldsDock && m_fieldsDock->widget()) {
+    m_fieldsDock->widget()->setSizePolicy(QSizePolicy::Expanding,
+                                          QSizePolicy::Expanding);
+  }
+
+  int propH = m_propertiesDock
+                  ? std::max(85, m_propertiesDock->sizeHint().height())
+                  : 95;
+  int bfH =
+      m_bitfieldDock ? std::max(80, m_bitfieldDock->sizeHint().height()) : 100;
+
+  if (p == AppSettings::classicLayoutId()) {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Vertical);
+      m_splitter->setSizes({250, 450});
+    }
+    addDockWidget(Qt::TopDockWidgetArea, m_navDock);
+    addDockWidget(Qt::BottomDockWidgetArea, m_propertiesDock);
+    addDockWidget(Qt::BottomDockWidgetArea, m_bitfieldDock);
+    addDockWidget(Qt::BottomDockWidgetArea, m_fieldsDock);
+    addDockWidget(Qt::BottomDockWidgetArea, m_memMapDock);
+
+    m_navDock->show();
+    m_propertiesDock->show();
+    m_bitfieldDock->show();
+    m_fieldsDock->show();
+    m_memMapDock->hide();
+
+    splitDockWidget(m_propertiesDock, m_bitfieldDock, Qt::Vertical);
+    splitDockWidget(m_bitfieldDock, m_fieldsDock, Qt::Vertical);
+    splitDockWidget(m_propertiesDock, m_memMapDock, Qt::Vertical);
+
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(false);
+    }
+    if (m_fieldsTableView && m_model) {
+      m_fieldsTableView->setColumnHidden(0, true);
+      for (int col = 1; col < m_model->columnCount(); ++col) {
+        m_fieldsTableView->setColumnHidden(col, false);
+        m_fieldsTableView->resizeColumnToContents(col);
+        int minHeader =
+            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+        if (m_fieldsTableView->columnWidth(col) < minHeader) {
+          m_fieldsTableView->setColumnWidth(col, minHeader);
+        }
+      }
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13; // GCOV_EXCL_LINE - Defensive column fallback
+      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+          descCol, QHeaderView::Stretch);
+    }
+    resizeDocks({m_navDock, m_propertiesDock}, {250, 500}, Qt::Vertical);
+    resizeDocks({m_propertiesDock, m_bitfieldDock, m_fieldsDock},
+                {propH, bfH, 450}, Qt::Vertical);
+  } else if (p == "table") {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Horizontal);
+      m_splitter->setSizes({350, 850});
+    }
+    addDockWidget(Qt::LeftDockWidgetArea, m_navDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_fieldsDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_bitfieldDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_memMapDock);
+
+    m_navDock->show();
+    m_propertiesDock->show();
+    m_fieldsDock->show();
+    m_bitfieldDock->hide();
+    m_memMapDock->hide();
+
+    splitDockWidget(m_propertiesDock, m_fieldsDock, Qt::Vertical);
+
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(false);
+    }
+    if (m_fieldsTableView && m_model) {
+      m_fieldsTableView->setColumnHidden(0, true);
+      for (int col = 1; col < m_model->columnCount(); ++col) {
+        m_fieldsTableView->setColumnHidden(col, false);
+        m_fieldsTableView->resizeColumnToContents(col);
+        int minHeader =
+            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
+        if (m_fieldsTableView->columnWidth(col) < minHeader) {
+          m_fieldsTableView->setColumnWidth(col, minHeader);
+        }
+      }
+      int descCol = m_model ? m_model->columnOf("Description") : 13;
+      if (descCol < 0)
+        descCol = 13; // GCOV_EXCL_LINE - Defensive column fallback
+      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
+      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
+          descCol, QHeaderView::Stretch);
+    }
+    resizeDocks({m_navDock, m_fieldsDock}, {350, 850}, Qt::Horizontal);
+    resizeDocks({m_propertiesDock, m_fieldsDock}, {propH, 610}, Qt::Vertical);
+  } else if (p == "visual") {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Horizontal);
+      m_splitter->setSizes({350, 850});
+    }
+    addDockWidget(Qt::LeftDockWidgetArea, m_navDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_bitfieldDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_memMapDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_fieldsDock);
+
+    m_navDock->show();
+    m_propertiesDock->show();
+    m_bitfieldDock->show();
+    m_memMapDock->show();
+    m_fieldsDock->show();
+
+    splitDockWidget(m_propertiesDock, m_bitfieldDock, Qt::Vertical);
+    splitDockWidget(m_bitfieldDock, m_memMapDock, Qt::Horizontal);
+    splitDockWidget(m_bitfieldDock, m_fieldsDock, Qt::Vertical);
+
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(true);
+    }
+    applyFieldTabColumnFilter(m_regTabBar ? m_regTabBar->currentIndex() : 0);
+
+    resizeDocks({m_navDock, m_propertiesDock}, {350, 850}, Qt::Horizontal);
+    resizeDocks({m_propertiesDock, m_bitfieldDock, m_fieldsDock},
+                {propH, bfH, 430}, Qt::Vertical);
+  } else if (p == "minimal") {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Horizontal);
+      m_splitter->setSizes({350, 850});
+    }
+    addDockWidget(Qt::LeftDockWidgetArea, m_navDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_fieldsDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_bitfieldDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_memMapDock);
+
+    m_navDock->show();
+    m_fieldsDock->show();
+    m_propertiesDock->hide();
+    m_bitfieldDock->hide();
+    m_memMapDock->hide();
+
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(false);
+    }
+    if (m_fieldsTableView && m_model) {
+      m_fieldsTableView->setColumnHidden(0, true);
+      for (int col = 1; col < m_model->columnCount(); ++col) {
+        m_fieldsTableView->setColumnHidden(col, false);
+        m_fieldsTableView->resizeColumnToContents(col);
+      }
+    }
+    resizeDocks({m_navDock, m_fieldsDock}, {350, 850}, Qt::Horizontal);
+  } else {
+    if (m_splitter) {
+      m_splitter->setOrientation(Qt::Horizontal);
+      m_splitter->setSizes({350, 850});
+    }
+    addDockWidget(Qt::LeftDockWidgetArea, m_navDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_bitfieldDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_fieldsDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_memMapDock);
+
+    m_navDock->show();
+    m_propertiesDock->show();
+    m_bitfieldDock->show();
+    m_fieldsDock->show();
+    m_memMapDock->show();
+
+    splitDockWidget(m_propertiesDock, m_bitfieldDock, Qt::Vertical);
+    splitDockWidget(m_bitfieldDock, m_fieldsDock, Qt::Vertical);
+    tabifyDockWidget(m_bitfieldDock, m_memMapDock);
+    m_bitfieldDock->raise();
+
+    if (m_regTabBar) {
+      m_regTabBar->setVisible(true);
+    }
+    applyFieldTabColumnFilter(m_regTabBar ? m_regTabBar->currentIndex() : 0);
+
+    resizeDocks({m_navDock, m_propertiesDock}, {350, 850}, Qt::Horizontal);
+    resizeDocks({m_propertiesDock, m_bitfieldDock, m_fieldsDock},
+                {propH, bfH, 450}, Qt::Vertical);
+  }
+
+  m_applyingPreset = false;
+}
+
 void RegMapWindow::setLayoutMode(const QString &mode) {
   QString m = mode.trimmed().toLower();
   if (m == AppSettings::classicLayoutId() || m == "classic_split" ||
@@ -2305,6 +2731,12 @@ void RegMapWindow::setLayoutMode(const QString &mode) {
     m = AppSettings::classicLayoutId();
   } else if (m == "table") {
     m = "table";
+  } else if (m == "visual" || m == "visual_explorer") {
+    m = "visual";
+  } else if (m == "minimal" || m == "review" || m == "review_minimal") {
+    m = "minimal";
+  } else if (m == "custom") {
+    m = "custom";
   } else {
     m = QStringLiteral("tabbed");
   }
@@ -2322,73 +2754,8 @@ void RegMapWindow::setLayoutMode(const QString &mode) {
     m_pref_window->setLayoutMode(m_layoutMode);
   }
 
-  if (m_layoutMode == AppSettings::classicLayoutId()) {
-    if (m_splitter) {
-      m_splitter->setOrientation(Qt::Vertical);
-      m_splitter->setSizes({250, 450});
-    }
-    if (m_regTabBar) {
-      m_regTabBar->setVisible(false);
-    }
-    if (m_regTabStack) {
-      m_regTabStack->setCurrentIndex(0);
-    }
-    if (m_fieldsTableView && m_model) {
-      m_fieldsTableView->setColumnHidden(0, true);
-      for (int col = 1; col < m_model->columnCount(); ++col) {
-        m_fieldsTableView->setColumnHidden(col, false);
-        m_fieldsTableView->resizeColumnToContents(col);
-        int minHeader =
-            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
-        if (m_fieldsTableView->columnWidth(col) < minHeader) {
-          m_fieldsTableView->setColumnWidth(col, minHeader);
-        }
-      }
-      int descCol = m_model ? m_model->columnOf("Description") : 13;
-      if (descCol < 0)
-        descCol = 13; // GCOV_EXCL_LINE - Defensive column fallback
-      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
-      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
-          descCol, QHeaderView::Stretch);
-    }
-  } else if (m_layoutMode == "table") {
-    if (m_splitter) {
-      m_splitter->setOrientation(Qt::Horizontal);
-      m_splitter->setSizes({350, 850});
-    }
-    if (m_regTabBar) {
-      m_regTabBar->setVisible(false);
-    }
-    if (m_regTabStack) {
-      m_regTabStack->setCurrentIndex(0);
-    }
-    if (m_fieldsTableView && m_model) {
-      m_fieldsTableView->setColumnHidden(0, true);
-      for (int col = 1; col < m_model->columnCount(); ++col) {
-        m_fieldsTableView->setColumnHidden(col, false);
-        m_fieldsTableView->resizeColumnToContents(col);
-        int minHeader =
-            m_fieldsTableView->horizontalHeader()->sectionSizeHint(col);
-        if (m_fieldsTableView->columnWidth(col) < minHeader) {
-          m_fieldsTableView->setColumnWidth(col, minHeader);
-        }
-      }
-      int descCol = m_model ? m_model->columnOf("Description") : 13;
-      if (descCol < 0)
-        descCol = 13; // GCOV_EXCL_LINE - Defensive column fallback
-      m_fieldsTableView->horizontalHeader()->setStretchLastSection(true);
-      m_fieldsTableView->horizontalHeader()->setSectionResizeMode(
-          descCol, QHeaderView::Stretch);
-    }
-  } else {
-    if (m_splitter) {
-      m_splitter->setOrientation(Qt::Horizontal);
-      m_splitter->setSizes({350, 850});
-    }
-    if (m_regTabBar) {
-      m_regTabBar->setVisible(true);
-    }
-    applyFieldTabColumnFilter(m_regTabBar ? m_regTabBar->currentIndex() : 0);
+  if (m_layoutMode != "custom") {
+    applyPresetLayout(m_layoutMode);
   }
 
   if (this->statusBar()) {
@@ -2397,6 +2764,12 @@ void RegMapWindow::setLayoutMode(const QString &mode) {
       label = tr("Classic Layout");
     } else if (m_layoutMode == "table") {
       label = tr("Full Table Layout");
+    } else if (m_layoutMode == "visual") {
+      label = tr("Visual Explorer Layout");
+    } else if (m_layoutMode == "minimal") {
+      label = tr("Review / Minimal Layout");
+    } else if (m_layoutMode == "custom") {
+      label = tr("Custom Layout");
     } else {
       label = tr("Tabbed Layout");
     }
@@ -2434,14 +2807,38 @@ void RegMapWindow::updateDynamicTranslations(void) {
       for (auto *act : m_layoutActionGroup->actions()) {
         QString data = act->data().toString();
         if (data == "tabbed") {
-          act->setText(tr("&Tabbed (Task-Centric)"));
+          act->setText(tr("&Tabbed (Default)"));
         } else if (data == AppSettings::classicLayoutId()) {
-          act->setText(tr("&Classic (Horizontal Split)"));
+          act->setText(tr("&Classic (Split)"));
         } else if (data == "table") {
-          act->setText(tr("Full &Table (Vertical Split)"));
+          act->setText(tr("Full &Table"));
+        } else if (data == "visual") {
+          act->setText(tr("&Visual Explorer"));
+        } else if (data == "minimal") {
+          act->setText(tr("&Review / Minimal"));
+        } else if (data == "custom") {
+          act->setText(tr("&Custom Layout"));
         }
       }
     }
+  }
+  if (m_panelsMenu) {
+    m_panelsMenu->setTitle(tr("&Panels"));
+  }
+  if (m_navDock) {
+    m_navDock->setWindowTitle(tr("Navigation Tree"));
+  }
+  if (m_propertiesDock) {
+    m_propertiesDock->setWindowTitle(tr("Properties Inspector"));
+  }
+  if (m_fieldsDock) {
+    m_fieldsDock->setWindowTitle(tr("Fields Table"));
+  }
+  if (m_bitfieldDock) {
+    m_bitfieldDock->setWindowTitle(tr("Bitfield Visualizer"));
+  }
+  if (m_memMapDock) {
+    m_memMapDock->setWindowTitle(tr("Memory Map Diagram"));
   }
   if (m_model) {
     m_model->refreshHeaderData();
@@ -2486,8 +2883,14 @@ void RegMapWindow::restoreWindowStateFromSettings() {
   AppSettings::ensureWindowOnScreen(this, QSize(600, 450), QSize(1200, 800));
 
   QByteArray state = AppSettings::instance().mainWindowState();
+  bool restored = false;
   if (!state.isEmpty()) {
-    restoreState(state);
+    m_applyingPreset = true;
+    restored = restoreState(state);
+    m_applyingPreset = false;
+  }
+  if (!restored) {
+    applyPresetLayout(m_layoutMode);
   }
   QByteArray splitterState = AppSettings::instance().mainWindowSplitter();
   if (!splitterState.isEmpty() && m_splitter) {
@@ -2891,6 +3294,9 @@ void RegMapWindow::updatePaneVisibility(void) {
   if (!modelLoaded && m_rightStackedWidget &&
       m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+    if (m_propertiesStack && m_emptyPropertiesWidget) {
+      m_propertiesStack->setCurrentWidget(m_emptyPropertiesWidget);
+    }
   }
 }
 
@@ -3575,6 +3981,17 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
         m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
     }
+    if (m_propertiesStack && m_emptyPropertiesWidget) {
+      m_propertiesStack->setCurrentWidget(m_emptyPropertiesWidget);
+    }
+    if (m_layoutMode != "custom" && m_layoutMode != "visual") {
+      if (m_bitfieldDock)
+        m_bitfieldDock->hide();
+      if (m_fieldsDock)
+        m_fieldsDock->hide();
+      if (m_memMapDock)
+        m_memMapDock->hide();
+    }
     return;
   }
 
@@ -3654,6 +4071,37 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
       m_updatingRegHeader = false;
     }
 
+    if (m_propertiesStack && m_regHeaderWidget) {
+      m_propertiesStack->setCurrentWidget(m_regHeaderWidget);
+    }
+    if (m_layoutMode != "custom") {
+      if (m_propertiesDock && m_layoutMode != "minimal") {
+        m_propertiesDock->show();
+      }
+      if (m_bitfieldDock && m_layoutMode != "table" && m_layoutMode != "minimal") {
+        m_bitfieldDock->show();
+      }
+      if (m_fieldsDock) {
+        m_fieldsDock->show();
+      }
+      if (m_memMapDock && m_layoutMode != "visual") {
+        m_memMapDock->hide();
+      }
+      int propH = m_propertiesDock
+                      ? std::max(85, m_propertiesDock->sizeHint().height())
+                      : 95;
+      int bfH = m_bitfieldDock
+                    ? std::max(80, m_bitfieldDock->sizeHint().height())
+                    : 100;
+      if (m_layoutMode == "table") {
+        resizeDocks({m_propertiesDock, m_fieldsDock}, {propH, 610},
+                    Qt::Vertical);
+      } else {
+        resizeDocks({m_propertiesDock, m_bitfieldDock, m_fieldsDock},
+                    {propH, bfH, 450}, Qt::Vertical);
+      }
+    }
+
     if (m_fieldsTableView) { // GCOV_EXCL_BR_LINE - Defensive invariant
       if (m_fieldsTableView->model() != m_fieldProxy) {
         m_fieldsTableView->setModel(m_fieldProxy);
@@ -3715,6 +4163,17 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
     if (m_rightStackedWidget &&
         m_emptyViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
       m_rightStackedWidget->setCurrentWidget(m_emptyViewWidget);
+    }
+    if (m_propertiesStack && m_emptyPropertiesWidget) {
+      m_propertiesStack->setCurrentWidget(m_emptyPropertiesWidget);
+    }
+    if (m_layoutMode != "custom" && m_layoutMode != "visual") {
+      if (m_bitfieldDock)
+        m_bitfieldDock->hide();
+      if (m_fieldsDock)
+        m_fieldsDock->hide();
+      if (m_memMapDock)
+        m_memMapDock->hide();
     }
   }
   // GCOV_EXCL_STOP
@@ -3882,6 +4341,30 @@ void RegMapWindow::updateBlockView(RegMapTreeItem *blkItem) {
       m_blockViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_rightStackedWidget->setCurrentWidget(m_blockViewWidget);
   }
+  if (m_propertiesStack && m_blockHeaderWidget) {
+    m_propertiesStack->setCurrentWidget(m_blockHeaderWidget);
+  }
+  if (m_layoutMode != "custom") {
+    if (m_propertiesDock && m_layoutMode != "minimal") {
+      m_propertiesDock->show();
+    }
+    if (m_memMapDock) {
+      m_memMapDock->show();
+      m_memMapDock->raise();
+    }
+    if (m_layoutMode != "visual") {
+      if (m_bitfieldDock) {
+        m_bitfieldDock->hide();
+      }
+      if (m_fieldsDock) {
+        m_fieldsDock->hide();
+      }
+    }
+    int propH = m_propertiesDock
+                    ? std::max(85, m_propertiesDock->sizeHint().height())
+                    : 95;
+    resizeDocks({m_propertiesDock, m_memMapDock}, {propH, 610}, Qt::Vertical);
+  }
 }
 
 void RegMapWindow::updateMemView(RegMapTreeItem *memItem) {
@@ -3971,6 +4454,25 @@ void RegMapWindow::updateMemView(RegMapTreeItem *memItem) {
   if (m_rightStackedWidget &&
       m_memViewWidget) { // GCOV_EXCL_BR_LINE - Defensive invariant
     m_rightStackedWidget->setCurrentWidget(m_memViewWidget);
+  }
+  if (m_propertiesStack && m_memHeaderWidget) {
+    m_propertiesStack->setCurrentWidget(m_memHeaderWidget);
+  }
+  if (m_layoutMode != "custom") {
+    if (m_propertiesDock && m_layoutMode != "minimal") {
+      m_propertiesDock->show();
+    }
+    if (m_layoutMode != "visual") {
+      if (m_bitfieldDock) {
+        m_bitfieldDock->hide();
+      }
+      if (m_fieldsDock) {
+        m_fieldsDock->hide();
+      }
+      if (m_memMapDock) {
+        m_memMapDock->hide();
+      }
+    }
   }
 }
 
@@ -4123,7 +4625,8 @@ void RegMapWindow::showTreeContextMenu(const QPoint &pos) {
 
 void RegMapWindow::duplicateSelectedRegister(void) {
   QModelIndex proxyIndex;
-  if (m_fieldsTableView && m_fieldsTableView->hasFocus()) {
+  if (m_fieldsTableView && (m_fieldsTableView->hasFocus() ||
+                            QApplication::focusWidget() == m_fieldsTableView)) {
     QModelIndex fieldProxyIdx = m_fieldsTableView->currentIndex();
     if (fieldProxyIdx.isValid()) {
       proxyIndex = fieldProxyIdx;

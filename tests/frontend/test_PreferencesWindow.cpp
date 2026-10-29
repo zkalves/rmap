@@ -215,10 +215,11 @@ void TestPreferencesWindow::testLanguageSelection() {
 }
 
 void TestPreferencesWindow::testLayoutSelection() {
+  AppSettings::instance().setLayoutMode("tabbed");
   PreferencesWindow prefWin;
   auto *layoutCombo = prefWin.findChild<QComboBox *>("layoutCombo");
   QVERIFY(layoutCombo != nullptr);
-  QCOMPARE(layoutCombo->count(), 3);
+  QCOMPARE(layoutCombo->count(), 5);
 
   // Default is tabbed
   QCOMPARE(prefWin.layoutMode(), QString("tabbed"));
@@ -235,6 +236,35 @@ void TestPreferencesWindow::testLayoutSelection() {
   QCOMPARE(prefWin.layoutMode(), QString("table"));
   prefWin.accept();
   QCOMPARE(AppSettings::instance().layoutMode(), QString("table"));
+
+  // Change to visual
+  prefWin.setLayoutMode("visual");
+  QCOMPARE(prefWin.layoutMode(), QString("visual"));
+  prefWin.accept();
+  QCOMPARE(AppSettings::instance().layoutMode(), QString("visual"));
+
+  // Change to minimal
+  prefWin.setLayoutMode("minimal");
+  QCOMPARE(prefWin.layoutMode(), QString("minimal"));
+  prefWin.accept();
+  QCOMPARE(AppSettings::instance().layoutMode(), QString("minimal"));
+
+  // Test custom layout mode
+  prefWin.setLayoutMode("custom");
+  QCOMPARE(prefWin.layoutMode(), QString("custom"));
+  prefWin.accept();
+  QCOMPARE(AppSettings::instance().layoutMode(), QString("custom"));
+
+  // Open a new PreferencesWindow while layoutMode is "custom" to verify
+  // populateLayouts() includes Custom (Active)
+  {
+    PreferencesWindow customPrefWin;
+    auto *customLayoutCombo =
+        customPrefWin.findChild<QComboBox *>("layoutCombo");
+    QVERIFY(customLayoutCombo != nullptr);
+    QCOMPARE(customLayoutCombo->count(), 6);
+    QCOMPARE(customPrefWin.layoutMode(), QString("custom"));
+  }
 
   // Switch back to tabbed
   prefWin.setLayoutMode("tabbed");

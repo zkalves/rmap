@@ -39,6 +39,7 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDebug>
+#include <QDockWidget>
 #include <QFileInfo>
 #include <QLabel>
 #include <QLineEdit>
@@ -132,6 +133,17 @@ public:
 
   void setLayoutMode(const QString &mode);
   QString layoutMode() const { return m_layoutMode; }
+
+  void setLayoutLocked(bool locked);
+  bool isLayoutLocked() const { return m_layoutLocked; }
+  void resetToDefaultLayout();
+
+  QDockWidget *navDock() const { return m_navDock; }
+  QDockWidget *propertiesDock() const { return m_propertiesDock; }
+  QDockWidget *fieldsDock() const { return m_fieldsDock; }
+  QDockWidget *bitfieldDock() const { return m_bitfieldDock; }
+  QDockWidget *memMapDock() const { return m_memMapDock; }
+  QList<QDockWidget *> dockWidgets() const { return m_docks; }
 
   void saveWindowStateToSettings();
   void restoreWindowStateFromSettings();
@@ -284,7 +296,26 @@ private:
   void rebuildColorBlindMenu(void);
   void setupLanguageMenu(void);
   void setupLayoutMenu(void);
+  void setupPanelsMenu(void);
+  void setupDockWidgets(void);
+  void applyPresetLayout(const QString &preset);
+  void onDockLayoutChanged(void);
   void updateDynamicTranslations(void);
+
+  QDockWidget *m_navDock = nullptr;
+  QDockWidget *m_propertiesDock = nullptr;
+  QDockWidget *m_fieldsDock = nullptr;
+  QDockWidget *m_bitfieldDock = nullptr;
+  QDockWidget *m_memMapDock = nullptr;
+  QList<QDockWidget *> m_docks;
+
+  QStackedWidget *m_propertiesStack = nullptr;
+  QWidget *m_emptyPropertiesWidget = nullptr;
+
+  bool m_layoutLocked = false;
+  bool m_applyingPreset = false;
+  QAction *m_actLockLayout{nullptr};
+  QMenu *m_panelsMenu{nullptr};
 
   QString m_layoutMode = QStringLiteral("tabbed");
   QMenu *m_themeMenu{nullptr};

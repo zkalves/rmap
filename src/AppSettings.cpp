@@ -140,6 +140,12 @@ void AppSettings::setLayoutMode(const QString &mode) {
     m = classicLayoutId();
   } else if (m == "table") {
     m = "table";
+  } else if (m == "visual" || m == "visual_explorer") {
+    m = "visual";
+  } else if (m == "minimal" || m == "review" || m == "review_minimal") {
+    m = "minimal";
+  } else if (m == "custom") {
+    m = "custom";
   } else {
     m = QStringLiteral("tabbed");
   }
@@ -147,6 +153,16 @@ void AppSettings::setLayoutMode(const QString &mode) {
     m_layoutMode = m;
     save();
     emit layoutModeChanged(m_layoutMode);
+  }
+}
+
+bool AppSettings::layoutLocked() const { return m_layoutLocked; }
+
+void AppSettings::setLayoutLocked(bool locked) {
+  if (m_layoutLocked != locked) {
+    m_layoutLocked = locked;
+    save();
+    emit layoutLockedChanged(m_layoutLocked);
   }
 }
 
@@ -418,9 +434,17 @@ void AppSettings::load() {
     m_layoutMode = classicLayoutId();
   } else if (m_layoutMode == "table") {
     m_layoutMode = "table";
+  } else if (m_layoutMode == "visual" || m_layoutMode == "visual_explorer") {
+    m_layoutMode = "visual";
+  } else if (m_layoutMode == "minimal" || m_layoutMode == "review" ||
+             m_layoutMode == "review_minimal") {
+    m_layoutMode = "minimal";
+  } else if (m_layoutMode == "custom") {
+    m_layoutMode = "custom";
   } else {
     m_layoutMode = "tabbed";
   }
+  m_layoutLocked = settings.value("Appearance/LayoutLocked", false).toBool();
   m_hwPrecedence = settings.value("Generation/HwPrecedence", true).toBool();
 
   m_mainWindowGeometry = settings.value("Geometry/MainWindow").toByteArray();
@@ -463,6 +487,7 @@ void AppSettings::save() {
                     colorBlindModeToString(m_colorBlindType));
   settings.setValue("Appearance/Language", m_language);
   settings.setValue("Appearance/LayoutMode", m_layoutMode);
+  settings.setValue("Appearance/LayoutLocked", m_layoutLocked);
   settings.setValue("Generation/HwPrecedence", m_hwPrecedence);
 
   if (!m_mainWindowGeometry.isEmpty()) {

@@ -39,6 +39,12 @@ PreferencesWindow::PreferencesWindow(QWidget *parent)
   resize(500, 280);
   setMinimumSize(400, 220);
 
+  m_colourBlindMode = AppSettings::instance().colorBlindMode();
+  m_colourBlindType = AppSettings::instance().colorBlindType();
+  m_colourScheme = AppSettings::instance().colorScheme();
+  m_language = AppSettings::instance().language();
+  m_layoutMode = AppSettings::instance().layoutMode();
+
   // Initialize Colour Scheme combo
   populateThemes();
 
@@ -64,11 +70,6 @@ PreferencesWindow::PreferencesWindow(QWidget *parent)
     connect(applyBtn, &QPushButton::clicked, this, &PreferencesWindow::apply);
   }
 
-  m_colourBlindMode = AppSettings::instance().colorBlindMode();
-  m_colourBlindType = AppSettings::instance().colorBlindType();
-  m_colourScheme = AppSettings::instance().colorScheme();
-  m_language = AppSettings::instance().language();
-  m_layoutMode = AppSettings::instance().layoutMode();
   updateUiFromState();
 
   restoreWindowStateFromSettings();
@@ -124,10 +125,14 @@ void PreferencesWindow::populateLayouts() {
   }
   this->layoutCombo->clear();
   this->layoutCombo->addItem(tr("Tabbed (Default)"), QStringLiteral("tabbed"));
-  this->layoutCombo->addItem(tr("Classic (Horizontal Split)"),
+  this->layoutCombo->addItem(tr("Classic (Split)"),
                              AppSettings::classicLayoutId());
-  this->layoutCombo->addItem(tr("Full Table (Vertical Split)"),
-                             QStringLiteral("table"));
+  this->layoutCombo->addItem(tr("Full Table"), QStringLiteral("table"));
+  this->layoutCombo->addItem(tr("Visual Explorer"), QStringLiteral("visual"));
+  this->layoutCombo->addItem(tr("Review / Minimal"), QStringLiteral("minimal"));
+  if (current == "custom") {
+    this->layoutCombo->addItem(tr("Custom (Active)"), QStringLiteral("custom"));
+  }
   int idx = this->layoutCombo->findData(current);
   if (idx >= 0) {
     this->layoutCombo->setCurrentIndex(idx);
@@ -240,10 +245,20 @@ void PreferencesWindow::setLayoutMode(const QString &mode) {
     m = AppSettings::classicLayoutId();
   } else if (m == "table") {
     m = "table";
+  } else if (m == "visual" || m == "visual_explorer") {
+    m = "visual";
+  } else if (m == "minimal" || m == "review" || m == "review_minimal") {
+    m = "minimal";
+  } else if (m == "custom") {
+    m = "custom";
   } else {
     m = QStringLiteral("tabbed");
   }
   m_layoutMode = m;
+  if (m_layoutMode == "custom" && this->layoutCombo &&
+      this->layoutCombo->findData("custom") < 0) {
+    this->layoutCombo->addItem(tr("Custom (Active)"), QStringLiteral("custom"));
+  }
   updateUiFromState();
 }
 
