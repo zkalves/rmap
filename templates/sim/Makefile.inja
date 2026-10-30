@@ -60,7 +60,7 @@ ifdef UVM_VERSION
 endif
 
 # Auto-detect bundled UVM repository directory if present in workspace hierarchy
-UVM_REPO_DIR  ?= $(firstword $(wildcard ../../uvm ../../../uvm ../../../../uvm ../../../../../uvm))
+UVM_REPO_DIR  ?= $(firstword $(wildcard ../../uvm ../../../uvm ../../../../uvm ../../../../../uvm /opt/uvm /home/runner/uvm))
 
 # Normalize UVM_VER and select simulator-specific flags and bundled folder
 ifeq ($(findstring 1.1,$(UVM_VER)),1.1)

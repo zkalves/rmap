@@ -339,6 +339,11 @@ jobs:
           echo "/home/runner/verilator-5.052/bin" >> $GITHUB_PATH
           /home/runner/verilator-5.052/bin/verilator --version
 
+      - name: Setup UVM 1800.2-2020 Library
+        run: |
+          mkdir -p uvm
+          curl -sL "https://www.accellera.org/images/downloads/standards/uvm/1800.2-2020.3.2%20Release.gz" | tar -xz -C uvm
+
       - name: Restore Executable Permissions
         run: chmod +x build/bin/* || true
 
