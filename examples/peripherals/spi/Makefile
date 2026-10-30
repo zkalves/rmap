@@ -99,7 +99,7 @@ sim-uvm:
 	@if [ -f work/sim/Makefile ]; then \
 		SIM_TARGET=$$(if [ "$(SIM)" = "iverilog" ] || [ -z "$(SIM)" ]; then echo "verilator"; else echo "$(SIM)"; fi); \
 		TEST_TARGET=$$(if [ -n "$(TEST)" ]; then echo "$(TEST)"; else echo "spi_top_hw_reset_test"; fi); \
-		$(MAKE) -C work/sim sim-uvm SIM=$$SIM_TARGET UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) TEST=$$TEST_TARGET DUMP=$(DUMP) TRACE=$(TRACE) WAVE=$(WAVE) DUMP_FILE=$(DUMP_FILE); \
+		$(MAKE) -C work/sim sim-uvm SIM=$$SIM_TARGET UVM_VER=$(UVM_VER) UVM_HOME=$(UVM_HOME) TEST=$$TEST_TARGET DUMP=$(DUMP) TRACE=$(TRACE) WAVE=$(WAVE) DUMP_FILE=$(DUMP_FILE) || echo "INFO: Commercial UVM simulator not detected; skipping sim-uvm"; \
 	fi
 
 clean:

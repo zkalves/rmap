@@ -12,6 +12,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
   localparam int ADDR_WIDTH = 32;
   localparam int DATA_WIDTH = {{ reg_width }};
   localparam int STRB_WIDTH = DATA_WIDTH / 8;
+  localparam int CLK_PERIOD = 10;
   localparam bit PARAM_HW_PRECEDENCE = {% if exists("param_hw_precedence") %}{{ param_hw_precedence }}{% else if exists("hw_precedence") and hw_precedence %}1{% else %}1{% endif %};
   localparam bit ERROR_ON_WRITE_TO_RO = {% if exists("param_error_on_write_to_ro") %}{{ param_error_on_write_to_ro }}{% else if exists("error_on_write_to_ro") %}{{ error_on_write_to_ro }}{% else %}0{% endif %};
   localparam bit ERROR_ON_READ_FROM_WO = {% if exists("param_error_on_read_from_wo") %}{{ param_error_on_read_from_wo }}{% else if exists("error_on_read_from_wo") %}{{ error_on_read_from_wo }}{% else %}0{% endif %};
@@ -110,7 +111,7 @@ module tb_{{ lower(blk.name) }}_reg_file;
   // Clock Generation (100 MHz, 10ns period)
   initial begin
     clk_i = 1'b0;
-    forever #5 clk_i = ~clk_i;
+    forever #(CLK_PERIOD / 2) clk_i = ~clk_i;
   end
 
   // Optional Waveform Dumping (VCD / FST)
@@ -300,7 +301,15 @@ module tb_{{ lower(blk.name) }}_reg_file;
 
 {% for reg in blk.registers %}
     bus_read({{ sv_hex(reg.offset_hex, 32) }}, rdata);
+{% if length(reg.fields) == 0 %}
     check_val("{{ reg.name }}_reset", rdata, {{ sv_hex(reg.reset_val, reg_width) }}, '1);
+{% else %}
+{% for fld in reg.fields %}
+{% if upper(fld.access) != "WO" and upper(fld.access) != "WO1" and upper(fld.access) != "WOC" and upper(fld.access) != "WOS" and upper(fld.access) != "NOACCESS" and not (existsIn(fld, "decode_only") and fld.decode_only) %}
+    check_val("{{ reg.name }}.{{ fld.name }}_reset", (rdata >> {{ fld.offset_lsb }}) & {({{ fld.size_width }}){1'b1}}, {% if existsIn(fld, "reset_val") %}{{ sv_hex(fld.reset_val, fld.size_width) }}{% else %}0{% endif %}, '1);
+{% endif %}
+{% endfor %}
+{% endif %}
 {% endfor %}
 
     // -----------------------------------------------------------------------
