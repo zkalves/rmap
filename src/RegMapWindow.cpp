@@ -2287,7 +2287,8 @@ void RegMapWindow::setupDockWidgets(void) {
   propLayout->setSpacing(0);
   m_propertiesStack = new QStackedWidget(propContainer);
   m_propertiesStack->setObjectName("propertiesStack");
-  m_propertiesStack->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+  m_propertiesStack->setSizePolicy(QSizePolicy::Expanding,
+                                   QSizePolicy::Maximum);
   m_propertiesStack->addWidget(m_regHeaderWidget);
   m_propertiesStack->addWidget(m_blockHeaderWidget);
   m_propertiesStack->addWidget(m_memHeaderWidget);
@@ -2302,7 +2303,14 @@ void RegMapWindow::setupDockWidgets(void) {
   m_propertiesStack->addWidget(m_emptyPropertiesWidget);
   m_propertiesStack->setCurrentWidget(m_emptyPropertiesWidget);
   propLayout->addWidget(m_propertiesStack);
-  m_propertiesDock->setWidget(propContainer);
+
+  QScrollArea *propScroll = new QScrollArea(m_propertiesDock);
+  propScroll->setObjectName("propScrollArea");
+  propScroll->setWidgetResizable(true);
+  propScroll->setFrameShape(QFrame::NoFrame);
+  propScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+  propScroll->setWidget(propContainer);
+  m_propertiesDock->setWidget(propScroll);
   addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
 
   // 3. Bitfield Visualizer Dock
@@ -2310,7 +2318,8 @@ void RegMapWindow::setupDockWidgets(void) {
   m_bitfieldDock->setObjectName("BitfieldDock");
   QWidget *bitfieldContainer = new QWidget(m_bitfieldDock);
   bitfieldContainer->setObjectName("bitfieldContainer");
-  bitfieldContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+  bitfieldContainer->setSizePolicy(QSizePolicy::Expanding,
+                                   QSizePolicy::Maximum);
   QVBoxLayout *bfLayout = new QVBoxLayout(bitfieldContainer);
   bfLayout->setContentsMargins(0, 0, 0, 0);
   bfLayout->setSpacing(0);
@@ -2323,7 +2332,8 @@ void RegMapWindow::setupDockWidgets(void) {
   m_fieldsDock->setObjectName("FieldsTableDock");
   QWidget *fieldsContainer = new QWidget(m_fieldsDock);
   fieldsContainer->setObjectName("fieldsContainer");
-  fieldsContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  fieldsContainer->setSizePolicy(QSizePolicy::Expanding,
+                                 QSizePolicy::Expanding);
   QVBoxLayout *fLayout = new QVBoxLayout(fieldsContainer);
   fLayout->setContentsMargins(0, 0, 0, 0);
   fLayout->setSpacing(2);
@@ -2336,7 +2346,8 @@ void RegMapWindow::setupDockWidgets(void) {
   m_memMapDock = new QDockWidget(tr("Memory Map Diagram"), this);
   m_memMapDock->setObjectName("MemoryMapDock");
   m_memMapDock->setWidget(m_mapScrollArea);
-  m_mapScrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  m_mapScrollArea->setSizePolicy(QSizePolicy::Expanding,
+                                 QSizePolicy::Expanding);
   addDockWidget(Qt::RightDockWidgetArea, m_memMapDock);
 
   m_fieldsTableView->show();
@@ -4078,7 +4089,8 @@ void RegMapWindow::updateFieldsTable(const QModelIndex &current,
       if (m_propertiesDock && m_layoutMode != "minimal") {
         m_propertiesDock->show();
       }
-      if (m_bitfieldDock && m_layoutMode != "table" && m_layoutMode != "minimal") {
+      if (m_bitfieldDock && m_layoutMode != "table" &&
+          m_layoutMode != "minimal") {
         m_bitfieldDock->show();
       }
       if (m_fieldsDock) {
