@@ -169,6 +169,32 @@ jobs:
           name: verilator-artifact
           path: /tmp/verilator-5.052.tar.gz
 
+      - name: Cache UVM 1800.2-2020 Library
+        id: cache-uvm
+        uses: actions/cache@v6
+        with:
+          path: /home/runner/uvm-1800.2-2020.3.2.tar.gz
+          key: uvm-1800.2-2020.3.2
+
+      - name: Download UVM 1800.2-2020 Library
+        if: steps.cache-uvm.outputs.cache-hit != 'true'
+        run: |
+          if ! curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL \
+            "https://www.accellera.org/images/downloads/standards/uvm/1800.2-2020.3.2%20Release.gz" \
+            -o /home/runner/uvm-1800.2-2020.3.2.tar.gz; then
+            echo "Accellera download failed, falling back to GitHub release..."
+            mkdir -p /tmp/uvm_fallback/1800.2-2020.3.2
+            git clone --depth 1 --branch 2020.3.1 https://github.com/accellera-official/uvm-core.git /tmp/uvm_fallback/1800.2-2020.3.2
+            tar -czf /home/runner/uvm-1800.2-2020.3.2.tar.gz -C /tmp/uvm_fallback 1800.2-2020.3.2
+            rm -rf /tmp/uvm_fallback
+          fi
+
+      - name: Upload UVM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: uvm-artifact
+          path: /home/runner/uvm-1800.2-2020.3.2.tar.gz
+
   test-templates:
     name: Template Test (${{ matrix.template }})
     needs: [build, build-verilator]
@@ -339,10 +365,23 @@ jobs:
           echo "/home/runner/verilator-5.052/bin" >> $GITHUB_PATH
           /home/runner/verilator-5.052/bin/verilator --version
 
+      - name: Download UVM artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: uvm-artifact
+          path: /tmp
+
       - name: Setup UVM 1800.2-2020 Library
         run: |
-          mkdir -p uvm
-          curl -sL "https://www.accellera.org/images/downloads/standards/uvm/1800.2-2020.3.2%20Release.gz" | tar -xz -C uvm
+          mkdir -p uvm /home/runner/uvm
+          if [ -f /tmp/uvm-1800.2-2020.3.2.tar.gz ]; then
+            tar -xzf /tmp/uvm-1800.2-2020.3.2.tar.gz -C uvm
+            tar -xzf /tmp/uvm-1800.2-2020.3.2.tar.gz -C /home/runner/uvm
+          elif [ ! -d uvm/1800.2-2020.3.2 ]; then
+            curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL "https://www.accellera.org/images/downloads/standards/uvm/1800.2-2020.3.2%20Release.gz" -o /tmp/uvm.tar.gz
+            tar -xzf /tmp/uvm.tar.gz -C uvm
+            tar -xzf /tmp/uvm.tar.gz -C /home/runner/uvm
+          fi
 
       - name: Restore Executable Permissions
         run: chmod +x build/bin/* || true
